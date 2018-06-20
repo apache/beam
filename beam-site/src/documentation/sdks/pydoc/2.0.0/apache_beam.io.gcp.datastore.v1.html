@@ -1,0 +1,488 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.datastore.v1 package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.io.gcp.internal package" href="apache_beam.io.gcp.internal.html" />
+    <link rel="prev" title="apache_beam.io.gcp.datastore package" href="apache_beam.io.gcp.datastore.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.internal.html" title="apache_beam.io.gcp.internal package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.datastore.html" title="apache_beam.io.gcp.datastore package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.io.html" >apache_beam.io package</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="apache_beam.io.gcp.html" >apache_beam.io.gcp package</a> &#187;</li>
+          <li class="nav-item nav-item-4"><a href="apache_beam.io.gcp.datastore.html" accesskey="U">apache_beam.io.gcp.datastore package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.io.gcp.datastore.v1 package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.datastore.v1.datastoreio">apache_beam.io.gcp.datastore.v1.datastoreio module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.datastore.v1.fake_datastore">apache_beam.io.gcp.datastore.v1.fake_datastore module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.datastore.v1.helper">apache_beam.io.gcp.datastore.v1.helper module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.datastore.v1.query_splitter">apache_beam.io.gcp.datastore.v1.query_splitter module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.datastore.v1">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.io.gcp.datastore.html"
+                        title="previous chapter">apache_beam.io.gcp.datastore package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.io.gcp.internal.html"
+                        title="next chapter">apache_beam.io.gcp.internal package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.io.gcp.datastore.v1.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-io-gcp-datastore-v1-package">
+<h1>apache_beam.io.gcp.datastore.v1 package<a class="headerlink" href="#apache-beam-io-gcp-datastore-v1-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.io.gcp.datastore.v1.datastoreio">
+<span id="apache-beam-io-gcp-datastore-v1-datastoreio-module"></span><h2>apache_beam.io.gcp.datastore.v1.datastoreio module<a class="headerlink" href="#module-apache_beam.io.gcp.datastore.v1.datastoreio" title="Permalink to this headline">¶</a></h2>
+<p>A connector for reading from and writing to Google Cloud Datastore</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.datastore.v1.datastoreio.</code><code class="descname">ReadFromDatastore</code><span class="sig-paren">(</span><em>project</em>, <em>query</em>, <em>namespace=None</em>, <em>num_splits=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <code class="docutils literal"><span class="pre">PTransform</span></code> for reading from Google Cloud Datastore.</p>
+<p>To read a <code class="docutils literal"><span class="pre">PCollection[Entity]</span></code> from a Cloud Datastore <code class="docutils literal"><span class="pre">Query</span></code>, use
+<code class="docutils literal"><span class="pre">ReadFromDatastore</span></code> transform by providing a <cite>project</cite> id and a <cite>query</cite> to
+read from. You can optionally provide a <cite>namespace</cite> and/or specify how many
+splits you want for the query through <cite>num_splits</cite> option.</p>
+<p>Note: Normally, a runner will read from Cloud Datastore in parallel across
+many workers. However, when the <cite>query</cite> is configured with a <cite>limit</cite> or if the
+query contains inequality filters like <cite>GREATER_THAN, LESS_THAN</cite> etc., then
+all the returned results will be read by a single worker in order to ensure
+correct data. Since data is read from a single worker, this could have
+significant impact on the performance of the job.</p>
+<dl class="docutils">
+<dt>The semantics for the query splitting is defined below:</dt>
+<dd><p class="first">1. If <cite>num_splits</cite> is equal to 0, then the number of splits will be chosen
+dynamically at runtime based on the query data size.</p>
+<p>2. Any value of <cite>num_splits</cite> greater than
+<cite>ReadFromDatastore._NUM_QUERY_SPLITS_MAX</cite> will be capped at that value.</p>
+<p>3. If the <cite>query</cite> has a user limit set, or contains inequality filters, then
+<cite>num_splits</cite> will be ignored and no split will be performed.</p>
+<p class="last">4. Under certain cases Cloud Datastore is unable to split query to the
+requested number of splits. In such cases we just use whatever the Cloud
+Datastore returns.</p>
+</dd>
+</dl>
+<p>See <a class="reference external" href="https://developers.google.com/datastore/">https://developers.google.com/datastore/</a> for more details on Google Cloud
+Datastore.</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn">
+<em class="property">class </em><code class="descname">ReadFn</code><span class="sig-paren">(</span><em>project</em>, <em>namespace=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.ReadFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A DoFn that reads entities from Cloud Datastore, for a given query.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.ReadFn.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>query</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.ReadFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.ReadFn.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn">
+<em class="property">class </em><code class="descname">SplitQueryFn</code><span class="sig-paren">(</span><em>project</em>, <em>query</em>, <em>namespace</em>, <em>num_splits</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.SplitQueryFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A <cite>DoFn</cite> that splits a given query into multiple sub-queries.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.SplitQueryFn.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>query</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.SplitQueryFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.SplitQueryFn.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.get_estimated_num_splits">
+<em class="property">static </em><code class="descname">get_estimated_num_splits</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em>, <em>query</em>, <em>datastore</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.get_estimated_num_splits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.get_estimated_num_splits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the number of splits to be performed on the given query.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.get_estimated_size_bytes">
+<em class="property">static </em><code class="descname">get_estimated_size_bytes</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em>, <em>query</em>, <em>datastore</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.get_estimated_size_bytes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.get_estimated_size_bytes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the estimated size of the data returned by the given query.</p>
+<p>Cloud Datastore provides no way to get a good estimate of how large the
+result of a query is going to be. Hence we use the __Stat_Kind__ system
+table to get size of the entire kind as an approximate estimate, assuming
+exactly 1 kind is specified in the query.
+See <a class="reference external" href="https://cloud.google.com/datastore/docs/concepts/stats">https://cloud.google.com/datastore/docs/concepts/stats</a>.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.query_latest_statistics_timestamp">
+<em class="property">static </em><code class="descname">query_latest_statistics_timestamp</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em>, <em>datastore</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#ReadFromDatastore.query_latest_statistics_timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.query_latest_statistics_timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fetches the latest timestamp of statistics from Cloud Datastore.</p>
+<p>Cloud Datastore system tables with statistics are periodically updated.
+This method fethes the latest timestamp (in microseconds) of statistics
+update using the <cite>__Stat_Total__</cite> table.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.WriteToDatastore">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.datastore.v1.datastoreio.</code><code class="descname">WriteToDatastore</code><span class="sig-paren">(</span><em>project</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#WriteToDatastore"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.WriteToDatastore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.gcp.datastore.v1.datastoreio._Mutate</span></code></p>
+<p>A <code class="docutils literal"><span class="pre">PTransform</span></code> to write a <code class="docutils literal"><span class="pre">PCollection[Entity]</span></code> to Cloud Datastore.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.WriteToDatastore.to_upsert_mutation">
+<em class="property">static </em><code class="descname">to_upsert_mutation</code><span class="sig-paren">(</span><em>entity</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#WriteToDatastore.to_upsert_mutation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.WriteToDatastore.to_upsert_mutation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.DeleteFromDatastore">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.datastore.v1.datastoreio.</code><code class="descname">DeleteFromDatastore</code><span class="sig-paren">(</span><em>project</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#DeleteFromDatastore"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.DeleteFromDatastore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.gcp.datastore.v1.datastoreio._Mutate</span></code></p>
+<p>A <code class="docutils literal"><span class="pre">PTransform</span></code> to delete a <code class="docutils literal"><span class="pre">PCollection[Key]</span></code> from Cloud Datastore.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.datastore.v1.datastoreio.DeleteFromDatastore.to_delete_mutation">
+<em class="property">static </em><code class="descname">to_delete_mutation</code><span class="sig-paren">(</span><em>key</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/datastoreio.html#DeleteFromDatastore.to_delete_mutation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.datastoreio.DeleteFromDatastore.to_delete_mutation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.datastore.v1.fake_datastore">
+<span id="apache-beam-io-gcp-datastore-v1-fake-datastore-module"></span><h2>apache_beam.io.gcp.datastore.v1.fake_datastore module<a class="headerlink" href="#module-apache_beam.io.gcp.datastore.v1.fake_datastore" title="Permalink to this headline">¶</a></h2>
+<p>Fake datastore used for unit testing.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.fake_datastore.create_commit">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.fake_datastore.</code><code class="descname">create_commit</code><span class="sig-paren">(</span><em>mutations</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/fake_datastore.html#create_commit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.fake_datastore.create_commit" title="Permalink to this definition">¶</a></dt>
+<dd><p>A fake Datastore commit method that writes the mutations to a list.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>mutations</strong> &#8211; A list to write mutations to.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A fake Datastore commit method</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.fake_datastore.create_entities">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.fake_datastore.</code><code class="descname">create_entities</code><span class="sig-paren">(</span><em>count</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/fake_datastore.html#create_entities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.fake_datastore.create_entities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a list of entities with random keys.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.fake_datastore.create_response">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.fake_datastore.</code><code class="descname">create_response</code><span class="sig-paren">(</span><em>entities</em>, <em>end_cursor</em>, <em>finish</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/fake_datastore.html#create_response"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.fake_datastore.create_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a query response for a given batch of scatter entities.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.fake_datastore.create_run_query">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.fake_datastore.</code><code class="descname">create_run_query</code><span class="sig-paren">(</span><em>entities</em>, <em>batch_size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/fake_datastore.html#create_run_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.fake_datastore.create_run_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>A fake datastore run_query method that returns entities in batches.</p>
+<p>Note: the outer method is needed to make the <cite>entities</cite> and <cite>batch_size</cite>
+available in the scope of fake_run_query method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>entities</strong> &#8211; list of entities supposed to be contained in the datastore.</li>
+<li><strong>batch_size</strong> &#8211; the number of entities that run_query method returns in one
+request.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.datastore.v1.helper">
+<span id="apache-beam-io-gcp-datastore-v1-helper-module"></span><h2>apache_beam.io.gcp.datastore.v1.helper module<a class="headerlink" href="#module-apache_beam.io.gcp.datastore.v1.helper" title="Permalink to this headline">¶</a></h2>
+<p>Cloud Datastore helper functions.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.QueryIterator">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">QueryIterator</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em>, <em>query</em>, <em>datastore</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#QueryIterator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.QueryIterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A iterator class for entities of a given query.</p>
+<p>Entities are read in batches. Retries on failures.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.compare_path">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">compare_path</code><span class="sig-paren">(</span><em>p1</em>, <em>p2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#compare_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.compare_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>A comparator for key path.</p>
+<p>A path has either an <cite>id</cite> or a <cite>name</cite> field defined. The
+comparison works with the following rules:</p>
+<p>1. If one path has <cite>id</cite> defined while the other doesn&#8217;t, then the
+one with <cite>id</cite> defined is considered smaller.
+2. If both paths have <cite>id</cite> defined, then their ids are compared.
+3. If no <cite>id</cite> is defined for both paths, then their <cite>names</cite> are compared.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.fetch_entities">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">fetch_entities</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em>, <em>query</em>, <em>datastore</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#fetch_entities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.fetch_entities" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper method to fetch entities from Cloud Datastore.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>project</strong> &#8211; Project ID</li>
+<li><strong>namespace</strong> &#8211; Cloud Datastore namespace</li>
+<li><strong>query</strong> &#8211; Query to be read from</li>
+<li><strong>datastore</strong> &#8211; Cloud Datastore Client</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">An iterator of entities.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.get_datastore">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">get_datastore</code><span class="sig-paren">(</span><em>project</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#get_datastore"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.get_datastore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Cloud Datastore client.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.is_key_valid">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">is_key_valid</code><span class="sig-paren">(</span><em>key</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#is_key_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.is_key_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if a Cloud Datastore key is complete.</p>
+<p>A key is complete if its last element has either an id or a name.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.key_comparator">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">key_comparator</code><span class="sig-paren">(</span><em>k1</em>, <em>k2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#key_comparator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.key_comparator" title="Permalink to this definition">¶</a></dt>
+<dd><p>A comparator for Datastore keys.</p>
+<p>Comparison is only valid for keys in the same partition. The comparison here
+is between the list of paths for each key.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.make_kind_stats_query">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">make_kind_stats_query</code><span class="sig-paren">(</span><em>namespace</em>, <em>kind</em>, <em>latest_timestamp</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#make_kind_stats_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.make_kind_stats_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a Query to fetch the latest kind statistics.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.make_latest_timestamp_query">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">make_latest_timestamp_query</code><span class="sig-paren">(</span><em>namespace</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#make_latest_timestamp_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.make_latest_timestamp_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a Query to fetch the latest timestamp statistics.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.make_partition">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">make_partition</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#make_partition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.make_partition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a PartitionId for the given project and namespace.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.make_request">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">make_request</code><span class="sig-paren">(</span><em>project</em>, <em>namespace</em>, <em>query</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#make_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.make_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a Cloud Datastore request for the given query.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.retry_on_rpc_error">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">retry_on_rpc_error</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#retry_on_rpc_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.retry_on_rpc_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>A retry filter for Cloud Datastore RPCErrors.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.str_compare">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">str_compare</code><span class="sig-paren">(</span><em>s1</em>, <em>s2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#str_compare"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.str_compare" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.helper.write_mutations">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.helper.</code><code class="descname">write_mutations</code><span class="sig-paren">(</span><em>datastore</em>, <em>project</em>, <em>mutations</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/helper.html#write_mutations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.helper.write_mutations" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper function to write a batch of mutations to Cloud Datastore.</p>
+<p>If a commit fails, it will be retried upto 5 times. All mutations in the
+batch will be committed again, even if the commit was partially successful.
+If the retry limit is exceeded, the last exception from Cloud Datastore will
+be raised.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.datastore.v1.query_splitter">
+<span id="apache-beam-io-gcp-datastore-v1-query-splitter-module"></span><h2>apache_beam.io.gcp.datastore.v1.query_splitter module<a class="headerlink" href="#module-apache_beam.io.gcp.datastore.v1.query_splitter" title="Permalink to this headline">¶</a></h2>
+<p>Implements a Cloud Datastore query splitter.</p>
+<dl class="function">
+<dt id="apache_beam.io.gcp.datastore.v1.query_splitter.get_splits">
+<code class="descclassname">apache_beam.io.gcp.datastore.v1.query_splitter.</code><code class="descname">get_splits</code><span class="sig-paren">(</span><em>datastore</em>, <em>query</em>, <em>num_splits</em>, <em>partition=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/datastore/v1/query_splitter.html#get_splits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.datastore.v1.query_splitter.get_splits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of sharded queries for the given Cloud Datastore query.</p>
+<p>This will create up to the desired number of splits, however it may return
+less splits if the desired number of splits is unavailable. This will happen
+if the number of split points provided by the underlying Datastore is less
+than the desired number, which will occur if the number of results for the
+query is too small.</p>
+<p>This implementation of the QuerySplitter uses the __scatter__ property to
+gather random split points for a query.</p>
+<p>Note: This implementation is derived from the java query splitter in
+<a class="reference external" href="https://github.com/GoogleCloudPlatform/google-cloud-datastore/blob/master/java/datastore/src/main/java/com/google/datastore/v1/client/QuerySplitterImpl.java">https://github.com/GoogleCloudPlatform/google-cloud-datastore/blob/master/java/datastore/src/main/java/com/google/datastore/v1/client/QuerySplitterImpl.java</a></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>datastore</strong> &#8211; the datastore client.</li>
+<li><strong>query</strong> &#8211; the query to split.</li>
+<li><strong>num_splits</strong> &#8211; the desired number of splits.</li>
+<li><strong>partition</strong> &#8211; the partition the query is running in.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A list of split queries, of a max length of <cite>num_splits</cite></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.datastore.v1">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.io.gcp.datastore.v1" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.internal.html" title="apache_beam.io.gcp.internal package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.datastore.html" title="apache_beam.io.gcp.datastore package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.io.html" >apache_beam.io package</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="apache_beam.io.gcp.html" >apache_beam.io.gcp package</a> &#187;</li>
+          <li class="nav-item nav-item-4"><a href="apache_beam.io.gcp.datastore.html" >apache_beam.io.gcp.datastore package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

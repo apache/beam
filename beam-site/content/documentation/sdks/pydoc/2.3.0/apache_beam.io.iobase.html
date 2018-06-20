@@ -1,0 +1,1207 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.iobase module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.localfilesystem module" href="apache_beam.io.localfilesystem.html"/>
+        <link rel="prev" title="apache_beam.io.hadoopfilesystem module" href="apache_beam.io.hadoopfilesystem.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.iobase module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.iobase.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.iobase">
+<span id="apache-beam-io-iobase-module"></span><h1>apache_beam.io.iobase module<a class="headerlink" href="#module-apache_beam.io.iobase" title="Permalink to this headline">¶</a></h1>
+<p>Sources and sinks.</p>
+<p>A Source manages record-oriented data input from a particular kind of source
+(e.g. a set of files, a database table, etc.). The reader() method of a source
+returns a reader object supporting the iterator protocol; iteration yields
+raw records of unprocessed, serialized data.</p>
+<p>A Sink manages record-oriented data output to a particular kind of sink
+(e.g. a set of files, a database table, etc.). The writer() method of a sink
+returns a writer object supporting writing records of serialized data to
+the sink.</p>
+<dl class="class">
+<dt id="apache_beam.io.iobase.BoundedSource">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">BoundedSource</code><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.iobase.SourceBase</span></code></p>
+<p>A source that reads a finite amount of input records.</p>
+<p>This class defines following operations which can be used to read the source
+efficiently.</p>
+<ul class="simple">
+<li>Size estimation - method <code class="docutils literal"><span class="pre">estimate_size()</span></code> may return an accurate
+estimation in bytes for the size of the source.</li>
+<li>Splitting into bundles of a given size - method <code class="docutils literal"><span class="pre">split()</span></code> can be used to
+split the source into a set of sub-sources (bundles) based on a desired
+bundle size.</li>
+<li>Getting a RangeTracker - method <code class="docutils literal"><span class="pre">get_range_tracker()</span></code> should return a
+<code class="docutils literal"><span class="pre">RangeTracker</span></code> object for a given position range for the position type
+of the records returned by the source.</li>
+<li>Reading the data - method <code class="docutils literal"><span class="pre">read()</span></code> can be used to read data from the
+source while respecting the boundaries defined by a given
+<code class="docutils literal"><span class="pre">RangeTracker</span></code>.</li>
+</ul>
+<p>A runner will perform reading the source in two steps.</p>
+<ol class="arabic simple">
+<li>Method <code class="docutils literal"><span class="pre">get_range_tracker()</span></code> will be invoked with start and end
+positions to obtain a <code class="docutils literal"><span class="pre">RangeTracker</span></code> for the range of positions the
+runner intends to read. Source must define a default initial start and end
+position range. These positions must be used if the start and/or end
+positions passed to the method <code class="docutils literal"><span class="pre">get_range_tracker()</span></code> are <code class="docutils literal"><span class="pre">None</span></code></li>
+<li>Method read() will be invoked with the <code class="docutils literal"><span class="pre">RangeTracker</span></code> obtained in the
+previous step.</li>
+</ol>
+<p><strong>Mutability</strong></p>
+<p>A <code class="docutils literal"><span class="pre">BoundedSource</span></code> object should not be mutated while
+its methods (for example, <code class="docutils literal"><span class="pre">read()</span></code>) are being invoked by a runner. Runner
+implementations may invoke methods of <code class="docutils literal"><span class="pre">BoundedSource</span></code> objects through
+multi-threaded and/or reentrant execution modes.</p>
+<dl class="method">
+<dt id="apache_beam.io.iobase.BoundedSource.estimate_size">
+<code class="descname">estimate_size</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource.estimate_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource.estimate_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Estimates the size of source in bytes.</p>
+<p>An estimate of the total size (in bytes) of the data that would be read
+from this source. This estimate is in terms of external storage size,
+before performing decompression or other processing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">estimated size of the source if the size can be determined, <code class="docutils literal"><span class="pre">None</span></code>
+otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.BoundedSource.split">
+<code class="descname">split</code><span class="sig-paren">(</span><em>desired_bundle_size</em>, <em>start_position=None</em>, <em>stop_position=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits the source into a set of bundles.</p>
+<p>Bundles should be approximately of size <code class="docutils literal"><span class="pre">desired_bundle_size</span></code> bytes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>desired_bundle_size</strong> – the desired size (in bytes) of the bundles returned.</li>
+<li><strong>start_position</strong> – if specified the given position must be used as the
+starting position of the first bundle.</li>
+<li><strong>stop_position</strong> – if specified the given position must be used as the ending
+position of the last bundle.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">an iterator of objects of type ‘SourceBundle’ that gives information about
+the generated bundles.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.BoundedSource.get_range_tracker">
+<code class="descname">get_range_tracker</code><span class="sig-paren">(</span><em>start_position</em>, <em>stop_position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource.get_range_tracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource.get_range_tracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a RangeTracker for a given position range.</p>
+<p>Framework may invoke <code class="docutils literal"><span class="pre">read()</span></code> method with the RangeTracker object returned
+here to read data from the source.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>start_position</strong> – starting position of the range. If ‘None’ default start
+position of the source must be used.</li>
+<li><strong>stop_position</strong> – ending position of the range. If ‘None’ default stop
+position of the source must be used.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a <code class="docutils literal"><span class="pre">RangeTracker</span></code> for the given position range.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.BoundedSource.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>range_tracker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an iterator that reads data from the source.</p>
+<p>The returned set of data must respect the boundaries defined by the given
+<code class="docutils literal"><span class="pre">RangeTracker</span></code> object. For example:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Returned set of data must be for the range
+<code class="docutils literal"><span class="pre">[range_tracker.start_position,</span> <span class="pre">range_tracker.stop_position)</span></code>. Note
+that a source may decide to return records that start after
+<code class="docutils literal"><span class="pre">range_tracker.stop_position</span></code>. See documentation in class
+<code class="docutils literal"><span class="pre">RangeTracker</span></code> for more details. Also, note that framework might
+invoke <code class="docutils literal"><span class="pre">range_tracker.try_split()</span></code> to perform dynamic split
+operations. range_tracker.stop_position may be updated
+dynamically due to successful dynamic split operations.</li>
+<li>Method <code class="docutils literal"><span class="pre">range_tracker.try_split()</span></code> must be invoked for every record
+that starts at a split point.</li>
+<li>Method <code class="docutils literal"><span class="pre">range_tracker.record_current_position()</span></code> may be invoked for
+records that do not start at split points.</li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>range_tracker</strong> – a <code class="docutils literal"><span class="pre">RangeTracker</span></code> whose boundaries must be respected
+when reading data from the source. A runner that reads this
+source muss pass a <code class="docutils literal"><span class="pre">RangeTracker</span></code> object that is not
+<code class="docutils literal"><span class="pre">None</span></code>.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">an iterator of data read by the source.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.BoundedSource.default_output_coder">
+<code class="descname">default_output_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource.default_output_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource.default_output_coder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Coder that should be used for the records returned by the source.</p>
+<p>Should be overridden by sources that produce objects that can be encoded
+more efficiently than pickling.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.BoundedSource.is_bounded">
+<code class="descname">is_bounded</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#BoundedSource.is_bounded"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.BoundedSource.is_bounded" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.iobase.RangeTracker">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">RangeTracker</code><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A thread safe object used by Dataflow source framework.</p>
+<p>A Dataflow source is defined using a ‘’BoundedSource’’ and a ‘’RangeTracker’’
+pair. A ‘’RangeTracker’’ is used by Dataflow source framework to perform
+dynamic work rebalancing of position-based sources.</p>
+<p><strong>Position-based sources</strong></p>
+<p>A position-based source is one where the source can be described by a range
+of positions of an ordered type and the records returned by the reader can be
+described by positions of the same type.</p>
+<p>In case a record occupies a range of positions in the source, the most
+important thing about the record is the position where it starts.</p>
+<p>Defining the semantics of positions for a source is entirely up to the source
+class, however the chosen definitions have to obey certain properties in order
+to make it possible to correctly split the source into parts, including
+dynamic splitting. Two main aspects need to be defined:</p>
+<ol class="arabic simple">
+<li>How to assign starting positions to records.</li>
+<li>Which records should be read by a source with a range ‘[A, B)’.</li>
+</ol>
+<p>Moreover, reading a range must be <em>efficient</em>, i.e., the performance of
+reading a range should not significantly depend on the location of the range.
+For example, reading the range [A, B) should not require reading all data
+before ‘A’.</p>
+<p>The sections below explain exactly what properties these definitions must
+satisfy, and how to use a <code class="docutils literal"><span class="pre">RangeTracker</span></code> with a properly defined source.</p>
+<p><strong>Properties of position-based sources</strong></p>
+<p>The main requirement for position-based sources is <em>associativity</em>: reading
+records from ‘[A, B)’ and records from ‘[B, C)’ should give the same
+records as reading from ‘[A, C)’, where ‘A &lt;= B &lt;= C’. This property
+ensures that no matter how a range of positions is split into arbitrarily many
+sub-ranges, the total set of records described by them stays the same.</p>
+<p>The other important property is how the source’s range relates to positions of
+records in the source. In many sources each record can be identified by a
+unique starting position. In this case:</p>
+<ul class="simple">
+<li>All records returned by a source ‘[A, B)’ must have starting positions in
+this range.</li>
+<li>All but the last record should end within this range. The last record may or
+may not extend past the end of the range.</li>
+<li>Records should not overlap.</li>
+</ul>
+<p>Such sources should define “read ‘[A, B)’” as “read from the first record
+starting at or after ‘A’, up to but not including the first record starting
+at or after ‘B’”.</p>
+<p>Some examples of such sources include reading lines or CSV from a text file,
+reading keys and values from a BigTable, etc.</p>
+<p>The concept of <em>split points</em> allows to extend the definitions for dealing
+with sources where some records cannot be identified by a unique starting
+position.</p>
+<p>In all cases, all records returned by a source ‘[A, B)’ must <em>start</em> at or
+after ‘A’.</p>
+<p><strong>Split points</strong></p>
+<p>Some sources may have records that are not directly addressable. For example,
+imagine a file format consisting of a sequence of compressed blocks. Each
+block can be assigned an offset, but records within the block cannot be
+directly addressed without decompressing the block. Let us refer to this
+hypothetical format as &lt;i&gt;CBF (Compressed Blocks Format)&lt;/i&gt;.</p>
+<p>Many such formats can still satisfy the associativity property. For example,
+in CBF, reading ‘[A, B)’ can mean “read all the records in all blocks whose
+starting offset is in ‘[A, B)’”.</p>
+<p>To support such complex formats, we introduce the notion of <em>split points</em>. We
+say that a record is a split point if there exists a position ‘A’ such that
+the record is the first one to be returned when reading the range
+‘[A, infinity)’. In CBF, the only split points would be the first records
+in each block.</p>
+<p>Split points allow us to define the meaning of a record’s position and a
+source’s range in all cases:</p>
+<ul class="simple">
+<li>For a record that is at a split point, its position is defined to be the
+largest ‘A’ such that reading a source with the range ‘[A, infinity)’
+returns this record.</li>
+<li>Positions of other records are only required to be non-decreasing.</li>
+<li>Reading the source ‘[A, B)’ must return records starting from the first
+split point at or after ‘A’, up to but not including the first split point
+at or after ‘B’. In particular, this means that the first record returned
+by a source MUST always be a split point.</li>
+<li>Positions of split points must be unique.</li>
+</ul>
+<p>As a result, for any decomposition of the full range of the source into
+position ranges, the total set of records will be the full set of records in
+the source, and each record will be read exactly once.</p>
+<p><strong>Consumed positions</strong></p>
+<p>As the source is being read, and records read from it are being passed to the
+downstream transforms in the pipeline, we say that positions in the source are
+being <em>consumed</em>. When a reader has read a record (or promised to a caller
+that a record will be returned), positions up to and including the record’s
+start position are considered <em>consumed</em>.</p>
+<p>Dynamic splitting can happen only at <em>unconsumed</em> positions. If the reader
+just returned a record at offset 42 in a file, dynamic splitting can happen
+only at offset 43 or beyond, as otherwise that record could be read twice (by
+the current reader and by a reader of the task starting at 43).</p>
+<dl class="attribute">
+<dt id="apache_beam.io.iobase.RangeTracker.SPLIT_POINTS_UNKNOWN">
+<code class="descname">SPLIT_POINTS_UNKNOWN</code><em class="property"> = &lt;object object&gt;</em><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.SPLIT_POINTS_UNKNOWN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.start_position">
+<code class="descname">start_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.start_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.start_position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the starting position of the current range, inclusive.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.stop_position">
+<code class="descname">stop_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.stop_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.stop_position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the ending position of the current range, exclusive.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.try_claim">
+<code class="descname">try_claim</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.try_claim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.try_claim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Atomically determines if a record at a split point is within the range.</p>
+<p>This method should be called <strong>if and only if</strong> the record is at a split
+point. This method may modify the internal state of the <code class="docutils literal"><span class="pre">RangeTracker</span></code> by
+updating the last-consumed position to <code class="docutils literal"><span class="pre">position</span></code>.</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RangeTracker</span></code> including this method may get invoked
+by different threads, hence must be made thread-safe, e.g. by using a single
+lock object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>position</strong> – starting position of a record being read by a source.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><code class="docutils literal"><span class="pre">True</span></code>, if the given position falls within the current range, returns
+<code class="docutils literal"><span class="pre">False</span></code> otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.set_current_position">
+<code class="descname">set_current_position</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.set_current_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.set_current_position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the last-consumed position to the given position.</p>
+<p>A source may invoke this method for records that do not start at split
+points. This may modify the internal state of the <code class="docutils literal"><span class="pre">RangeTracker</span></code>. If the
+record starts at a split point, method <code class="docutils literal"><span class="pre">try_claim()</span></code> <strong>must</strong> be invoked
+instead of this method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>position</strong> – starting position of a record being read by a source.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.position_at_fraction">
+<code class="descname">position_at_fraction</code><span class="sig-paren">(</span><em>fraction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.position_at_fraction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.position_at_fraction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the position at the given fraction.</p>
+<p>Given a fraction within the range [0.0, 1.0) this method will return the
+position at the given fraction compared to the position range
+[self.start_position, self.stop_position).</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RangeTracker</span></code> including this method may get invoked
+by different threads, hence must be made thread-safe, e.g. by using a single
+lock object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>fraction</strong> – a float value within the range [0.0, 1.0).</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a position within the range [self.start_position, self.stop_position).</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.try_split">
+<code class="descname">try_split</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.try_split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.try_split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Atomically splits the current range.</p>
+<p>Determines a position to split the current range, split_position, based on
+the given position. In most cases split_position and position will be the
+same.</p>
+<p>Splits the current range ‘[self.start_position, self.stop_position)’
+into a “primary” part ‘[self.start_position, split_position)’ and a
+“residual” part ‘[split_position, self.stop_position)’, assuming the
+current last-consumed position is within
+‘[self.start_position, split_position)’ (i.e., split_position has not been
+consumed yet).</p>
+<p>If successful, updates the current range to be the primary and returns a
+tuple (split_position, split_fraction). split_fraction should be the
+fraction of size of range ‘[self.start_position, split_position)’ compared
+to the original (before split) range
+‘[self.start_position, self.stop_position)’.</p>
+<p>If the split_position has already been consumed, returns <code class="docutils literal"><span class="pre">None</span></code>.</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RangeTracker</span></code> including this method may get invoked
+by different threads, hence must be made thread-safe, e.g. by using a single
+lock object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>position</strong> – suggested position where the current range should try to
+be split at.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a tuple containing the split position and split fraction if split is
+successful. Returns <code class="docutils literal"><span class="pre">None</span></code> otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.fraction_consumed">
+<code class="descname">fraction_consumed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.fraction_consumed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.fraction_consumed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the approximate fraction of consumed positions in the source.</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RangeTracker</span></code> including this method may get invoked
+by different threads, hence must be made thread-safe, e.g. by using a single
+lock object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">the approximate fraction of positions that have been consumed by
+successful ‘try_split()’ and  ‘report_current_position()’  calls, or
+0.0 if no such calls have happened.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.split_points">
+<code class="descname">split_points</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.split_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.split_points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gives the number of split points consumed and remaining.</p>
+<p>For a <code class="docutils literal"><span class="pre">RangeTracker</span></code> used by a <code class="docutils literal"><span class="pre">BoundedSource</span></code> (within a
+<code class="docutils literal"><span class="pre">BoundedSource.read()</span></code> invocation) this method produces a 2-tuple that
+gives the number of split points consumed by the <code class="docutils literal"><span class="pre">BoundedSource</span></code> and the
+number of split points remaining within the range of the <code class="docutils literal"><span class="pre">RangeTracker</span></code>
+that has not been consumed by the <code class="docutils literal"><span class="pre">BoundedSource</span></code>.</p>
+<p>More specifically, given that the position of the current record being read
+by <code class="docutils literal"><span class="pre">BoundedSource</span></code> is current_position this method produces a tuple that
+consists of
+(1) number of split points in the range [self.start_position(),
+current_position) without including the split point that is currently being
+consumed. This represents the total amount of parallelism in the consumed
+part of the source.
+(2) number of split points within the range
+[current_position, self.stop_position()) including the split point that is
+currently being consumed. This represents the total amount of parallelism in
+the unconsumed part of the source.</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RangeTracker</span></code> including this method may get invoked
+by different threads, hence must be made thread-safe, e.g. by using a single
+lock object.</p>
+<dl class="docutils">
+<dt>** General information about consumed and remaining number of split</dt>
+<dd><blockquote class="first">
+<div>points returned by this method. **</div></blockquote>
+<ul class="last simple">
+<li>Before a source read (<code class="docutils literal"><span class="pre">BoundedSource.read()</span></code> invocation) claims the
+first split point, number of consumed split points is 0. This condition
+holds independent of whether the input is “splittable”. A splittable
+source is a source that has more than one split point.</li>
+<li>Any source read that has only claimed one split point has 0 consumed
+split points since the first split point is the current split point and
+is still being processed. This condition holds independent of whether
+the input is splittable.</li>
+<li>For an empty source read which never invokes
+<code class="docutils literal"><span class="pre">RangeTracker.try_claim()</span></code>, the consumed number of split points is 0.
+This condition holds independent of whether the input is splittable.</li>
+<li>For a source read which has invoked <code class="docutils literal"><span class="pre">RangeTracker.try_claim()</span></code> n
+times, the consumed number of split points is  n -1.</li>
+<li>If a <code class="docutils literal"><span class="pre">BoundedSource</span></code> sets a callback through function
+<code class="docutils literal"><span class="pre">set_split_points_unclaimed_callback()</span></code>, <code class="docutils literal"><span class="pre">RangeTracker</span></code> can use that
+callback when determining remaining number of split points.</li>
+<li>Remaining split points should include the split point that is currently
+being consumed by the source read. Hence if the above callback returns
+an integer value n, remaining number of split points should be (n + 1).</li>
+<li>After last split point is claimed remaining split points becomes 1,
+because this unfinished read itself represents an  unfinished split
+point.</li>
+<li>After all records of the source has been consumed, remaining number of
+split points becomes 0 and consumed number of split points becomes equal
+to the total number of split points within the range being read by the
+source. This method does not address this condition and will continue to
+report number of consumed split points as
+(“total number of split points” - 1) and number of remaining split
+points as 1. A runner that performs the reading of the source can
+detect when all records have been consumed and adjust remaining and
+consumed number of split points accordingly.</li>
+</ul>
+</dd>
+</dl>
+<p>** Examples **</p>
+<ol class="arabic">
+<li><p class="first">A “perfectly splittable” input which can be read in parallel down to the
+individual records.</p>
+<p>Consider a perfectly splittable input that consists of 50 split points.</p>
+</li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li>Before a source read (<code class="docutils literal"><span class="pre">BoundedSource.read()</span></code> invocation) claims the
+first split point, number of consumed split points is 0 number of
+remaining split points is 50.</li>
+<li>After claiming first split point, consumed number of split points is 0
+and remaining number of split is 50.</li>
+<li>After claiming split point #30, consumed number of split points is 29
+and remaining number of split points is 21.</li>
+<li>After claiming all 50 split points, consumed number of split points is
+49 and remaining number of split points is 1.</li>
+</ul>
+</div></blockquote>
+<ol class="arabic" start="2">
+<li><p class="first">a “block-compressed” file format such as <code class="docutils literal"><span class="pre">avroio</span></code>, in which a block of
+records has to be read as a whole, but different blocks can be read in
+parallel.</p>
+<p>Consider a block compressed input that consists of 5 blocks.</p>
+</li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li>Before a source read (<code class="docutils literal"><span class="pre">BoundedSource.read()</span></code> invocation) claims the
+first split point (first block), number of consumed split points is 0
+number of remaining split points is 5.</li>
+<li>After claiming first split point, consumed number of split points is 0
+and remaining number of split is 5.</li>
+<li>After claiming split point #3, consumed number of split points is 2
+and remaining number of split points is 3.</li>
+<li>After claiming all 5 split points, consumed number of split points is
+4 and remaining number of split points is 1.</li>
+</ul>
+</div></blockquote>
+<ol class="arabic" start="3">
+<li><p class="first">an “unsplittable” input such as a cursor in a database or a gzip
+compressed file.</p>
+<p>Such an input is considered to have only a single split point. Number of
+consumed split points is always 0 and number of remaining split points
+is always 1.</p>
+</li>
+</ol>
+<p>By default <code class="docutils literal"><span class="pre">RangeTracker`</span> <span class="pre">returns</span> <span class="pre">``RangeTracker.SPLIT_POINTS_UNKNOWN</span></code> for
+both consumed and remaining number of split points, which indicates that the
+number of split points consumed and remaining is unknown.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A pair that gives consumed and remaining number of split points. Consumed
+number of split points should be an integer larger than or equal to zero
+or <code class="docutils literal"><span class="pre">RangeTracker.SPLIT_POINTS_UNKNOWN</span></code>. Remaining number of split points
+should be an integer larger than zero or
+<code class="docutils literal"><span class="pre">RangeTracker.SPLIT_POINTS_UNKNOWN</span></code>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RangeTracker.set_split_points_unclaimed_callback">
+<code class="descname">set_split_points_unclaimed_callback</code><span class="sig-paren">(</span><em>callback</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RangeTracker.set_split_points_unclaimed_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RangeTracker.set_split_points_unclaimed_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets a callback for determining the unclaimed number of split points.</p>
+<p>By invoking this function, a <code class="docutils literal"><span class="pre">BoundedSource</span></code> can set a callback function
+that may get invoked by the <code class="docutils literal"><span class="pre">RangeTracker</span></code> to determine the number of
+unclaimed split points. A split point is unclaimed if
+<code class="docutils literal"><span class="pre">RangeTracker.try_claim()</span></code> method has not been successfully invoked for
+that particular split point. The callback function accepts a single
+parameter, a stop position for the BoundedSource (stop_position). If the
+record currently being consumed by the <code class="docutils literal"><span class="pre">BoundedSource</span></code> is at position
+current_position, callback should return the number of split points within
+the range (current_position, stop_position). Note that, this should not
+include the split point that is currently being consumed by the source.</p>
+<p>This function must be implemented by subclasses before being used.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>callback</strong> – a function that takes a single parameter, a stop position,
+and returns unclaimed number of split points for the source read
+operation that is calling this function. Value returned from
+callback should be either an integer larger than or equal to
+zero or <code class="docutils literal"><span class="pre">RangeTracker.SPLIT_POINTS_UNKNOWN</span></code>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.iobase.Sink">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">Sink</code><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Sink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Sink" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.display.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a></p>
+<p>This class is deprecated, no backwards-compatibility guarantees.</p>
+<p>A resource that can be written to using the <code class="docutils literal"><span class="pre">beam.io.Write</span></code> transform.</p>
+<p>Here <code class="docutils literal"><span class="pre">beam</span></code> stands for Apache Beam Python code imported in following manner.
+<code class="docutils literal"><span class="pre">import</span> <span class="pre">apache_beam</span> <span class="pre">as</span> <span class="pre">beam</span></code>.</p>
+<p>A parallel write to an <code class="docutils literal"><span class="pre">iobase.Sink</span></code> consists of three phases:</p>
+<ol class="arabic simple">
+<li>A sequential <em>initialization</em> phase (e.g., creating a temporary output
+directory, etc.)</li>
+<li>A parallel write phase where workers write <em>bundles</em> of records</li>
+<li>A sequential <em>finalization</em> phase (e.g., committing the writes, merging
+output files, etc.)</li>
+</ol>
+<p>Implementing a new sink requires extending two classes.</p>
+<ol class="arabic simple">
+<li>iobase.Sink</li>
+</ol>
+<p><code class="docutils literal"><span class="pre">iobase.Sink</span></code> is an immutable logical description of the location/resource
+to write to. Depending on the type of sink, it may contain fields such as the
+path to an output directory on a filesystem, a database table name,
+etc. <code class="docutils literal"><span class="pre">iobase.Sink</span></code> provides methods for performing a write operation to the
+sink described by it. To this end, implementors of an extension of
+<code class="docutils literal"><span class="pre">iobase.Sink</span></code> must implement three methods:
+<code class="docutils literal"><span class="pre">initialize_write()</span></code>, <code class="docutils literal"><span class="pre">open_writer()</span></code>, and <code class="docutils literal"><span class="pre">finalize_write()</span></code>.</p>
+<ol class="arabic simple" start="2">
+<li>iobase.Writer</li>
+</ol>
+<p><code class="docutils literal"><span class="pre">iobase.Writer</span></code> is used to write a single bundle of records. An
+<code class="docutils literal"><span class="pre">iobase.Writer</span></code> defines two methods: <code class="docutils literal"><span class="pre">write()</span></code> which writes a
+single record from the bundle and <code class="docutils literal"><span class="pre">close()</span></code> which is called once
+at the end of writing a bundle.</p>
+<p>See also <code class="docutils literal"><span class="pre">apache_beam.io.filebasedsink.FileBasedSink</span></code> which provides a
+simpler API for writing sinks that produce files.</p>
+<p><strong>Execution of the Write transform</strong></p>
+<p><code class="docutils literal"><span class="pre">initialize_write()</span></code> and <code class="docutils literal"><span class="pre">finalize_write()</span></code> are conceptually called once:
+at the beginning and end of a <code class="docutils literal"><span class="pre">Write</span></code> transform. However, implementors must
+ensure that these methods are <em>idempotent</em>, as they may be called multiple
+times on different machines in the case of failure/retry or for redundancy.</p>
+<p><code class="docutils literal"><span class="pre">initialize_write()</span></code> should perform any initialization that needs to be done
+prior to writing to the sink. <code class="docutils literal"><span class="pre">initialize_write()</span></code> may return a result
+(let’s call this <code class="docutils literal"><span class="pre">init_result</span></code>) that contains any parameters it wants to
+pass on to its writers about the sink. For example, a sink that writes to a
+file system may return an <code class="docutils literal"><span class="pre">init_result</span></code> that contains a dynamically
+generated unique directory to which data should be written.</p>
+<p>To perform writing of a bundle of elements, Dataflow execution engine will
+create an <code class="docutils literal"><span class="pre">iobase.Writer</span></code> using the implementation of
+<code class="docutils literal"><span class="pre">iobase.Sink.open_writer()</span></code>. When invoking <code class="docutils literal"><span class="pre">open_writer()</span></code> execution
+engine will provide the <code class="docutils literal"><span class="pre">init_result</span></code> returned by <code class="docutils literal"><span class="pre">initialize_write()</span></code>
+invocation as well as a <em>bundle id</em> (let’s call this <code class="docutils literal"><span class="pre">bundle_id</span></code>) that is
+unique for each invocation of <code class="docutils literal"><span class="pre">open_writer()</span></code>.</p>
+<p>Execution engine will then invoke <code class="docutils literal"><span class="pre">iobase.Writer.write()</span></code> implementation for
+each element that has to be written. Once all elements of a bundle are
+written, execution engine will invoke <code class="docutils literal"><span class="pre">iobase.Writer.close()</span></code> implementation
+which should return a result (let’s call this <code class="docutils literal"><span class="pre">write_result</span></code>) that contains
+information that encodes the result of the write and, in most cases, some
+encoding of the unique bundle id. For example, if each bundle is written to a
+unique temporary file, <code class="docutils literal"><span class="pre">close()</span></code> method may return an object that contains
+the temporary file name. After writing of all bundles is complete, execution
+engine will invoke <code class="docutils literal"><span class="pre">finalize_write()</span></code> implementation. As parameters to this
+invocation execution engine will provide <code class="docutils literal"><span class="pre">init_result</span></code> as well as an
+iterable of <code class="docutils literal"><span class="pre">write_result</span></code>.</p>
+<p>The execution of a write transform can be illustrated using following pseudo
+code (assume that the outer for loop happens in parallel across many
+machines):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">init_result</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">initialize_write</span><span class="p">()</span>
+<span class="n">write_results</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">bundle</span> <span class="ow">in</span> <span class="n">partition</span><span class="p">(</span><span class="n">pcoll</span><span class="p">):</span>
+  <span class="n">writer</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open_writer</span><span class="p">(</span><span class="n">init_result</span><span class="p">,</span> <span class="n">generate_bundle_id</span><span class="p">())</span>
+  <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">bundle</span><span class="p">:</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
+  <span class="n">write_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">())</span>
+<span class="n">sink</span><span class="o">.</span><span class="n">finalize_write</span><span class="p">(</span><span class="n">init_result</span><span class="p">,</span> <span class="n">write_results</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>init_result</strong></p>
+<p>Methods of ‘iobase.Sink’ should agree on the ‘init_result’ type that will be
+returned when initializing the sink. This type can be a client-defined object
+or an existing type. The returned type must be picklable using Dataflow coder
+<code class="docutils literal"><span class="pre">coders.PickleCoder</span></code>. Returning an init_result is optional.</p>
+<p><strong>bundle_id</strong></p>
+<p>In order to ensure fault-tolerance, a bundle may be executed multiple times
+(e.g., in the event of failure/retry or for redundancy). However, exactly one
+of these executions will have its result passed to the
+<code class="docutils literal"><span class="pre">iobase.Sink.finalize_write()</span></code> method. Each call to
+<code class="docutils literal"><span class="pre">iobase.Sink.open_writer()</span></code> is passed a unique bundle id when it is called
+by the <code class="docutils literal"><span class="pre">WriteImpl</span></code> transform, so even redundant or retried bundles will have
+a unique way of identifying their output.</p>
+<p>The bundle id should be used to guarantee that a bundle’s output is unique.
+This uniqueness guarantee is important; if a bundle is to be output to a file,
+for example, the name of the file must be unique to avoid conflicts with other
+writers. The bundle id should be encoded in the writer result returned by the
+writer and subsequently used by the <code class="docutils literal"><span class="pre">finalize_write()</span></code> method to identify
+the results of successful writes.</p>
+<p>For example, consider the scenario where a Writer writes files containing
+serialized records and the <code class="docutils literal"><span class="pre">finalize_write()</span></code> is to merge or rename these
+output files. In this case, a writer may use its unique id to name its output
+file (to avoid conflicts) and return the name of the file it wrote as its
+writer result. The <code class="docutils literal"><span class="pre">finalize_write()</span></code> will then receive an <code class="docutils literal"><span class="pre">Iterable</span></code> of
+output file names that it can then merge or rename using some bundle naming
+scheme.</p>
+<p><strong>write_result</strong></p>
+<p><code class="docutils literal"><span class="pre">iobase.Writer.close()</span></code> and <code class="docutils literal"><span class="pre">finalize_write()</span></code> implementations must agree
+on type of the <code class="docutils literal"><span class="pre">write_result</span></code> object returned when invoking
+<code class="docutils literal"><span class="pre">iobase.Writer.close()</span></code>. This type can be a client-defined object or
+an existing type. The returned type must be picklable using Dataflow coder
+<code class="docutils literal"><span class="pre">coders.PickleCoder</span></code>. Returning a <code class="docutils literal"><span class="pre">write_result</span></code> when
+<code class="docutils literal"><span class="pre">iobase.Writer.close()</span></code> is invoked is optional but if unique
+<code class="docutils literal"><span class="pre">write_result</span></code> objects are not returned, sink should, guarantee idempotency
+when same bundle is written multiple times due to failure/retry or redundancy.</p>
+<p><strong>More information</strong></p>
+<p>For more information on creating new sinks please refer to the official
+documentation at
+<code class="docutils literal"><span class="pre">https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks</span></code></p>
+<dl class="method">
+<dt id="apache_beam.io.iobase.Sink.initialize_write">
+<code class="descname">initialize_write</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Sink.initialize_write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Sink.initialize_write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes the sink before writing begins.</p>
+<p>Invoked before any data is written to the sink.</p>
+<p>Please see documentation in <code class="docutils literal"><span class="pre">iobase.Sink</span></code> for an example.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An object that contains any sink specific state generated by
+initialization. This object will be passed to open_writer() and
+finalize_write() methods.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Sink.open_writer">
+<code class="descname">open_writer</code><span class="sig-paren">(</span><em>init_result</em>, <em>uid</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Sink.open_writer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Sink.open_writer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Opens a writer for writing a bundle of elements to the sink.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>init_result</strong> – the result of initialize_write() invocation.</li>
+<li><strong>uid</strong> – a unique identifier generated by the system.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">an <code class="docutils literal"><span class="pre">iobase.Writer</span></code> that can be used to write a bundle of records to the
+current sink.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Sink.finalize_write">
+<code class="descname">finalize_write</code><span class="sig-paren">(</span><em>init_result</em>, <em>writer_results</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Sink.finalize_write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Sink.finalize_write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finalizes the sink after all data is written to it.</p>
+<p>Given the result of initialization and an iterable of results from bundle
+writes, performs finalization after writing and closes the sink. Called
+after all bundle writes are complete.</p>
+<p>The bundle write results that are passed to finalize are those returned by
+bundles that completed successfully. Although bundles may have been run
+multiple times (for fault-tolerance), only one writer result will be passed
+to finalize for each bundle. An implementation of finalize should perform
+clean up of any failed and successfully retried bundles.  Note that these
+failed bundles will not have their writer result passed to finalize, so
+finalize should be capable of locating any temporary/partial output written
+by failed bundles.</p>
+<p>If all retries of a bundle fails, the whole pipeline will fail <em>without</em>
+finalize_write() being invoked.</p>
+<p>A best practice is to make finalize atomic. If this is impossible given the
+semantics of the sink, finalize should be idempotent, as it may be called
+multiple times in the case of failure/retry or for redundancy.</p>
+<p>Note that the iteration order of the writer results is not guaranteed to be
+consistent if finalize is called multiple times.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>init_result</strong> – the result of <code class="docutils literal"><span class="pre">initialize_write()</span></code> invocation.</li>
+<li><strong>writer_results</strong> – an iterable containing results of <code class="docutils literal"><span class="pre">Writer.close()</span></code>
+invocations. This will only contain results of successful writes, and
+will only contain the result of a single successful write for a given
+bundle.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.iobase.Writer">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">Writer</code><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Writer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Writer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>This class is deprecated, no backwards-compatibility guarantees.</p>
+<p>Writes a bundle of elements from a <code class="docutils literal"><span class="pre">PCollection</span></code> to a sink.</p>
+<p>A Writer  <code class="docutils literal"><span class="pre">iobase.Writer.write()</span></code> writes and elements to the sink while
+<code class="docutils literal"><span class="pre">iobase.Writer.close()</span></code> is called after all elements in the bundle have been
+written.</p>
+<p>See <code class="docutils literal"><span class="pre">iobase.Sink</span></code> for more detailed documentation about the process of
+writing to a sink.</p>
+<dl class="method">
+<dt id="apache_beam.io.iobase.Writer.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Writer.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Writer.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes a value to the sink using the current writer.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Writer.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Writer.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Writer.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Closes the current writer.</p>
+<p>Please see documentation in <code class="docutils literal"><span class="pre">iobase.Sink</span></code> for an example.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An object representing the writes that were performed by the current
+writer.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.iobase.Read">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">Read</code><span class="sig-paren">(</span><em>source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform that reads a PCollection.</p>
+<p>Initializes a Read transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>source</strong> – Data source to read from.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.iobase.Read.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pbegin</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Read.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Read.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Read.get_windowing">
+<code class="descname">get_windowing</code><span class="sig-paren">(</span><em>unused_inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Read.get_windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Read.get_windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Read.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Read.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Read.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Read.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Read.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Read.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.io.iobase.Read.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>parameter</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Read.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Read.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.iobase.Write">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">Write</code><span class="sig-paren">(</span><em>sink</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <code class="docutils literal"><span class="pre">PTransform</span></code> that writes to a sink.</p>
+<p>A sink should inherit <code class="docutils literal"><span class="pre">iobase.Sink</span></code>. Such implementations are
+handled using a composite transform that consists of three <code class="docutils literal"><span class="pre">ParDo``s</span> <span class="pre">-</span>
+<span class="pre">(1)</span> <span class="pre">a</span> <span class="pre">``ParDo</span></code> performing a global initialization (2) a <code class="docutils literal"><span class="pre">ParDo</span></code> performing
+a parallel write and (3) a <code class="docutils literal"><span class="pre">ParDo</span></code> performing a global finalization. In the
+case of an empty <code class="docutils literal"><span class="pre">PCollection</span></code>, only the global initialization and
+finalization will be performed. Currently only batch workflows support custom
+sinks.</p>
+<p>Example usage:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pcollection</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">MySink</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>This returns a <code class="docutils literal"><span class="pre">pvalue.PValue</span></code> object that represents the end of the
+Pipeline.</p>
+<p>The sink argument may also be a full PTransform, in which case it will be
+applied directly.  This allows composite sink-like transforms (e.g. a sink
+with some pre-processing DoFns) to be used the same as all other sinks.</p>
+<p>This transform also supports sinks that inherit <code class="docutils literal"><span class="pre">iobase.NativeSink</span></code>. These
+are sinks that are implemented natively by the Dataflow service and hence
+should not be updated by users. These sinks are processed using a Dataflow
+native write transform.</p>
+<p>Initializes a Write transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>sink</strong> – Data sink to write to.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.iobase.Write.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Write.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Write.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.Write.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#Write.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.Write.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.iobase.RestrictionTracker">
+<em class="property">class </em><code class="descclassname">apache_beam.io.iobase.</code><code class="descname">RestrictionTracker</code><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RestrictionTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RestrictionTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Manages concurrent access to a restriction.</p>
+<p>Experimental; no backwards-compatibility guarantees.</p>
+<p>Keeps track of the restrictions claimed part for a Splittable DoFn.</p>
+<p>See following documents for more details.
+* <a class="reference external" href="https://s.apache.org/splittable-do-fn">https://s.apache.org/splittable-do-fn</a>
+* <a class="reference external" href="https://s.apache.org/splittable-do-fn-python-sdk">https://s.apache.org/splittable-do-fn-python-sdk</a></p>
+<dl class="method">
+<dt id="apache_beam.io.iobase.RestrictionTracker.current_restriction">
+<code class="descname">current_restriction</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RestrictionTracker.current_restriction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RestrictionTracker.current_restriction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the current restriction.</p>
+<p>Returns a restriction accurately describing the full range of work the
+current <code class="docutils literal"><span class="pre">DoFn.process()</span></code> call will do, including already completed work.</p>
+<p>The current restriction returned by method may be updated dynamically due
+to due to concurrent invocation of other methods of the
+<code class="docutils literal"><span class="pre">RestrictionTracker</span></code>, For example, <code class="docutils literal"><span class="pre">checkpoint()</span></code>.</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RestrictionTracker</span></code> including this method may get
+invoked by different threads, hence must be made thread-safe, e.g. by using
+a single lock object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RestrictionTracker.checkpoint">
+<code class="descname">checkpoint</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RestrictionTracker.checkpoint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RestrictionTracker.checkpoint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs a checkpoint of the current restriction.</p>
+<p>Signals that the current <code class="docutils literal"><span class="pre">DoFn.process()</span></code> call should terminate as soon as
+possible. After this method returns, the tracker MUST refuse all future
+claim calls, and <code class="docutils literal"><span class="pre">RestrictionTracker.check_done()</span></code> MUST succeed.</p>
+<p>This invocation modifies the value returned by <code class="docutils literal"><span class="pre">current_restriction()</span></code>
+invocation and returns a restriction representing the rest of the work. The
+old value of <code class="docutils literal"><span class="pre">current_restriction()</span></code> is equivalent to the new value of
+<code class="docutils literal"><span class="pre">current_restriction()</span></code> and the return value of this method invocation
+combined.</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RestrictionTracker</span></code> including this method may get
+invoked by different threads, hence must be made thread-safe, e.g. by using
+a single lock object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.iobase.RestrictionTracker.check_done">
+<code class="descname">check_done</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/iobase.html#RestrictionTracker.check_done"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.iobase.RestrictionTracker.check_done" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks whether the restriction has been fully processed.</p>
+<p>Called by the runner after iterator returned by <code class="docutils literal"><span class="pre">DoFn.process()</span></code> has been
+fully read.</p>
+<p>This method must raise a <cite>ValueError</cite> if there is still any unclaimed work
+remaining in the restriction when this method is invoked. Exception raised
+must have an informative error message.</p>
+<p>** Thread safety **</p>
+<p>Methods of the class <code class="docutils literal"><span class="pre">RestrictionTracker</span></code> including this method may get
+invoked by different threads, hence must be made thread-safe, e.g. by using
+a single lock object.</p>
+<p>Returns: <code class="docutils literal"><span class="pre">True</span></code> if current restriction has been fully processed.
+:raises: <a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if there is still any unclaimed work remaining.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.localfilesystem.html" class="btn btn-neutral float-right" title="apache_beam.io.localfilesystem module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.hadoopfilesystem.html" class="btn btn-neutral" title="apache_beam.io.hadoopfilesystem module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

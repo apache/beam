@@ -1,0 +1,298 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.datastore.v1.query_splitter_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.datastore.v1.query_splitter_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Cloud Datastore query splitter test.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">mock</span> <span class="k">import</span> <span class="n">MagicMock</span>
+<span class="kn">from</span> <span class="nn">mock</span> <span class="k">import</span> <span class="n">call</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">fake_datastore</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">query_splitter</span>
+
+<span class="c1"># Protect against environments where datastore library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">datastore_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">query_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1.query_pb2</span> <span class="k">import</span> <span class="n">PropertyFilter</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">datastore_pb2</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">datastore_pb2</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="QuerySplitterTest"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest">[docs]</a><span class="k">class</span> <span class="nc">QuerySplitterTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_query_with_multiple_kinds"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_query_with_multiple_kinds">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_query_with_multiple_kinds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_query_with_order"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_query_with_order">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_query_with_order</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_query_with_unsupported_filter"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_query_with_unsupported_filter">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_query_with_unsupported_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">test_filter</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">composite_filter</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">test_filter</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">PropertyFilter</span><span class="o">.</span><span class="n">GREATER_THAN</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_query_with_limit"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_query_with_limit">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_query_with_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_query_with_offset"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_query_with_offset">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_query_with_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_create_scatter_query"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_create_scatter_query">[docs]</a>  <span class="k">def</span> <span class="nf">test_create_scatter_query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">scatter_query</span> <span class="o">=</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">_create_scatter_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">scatter_query</span><span class="o">.</span><span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">kind</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">scatter_query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                     <span class="p">(</span><span class="n">num_splits</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">KEYS_PER_SPLIT</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">scatter_query</span><span class="o">.</span><span class="n">order</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">direction</span><span class="p">,</span>
+                     <span class="n">query_pb2</span><span class="o">.</span><span class="n">PropertyOrder</span><span class="o">.</span><span class="n">ASCENDING</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">scatter_query</span><span class="o">.</span><span class="n">projection</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">property</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                     <span class="n">query_splitter</span><span class="o">.</span><span class="n">KEY_PROPERTY_NAME</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_with_two_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_with_two_splits">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_with_two_splits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">97</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">9</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_get_splits</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_with_multiple_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_with_multiple_splits">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_with_multiple_splits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">369</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">12</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_get_splits</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_with_large_num_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_with_large_num_splits">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_with_large_num_splits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_get_splits</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_with_small_num_entities"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_with_small_num_entities">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_with_small_num_entities</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_get_splits</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_with_batch_size_exact_multiple"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_with_batch_size_exact_multiple">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_with_batch_size_exact_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test get_splits when num scatter keys is a multiple of batch size.&quot;&quot;&quot;</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">400</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">32</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_get_splits</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.test_get_splits_with_large_batch_size"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.test_get_splits_with_large_batch_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_splits_with_large_batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test get_splits when all scatter keys are retured in a single req.&quot;&quot;&quot;</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">kind</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;shakespeare-demo&#39;</span>
+    <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">400</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">500</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_get_splits</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuerySplitterTest.check_get_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.check_get_splits">[docs]</a>  <span class="k">def</span> <span class="nf">check_get_splits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A helper method to test the query_splitter get_splits method.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      query: the query to be split</span>
+<span class="sd">      num_splits: number of splits</span>
+<span class="sd">      num_entities: number of scatter entities contained in the fake datastore.</span>
+<span class="sd">      batch_size: the number of entities returned by fake datastore in one req.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">entities</span> <span class="o">=</span> <span class="n">fake_datastore</span><span class="o">.</span><span class="n">create_entities</span><span class="p">(</span><span class="n">num_entities</span><span class="p">)</span>
+    <span class="n">mock_datastore</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+    <span class="c1"># Assign a fake run_query method as a side_effect to the mock.</span>
+    <span class="n">mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> \
+        <span class="n">fake_datastore</span><span class="o">.</span><span class="n">create_run_query</span><span class="p">(</span><span class="n">entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+
+    <span class="n">split_queries</span> <span class="o">=</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">(</span><span class="n">mock_datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+
+    <span class="c1"># if request num_splits is greater than num_entities, the best it can</span>
+    <span class="c1"># do is one entity per split.</span>
+    <span class="n">expected_num_splits</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_splits</span><span class="p">,</span> <span class="n">num_entities</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">split_queries</span><span class="p">),</span> <span class="n">expected_num_splits</span><span class="p">)</span>
+
+    <span class="n">expected_requests</span> <span class="o">=</span> <span class="n">QuerySplitterTest</span><span class="o">.</span><span class="n">create_scatter_requests</span><span class="p">(</span>
+        <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">)</span>
+
+    <span class="n">expected_calls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">req</span> <span class="ow">in</span> <span class="n">expected_requests</span><span class="p">:</span>
+      <span class="n">expected_calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">call</span><span class="p">(</span><span class="n">req</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_calls</span><span class="p">,</span> <span class="n">mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="QuerySplitterTest.create_scatter_requests"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter_test.QuerySplitterTest.create_scatter_requests">[docs]</a>  <span class="k">def</span> <span class="nf">create_scatter_requests</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a list of expected scatter requests from the query splitter.</span>
+
+<span class="sd">    This list of requests returned is used to verify that the query splitter</span>
+<span class="sd">    made the same number of requests in the same order to datastore.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">requests</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_splits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">KEYS_PER_SPLIT</span>
+    <span class="n">start_cursor</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">scatter_query</span> <span class="o">=</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">_create_scatter_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">num_entities</span><span class="p">:</span>
+      <span class="n">request</span> <span class="o">=</span> <span class="n">datastore_pb2</span><span class="o">.</span><span class="n">RunQueryRequest</span><span class="p">()</span>
+      <span class="n">request</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">scatter_query</span><span class="p">)</span>
+      <span class="n">request</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">start_cursor</span> <span class="o">=</span> <span class="n">start_cursor</span>
+      <span class="n">request</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">count</span> <span class="o">-</span> <span class="n">i</span>
+      <span class="n">requests</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+      <span class="n">i</span> <span class="o">+=</span> <span class="n">batch_size</span>
+      <span class="n">start_cursor</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">requests</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

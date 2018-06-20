@@ -1,0 +1,836 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.fileio &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.fileio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;File-based sources and sinks.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">bz2</span>
+<span class="kn">import</span> <span class="nn">cStringIO</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">zlib</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+
+<span class="c1"># TODO(sourabhbajaj): Fix the constant values after the new IO factory</span>
+<span class="c1"># Current constants are copy pasted from gcsio.py till we fix this.</span>
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io.gcp</span> <span class="k">import</span> <span class="n">gcsio</span>
+  <span class="n">DEFAULT_READ_BUFFER_SIZE</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span>
+  <span class="n">MAX_BATCH_OPERATION_SIZE</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">MAX_BATCH_OPERATION_SIZE</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">gcsio</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">DEFAULT_READ_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">16</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+  <span class="n">MAX_BATCH_OPERATION_SIZE</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="n">DEFAULT_SHARD_NAME_TEMPLATE</span> <span class="o">=</span> <span class="s1">&#39;-SSSSS-of-NNNNN&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">_CompressionType</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Object representing single compression type.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span> <span class="o">=</span> <span class="n">identifier</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">_CompressionType</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">identifier</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;_CompressionType(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span>
+
+
+<div class="viewcode-block" id="CompressionTypes"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.CompressionTypes">[docs]</a><span class="k">class</span> <span class="nc">CompressionTypes</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Enum-like class representing known compression types.&quot;&quot;&quot;</span>
+
+  <span class="c1"># Detect compression based on filename extension.</span>
+  <span class="c1">#</span>
+  <span class="c1"># The following extensions are currently recognized by auto-detection:</span>
+  <span class="c1">#   .bz2 (implies BZIP2 as described below).</span>
+  <span class="c1">#   .gz  (implies GZIP as described below)</span>
+  <span class="c1"># Any non-recognized extension implies UNCOMPRESSED as described below.</span>
+  <span class="n">AUTO</span> <span class="o">=</span> <span class="n">_CompressionType</span><span class="p">(</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+
+  <span class="c1"># BZIP2 compression.</span>
+  <span class="n">BZIP2</span> <span class="o">=</span> <span class="n">_CompressionType</span><span class="p">(</span><span class="s1">&#39;bzip2&#39;</span><span class="p">)</span>
+
+  <span class="c1"># GZIP compression (deflate with GZIP headers).</span>
+  <span class="n">GZIP</span> <span class="o">=</span> <span class="n">_CompressionType</span><span class="p">(</span><span class="s1">&#39;gzip&#39;</span><span class="p">)</span>
+
+  <span class="c1"># Uncompressed (i.e., may be split).</span>
+  <span class="n">UNCOMPRESSED</span> <span class="o">=</span> <span class="n">_CompressionType</span><span class="p">(</span><span class="s1">&#39;uncompressed&#39;</span><span class="p">)</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="CompressionTypes.is_valid_compression_type"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.CompressionTypes.is_valid_compression_type">[docs]</a>  <span class="k">def</span> <span class="nf">is_valid_compression_type</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns true for valid compression types, false otherwise.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">compression_type</span><span class="p">,</span> <span class="n">_CompressionType</span><span class="p">)</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="CompressionTypes.mime_type"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.CompressionTypes.mime_type">[docs]</a>  <span class="k">def</span> <span class="nf">mime_type</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">):</span>
+    <span class="n">mime_types_by_compression_type</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">:</span> <span class="s1">&#39;application/x-bz2&#39;</span><span class="p">,</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">GZIP</span><span class="p">:</span> <span class="s1">&#39;application/x-gzip&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">mime_types_by_compression_type</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">compression_type</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="CompressionTypes.detect_compression_type"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.CompressionTypes.detect_compression_type">[docs]</a>  <span class="k">def</span> <span class="nf">detect_compression_type</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the compression type of a file (based on its suffix).&quot;&quot;&quot;</span>
+    <span class="n">compression_types_by_suffix</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;.bz2&#39;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">,</span> <span class="s1">&#39;.gz&#39;</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">GZIP</span><span class="p">}</span>
+    <span class="n">lowercased_path</span> <span class="o">=</span> <span class="n">file_path</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">suffix</span><span class="p">,</span> <span class="n">compression_type</span> <span class="ow">in</span> <span class="n">compression_types_by_suffix</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">lowercased_path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">suffix</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">compression_type</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">UNCOMPRESSED</span></div></div>
+
+
+<div class="viewcode-block" id="ChannelFactory"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory">[docs]</a><span class="k">class</span> <span class="nc">ChannelFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="c1"># TODO: Generalize into extensible framework.</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.mkdir"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.mkdir">[docs]</a>  <span class="k">def</span> <span class="nf">mkdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="k">return</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.open"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span>
+           <span class="n">mode</span><span class="p">,</span>
+           <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+           <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">:</span>
+      <span class="n">compression_type</span> <span class="o">=</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">detect_compression_type</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">is_valid_compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;compression_type must be CompressionType object but &#39;</span>
+                      <span class="s1">&#39;was </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="n">raw_file</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>
+          <span class="n">path</span><span class="p">,</span>
+          <span class="n">mode</span><span class="p">,</span>
+          <span class="n">mime_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">mime_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">raw_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">raw_file</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">_CompressedFile</span><span class="p">(</span><span class="n">raw_file</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.is_compressed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.is_compressed">[docs]</a>  <span class="k">def</span> <span class="nf">is_compressed</span><span class="p">(</span><span class="n">fileobj</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fileobj</span><span class="p">,</span> <span class="n">_CompressedFile</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.rename"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.rename">[docs]</a>  <span class="k">def</span> <span class="nf">rename</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Destination </span><span class="si">%r</span><span class="s1"> must be GCS path.&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+      <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.rename_batch"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.rename_batch">[docs]</a>  <span class="k">def</span> <span class="nf">rename_batch</span><span class="p">(</span><span class="n">src_dest_pairs</span><span class="p">):</span>
+    <span class="c1"># Filter out local and GCS operations.</span>
+    <span class="n">local_src_dest_pairs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">gcs_src_dest_pairs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">src_dest_pairs</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Destination </span><span class="si">%r</span><span class="s1"> must be GCS path.&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+        <span class="n">gcs_src_dest_pairs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">local_src_dest_pairs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+
+    <span class="c1"># Execute local operations.</span>
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">local_src_dest_pairs</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+    <span class="c1"># Execute GCS operations.</span>
+    <span class="n">exceptions</span> <span class="o">+=</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">_rename_gcs_batch</span><span class="p">(</span><span class="n">gcs_src_dest_pairs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">exceptions</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_rename_gcs_batch</span><span class="p">(</span><span class="n">src_dest_pairs</span><span class="p">):</span>
+    <span class="c1"># Prepare batches.</span>
+    <span class="n">gcs_batches</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">gcs_current_batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">src_dest_pairs</span><span class="p">:</span>
+      <span class="n">gcs_current_batch</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gcs_current_batch</span><span class="p">)</span> <span class="o">==</span> <span class="n">MAX_BATCH_OPERATION_SIZE</span><span class="p">:</span>
+        <span class="n">gcs_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gcs_current_batch</span><span class="p">)</span>
+        <span class="n">gcs_current_batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">gcs_current_batch</span><span class="p">:</span>
+      <span class="n">gcs_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gcs_current_batch</span><span class="p">)</span>
+
+    <span class="c1"># Execute GCS renames if any and return exceptions.</span>
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">gcs_batches</span><span class="p">:</span>
+      <span class="n">copy_statuses</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">copy_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+      <span class="n">copy_succeeded</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span> <span class="ow">in</span> <span class="n">copy_statuses</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">exception</span><span class="p">:</span>
+          <span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">copy_succeeded</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+      <span class="n">delete_batch</span> <span class="o">=</span> <span class="p">[</span><span class="n">src</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">copy_succeeded</span><span class="p">]</span>
+      <span class="n">delete_statuses</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">delete_batch</span><span class="p">(</span><span class="n">delete_batch</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">delete_statuses</span><span class="p">):</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="n">copy_succeeded</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">exception</span><span class="p">:</span>
+          <span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">exceptions</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.copytree"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.copytree">[docs]</a>  <span class="k">def</span> <span class="nf">copytree</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Destination </span><span class="si">%r</span><span class="s1"> must be GCS path.&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+      <span class="k">assert</span> <span class="n">src</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">),</span> <span class="n">src</span>
+      <span class="k">assert</span> <span class="n">dest</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">),</span> <span class="n">dest</span>
+      <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
+          <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.exists"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.exists">[docs]</a>  <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.rmdir"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.rmdir">[docs]</a>  <span class="k">def</span> <span class="nf">rmdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="n">gcs</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">):</span>
+        <span class="n">path</span> <span class="o">+=</span> <span class="s1">&#39;/&#39;</span>
+      <span class="c1"># TODO: Threadpool?</span>
+      <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">gcs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+        <span class="n">gcs</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.rm"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.rm">[docs]</a>  <span class="k">def</span> <span class="nf">rm</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.glob"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.glob">[docs]</a>  <span class="k">def</span> <span class="nf">glob</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">files</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.size_in_bytes"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.size_in_bytes">[docs]</a>  <span class="k">def</span> <span class="nf">size_in_bytes</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the size of a file in bytes.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: a string that gives the path of a single file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ChannelFactory.size_of_files_in_glob"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.ChannelFactory.size_of_files_in_glob">[docs]</a>  <span class="k">def</span> <span class="nf">size_of_files_in_glob</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">file_names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a map of file names to sizes.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: a file path pattern that reads the size of all the files</span>
+<span class="sd">      file_names: List of file names that we need size for, this is added to</span>
+<span class="sd">        support eventually consistent sources where two expantions of glob</span>
+<span class="sd">        might yield to different files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="n">file_sizes</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">file_names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">file_sizes</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># We need to make sure we fetched the size for all the files as the</span>
+        <span class="c1"># list API in GCS is eventually consistent so directly call size for</span>
+        <span class="c1"># any files that may be missing.</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">file_names</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">file_sizes</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">file_sizes</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">size_in_bytes</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">file_names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">file_names</span> <span class="o">=</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">return</span> <span class="p">{</span><span class="n">file_name</span><span class="p">:</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">size_in_bytes</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+              <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">file_names</span><span class="p">}</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_CompressedFile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Somewhat limited file wrapper for easier handling of compressed files.&quot;&quot;&quot;</span>
+
+  <span class="c1"># The bit mask to use for the wbits parameters of the zlib compressor and</span>
+  <span class="c1"># decompressor objects.</span>
+  <span class="n">_gzip_mask</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">MAX_WBITS</span> <span class="o">|</span> <span class="mi">16</span>  <span class="c1"># Mask when using GZIP headers.</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">fileobj</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">,</span>
+               <span class="n">read_size</span><span class="o">=</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">fileobj</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;File object must be opened file but was at </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="n">fileobj</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">is_valid_compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;compression_type must be CompressionType object but &#39;</span>
+                      <span class="s1">&#39;was </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">compression_type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span>
+                           <span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Cannot create object with unspecified or no compression&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_file</span> <span class="o">=</span> <span class="n">fileobj</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;File object must be at position 0 but was </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">tell</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_uncompressed_position</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">readable</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_size</span> <span class="o">=</span> <span class="n">read_size</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_eof</span> <span class="o">=</span> <span class="kc">False</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span> <span class="o">=</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2Decompressor</span><span class="p">()</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompressobj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_gzip_mask</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">writeable</span><span class="p">():</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span> <span class="o">=</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2Compressor</span><span class="p">()</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">compressobj</span><span class="p">(</span><span class="n">zlib</span><span class="o">.</span><span class="n">Z_DEFAULT_COMPRESSION</span><span class="p">,</span>
+                                            <span class="n">zlib</span><span class="o">.</span><span class="n">DEFLATED</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gzip_mask</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">readable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">mode</span>
+    <span class="k">return</span> <span class="s1">&#39;r&#39;</span> <span class="ow">in</span> <span class="n">mode</span> <span class="ow">or</span> <span class="s1">&#39;a&#39;</span> <span class="ow">in</span> <span class="n">mode</span>
+
+  <span class="k">def</span> <span class="nf">writeable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">mode</span>
+    <span class="k">return</span> <span class="s1">&#39;w&#39;</span> <span class="ow">in</span> <span class="n">mode</span> <span class="ow">or</span> <span class="s1">&#39;a&#39;</span> <span class="ow">in</span> <span class="n">mode</span>
+
+  <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Write data to file.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;compressor not initialized&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_uncompressed_position</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">compressed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">compressed</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">compressed</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_fetch_to_internal_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_bytes</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Fetch up to num_bytes into the internal buffer.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_eof</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span>
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">num_bytes</span><span class="p">):</span>
+      <span class="c1"># There aren&#39;t enough number of bytes to accommodate a read, so we</span>
+      <span class="c1"># prepare for a possibly large read by clearing up all internal buffers</span>
+      <span class="c1"># but without dropping any previous held data.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span><span class="p">)</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_eof</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span>
+                                 <span class="p">)</span> <span class="o">&lt;</span> <span class="n">num_bytes</span><span class="p">:</span>
+      <span class="c1"># Continue reading from the underlying file object until enough bytes are</span>
+      <span class="c1"># available, or EOF is reached.</span>
+      <span class="n">buf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_size</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">buf</span><span class="p">:</span>
+        <span class="n">decompressed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">buf</span>  <span class="c1"># Free up some possibly large and no-longer-needed memory.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">decompressed</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># EOF reached.</span>
+        <span class="c1"># Verify completeness and no corruption and flush (if needed by</span>
+        <span class="c1"># the underlying algorithm).</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">:</span>
+          <span class="c1"># Having unused_data past end of stream would imply file corruption.</span>
+          <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span><span class="o">.</span><span class="n">unused_data</span><span class="p">,</span> <span class="s1">&#39;Possible file corruption.&#39;</span>
+          <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># EOF implies that the underlying BZIP2 stream must also have</span>
+            <span class="c1"># reached EOF. We expect this to raise an EOFError and we catch it</span>
+            <span class="c1"># below. Any other kind of error though would be problematic.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="s1">&#39;dummy&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;Possible file corruption.&#39;</span>
+          <span class="k">except</span> <span class="ne">EOFError</span><span class="p">:</span>
+            <span class="k">pass</span>  <span class="c1"># All is as expected!</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span><span class="o">.</span><span class="n">flush</span><span class="p">())</span>
+
+        <span class="c1"># Record that we have hit the end of file, so we won&#39;t unnecessarily</span>
+        <span class="c1"># repeat the completeness verification step above.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_eof</span> <span class="o">=</span> <span class="kc">True</span>
+
+  <span class="k">def</span> <span class="nf">_read_from_internal_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">read_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read from the internal buffer by using the supplied read_fn.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">read_fn</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_read_position</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_uncompressed_position</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_END</span><span class="p">)</span>  <span class="c1"># Allow future writes.</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_bytes</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;decompressor not initialized&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_to_internal_buffer</span><span class="p">(</span><span class="n">num_bytes</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_from_internal_buffer</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">num_bytes</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Equivalent to standard file.readline(). Same return conventions apply.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decompressor</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;decompressor not initialized&#39;</span><span class="p">)</span>
+
+    <span class="n">io</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="c1"># Ensure that the internal buffer has at least half the read_size. Going</span>
+      <span class="c1"># with half the _read_size (as opposed to a full _read_size) to ensure</span>
+      <span class="c1"># that actual fetches are more evenly spread out, as opposed to having 2</span>
+      <span class="c1"># consecutive reads at the beginning of a read.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_to_internal_buffer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+      <span class="n">line</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_from_internal_buffer</span><span class="p">(</span>
+          <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">readline</span><span class="p">())</span>
+      <span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+        <span class="k">break</span>  <span class="c1"># Newline or EOF reached.</span>
+
+    <span class="k">return</span> <span class="n">io</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">closed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">closed</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">readable</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_read_buffer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">writeable</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span><span class="o">.</span><span class="n">flush</span><span class="p">())</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">writeable</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compressor</span><span class="o">.</span><span class="n">flush</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_file</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">seekable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># TODO: Add support for seeking to a file position.</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns current position in uncompressed file.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uncompressed_position</span>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="FileSink"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink">[docs]</a><span class="k">class</span> <span class="nc">FileSink</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">Sink</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A sink to a GCS or local files.</span>
+
+<span class="sd">  To implement a file-based sink, extend this class and override</span>
+<span class="sd">  either ``write_record()`` or ``write_encoded_record()``.</span>
+
+<span class="sd">  If needed, also overwrite ``open()`` and/or ``close()`` to customize the</span>
+<span class="sd">  file handling or write headers and footers.</span>
+
+<span class="sd">  The output of this write is a PCollection of all written shards.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Max number of threads to be used for renaming.</span>
+  <span class="n">_MAX_RENAME_THREADS</span> <span class="o">=</span> <span class="mi">64</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_path_prefix</span><span class="p">,</span>
+               <span class="n">coder</span><span class="p">,</span>
+               <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+               <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">     Raises:</span>
+<span class="sd">      TypeError: if file path parameters are not a string or if compression_type</span>
+<span class="sd">        is not member of CompressionTypes.</span>
+<span class="sd">      ValueError: if shard_name_template is not of expected format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;file_path_prefix must be a string; got </span><span class="si">%r</span><span class="s1"> instead&#39;</span> <span class="o">%</span>
+                      <span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name_suffix</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;file_name_suffix must be a string; got </span><span class="si">%r</span><span class="s1"> instead&#39;</span> <span class="o">%</span>
+                      <span class="n">file_name_suffix</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">is_valid_compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;compression_type must be CompressionType object but &#39;</span>
+                      <span class="s1">&#39;was </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">shard_name_template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">shard_name_template</span> <span class="o">=</span> <span class="n">DEFAULT_SHARD_NAME_TEMPLATE</span>
+    <span class="k">elif</span> <span class="n">shard_name_template</span> <span class="ow">is</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+      <span class="n">num_shards</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">file_path_prefix</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span> <span class="o">=</span> <span class="n">file_name_suffix</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">num_shards</span> <span class="o">=</span> <span class="n">num_shards</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">shard_name_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_template_to_format</span><span class="p">(</span><span class="n">shard_name_template</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mime_type</span> <span class="o">=</span> <span class="n">mime_type</span>
+
+<div class="viewcode-block" id="FileSink.display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;shards&#39;</span><span class="p">:</span>
+            <span class="n">DisplayDataItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_shards</span><span class="p">,</span>
+                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Number of Shards&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_if_default</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+            <span class="s1">&#39;compression&#39;</span><span class="p">:</span>
+            <span class="n">DisplayDataItem</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span><span class="p">)),</span>
+            <span class="s1">&#39;file_pattern&#39;</span><span class="p">:</span>
+            <span class="n">DisplayDataItem</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">shard_name_format</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span><span class="p">),</span>
+                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;File Pattern&#39;</span><span class="p">)}</span></div>
+
+<div class="viewcode-block" id="FileSink.open"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Opens ``temp_path``, returning an opaque file handle object.</span>
+
+<span class="sd">    The returned file handle is passed to ``write_[encoded_]record`` and</span>
+<span class="sd">    ``close``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span>
+        <span class="s1">&#39;wb&#39;</span><span class="p">,</span>
+        <span class="n">mime_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mime_type</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileSink.write_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.write_record">[docs]</a>  <span class="k">def</span> <span class="nf">write_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes a single record go the file handle returned by ``open()``.</span>
+
+<span class="sd">    By default, calls ``write_encoded_record`` after encoding the record with</span>
+<span class="sd">    this sink&#39;s Coder.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">write_encoded_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FileSink.write_encoded_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.write_encoded_record">[docs]</a>  <span class="k">def</span> <span class="nf">write_encoded_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">encoded_value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes a single encoded record to the file handle returned by ``open()``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="FileSink.close"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.close">[docs]</a>  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Finalize and close the file handle returned from ``open()``.</span>
+
+<span class="sd">    Called after all records are written.</span>
+
+<span class="sd">    By default, calls ``file_handle.close()`` iff it is not None.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">file_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">file_handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FileSink.initialize_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.initialize_write">[docs]</a>  <span class="k">def</span> <span class="nf">initialize_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">tmp_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span> <span class="o">+</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+        <span class="s1">&#39;-temp-%Y-%m-</span><span class="si">%d</span><span class="s1">_%H-%M-%S&#39;</span><span class="p">)</span>
+    <span class="n">ChannelFactory</span><span class="p">()</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tmp_dir</span></div>
+
+<div class="viewcode-block" id="FileSink.open_writer"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.open_writer">[docs]</a>  <span class="k">def</span> <span class="nf">open_writer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init_result</span><span class="p">,</span> <span class="n">uid</span><span class="p">):</span>
+    <span class="c1"># A proper suffix is needed for AUTO compression detection.</span>
+    <span class="c1"># We also ensure there will be no collisions with uid and a</span>
+    <span class="c1"># (possibly unsharded) file_path_prefix and a (possibly empty)</span>
+    <span class="c1"># file_name_suffix.</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">FileSinkWriter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">init_result</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileSink.finalize_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSink.finalize_write">[docs]</a>  <span class="k">def</span> <span class="nf">finalize_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init_result</span><span class="p">,</span> <span class="n">writer_results</span><span class="p">):</span>
+    <span class="n">writer_results</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">writer_results</span><span class="p">)</span>
+    <span class="n">num_shards</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">writer_results</span><span class="p">)</span>
+    <span class="n">min_threads</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_shards</span><span class="p">,</span> <span class="n">FileSink</span><span class="o">.</span><span class="n">_MAX_RENAME_THREADS</span><span class="p">)</span>
+    <span class="n">num_threads</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_threads</span><span class="p">)</span>
+
+    <span class="n">rename_ops</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">shard_num</span><span class="p">,</span> <span class="n">shard</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">writer_results</span><span class="p">):</span>
+      <span class="n">final_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shard_name_format</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span>
+              <span class="n">shard_num</span><span class="o">=</span><span class="n">shard_num</span><span class="p">,</span> <span class="n">num_shards</span><span class="o">=</span><span class="n">num_shards</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span>
+      <span class="p">])</span>
+      <span class="n">rename_ops</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">shard</span><span class="p">,</span> <span class="n">final_name</span><span class="p">))</span>
+
+    <span class="n">batches</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">current_batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">rename_op</span> <span class="ow">in</span> <span class="n">rename_ops</span><span class="p">:</span>
+      <span class="n">current_batch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rename_op</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">current_batch</span><span class="p">)</span> <span class="o">==</span> <span class="n">MAX_BATCH_OPERATION_SIZE</span><span class="p">:</span>
+        <span class="n">batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_batch</span><span class="p">)</span>
+        <span class="n">current_batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">current_batch</span><span class="p">:</span>
+      <span class="n">batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_batch</span><span class="p">)</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;Starting finalize_write threads with num_shards: </span><span class="si">%d</span><span class="s1">, &#39;</span>
+        <span class="s1">&#39;batches: </span><span class="si">%d</span><span class="s1">, num_threads: </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">batches</span><span class="p">),</span> <span class="n">num_threads</span><span class="p">)</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="c1"># Use a thread pool for renaming operations.</span>
+    <span class="k">def</span> <span class="nf">_rename_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;_rename_batch executes batch rename operations.&quot;&quot;&quot;</span>
+      <span class="n">exceptions</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">exception_infos</span> <span class="o">=</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">rename_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span> <span class="ow">in</span> <span class="n">exception_infos</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">exception</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Rename not successful: </span><span class="si">%s</span><span class="s1"> -&gt; </span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span>
+                          <span class="n">exception</span><span class="p">)</span>
+          <span class="n">should_report</span> <span class="o">=</span> <span class="kc">True</span>
+          <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">):</span>
+            <span class="c1"># May have already been copied.</span>
+            <span class="k">try</span><span class="p">:</span>
+              <span class="k">if</span> <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
+                <span class="n">should_report</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exists_e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+              <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Exception when checking if file </span><span class="si">%s</span><span class="s1"> exists: &#39;</span>
+                              <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exists_e</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">should_report</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">((</span><span class="s1">&#39;Exception in _rename_batch. src: </span><span class="si">%s</span><span class="s1">, &#39;</span>
+                             <span class="s1">&#39;dest: </span><span class="si">%s</span><span class="s1">, err: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">),</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span>
+            <span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Rename successful: </span><span class="si">%s</span><span class="s1"> -&gt; </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">exceptions</span>
+
+    <span class="n">exception_batches</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">run_using_threadpool</span><span class="p">(</span>
+        <span class="n">_rename_batch</span><span class="p">,</span> <span class="n">batches</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">)</span>
+
+    <span class="n">all_exceptions</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">exceptions</span> <span class="ow">in</span> <span class="n">exception_batches</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
+        <span class="n">all_exceptions</span> <span class="o">+=</span> <span class="n">exceptions</span>
+    <span class="k">if</span> <span class="n">all_exceptions</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Encountered exceptions in finalize_write: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                      <span class="n">all_exceptions</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">shard</span><span class="p">,</span> <span class="n">final_name</span> <span class="ow">in</span> <span class="n">rename_ops</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">final_name</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Renamed </span><span class="si">%d</span><span class="s1"> shards in </span><span class="si">%.2f</span><span class="s1"> seconds.&#39;</span><span class="p">,</span> <span class="n">num_shards</span><span class="p">,</span>
+                 <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">ChannelFactory</span><span class="o">.</span><span class="n">rmdir</span><span class="p">(</span><span class="n">init_result</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+      <span class="c1"># May have already been removed.</span>
+      <span class="k">pass</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_template_to_format</span><span class="p">(</span><span class="n">shard_name_template</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">shard_name_template</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;S+&#39;</span><span class="p">,</span> <span class="n">shard_name_template</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Shard number pattern S+ not found in template &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span>
+                       <span class="n">shard_name_template</span><span class="p">)</span>
+    <span class="n">shard_name_format</span> <span class="o">=</span> <span class="n">shard_name_template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+        <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;</span><span class="si">%%</span><span class="s1">(shard_num)0</span><span class="si">%d</span><span class="s1">d&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;N+&#39;</span><span class="p">,</span> <span class="n">shard_name_format</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+      <span class="n">shard_name_format</span> <span class="o">=</span> <span class="n">shard_name_format</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+          <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;</span><span class="si">%%</span><span class="s1">(num_shards)0</span><span class="si">%d</span><span class="s1">d&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">shard_name_format</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># TODO: Clean up workitem_test which uses this.</span>
+    <span class="c1"># pylint: disable=unidiomatic-typecheck</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span></div>
+
+
+<div class="viewcode-block" id="FileSinkWriter"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSinkWriter">[docs]</a><span class="k">class</span> <span class="nc">FileSinkWriter</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">Writer</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;The writer for FileSink.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sink</span><span class="p">,</span> <span class="n">temp_shard_path</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span> <span class="o">=</span> <span class="n">sink</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">temp_shard_path</span> <span class="o">=</span> <span class="n">temp_shard_path</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">temp_handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">temp_shard_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FileSinkWriter.write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSinkWriter.write">[docs]</a>  <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileSinkWriter.close"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio.FileSinkWriter.close">[docs]</a>  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_handle</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">temp_shard_path</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+apache\_beam\.coders\.observable module
+=======================================
+
+.. automodule:: apache_beam.coders.observable
+    :members:
+    :undoc-members:
+    :show-inheritance:

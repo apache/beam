@@ -1,0 +1,94 @@
+apache\_beam\.transforms package
+================================
+
+Submodules
+----------
+
+apache\_beam\.transforms\.combiners module
+------------------------------------------
+
+.. automodule:: apache_beam.transforms.combiners
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.core module
+-------------------------------------
+
+.. automodule:: apache_beam.transforms.core
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.cy\_combiners module
+----------------------------------------------
+
+.. automodule:: apache_beam.transforms.cy_combiners
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.display module
+----------------------------------------
+
+.. automodule:: apache_beam.transforms.display
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.ptransform module
+-------------------------------------------
+
+.. automodule:: apache_beam.transforms.ptransform
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.sideinputs module
+-------------------------------------------
+
+.. automodule:: apache_beam.transforms.sideinputs
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.timeutil module
+-----------------------------------------
+
+.. automodule:: apache_beam.transforms.timeutil
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.trigger module
+----------------------------------------
+
+.. automodule:: apache_beam.transforms.trigger
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.util module
+-------------------------------------
+
+.. automodule:: apache_beam.transforms.util
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.transforms\.window module
+---------------------------------------
+
+.. automodule:: apache_beam.transforms.window
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.transforms
+    :members:
+    :undoc-members:
+    :show-inheritance:

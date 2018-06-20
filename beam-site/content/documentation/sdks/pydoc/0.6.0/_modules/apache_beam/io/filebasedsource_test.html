@@ -1,0 +1,798 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.filebasedsource_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.filebasedsource_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">bz2</span>
+<span class="kn">import</span> <span class="nn">cStringIO</span>
+<span class="kn">import</span> <span class="nn">gzip</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">hamcrest</span> <span class="k">as</span> <span class="nn">hc</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">fileio</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">range_trackers</span>
+
+<span class="c1"># importing following private classes for testing</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.concat_source</span> <span class="k">import</span> <span class="n">ConcatSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource</span> <span class="k">import</span> <span class="n">_SingleFileSource</span> <span class="k">as</span> <span class="n">SingleFileSource</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource</span> <span class="k">import</span> <span class="n">FileBasedSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display_test</span> <span class="k">import</span> <span class="n">DisplayDataItemMatcher</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">equal_to</span>
+
+
+<div class="viewcode-block" id="LineSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.LineSource">[docs]</a><span class="k">class</span> <span class="nc">LineSource</span><span class="p">(</span><span class="n">FileBasedSource</span><span class="p">):</span>
+
+<div class="viewcode-block" id="LineSource.read_records"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.LineSource.read_records">[docs]</a>  <span class="k">def</span> <span class="nf">read_records</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Any line that starts after &#39;start&#39; does not belong to the current</span>
+        <span class="c1"># bundle. Seeking to (start - 1) and skipping a line moves the current</span>
+        <span class="c1"># position to the starting position of the first line that belongs to</span>
+        <span class="c1"># the current bundle.</span>
+        <span class="n">start</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="n">start</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+      <span class="n">current</span> <span class="o">=</span> <span class="n">start</span>
+      <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+      <span class="k">while</span> <span class="n">line</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">current</span><span class="p">):</span>
+          <span class="k">return</span>
+        <span class="k">yield</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">current</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="EOL"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.EOL">[docs]</a><span class="k">class</span> <span class="nc">EOL</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="n">LF</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">CRLF</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">MIXED</span> <span class="o">=</span> <span class="mi">3</span>
+  <span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span> <span class="o">=</span> <span class="mi">4</span></div>
+
+
+<div class="viewcode-block" id="write_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.write_data">[docs]</a><span class="k">def</span> <span class="nf">write_data</span><span class="p">(</span>
+    <span class="n">num_lines</span><span class="p">,</span> <span class="n">no_data</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">,</span>
+    <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF</span><span class="p">):</span>
+  <span class="n">all_data</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+      <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">sep_values</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_lines</span><span class="p">):</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="n">no_data</span> <span class="k">else</span> <span class="s1">&#39;line&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">all_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="n">eol</span> <span class="o">==</span> <span class="n">EOL</span><span class="o">.</span><span class="n">LF</span><span class="p">:</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="n">sep_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="n">eol</span> <span class="o">==</span> <span class="n">EOL</span><span class="o">.</span><span class="n">CRLF</span><span class="p">:</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="n">sep_values</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="n">eol</span> <span class="o">==</span> <span class="n">EOL</span><span class="o">.</span><span class="n">MIXED</span><span class="p">:</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="n">sep_values</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">sep_values</span><span class="p">)]</span>
+      <span class="k">elif</span> <span class="n">eol</span> <span class="o">==</span> <span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">:</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="p">(</span><span class="n">num_lines</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="n">sep_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Received unknown value </span><span class="si">%s</span><span class="s1"> for eol.&#39;</span><span class="p">,</span> <span class="n">eol</span><span class="p">)</span>
+
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span> <span class="o">+</span> <span class="n">sep</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">all_data</span></div>
+
+
+<span class="k">def</span> <span class="nf">_write_prepared_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+  <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+      <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">suffix</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+
+
+<div class="viewcode-block" id="write_prepared_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.write_prepared_pattern">[docs]</a><span class="k">def</span> <span class="nf">write_prepared_pattern</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">suffixes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">suffixes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">suffixes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+  <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">_write_prepared_data</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;mytemp&#39;</span><span class="p">,</span>
+                                     <span class="n">suffix</span><span class="o">=</span><span class="n">suffixes</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+  <span class="k">return</span> <span class="n">file_name</span><span class="p">[:</span><span class="n">file_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)]</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;mytemp*&#39;</span></div>
+
+
+<div class="viewcode-block" id="write_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.write_pattern">[docs]</a><span class="k">def</span> <span class="nf">write_pattern</span><span class="p">(</span><span class="n">lines_per_file</span><span class="p">,</span> <span class="n">no_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+  <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+  <span class="n">all_data</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">file_name</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">start_index</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lines_per_file</span><span class="p">)):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">lines_per_file</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">no_data</span><span class="o">=</span><span class="n">no_data</span><span class="p">,</span>
+                                 <span class="n">directory</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;mytemp&#39;</span><span class="p">)</span>
+    <span class="n">all_data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">start_index</span> <span class="o">+=</span> <span class="n">lines_per_file</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+  <span class="k">assert</span> <span class="n">file_name</span>
+  <span class="k">return</span> <span class="p">(</span>
+      <span class="n">file_name</span><span class="p">[:</span><span class="n">file_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)]</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;mytemp*&#39;</span><span class="p">,</span>
+      <span class="n">all_data</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestConcatSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource">[docs]</a><span class="k">class</span> <span class="nc">TestConcatSource</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestConcatSource.DummySource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.DummySource">[docs]</a>  <span class="k">class</span> <span class="nc">DummySource</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_values</span> <span class="o">=</span> <span class="n">values</span>
+
+<div class="viewcode-block" id="TestConcatSource.DummySource.split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.DummySource.split">[docs]</a>    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+              <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="c1"># simply devides values into two bundles</span>
+      <span class="n">middle</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+      <span class="k">yield</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">TestConcatSource</span><span class="o">.</span><span class="n">DummySource</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">[:</span><span class="n">middle</span><span class="p">]),</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">TestConcatSource</span><span class="o">.</span><span class="n">DummySource</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">[</span><span class="n">middle</span><span class="p">:]),</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestConcatSource.DummySource.get_range_tracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.DummySource.get_range_tracker">[docs]</a>    <span class="k">def</span> <span class="nf">get_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">start_position</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">if</span> <span class="n">stop_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stop_position</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">)</span>
+
+      <span class="k">return</span> <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestConcatSource.DummySource.read"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.DummySource.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+          <span class="k">return</span>
+
+        <span class="k">yield</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="TestConcatSource.DummySource.estimate_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.DummySource.estimate_size">[docs]</a>    <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">)</span>  <span class="c1"># Assuming each value to be 1 byte.</span></div></div>
+
+<div class="viewcode-block" id="TestConcatSource.setUp"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Reducing the size of thread pools. Without this test execution may fail in</span>
+    <span class="c1"># environments with limited amount of resources.</span>
+    <span class="n">filebasedsource</span><span class="o">.</span><span class="n">MAX_NUM_THREADS_FOR_SIZE_ESTIMATION</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+<div class="viewcode-block" id="TestConcatSource.test_read"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.test_read">[docs]</a>  <span class="k">def</span> <span class="nf">test_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span><span class="n">TestConcatSource</span><span class="o">.</span><span class="n">DummySource</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span> <span class="k">for</span> <span class="n">start</span>
+               <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">]]</span>
+    <span class="n">concat</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">(</span><span class="n">sources</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">concat</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">concat</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">),</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestConcatSource.test_split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.test_split">[docs]</a>  <span class="k">def</span> <span class="nf">test_split</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span><span class="n">TestConcatSource</span><span class="o">.</span><span class="n">DummySource</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span> <span class="k">for</span> <span class="n">start</span>
+               <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">]]</span>
+    <span class="n">concat</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">(</span><span class="n">sources</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">concat</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))</span>
+
+    <span class="c1"># Reading all splits</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+      <span class="n">range_tracker_for_split</span> <span class="o">=</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+          <span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span>
+          <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+      <span class="n">read_data</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+          <span class="n">range_tracker_for_split</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">),</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestConcatSource.test_estimate_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestConcatSource.test_estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span><span class="n">TestConcatSource</span><span class="o">.</span><span class="n">DummySource</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span> <span class="o">+</span> <span class="mi">10</span><span class="p">))</span> <span class="k">for</span> <span class="n">start</span>
+               <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">]]</span>
+    <span class="n">concat</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">(</span><span class="n">sources</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="n">concat</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="TestFileBasedSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource">[docs]</a><span class="k">class</span> <span class="nc">TestFileBasedSource</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestFileBasedSource.setUp"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Reducing the size of thread pools. Without this test execution may fail in</span>
+    <span class="c1"># environments with limited amount of resources.</span>
+    <span class="n">filebasedsource</span><span class="o">.</span><span class="n">MAX_NUM_THREADS_FOR_SIZE_ESTIMATION</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_validation_file_exists"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_validation_file_exists">[docs]</a>  <span class="k">def</span> <span class="nf">test_validation_file_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_validation_directory_non_empty"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_validation_directory_non_empty">[docs]</a>  <span class="k">def</span> <span class="nf">test_validation_directory_non_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">)</span>
+    <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_validation_failing"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_validation_failing">[docs]</a>  <span class="k">def</span> <span class="nf">test_validation_failing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">no_files_found_error</span> <span class="o">=</span> <span class="s1">&#39;No files found based on the file pattern*&#39;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="n">no_files_found_error</span><span class="p">):</span>
+      <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="n">no_files_found_error</span><span class="p">):</span>
+      <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+      <span class="n">LineSource</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_validation_file_missing_verification_disabled"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_validation_file_missing_verification_disabled">[docs]</a>  <span class="k">def</span> <span class="nf">test_validation_file_missing_verification_disabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_fully_read_single_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_fully_read_single_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_fully_read_single_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">fbs</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_single_file_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_single_file_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_single_file_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">fbs</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;compression&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span>
+                   <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_fully_read_file_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_fully_read_file_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_fully_read_file_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">40</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">fbs</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_fully_read_file_pattern_with_empty_files"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_fully_read_file_pattern_with_empty_files">[docs]</a>  <span class="k">def</span> <span class="nf">test_fully_read_file_pattern_with_empty_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">25</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">fbs</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_estimate_size_of_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_estimate_size_of_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimate_size_of_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">,</span> <span class="n">fbs</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_estimate_size_of_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_estimate_size_of_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimate_size_of_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">38</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">38</span> <span class="o">*</span> <span class="mi">6</span><span class="p">,</span> <span class="n">fbs</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span>
+
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">9</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">17</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">17</span> <span class="o">*</span> <span class="mi">6</span><span class="p">,</span> <span class="n">fbs</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_estimate_size_with_sampling_same_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_estimate_size_with_sampling_same_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimate_size_with_sampling_same_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_files</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">FileBasedSource</span><span class="o">.</span><span class="n">MIN_NUMBER_OF_FILES_TO_STAT</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">10</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_files</span><span class="p">)</span>
+    <span class="c1"># Each line will be of length 6 since write_pattern() uses</span>
+    <span class="c1"># (&#39;line&#39; + line number + &#39;\n&#39;) as data.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="mi">6</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">num_files</span><span class="p">,</span> <span class="n">FileBasedSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_estimate_size_with_sampling_different_sizes"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_estimate_size_with_sampling_different_sizes">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimate_size_with_sampling_different_sizes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_files</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">FileBasedSource</span><span class="o">.</span><span class="n">MIN_NUMBER_OF_FILES_TO_STAT</span>
+
+    <span class="c1"># Each line will be of length 8 since write_pattern() uses</span>
+    <span class="c1"># (&#39;line&#39; + line number + &#39;\n&#39;) as data.</span>
+    <span class="n">base_size</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="n">variance</span> <span class="o">=</span> <span class="mi">5</span>
+
+    <span class="n">sizes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="n">sizes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">base_size</span> <span class="o">-</span> <span class="n">variance</span><span class="p">,</span>
+                                      <span class="n">base_size</span> <span class="o">+</span> <span class="n">variance</span><span class="p">)))</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">(</span><span class="n">sizes</span><span class="p">)</span>
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span>
+        <span class="n">base_size</span> <span class="o">*</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">num_files</span><span class="p">,</span>
+        <span class="n">FileBasedSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(),</span>
+        <span class="n">delta</span><span class="o">=</span><span class="n">base_size</span> <span class="o">*</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">num_files</span> <span class="o">*</span> <span class="n">tolerance</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_splits_into_subranges"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_splits_into_subranges">[docs]</a>  <span class="k">def</span> <span class="nf">test_splits_into_subranges</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">20</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">15</span><span class="p">)]</span>
+    <span class="n">expected_num_splits</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span> <span class="o">/</span> <span class="mi">15</span><span class="p">)</span> <span class="o">+</span>
+        <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="mi">9</span><span class="p">)</span> <span class="o">/</span> <span class="mi">15</span><span class="p">)</span> <span class="o">+</span>
+        <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span> <span class="o">/</span> <span class="mi">15</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="n">expected_num_splits</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_splits_single_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_splits_single_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_splits_single_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">100</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">33</span><span class="p">)]</span>
+
+    <span class="c1"># Reading all splits</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+      <span class="n">source</span> <span class="o">=</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span>
+      <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span>
+                                               <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+      <span class="n">data_from_split</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+      <span class="n">read_data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data_from_split</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_splits_file_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_splits_file_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_splits_file_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">34</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">12</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">50</span><span class="p">)]</span>
+
+    <span class="c1"># Reading all splits</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+      <span class="n">source</span> <span class="o">=</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span>
+      <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span>
+                                               <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+      <span class="n">data_from_split</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+      <span class="n">read_data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data_from_split</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_run_source_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span> <span class="n">splittable</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">pattern</span><span class="p">,</span> <span class="n">splittable</span><span class="o">=</span><span class="n">splittable</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_source_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_source_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">100</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_source_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_source_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_source_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">34</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">12</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_source_test</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_unsplittable_does_not_split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_unsplittable_does_not_split">[docs]</a>  <span class="k">def</span> <span class="nf">test_unsplittable_does_not_split</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">20</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">splittable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">15</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_source_file_unsplittable"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_source_file_unsplittable">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_file_unsplittable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">100</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_source_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_source_pattern_unsplittable"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_source_pattern_unsplittable">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_pattern_unsplittable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">34</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">12</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_source_test</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_file_bzip2"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_file_bzip2">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_file_bzip2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">filename</span><span class="p">,</span>
+        <span class="n">splittable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_file_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_file_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_file_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">filename</span><span class="p">,</span>
+        <span class="n">splittable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_pattern_bzip2"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_pattern_bzip2">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_pattern_bzip2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">164</span><span class="p">,</span> <span class="mi">188</span><span class="p">,</span> <span class="mi">200</span><span class="p">]</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[</span><span class="n">lines</span><span class="p">[</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))]</span>
+    <span class="n">compressed_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+      <span class="n">compressobj</span> <span class="o">=</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2Compressor</span><span class="p">()</span>
+      <span class="n">compressed_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">compressobj</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="p">))</span> <span class="o">+</span> <span class="n">compressobj</span><span class="o">.</span><span class="n">flush</span><span class="p">())</span>
+    <span class="n">file_pattern</span> <span class="o">=</span> <span class="n">write_prepared_pattern</span><span class="p">(</span><span class="n">compressed_chunks</span><span class="p">)</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="p">,</span>
+        <span class="n">splittable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_pattern_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_pattern_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_pattern_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">164</span><span class="p">,</span> <span class="mi">188</span><span class="p">,</span> <span class="mi">200</span><span class="p">]</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[</span><span class="n">lines</span><span class="p">[</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))]</span>
+    <span class="n">compressed_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+      <span class="n">out</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+      <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">fileobj</span><span class="o">=</span><span class="n">out</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+      <span class="n">compressed_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+    <span class="n">file_pattern</span> <span class="o">=</span> <span class="n">write_prepared_pattern</span><span class="p">(</span><span class="n">compressed_chunks</span><span class="p">)</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="p">,</span>
+        <span class="n">splittable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_auto_single_file_bzip2"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_auto_single_file_bzip2">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_auto_single_file_bzip2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.bz2&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">filename</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_auto_single_file_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_auto_single_file_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_auto_single_file_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.gz&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">filename</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_auto_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_auto_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_auto_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">164</span><span class="p">,</span> <span class="mi">188</span><span class="p">,</span> <span class="mi">200</span><span class="p">]</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[</span><span class="n">lines</span><span class="p">[</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]:</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))]</span>
+    <span class="n">compressed_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+      <span class="n">out</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+      <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">fileobj</span><span class="o">=</span><span class="n">out</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+      <span class="n">compressed_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+    <span class="n">file_pattern</span> <span class="o">=</span> <span class="n">write_prepared_pattern</span><span class="p">(</span>
+        <span class="n">compressed_chunks</span><span class="p">,</span> <span class="n">suffixes</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;.gz&#39;</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">))</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_read_auto_pattern_compressed_and_uncompressed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_read_auto_pattern_compressed_and_uncompressed">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_auto_pattern_compressed_and_uncompressed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">164</span><span class="p">,</span> <span class="mi">188</span><span class="p">,</span> <span class="mi">200</span><span class="p">]</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[</span><span class="n">lines</span><span class="p">[</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]:</span><span class="n">splits</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))]</span>
+    <span class="n">chunks_to_write</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunks</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">i</span><span class="o">%</span><span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">fileobj</span><span class="o">=</span><span class="n">out</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+          <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+        <span class="n">chunks_to_write</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">chunks_to_write</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+    <span class="n">file_pattern</span> <span class="o">=</span> <span class="n">write_prepared_pattern</span><span class="p">(</span><span class="n">chunks_to_write</span><span class="p">,</span>
+                                          <span class="n">suffixes</span><span class="o">=</span><span class="p">([</span><span class="s1">&#39;.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">LineSource</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestFileBasedSource.test_splits_get_coder_from_fbs"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestFileBasedSource.test_splits_get_coder_from_fbs">[docs]</a>  <span class="k">def</span> <span class="nf">test_splits_get_coder_from_fbs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">DummyCoder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+      <span class="n">val</span> <span class="o">=</span> <span class="mi">12345</span>
+
+    <span class="k">class</span> <span class="nc">FileBasedSourceWithCoder</span><span class="p">(</span><span class="n">LineSource</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">default_output_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">DummyCoder</span><span class="p">()</span>
+
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">34</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">12</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">FileBasedSourceWithCoder</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">fbs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">50</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">DummyCoder</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">()</span><span class="o">.</span><span class="n">val</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestSingleFileSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource">[docs]</a><span class="k">class</span> <span class="nc">TestSingleFileSource</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestSingleFileSource.setUp"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Reducing the size of thread pools. Without this test execution may fail in</span>
+    <span class="c1"># environments with limited amount of resources.</span>
+    <span class="n">filebasedsource</span><span class="o">.</span><span class="n">MAX_NUM_THREADS_FOR_SIZE_ESTIMATION</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_source_creation_fails_for_non_number_offsets"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_source_creation_fails_for_non_number_offsets">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_creation_fails_for_non_number_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">start_not_a_number_error</span> <span class="o">=</span> <span class="s1">&#39;start_offset must be a number*&#39;</span>
+    <span class="n">stop_not_a_number_error</span> <span class="o">=</span> <span class="s1">&#39;stop_offset must be a number*&#39;</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;dummy_pattern&#39;</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">start_not_a_number_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="s1">&#39;aaa&#39;</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="s1">&#39;bbb&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">start_not_a_number_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="s1">&#39;aaa&#39;</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">stop_not_a_number_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="s1">&#39;bbb&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">stop_not_a_number_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="n">start_not_a_number_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_source_creation_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_source_creation_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_creation_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;dummy_pattern&#39;</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">fbs</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;compression&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span>
+                   <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_source_creation_fails_if_start_lg_stop"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_source_creation_fails_if_start_lg_stop">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_creation_fails_if_start_lg_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">start_larger_than_stop_error</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s1">&#39;start_offset must be smaller than stop_offset*&#39;</span><span class="p">)</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">SingleFileSource</span><span class="p">(</span>
+        <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">99</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">start_larger_than_stop_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="mi">99</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">start_larger_than_stop_error</span><span class="p">):</span>
+      <span class="n">SingleFileSource</span><span class="p">(</span>
+          <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_estimates_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_estimates_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimates_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Should simply return stop_offset - start_offset</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span>
+        <span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">source</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;dummy_file&#39;</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                              <span class="n">stop_offset</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">90</span><span class="p">,</span> <span class="n">source</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_read_range_at_beginning"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_read_range_at_beginning">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_range_at_beginning</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">[:</span><span class="mi">4</span><span class="p">],</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_read_range_at_end"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_read_range_at_end">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_range_at_end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:],</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_read_range_at_middle"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_read_range_at_middle">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_range_at_middle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_produces_splits_desiredsize_large_than_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_produces_splits_desiredsize_large_than_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_produces_splits_desiredsize_large_than_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_produces_splits_desiredsize_smaller_than_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_produces_splits_desiredsize_smaller_than_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_produces_splits_desiredsize_smaller_than_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">25</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))</span>
+
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+      <span class="n">source</span> <span class="o">=</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span>
+      <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span>
+                                               <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+      <span class="n">data_from_split</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+      <span class="n">read_data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data_from_split</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSingleFileSource.test_produce_split_with_start_and_end_positions"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource_test.TestSingleFileSource.test_produce_split_with_start_and_end_positions">[docs]</a>  <span class="k">def</span> <span class="nf">test_produce_split_with_start_and_end_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fbs</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="s1">&#39;dummy_pattern&#39;</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">SingleFileSource</span><span class="p">(</span><span class="n">fbs</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span>
+              <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                           <span class="n">stop_offset</span><span class="o">=</span><span class="mi">50</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">))</span>
+
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+      <span class="n">source</span> <span class="o">=</span> <span class="n">split</span><span class="o">.</span><span class="n">source</span>
+      <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span>
+                                               <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+      <span class="n">data_from_split</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+      <span class="n">read_data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data_from_split</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">9</span><span class="p">],</span> <span class="n">read_data</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

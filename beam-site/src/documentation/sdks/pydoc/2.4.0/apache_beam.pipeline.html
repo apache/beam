@@ -1,0 +1,455 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.pipeline module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="next" title="apache_beam.pvalue module" href="apache_beam.pvalue.html"/>
+        <link rel="prev" title="apache_beam.error module" href="apache_beam.error.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>apache_beam.pipeline module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.pipeline.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.pipeline">
+<span id="apache-beam-pipeline-module"></span><h1>apache_beam.pipeline module<a class="headerlink" href="#module-apache_beam.pipeline" title="Permalink to this headline">¶</a></h1>
+<p>Pipeline, the top-level Beam object.</p>
+<p>A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
+are transforms (<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> objects)
+and the edges are values (mostly <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a>
+objects). The transforms take as inputs one or more PValues and output one or
+more <code class="xref py py-class docutils literal"><span class="pre">PValue</span></code> s.</p>
+<p>The pipeline offers functionality to traverse the graph.  The actual operation
+to be executed for each node visited is specified through a runner object.</p>
+<p>Typical usage:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Create a pipeline object using a local runner for execution.</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="s1">&#39;DirectRunner&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+
+  <span class="c1"># Add to the pipeline a &quot;Create&quot; transform. When executed this</span>
+  <span class="c1"># transform will produce a PCollection object with the specified values.</span>
+  <span class="n">pcoll</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;Create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+
+  <span class="c1"># Another transform could be applied to pcoll, e.g., writing to a text file.</span>
+  <span class="c1"># For other transforms, refer to transforms/ directory.</span>
+  <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s1">&#39;./output&#39;</span><span class="p">)</span>
+
+  <span class="c1"># run() will execute the DAG stored in the pipeline.  The execution of the</span>
+  <span class="c1"># nodes visited is done using the specified local runner.</span>
+</pre></div>
+</div>
+<dl class="class">
+<dt id="apache_beam.pipeline.Pipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline.</code><code class="descname">Pipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A pipeline object that manages a DAG of
+<code class="xref py py-class docutils literal"><span class="pre">PValue</span></code> s and their
+<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> s.</p>
+<p>Conceptually the <code class="xref py py-class docutils literal"><span class="pre">PValue</span></code> s are the DAG’s nodes and
+the <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> s computing
+the <code class="xref py py-class docutils literal"><span class="pre">PValue</span></code> s are the edges.</p>
+<p>All the transforms applied to the pipeline must have distinct full labels.
+If same transform instance needs to be applied then the right shift operator
+should be used to designate new names
+(e.g. <code class="docutils literal"><span class="pre">input</span> <span class="pre">|</span> <span class="pre">&quot;label&quot;</span> <span class="pre">&gt;&gt;</span> <span class="pre">my_tranform</span></code>).</p>
+<p>Initialize a pipeline object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>runner</strong> (<a class="reference internal" href="apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><em>PipelineRunner</em></a>) – An object of
+type <a class="reference internal" href="apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><code class="xref py py-class docutils literal"><span class="pre">PipelineRunner</span></code></a> that will be
+used to execute the pipeline. For registered runners, the runner name
+can be specified, otherwise a runner object must be supplied.</li>
+<li><strong>options</strong> (<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><em>PipelineOptions</em></a>) – A configured
+<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">PipelineOptions</span></code></a> object
+containing arguments that should be used for running the Beam job.</li>
+<li><strong>argv</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>]</em>) – a list of arguments (such as <a class="reference external" href="https://docs.python.org/2/library/sys.html#sys.argv" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">sys.argv</span></code></a>)
+to be used for building a
+<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">PipelineOptions</span></code></a> object.
+This will only be used if argument <strong>options</strong> is <a class="reference external" href="https://docs.python.org/2/library/constants.html#None" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">None</span></code></a>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if either the runner or options argument is not
+of the expected type.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.pipeline.Pipeline.options">
+<code class="descname">options</code><a class="headerlink" href="#apache_beam.pipeline.Pipeline.options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.replace_all">
+<code class="descname">replace_all</code><span class="sig-paren">(</span><em>replacements</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.replace_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.replace_all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dynamically replaces PTransforms in the currently populated hierarchy.</p>
+<p>Currently this only works for replacements where input and output types
+are exactly the same.</p>
+<p>TODO: Update this to also work for transform overrides where input and
+output types are different.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>replacements</strong> (<em>List</em><em>[</em><a class="reference internal" href="#apache_beam.pipeline.PTransformOverride" title="apache_beam.pipeline.PTransformOverride"><em>PTransformOverride</em></a><em>]</em>) – a list of
+<a class="reference internal" href="#apache_beam.pipeline.PTransformOverride" title="apache_beam.pipeline.PTransformOverride"><code class="xref py py-class docutils literal"><span class="pre">PTransformOverride</span></code></a> objects.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>test_runner_api=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the pipeline. Returns whatever our runner returns after running.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.visit">
+<code class="descname">visit</code><span class="sig-paren">(</span><em>visitor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.visit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.visit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Visits depth-first every node of a pipeline’s DAG.</p>
+<p>Runner-internal implementation detail; no backwards-compatibility guarantees</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>visitor</strong> (<em>PipelineVisitor</em>) – <code class="xref py py-class docutils literal"><span class="pre">PipelineVisitor</span></code> object whose callbacks
+will be called for each node visited. See
+<code class="xref py py-class docutils literal"><span class="pre">PipelineVisitor</span></code> comments.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – if node is specified and is not a
+<code class="xref py py-class docutils literal"><span class="pre">PValue</span></code>.</li>
+<li><a class="reference internal" href="apache_beam.error.html#apache_beam.error.PipelineError" title="apache_beam.error.PipelineError"><code class="xref py py-exc docutils literal"><span class="pre">PipelineError</span></code></a> – if node is specified and does not
+belong to this pipeline instance.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>transform</em>, <em>pvalueish=None</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a custom transform using the pvalueish specified.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>transform</strong> (<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><em>PTransform</em></a>) – the
+<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> to apply.</li>
+<li><strong>pvalueish</strong> (<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><em>PCollection</em></a>) – the input for the
+<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> (typically a
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a>).</li>
+<li><strong>label</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – label of the
+<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – if the transform object extracted from the
+argument list is not a
+<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a>.</li>
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.RuntimeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">RuntimeError</span></code></a> – if the transform object was already applied to
+this pipeline and needs to be cloned in order to apply again.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>return_context=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.pipeline.Pipeline.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>runner</em>, <em>options</em>, <em>return_context=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline.PTransformOverride">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline.</code><code class="descname">PTransformOverride</code><a class="reference internal" href="_modules/apache_beam/pipeline.html#PTransformOverride"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PTransformOverride" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Gives a matcher and replacements for matching PTransforms.</p>
+<p>TODO: Update this to support cases where input and/our output types are
+different.</p>
+<dl class="method">
+<dt id="apache_beam.pipeline.PTransformOverride.matches">
+<code class="descname">matches</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#PTransformOverride.matches"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PTransformOverride.matches" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines whether the given AppliedPTransform matches.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>applied_ptransform</strong> – AppliedPTransform to be matched.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a bool indicating whether the given AppliedPTransform is a match.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.PTransformOverride.get_replacement_transform">
+<code class="descname">get_replacement_transform</code><span class="sig-paren">(</span><em>ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#PTransformOverride.get_replacement_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PTransformOverride.get_replacement_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides a runner specific override for a given PTransform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ptransform</strong> – PTransform to be replaced.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A PTransform that will be the replacement for the PTransform given as an
+argument.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.pvalue.html" class="btn btn-neutral float-right" title="apache_beam.pvalue module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.error.html" class="btn btn-neutral" title="apache_beam.error module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

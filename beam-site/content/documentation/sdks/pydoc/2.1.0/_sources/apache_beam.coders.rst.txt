@@ -1,0 +1,77 @@
+apache\_beam\.coders package
+============================
+
+Submodules
+----------
+
+apache\_beam\.coders\.coder\_impl module
+----------------------------------------
+
+.. automodule:: apache_beam.coders.coder_impl
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.coders module
+-----------------------------------
+
+.. automodule:: apache_beam.coders.coders
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.coders\_test\_common module
+-------------------------------------------------
+
+.. automodule:: apache_beam.coders.coders_test_common
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.observable module
+---------------------------------------
+
+.. automodule:: apache_beam.coders.observable
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.proto2\_coder\_test\_messages\_pb2 module
+---------------------------------------------------------------
+
+.. automodule:: apache_beam.coders.proto2_coder_test_messages_pb2
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.slow\_stream module
+-----------------------------------------
+
+.. automodule:: apache_beam.coders.slow_stream
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.stream module
+-----------------------------------
+
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.coders\.typecoders module
+---------------------------------------
+
+.. automodule:: apache_beam.coders.typecoders
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.coders
+    :members:
+    :undoc-members:
+    :show-inheritance:

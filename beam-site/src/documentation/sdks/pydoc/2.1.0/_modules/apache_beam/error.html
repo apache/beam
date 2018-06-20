@@ -1,0 +1,136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.error &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.error</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Python Dataflow error classes.&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="BeamError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.BeamError">[docs]</a><span class="k">class</span> <span class="nc">BeamError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for all Beam errors.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="PipelineError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.PipelineError">[docs]</a><span class="k">class</span> <span class="nc">PipelineError</span><span class="p">(</span><span class="n">BeamError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error in the pipeline object (e.g. a PValue not linked to it).&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="PValueError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.PValueError">[docs]</a><span class="k">class</span> <span class="nc">PValueError</span><span class="p">(</span><span class="n">BeamError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error related to a PValue object (e.g. value is not computed).&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="RunnerError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.RunnerError">[docs]</a><span class="k">class</span> <span class="nc">RunnerError</span><span class="p">(</span><span class="n">BeamError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error related to a Runner object (e.g. cannot find a runner to run).&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="RuntimeValueProviderError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.RuntimeValueProviderError">[docs]</a><span class="k">class</span> <span class="nc">RuntimeValueProviderError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error related to a ValueProvider object raised during runtime.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="SideInputError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.SideInputError">[docs]</a><span class="k">class</span> <span class="nc">SideInputError</span><span class="p">(</span><span class="n">BeamError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error related to a side input to a parallel Do operation.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="TransformError"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.error.TransformError">[docs]</a><span class="k">class</span> <span class="nc">TransformError</span><span class="p">(</span><span class="n">BeamError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error related to a PTransform object.&quot;&quot;&quot;</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

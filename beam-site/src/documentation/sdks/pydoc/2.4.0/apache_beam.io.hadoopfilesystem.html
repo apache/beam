@@ -1,0 +1,401 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.hadoopfilesystem module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.iobase module" href="apache_beam.io.iobase.html"/>
+        <link rel="prev" title="apache_beam.io.filesystems module" href="apache_beam.io.filesystems.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystemio.html">apache_beam.io.filesystemio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.hadoopfilesystem module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.hadoopfilesystem.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.hadoopfilesystem">
+<span id="apache-beam-io-hadoopfilesystem-module"></span><h1>apache_beam.io.hadoopfilesystem module<a class="headerlink" href="#module-apache_beam.io.hadoopfilesystem" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference internal" href="apache_beam.io.filesystem.html#apache_beam.io.filesystem.FileSystem" title="apache_beam.io.filesystem.FileSystem"><code class="xref py py-class docutils literal"><span class="pre">FileSystem</span></code></a> implementation for accessing
+Hadoop Distributed File System files.</p>
+<dl class="class">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem">
+<em class="property">class </em><code class="descclassname">apache_beam.io.hadoopfilesystem.</code><code class="descname">HadoopFileSystem</code><span class="sig-paren">(</span><em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.io.filesystem.html#apache_beam.io.filesystem.FileSystem" title="apache_beam.io.filesystem.FileSystem"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.filesystem.FileSystem</span></code></a></p>
+<p><code class="docutils literal"><span class="pre">FileSystem</span></code> implementation that supports HDFS.</p>
+<p>URL arguments to methods expect strings starting with <code class="docutils literal"><span class="pre">hdfs://</span></code>.</p>
+<dl class="docutils">
+<dt>Experimental; TODO(BEAM-3600): Writes are experimental until file rename</dt>
+<dd>retries are better handled.</dd>
+</dl>
+<p>Initializes a connection to HDFS.</p>
+<p>Connection configuration is done by passing pipeline options.
+See <a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.HadoopFileSystemOptions" title="apache_beam.options.pipeline_options.HadoopFileSystemOptions"><code class="xref py py-class docutils literal"><span class="pre">HadoopFileSystemOptions</span></code></a>.</p>
+<dl class="classmethod">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.scheme">
+<em class="property">classmethod </em><code class="descname">scheme</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.scheme"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.scheme" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.join">
+<code class="descname">join</code><span class="sig-paren">(</span><em>base_url</em>, <em>*paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.join" title="Permalink to this definition">¶</a></dt>
+<dd><p>Join two or more pathname components.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>base_url</strong> – string path of the first component of the path.
+Must start with hdfs://.</li>
+<li><strong>paths</strong> – path components to be added</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Full url after combining all the passed components.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.split">
+<code class="descname">split</code><span class="sig-paren">(</span><em>url</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.split" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.mkdirs">
+<code class="descname">mkdirs</code><span class="sig-paren">(</span><em>url</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.mkdirs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.mkdirs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.match">
+<code class="descname">match</code><span class="sig-paren">(</span><em>url_patterns</em>, <em>limits=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.match" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.create">
+<code class="descname">create</code><span class="sig-paren">(</span><em>url</em>, <em>mime_type='application/octet-stream'</em>, <em>compression_type='auto'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.create" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A Python File-like object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.open">
+<code class="descname">open</code><span class="sig-paren">(</span><em>url</em>, <em>mime_type='application/octet-stream'</em>, <em>compression_type='auto'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.open" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A Python File-like object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><em>source_file_names</em>, <em>destination_file_names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>It is an error if any file to copy already exists at the destination.</p>
+<p>Raises <code class="docutils literal"><span class="pre">BeamIOError</span></code> if any error occurred.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>source_file_names</strong> – iterable of URLs.</li>
+<li><strong>destination_file_names</strong> – iterable of URLs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.rename">
+<code class="descname">rename</code><span class="sig-paren">(</span><em>source_file_names</em>, <em>destination_file_names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.rename"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.rename" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.exists">
+<code class="descname">exists</code><span class="sig-paren">(</span><em>url</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.exists" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks existence of url in HDFS.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>url</strong> – String in the form hdfs://…</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if url exists as a file or directory in HDFS.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.hadoopfilesystem.HadoopFileSystem.delete">
+<code class="descname">delete</code><span class="sig-paren">(</span><em>urls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/hadoopfilesystem.html#HadoopFileSystem.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.hadoopfilesystem.HadoopFileSystem.delete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.iobase.html" class="btn btn-neutral float-right" title="apache_beam.io.iobase module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.filesystems.html" class="btn btn-neutral" title="apache_beam.io.filesystems module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

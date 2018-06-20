@@ -1,0 +1,8 @@
+sizes: [100, 200, 500, 1000]
+colors:
+  full-color: "Full color"
+  3-color: "Three color"
+  bw: "Black and white"
+types: ['nameless', 'name-bottom', 'name-right']
+logo-location: '/images/logos'
+archive-file: logos.zip

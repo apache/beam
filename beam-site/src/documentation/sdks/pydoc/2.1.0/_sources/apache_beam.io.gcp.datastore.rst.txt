@@ -1,0 +1,17 @@
+apache\_beam\.io\.gcp\.datastore package
+========================================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.io.gcp.datastore.v1
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.io.gcp.datastore
+    :members:
+    :undoc-members:
+    :show-inheritance:

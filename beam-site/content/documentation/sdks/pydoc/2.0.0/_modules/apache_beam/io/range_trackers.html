@@ -1,0 +1,627 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.range_trackers &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.range_trackers</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;iobase.RangeTracker implementations provided with Dataflow SDK.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;OffsetRangeTracker&#39;</span><span class="p">,</span> <span class="s1">&#39;LexicographicKeyRangeTracker&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;OrderedPositionRangeTracker&#39;</span><span class="p">,</span> <span class="s1">&#39;UnsplittableRangeTracker&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="OffsetRangeTracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker">[docs]</a><span class="k">class</span> <span class="nc">OffsetRangeTracker</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A &#39;RangeTracker&#39; for non-negative positions of type &#39;long&#39;.&quot;&quot;&quot;</span>
+
+  <span class="c1"># Offset corresponding to infinity. This can only be used as the upper-bound</span>
+  <span class="c1"># of a range, and indicates reading all of the records until the end without</span>
+  <span class="c1"># specifying exactly what the end is.</span>
+  <span class="c1"># Infinite ranges cannot be split because it is impossible to estimate</span>
+  <span class="c1"># progress within them.</span>
+  <span class="n">OFFSET_INFINITY</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">OffsetRangeTracker</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Start offset must not be </span><span class="se">\&#39;</span><span class="s1">None</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">end</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;End offset must not be </span><span class="se">\&#39;</span><span class="s1">None</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">end</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long</span><span class="p">))</span>
+
+    <span class="k">assert</span> <span class="n">start</span> <span class="o">&lt;=</span> <span class="n">end</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span> <span class="o">=</span> <span class="n">start</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="o">=</span> <span class="n">end</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_offset_of_last_split_point</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_unclaimed_callback</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="OffsetRangeTracker.start_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.start_position">[docs]</a>  <span class="k">def</span> <span class="nf">start_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.stop_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.stop_position">[docs]</a>  <span class="k">def</span> <span class="nf">stop_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span></div>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">last_record_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span>
+
+  <span class="k">def</span> <span class="nf">_validate_record_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record_start</span><span class="p">,</span> <span class="n">split_point</span><span class="p">):</span>
+    <span class="c1"># This function must only be called under the lock self.lock.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="o">.</span><span class="n">locked</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;This function must only be called under the lock self.lock.&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">record_start</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Trying to return a record [starting at </span><span class="si">%d</span><span class="s1">] which is before the &#39;</span>
+          <span class="s1">&#39;last-returned record [starting at </span><span class="si">%d</span><span class="s1">]&#39;</span> <span class="o">%</span>
+          <span class="p">(</span><span class="n">record_start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">split_point</span><span class="p">:</span>
+      <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_offset_of_last_split_point</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span>
+          <span class="n">record_start</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_offset_of_last_split_point</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">&#39;Record at a split point has same offset as the previous split &#39;</span>
+            <span class="s1">&#39;point: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">record_start</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;The first record [starting at </span><span class="si">%d</span><span class="s1">] must be at a split point&#39;</span> <span class="o">%</span>
+          <span class="n">record_start</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">split_point</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_offset_of_last_split_point</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span>
+        <span class="n">record_start</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_offset_of_last_split_point</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Record at a split point has same offset as the previous split &#39;</span>
+          <span class="s1">&#39;point: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">record_start</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">split_point</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;The first record [starting at </span><span class="si">%d</span><span class="s1">] must be at a split point&#39;</span> <span class="o">%</span>
+          <span class="n">record_start</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OffsetRangeTracker.try_claim"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.try_claim">[docs]</a>  <span class="k">def</span> <span class="nf">try_claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record_start</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_validate_record_start</span><span class="p">(</span><span class="n">record_start</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">record_start</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">False</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_offset_of_last_split_point</span> <span class="o">=</span> <span class="n">record_start</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">=</span> <span class="n">record_start</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.set_current_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.set_current_position">[docs]</a>  <span class="k">def</span> <span class="nf">set_current_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record_start</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_validate_record_start</span><span class="p">(</span><span class="n">record_start</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">=</span> <span class="n">record_start</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.try_split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.try_split">[docs]</a>  <span class="k">def</span> <span class="nf">try_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">split_offset</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">split_offset</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="o">==</span> <span class="n">OffsetRangeTracker</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%d</span><span class="s1">: stop position unspecified&#39;</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="p">,</span> <span class="n">split_offset</span><span class="p">)</span>
+        <span class="k">return</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%d</span><span class="s1">: unstarted&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span>
+                      <span class="n">split_offset</span><span class="p">)</span>
+        <span class="k">return</span>
+
+      <span class="k">if</span> <span class="n">split_offset</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s1">&#39;Refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%d</span><span class="s1">: already past proposed stop offset&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">split_offset</span><span class="p">)</span>
+        <span class="k">return</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">split_offset</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+          <span class="ow">or</span> <span class="n">split_offset</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s1">&#39;Refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%d</span><span class="s1">: proposed split position out of range&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">split_offset</span><span class="p">)</span>
+        <span class="k">return</span>
+
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Agreeing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">split_offset</span><span class="p">)</span>
+
+      <span class="n">split_fraction</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">split_offset</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="o">=</span> <span class="n">split_offset</span>
+
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span><span class="p">,</span> <span class="n">split_fraction</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.fraction_consumed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.fraction_consumed">[docs]</a>  <span class="k">def</span> <span class="nf">fraction_consumed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="n">fraction</span> <span class="o">=</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_record_start</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">())</span> <span class="o">/</span>
+                   <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()))</span> <span class="k">if</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
+
+      <span class="c1"># self.last_record_start may become larger than self.end_offset when</span>
+      <span class="c1"># reading the records since any record that starts before the first &#39;split</span>
+      <span class="c1"># point&#39; at or after the defined &#39;stop offset&#39; is considered to be within</span>
+      <span class="c1"># the range of the OffsetRangeTracker. Hence fraction could be &gt; 1.</span>
+      <span class="c1"># self.last_record_start is initialized to -1, hence fraction may be &lt; 0.</span>
+      <span class="c1"># Bounding the to range [0, 1].</span>
+      <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">fraction</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.position_at_fraction"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.position_at_fraction">[docs]</a>  <span class="k">def</span> <span class="nf">position_at_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fraction</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span> <span class="o">==</span> <span class="n">OffsetRangeTracker</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+          <span class="s1">&#39;get_position_for_fraction_consumed is not applicable for an &#39;</span>
+          <span class="s1">&#39;unbounded range&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span> <span class="o">+</span> <span class="n">fraction</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">())))</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.split_points"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.split_points">[docs]</a>  <span class="k">def</span> <span class="nf">split_points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="n">split_points_consumed</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="n">split_points_unclaimed</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_unclaimed_callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">())</span>
+          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_unclaimed_callback</span>
+          <span class="k">else</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span><span class="p">)</span>
+      <span class="n">split_points_remaining</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span> <span class="k">if</span>
+          <span class="n">split_points_unclaimed</span> <span class="o">==</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span>
+          <span class="k">else</span> <span class="p">(</span><span class="n">split_points_unclaimed</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+      <span class="k">return</span> <span class="p">(</span><span class="n">split_points_consumed</span><span class="p">,</span> <span class="n">split_points_remaining</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OffsetRangeTracker.set_split_points_unclaimed_callback"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OffsetRangeTracker.set_split_points_unclaimed_callback">[docs]</a>  <span class="k">def</span> <span class="nf">set_split_points_unclaimed_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_unclaimed_callback</span> <span class="o">=</span> <span class="n">callback</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">GroupedShuffleRangeTracker</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A &#39;RangeTracker&#39; for positions used by&#39;GroupedShuffleReader&#39;.</span>
+
+<span class="sd">  These positions roughly correspond to hashes of keys. In case of hash</span>
+<span class="sd">  collisions, multiple groups can have the same position. In that case, the</span>
+<span class="sd">  first group at a particular position is considered a split point (because</span>
+<span class="sd">  it is the first to be returned when reading a position range starting at this</span>
+<span class="sd">  position), others are not.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_start_pos</span><span class="p">,</span> <span class="n">decoded_stop_pos</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">GroupedShuffleRangeTracker</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_start_pos</span> <span class="o">=</span> <span class="n">decoded_start_pos</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_stop_pos</span> <span class="o">=</span> <span class="n">decoded_stop_pos</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_last_group_start</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_group_was_at_a_split_point</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">start_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_start_pos</span>
+
+  <span class="k">def</span> <span class="nf">stop_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_stop_pos</span>
+
+  <span class="k">def</span> <span class="nf">last_group_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_last_group_start</span>
+
+  <span class="k">def</span> <span class="nf">_validate_decoded_group_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_group_start</span><span class="p">,</span> <span class="n">split_point</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span> <span class="ow">and</span> <span class="n">decoded_group_start</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Trying to return record at </span><span class="si">%r</span><span class="s1"> which is before the&#39;</span>
+                       <span class="s1">&#39; starting position at </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">decoded_group_start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()))</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span> <span class="ow">and</span>
+        <span class="n">decoded_group_start</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Trying to return group at </span><span class="si">%r</span><span class="s1"> which is before the&#39;</span>
+                       <span class="s1">&#39; last-returned group at </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">decoded_group_start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()))</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">split_point</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span> <span class="ow">and</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span> <span class="o">==</span> <span class="n">decoded_group_start</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Trying to return a group at a split point with &#39;</span>
+                       <span class="s1">&#39;same position as the previous group: both at </span><span class="si">%r</span><span class="s1">, &#39;</span>
+                       <span class="s1">&#39;last group was </span><span class="si">%s</span><span class="s1">at a split point.&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">decoded_group_start</span><span class="p">,</span>
+                        <span class="p">(</span><span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_group_was_at_a_split_point</span>
+                         <span class="k">else</span> <span class="s1">&#39;not &#39;</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">split_point</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The first group [at </span><span class="si">%r</span><span class="s1">] must be at a split point&#39;</span> <span class="o">%</span>
+                         <span class="n">decoded_group_start</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span> <span class="o">!=</span> <span class="n">decoded_group_start</span><span class="p">:</span>
+        <span class="c1"># This case is not a violation of general RangeTracker semantics, but it</span>
+        <span class="c1"># is contrary to how GroupingShuffleReader in particular works. Hitting</span>
+        <span class="c1"># it would mean it&#39;s behaving unexpectedly.</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Trying to return a group not at a split point, but &#39;</span>
+                         <span class="s1">&#39;with a different position than the previous group: &#39;</span>
+                         <span class="s1">&#39;last group was </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%r</span><span class="s1">, current at a </span><span class="si">%s</span><span class="s1"> split&#39;</span>
+                         <span class="s1">&#39; point.&#39;</span> <span class="o">%</span>
+                         <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span>
+                          <span class="p">,</span> <span class="n">decoded_group_start</span>
+                          <span class="p">,</span> <span class="p">(</span><span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_group_was_at_a_split_point</span>
+                             <span class="k">else</span> <span class="s1">&#39;non-&#39;</span><span class="p">)))</span>
+
+  <span class="k">def</span> <span class="nf">try_claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_group_start</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_validate_decoded_group_start</span><span class="p">(</span><span class="n">decoded_group_start</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+      <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+          <span class="ow">and</span> <span class="n">decoded_group_start</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_last_group_start</span> <span class="o">=</span> <span class="n">decoded_group_start</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_last_group_was_at_a_split_point</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="k">def</span> <span class="nf">set_current_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_group_start</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_validate_decoded_group_start</span><span class="p">(</span><span class="n">decoded_group_start</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_last_group_start</span> <span class="o">=</span> <span class="n">decoded_group_start</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_last_group_was_at_a_split_point</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">try_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_split_position</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%r</span><span class="s1">: unstarted&#39;</span>
+                     <span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decoded_split_position</span><span class="p">)</span>
+        <span class="k">return</span>
+
+      <span class="k">if</span> <span class="n">decoded_split_position</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_group_start</span><span class="p">():</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%r</span><span class="s1">: already past proposed split &#39;</span>
+                     <span class="s1">&#39;position&#39;</span>
+                     <span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decoded_split_position</span><span class="p">)</span>
+        <span class="k">return</span>
+
+      <span class="k">if</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+           <span class="ow">and</span> <span class="n">decoded_split_position</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_position</span><span class="p">())</span>
+          <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+              <span class="ow">and</span> <span class="n">decoded_split_position</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_position</span><span class="p">())):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Refusing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%r</span><span class="s1">: proposed split position out &#39;</span>
+                      <span class="s1">&#39;of range&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decoded_split_position</span><span class="p">)</span>
+        <span class="k">return</span>
+
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Agreeing to split </span><span class="si">%r</span><span class="s1"> at </span><span class="si">%r</span><span class="s1">&#39;</span>
+                    <span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decoded_split_position</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_stop_pos</span> <span class="o">=</span> <span class="n">decoded_split_position</span>
+
+      <span class="c1"># Since GroupedShuffleRangeTracker cannot determine relative sizes of the</span>
+      <span class="c1"># two splits, returning 0.5 as the fraction below so that the framework</span>
+      <span class="c1"># assumes the splits to be of the same size.</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_stop_pos</span><span class="p">,</span> <span class="mf">0.5</span>
+
+  <span class="k">def</span> <span class="nf">fraction_consumed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># GroupingShuffle sources have special support on the service and the</span>
+    <span class="c1"># service will estimate progress from positions for us.</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;GroupedShuffleRangeTracker does not measure fraction&#39;</span>
+                       <span class="s1">&#39; consumed due to positions being opaque strings&#39;</span>
+                       <span class="s1">&#39; that are interpreted by the service&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">split_points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="n">splits_points_consumed</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">&lt;=</span> <span class="mi">1</span> <span class="k">else</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_split_points_seen</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+
+      <span class="k">return</span> <span class="p">(</span><span class="n">splits_points_consumed</span><span class="p">,</span>
+              <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker">[docs]</a><span class="k">class</span> <span class="nc">OrderedPositionRangeTracker</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  An abstract base class for range trackers whose positions are comparable.</span>
+
+<span class="sd">  Subclasses only need to implement the mapping from position ranges</span>
+<span class="sd">  to and from the closed interval [0, 1].</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">UNSTARTED</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span> <span class="o">=</span> <span class="n">start_position</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span> <span class="o">=</span> <span class="n">stop_position</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNSTARTED</span>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.start_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.start_position">[docs]</a>  <span class="k">def</span> <span class="nf">start_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.stop_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.stop_position">[docs]</a>  <span class="k">def</span> <span class="nf">stop_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.try_claim"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.try_claim">[docs]</a>  <span class="k">def</span> <span class="nf">try_claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNSTARTED</span> <span class="ow">and</span> <span class="n">position</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Positions must be claimed in order: &quot;</span>
+            <span class="s2">&quot;claim &#39;</span><span class="si">%s</span><span class="s2">&#39; attempted after claim &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">position</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Claim &#39;</span><span class="si">%s</span><span class="s2">&#39; is before start &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">))</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">position</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span> <span class="o">=</span> <span class="n">position</span>
+        <span class="k">return</span> <span class="kc">True</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.position_at_fraction"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.position_at_fraction">[docs]</a>  <span class="k">def</span> <span class="nf">position_at_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fraction</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fraction_to_position</span><span class="p">(</span>
+        <span class="n">fraction</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.try_split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.try_split">[docs]</a>  <span class="k">def</span> <span class="nf">try_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">position</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span><span class="p">)</span>
+          <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+              <span class="ow">and</span> <span class="n">position</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Split at &#39;</span><span class="si">%s</span><span class="s2">&#39; not in range </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">position</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span><span class="p">]))</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNSTARTED</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span> <span class="o">&lt;</span> <span class="n">position</span><span class="p">:</span>
+        <span class="n">fraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_to_fraction</span><span class="p">(</span>
+            <span class="n">position</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span> <span class="o">=</span> <span class="n">position</span>
+        <span class="k">return</span> <span class="n">position</span><span class="p">,</span> <span class="n">fraction</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.fraction_consumed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.fraction_consumed">[docs]</a>  <span class="k">def</span> <span class="nf">fraction_consumed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNSTARTED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_to_fraction</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_last_claim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.position_to_fraction"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.position_to_fraction">[docs]</a>  <span class="k">def</span> <span class="nf">position_to_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts a position `pos` betweeen `start` and `end` (inclusive) to a</span>
+<span class="sd">    fraction between 0 and 1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="OrderedPositionRangeTracker.fraction_to_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.OrderedPositionRangeTracker.fraction_to_position">[docs]</a>  <span class="k">def</span> <span class="nf">fraction_to_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fraction</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts a fraction between 0 and 1 to a position between start and end.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+
+
+<div class="viewcode-block" id="UnsplittableRangeTracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker">[docs]</a><span class="k">class</span> <span class="nc">UnsplittableRangeTracker</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A RangeTracker that always ignores split requests.</span>
+
+<span class="sd">  This can be used to make a given ``RangeTracker`` object unsplittable by</span>
+<span class="sd">  ignoring all calls to ``try_split()``. All other calls will be delegated to</span>
+<span class="sd">  the given ``RangeTracker``.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes UnsplittableRangeTracker.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      range_tracker: a ``RangeTracker`` to which all method calls expect calls</span>
+<span class="sd">      to ``try_split()`` will be delegated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span> <span class="o">=</span> <span class="n">range_tracker</span>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.start_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.start_position">[docs]</a>  <span class="k">def</span> <span class="nf">start_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.stop_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.stop_position">[docs]</a>  <span class="k">def</span> <span class="nf">stop_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.position_at_fraction"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.position_at_fraction">[docs]</a>  <span class="k">def</span> <span class="nf">position_at_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fraction</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="n">fraction</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.try_claim"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.try_claim">[docs]</a>  <span class="k">def</span> <span class="nf">try_claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.try_split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split">[docs]</a>  <span class="k">def</span> <span class="nf">try_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.set_current_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.set_current_position">[docs]</a>  <span class="k">def</span> <span class="nf">set_current_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">set_current_position</span><span class="p">(</span><span class="n">position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.fraction_consumed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.fraction_consumed">[docs]</a>  <span class="k">def</span> <span class="nf">fraction_consumed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">fraction_consumed</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.split_points"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.split_points">[docs]</a>  <span class="k">def</span> <span class="nf">split_points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># An unsplittable range only contains a single split point.</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UnsplittableRangeTracker.set_split_points_unclaimed_callback"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.UnsplittableRangeTracker.set_split_points_unclaimed_callback">[docs]</a>  <span class="k">def</span> <span class="nf">set_split_points_unclaimed_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_range_tracker</span><span class="o">.</span><span class="n">set_split_points_unclaimed_callback</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="LexicographicKeyRangeTracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.LexicographicKeyRangeTracker">[docs]</a><span class="k">class</span> <span class="nc">LexicographicKeyRangeTracker</span><span class="p">(</span><span class="n">OrderedPositionRangeTracker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  A range tracker that tracks progress through a lexicographically</span>
+<span class="sd">  ordered keyspace of strings.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LexicographicKeyRangeTracker.fraction_to_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.LexicographicKeyRangeTracker.fraction_to_position">[docs]</a>  <span class="k">def</span> <span class="nf">fraction_to_position</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fraction</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Linearly interpolates a key that is lexicographically</span>
+<span class="sd">    fraction of the way between start and end.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">fraction</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">fraction</span>
+    <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">fraction</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">end</span>
+    <span class="k">elif</span> <span class="n">fraction</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">start</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">end</span><span class="p">:</span>
+        <span class="n">common_prefix_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">start</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\xFF</span><span class="s1">&#39;</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)):</span>
+          <span class="k">if</span> <span class="n">s</span> <span class="o">!=</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">common_prefix_len</span> <span class="o">=</span> <span class="n">ix</span>
+            <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">common_prefix_len</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">start</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">end</span><span class="p">))</span>
+      <span class="c1"># Convert the relative precision of fraction (~53 bits) to an absolute</span>
+      <span class="c1"># precision needed to represent values between start and end distinctly.</span>
+      <span class="n">prec</span> <span class="o">=</span> <span class="n">common_prefix_len</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">fraction</span><span class="p">,</span> <span class="mi">256</span><span class="p">))</span> <span class="o">+</span> <span class="mi">7</span>
+      <span class="n">istart</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_string_to_int</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">prec</span><span class="p">)</span>
+      <span class="n">iend</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_string_to_int</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="n">prec</span><span class="p">)</span> <span class="k">if</span> <span class="n">end</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">prec</span> <span class="o">*</span> <span class="mi">8</span><span class="p">)</span>
+      <span class="n">ikey</span> <span class="o">=</span> <span class="n">istart</span> <span class="o">+</span> <span class="nb">int</span><span class="p">((</span><span class="n">iend</span> <span class="o">-</span> <span class="n">istart</span><span class="p">)</span> <span class="o">*</span> <span class="n">fraction</span><span class="p">)</span>
+      <span class="c1"># Could be equal due to rounding.</span>
+      <span class="c1"># Adjust to ensure we never return the actual start and end</span>
+      <span class="c1"># unless fraction is exatly 0 or 1.</span>
+      <span class="k">if</span> <span class="n">ikey</span> <span class="o">==</span> <span class="n">istart</span><span class="p">:</span>
+        <span class="n">ikey</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">elif</span> <span class="n">ikey</span> <span class="o">==</span> <span class="n">iend</span><span class="p">:</span>
+        <span class="n">ikey</span> <span class="o">-=</span> <span class="mi">1</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_string_from_int</span><span class="p">(</span><span class="n">ikey</span><span class="p">,</span> <span class="n">prec</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\0</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LexicographicKeyRangeTracker.position_to_fraction"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.range_trackers.LexicographicKeyRangeTracker.position_to_fraction">[docs]</a>  <span class="k">def</span> <span class="nf">position_to_fraction</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the fraction of keys in the range [start, end) that</span>
+<span class="sd">    are less than the given key.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="p">:</span>
+      <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">prec</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="o">+</span> <span class="mi">7</span>
+    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
+      <span class="c1"># Higher absolute precision needed for very small values of fixed</span>
+      <span class="c1"># relative position.</span>
+      <span class="n">prec</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">prec</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">start</span><span class="p">):]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\0</span><span class="s1">&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="mi">7</span><span class="p">)</span>
+    <span class="n">istart</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_string_to_int</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">prec</span><span class="p">)</span>
+    <span class="n">ikey</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_string_to_int</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prec</span><span class="p">)</span>
+    <span class="n">iend</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_string_to_int</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="n">prec</span><span class="p">)</span> <span class="k">if</span> <span class="n">end</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">prec</span> <span class="o">*</span> <span class="mi">8</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">ikey</span> <span class="o">-</span> <span class="n">istart</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">iend</span> <span class="o">-</span> <span class="n">istart</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_string_to_int</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">prec</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns int(256**prec * f) where f is the fraction</span>
+<span class="sd">    represented by interpreting &#39;.&#39; + s as a base-256</span>
+<span class="sd">    floating point number.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="p">:</span>
+      <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">prec</span><span class="p">:</span>
+      <span class="n">s</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\0</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="p">(</span><span class="n">prec</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[:</span><span class="n">prec</span><span class="p">]</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">),</span> <span class="mi">16</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_string_from_int</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">prec</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Inverse of _string_to_int.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%x</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">prec</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">h</span><span class="p">))</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

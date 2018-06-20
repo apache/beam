@@ -1,0 +1,514 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.complete package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.examples.complete.juliaset package" href="apache_beam.examples.complete.juliaset.html" />
+    <link rel="prev" title="apache_beam.examples package" href="apache_beam.examples.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.complete.juliaset.html" title="apache_beam.examples.complete.juliaset package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.html" title="apache_beam.examples package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.examples.html" accesskey="U">apache_beam.examples package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.examples.complete package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.autocomplete">apache_beam.examples.complete.autocomplete module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.autocomplete_test">apache_beam.examples.complete.autocomplete_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.estimate_pi">apache_beam.examples.complete.estimate_pi module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.estimate_pi_test">apache_beam.examples.complete.estimate_pi_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.tfidf">apache_beam.examples.complete.tfidf module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.tfidf_test">apache_beam.examples.complete.tfidf_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.top_wikipedia_sessions">apache_beam.examples.complete.top_wikipedia_sessions module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete.top_wikipedia_sessions_test">apache_beam.examples.complete.top_wikipedia_sessions_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.complete">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.examples.html"
+                        title="previous chapter">apache_beam.examples package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.examples.complete.juliaset.html"
+                        title="next chapter">apache_beam.examples.complete.juliaset package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.examples.complete.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-examples-complete-package">
+<h1>apache_beam.examples.complete package<a class="headerlink" href="#apache-beam-examples-complete-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html">apache_beam.examples.complete.juliaset package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html">apache_beam.examples.complete.juliaset.juliaset package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset.juliaset">apache_beam.examples.complete.juliaset.juliaset.juliaset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset.juliaset_test">apache_beam.examples.complete.juliaset.juliaset.juliaset_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset_main">apache_beam.examples.complete.juliaset.juliaset_main module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#module-apache_beam.examples.complete.juliaset">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.examples.complete.autocomplete">
+<span id="apache-beam-examples-complete-autocomplete-module"></span><h2>apache_beam.examples.complete.autocomplete module<a class="headerlink" href="#module-apache_beam.examples.complete.autocomplete" title="Permalink to this headline">¶</a></h2>
+<p>A workflow emitting the top k most common words for each prefix.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.autocomplete.TopPerPrefix">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.autocomplete.</code><code class="descname">TopPerPrefix</code><span class="sig-paren">(</span><em>count</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/autocomplete.html#TopPerPrefix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.autocomplete.TopPerPrefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.autocomplete.TopPerPrefix.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>words</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/autocomplete.html#TopPerPrefix.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.autocomplete.TopPerPrefix.expand" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the most common words for each possible prefixes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>words</strong> &#8211; a PCollection of strings</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="docutils">
+<dt>A PCollection of most common words with each prefix, in the form</dt>
+<dd>(prefix, [(count, word), (count, word), ...])</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.autocomplete.extract_prefixes">
+<code class="descclassname">apache_beam.examples.complete.autocomplete.</code><code class="descname">extract_prefixes</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/autocomplete.html#extract_prefixes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.autocomplete.extract_prefixes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.autocomplete.run">
+<code class="descclassname">apache_beam.examples.complete.autocomplete.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/autocomplete.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.autocomplete.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.autocomplete_test">
+<span id="apache-beam-examples-complete-autocomplete-test-module"></span><h2>apache_beam.examples.complete.autocomplete_test module<a class="headerlink" href="#module-apache_beam.examples.complete.autocomplete_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the autocomplete example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.autocomplete_test.AutocompleteTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.autocomplete_test.</code><code class="descname">AutocompleteTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/autocomplete_test.html#AutocompleteTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.autocomplete_test.AutocompleteTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.complete.autocomplete_test.AutocompleteTest.WORDS">
+<code class="descname">WORDS</code><em class="property"> = ['this', 'this', 'that', 'to', 'to', 'to']</em><a class="headerlink" href="#apache_beam.examples.complete.autocomplete_test.AutocompleteTest.WORDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.complete.autocomplete_test.AutocompleteTest.test_top_prefixes">
+<code class="descname">test_top_prefixes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/autocomplete_test.html#AutocompleteTest.test_top_prefixes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.autocomplete_test.AutocompleteTest.test_top_prefixes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.estimate_pi">
+<span id="apache-beam-examples-complete-estimate-pi-module"></span><h2>apache_beam.examples.complete.estimate_pi module<a class="headerlink" href="#module-apache_beam.examples.complete.estimate_pi" title="Permalink to this headline">¶</a></h2>
+<p>A workflow that uses a simple Monte Carlo method to estimate π.</p>
+<p>The algorithm computes the fraction of points drawn uniformly within the unit
+square that also fall in the quadrant of the unit circle that overlaps the
+square. A simple area calculation shows that this fraction should be π/4, so
+we multiply our counts ratio by four to estimate π.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.estimate_pi.EstimatePiTransform">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.estimate_pi.</code><code class="descname">EstimatePiTransform</code><span class="sig-paren">(</span><em>tries_per_work_item=100000</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#EstimatePiTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.EstimatePiTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Runs 10M trials, and combine the results to estimate pi.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.estimate_pi.EstimatePiTransform.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#EstimatePiTransform.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.EstimatePiTransform.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.complete.estimate_pi.JsonCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.estimate_pi.</code><code class="descname">JsonCoder</code><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#JsonCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.JsonCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A JSON coder used to format the final result.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.estimate_pi.JsonCoder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#JsonCoder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.JsonCoder.encode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.estimate_pi.combine_results">
+<code class="descclassname">apache_beam.examples.complete.estimate_pi.</code><code class="descname">combine_results</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#combine_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.combine_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Combiner function to sum up trials and compute the estimate.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>results</strong> &#8211; An iterable of 3-tuples (total trials, inside trials, ignored).</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A 3-tuple containing the sum of total trials, sum of inside trials, and
+the probability computed from the two numbers.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.estimate_pi.run">
+<code class="descclassname">apache_beam.examples.complete.estimate_pi.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.estimate_pi.run_trials">
+<code class="descclassname">apache_beam.examples.complete.estimate_pi.</code><code class="descname">run_trials</code><span class="sig-paren">(</span><em>runs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi.html#run_trials"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi.run_trials" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run trials and return a 3-tuple representing the results.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>runs</strong> &#8211; Number of trial runs to be executed.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A 3-tuple (total trials, inside trials, 0).</td>
+</tr>
+</tbody>
+</table>
+<p>The final zero is needed solely to make sure that the combine_results function
+has same type for inputs and outputs (a requirement for combiner functions).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.estimate_pi_test">
+<span id="apache-beam-examples-complete-estimate-pi-test-module"></span><h2>apache_beam.examples.complete.estimate_pi_test module<a class="headerlink" href="#module-apache_beam.examples.complete.estimate_pi_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the estimate_pi example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.estimate_pi_test.EstimatePiTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.estimate_pi_test.</code><code class="descname">EstimatePiTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi_test.html#EstimatePiTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi_test.EstimatePiTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.estimate_pi_test.EstimatePiTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi_test.html#EstimatePiTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi_test.EstimatePiTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.estimate_pi_test.in_between">
+<code class="descclassname">apache_beam.examples.complete.estimate_pi_test.</code><code class="descname">in_between</code><span class="sig-paren">(</span><em>lower</em>, <em>upper</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/estimate_pi_test.html#in_between"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.estimate_pi_test.in_between" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.tfidf">
+<span id="apache-beam-examples-complete-tfidf-module"></span><h2>apache_beam.examples.complete.tfidf module<a class="headerlink" href="#module-apache_beam.examples.complete.tfidf" title="Permalink to this headline">¶</a></h2>
+<p>A TF-IDF workflow (term frequency - inverse document frequency).</p>
+<p>For an explanation of the TF-IDF algorithm see the following link:
+<a class="reference external" href="http://en.wikipedia.org/wiki/Tf-idf">http://en.wikipedia.org/wiki/Tf-idf</a></p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.tfidf.TfIdf">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.tfidf.</code><code class="descname">TfIdf</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf.html#TfIdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf.TfIdf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform containing a basic TF-IDF pipeline.</p>
+<p>The input consists of KV objects where the key is the document&#8217;s URI and
+the value is a piece of the document&#8217;s content.
+The output is mapping from terms to scores for each document URI.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.tfidf.TfIdf.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>uri_to_content</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf.html#TfIdf.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf.TfIdf.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.tfidf.read_documents">
+<code class="descclassname">apache_beam.examples.complete.tfidf.</code><code class="descname">read_documents</code><span class="sig-paren">(</span><em>pipeline</em>, <em>uris</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf.html#read_documents"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf.read_documents" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the documents at the provided uris and returns (uri, line) pairs.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.tfidf.run">
+<code class="descclassname">apache_beam.examples.complete.tfidf.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main entry point; defines and runs the tfidf pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.tfidf_test">
+<span id="apache-beam-examples-complete-tfidf-test-module"></span><h2>apache_beam.examples.complete.tfidf_test module<a class="headerlink" href="#module-apache_beam.examples.complete.tfidf_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the TF-IDF example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.tfidf_test.TfIdfTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.tfidf_test.</code><code class="descname">TfIdfTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf_test.html#TfIdfTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf_test.TfIdfTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.tfidf_test.TfIdfTest.create_file">
+<code class="descname">create_file</code><span class="sig-paren">(</span><em>path</em>, <em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf_test.html#TfIdfTest.create_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf_test.TfIdfTest.create_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.complete.tfidf_test.TfIdfTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf_test.html#TfIdfTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf_test.TfIdfTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.complete.tfidf_test.TfIdfTest.test_tfidf_transform">
+<code class="descname">test_tfidf_transform</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/tfidf_test.html#TfIdfTest.test_tfidf_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.tfidf_test.TfIdfTest.test_tfidf_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.top_wikipedia_sessions">
+<span id="apache-beam-examples-complete-top-wikipedia-sessions-module"></span><h2>apache_beam.examples.complete.top_wikipedia_sessions module<a class="headerlink" href="#module-apache_beam.examples.complete.top_wikipedia_sessions" title="Permalink to this headline">¶</a></h2>
+<p>An example that reads Wikipedia edit data and computes strings of edits.</p>
+<p>An example that reads Wikipedia edit data from Cloud Storage and computes the
+user with the longest string of edits separated by no more than an hour within
+each 30 day period.</p>
+<p>To execute this pipeline locally using the DirectRunner, specify an
+output prefix on GCS::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">output</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_OUTPUT_PREFIX</span>
+</pre></div>
+</div>
+<p>To execute this pipeline using the Google Cloud Dataflow service, specify
+pipeline configuration in addition to the above::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">job_name</span> <span class="n">NAME_FOR_YOUR_JOB</span>
+<span class="o">--</span><span class="n">project</span> <span class="n">YOUR_PROJECT_ID</span>
+<span class="o">--</span><span class="n">staging_location</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_STAGING_DIRECTORY</span>
+<span class="o">--</span><span class="n">temp_location</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_TEMPORARY_DIRECTORY</span>
+<span class="o">--</span><span class="n">runner</span> <span class="n">DataflowRunner</span>
+</pre></div>
+</div>
+<p>The default input is <code class="docutils literal"><span class="pre">gs://dataflow-samples/wikipedia_edits/*.json</span></code> and can
+be overridden with &#8211;input.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.ComputeSessions">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">ComputeSessions</code><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#ComputeSessions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.ComputeSessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Computes the number of edits in each user session.</p>
+<p>A session is defined as a string of edits where each is separated from the
+next by less than an hour.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.ComputeSessions.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#ComputeSessions.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.ComputeSessions.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.ComputeTopSessions">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">ComputeTopSessions</code><span class="sig-paren">(</span><em>sampling_threshold</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#ComputeTopSessions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.ComputeTopSessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Computes the top user sessions for each month.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.ComputeTopSessions.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#ComputeTopSessions.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.ComputeTopSessions.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.ExtractUserAndTimestampDoFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">ExtractUserAndTimestampDoFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#ExtractUserAndTimestampDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.ExtractUserAndTimestampDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Extracts user and timestamp representing a Wikipedia edit.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.ExtractUserAndTimestampDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#ExtractUserAndTimestampDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.ExtractUserAndTimestampDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.FormatOutputDoFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">FormatOutputDoFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#FormatOutputDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.FormatOutputDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Formats a string containing the user, count, and session.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.FormatOutputDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#FormatOutputDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.FormatOutputDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.SessionsToStringsDoFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">SessionsToStringsDoFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#SessionsToStringsDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.SessionsToStringsDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Adds the session information to be part of the key.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.SessionsToStringsDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#SessionsToStringsDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.SessionsToStringsDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.TopPerMonth">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">TopPerMonth</code><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#TopPerMonth"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.TopPerMonth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Computes the longest session ending in each month.</p>
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.TopPerMonth.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#TopPerMonth.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.TopPerMonth.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions.run">
+<code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the Wikipedia top edits pipeline.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>argv</strong> &#8211; Pipeline options as a list of arguments.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete.top_wikipedia_sessions_test">
+<span id="apache-beam-examples-complete-top-wikipedia-sessions-test-module"></span><h2>apache_beam.examples.complete.top_wikipedia_sessions_test module<a class="headerlink" href="#module-apache_beam.examples.complete.top_wikipedia_sessions_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the top wikipedia sessions example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.complete.top_wikipedia_sessions_test.</code><code class="descname">ComputeTopSessionsTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions_test.html#ComputeTopSessionsTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest.EDITS">
+<code class="descname">EDITS</code><em class="property"> = ['{&quot;timestamp&quot;: 0.0, &quot;contributor_username&quot;: &quot;user1&quot;}', '{&quot;timestamp&quot;: 0.001, &quot;contributor_username&quot;: &quot;user1&quot;}', '{&quot;timestamp&quot;: 0.002, &quot;contributor_username&quot;: &quot;user1&quot;}', '{&quot;timestamp&quot;: 0.0, &quot;contributor_username&quot;: &quot;user2&quot;}', '{&quot;timestamp&quot;: 0.001, &quot;contributor_username&quot;: &quot;user2&quot;}', '{&quot;timestamp&quot;: 3.601, &quot;contributor_username&quot;: &quot;user2&quot;}', '{&quot;timestamp&quot;: 3.602, &quot;contributor_username&quot;: &quot;user2&quot;}', '{&quot;timestamp&quot;: 7200.0, &quot;contributor_username&quot;: &quot;user2&quot;}', '{&quot;timestamp&quot;: 3024.0, &quot;contributor_username&quot;: &quot;user3&quot;}']</em><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest.EDITS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest.EXPECTED">
+<code class="descname">EXPECTED</code><em class="property"> = ['user1 : [0.0, 3600.002) : 3 : [0.0, 2592000.0)', 'user2 : [0.0, 3603.602) : 4 : [0.0, 2592000.0)', 'user2 : [7200.0, 10800.0) : 1 : [0.0, 2592000.0)', 'user3 : [3024.0, 6624.0) : 1 : [0.0, 2592000.0)']</em><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest.EXPECTED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest.test_compute_top_sessions">
+<code class="descname">test_compute_top_sessions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/complete/top_wikipedia_sessions_test.html#ComputeTopSessionsTest.test_compute_top_sessions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.complete.top_wikipedia_sessions_test.ComputeTopSessionsTest.test_compute_top_sessions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.complete">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.examples.complete" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.complete.juliaset.html" title="apache_beam.examples.complete.juliaset package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.html" title="apache_beam.examples package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.examples.html" >apache_beam.examples package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

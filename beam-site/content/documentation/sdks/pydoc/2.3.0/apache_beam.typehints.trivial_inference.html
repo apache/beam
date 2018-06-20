@@ -1,0 +1,422 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.typehints.trivial_inference module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.typehints package" href="apache_beam.typehints.html"/>
+        <link rel="next" title="apache_beam.typehints.typecheck module" href="apache_beam.typehints.typecheck.html"/>
+        <link rel="prev" title="apache_beam.typehints.opcodes module" href="apache_beam.typehints.opcodes.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.decorators.html">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.native_type_compatibility.html">apache_beam.typehints.native_type_compatibility module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.opcodes.html">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typecheck.html">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typehints.html">apache_beam.typehints.typehints module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.typehints.html">apache_beam.typehints package</a> &raquo;</li>
+        
+      <li>apache_beam.typehints.trivial_inference module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.typehints.trivial_inference.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.typehints.trivial_inference">
+<span id="apache-beam-typehints-trivial-inference-module"></span><h1>apache_beam.typehints.trivial_inference module<a class="headerlink" href="#module-apache_beam.typehints.trivial_inference" title="Permalink to this headline">¶</a></h1>
+<p>Trivial type inference for simple functions.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.typehints.trivial_inference.BoundMethod">
+<em class="property">class </em><code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">BoundMethod</code><span class="sig-paren">(</span><em>func</em>, <em>type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#BoundMethod"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.BoundMethod" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Used to create a bound method when we only know the type of the instance.</p>
+<p>Instantiates a bound method object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>func</strong> (<a class="reference external" href="https://docs.python.org/2/library/types.html#types.FunctionType" title="(in Python v2.7)"><em>types.FunctionType</em></a>) – The method’s underlying function</li>
+<li><strong>type</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#type" title="(in Python v2.7)"><em>type</em></a>) – The class of the method.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.typehints.trivial_inference.Const">
+<em class="property">class </em><code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">Const</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#Const"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.Const" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dl class="staticmethod">
+<dt id="apache_beam.typehints.trivial_inference.Const.unwrap">
+<em class="property">static </em><code class="descname">unwrap</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#Const.unwrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.Const.unwrap" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.typehints.trivial_inference.Const.unwrap_all">
+<em class="property">static </em><code class="descname">unwrap_all</code><span class="sig-paren">(</span><em>xs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#Const.unwrap_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.Const.unwrap_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.typehints.trivial_inference.FrameState">
+<em class="property">class </em><code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">FrameState</code><span class="sig-paren">(</span><em>f</em>, <em>local_vars=None</em>, <em>stack=()</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#FrameState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.FrameState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Stores the state of the frame at a particular point of execution.</p>
+<dl class="method">
+<dt id="apache_beam.typehints.trivial_inference.FrameState.closure_type">
+<code class="descname">closure_type</code><span class="sig-paren">(</span><em>i</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#FrameState.closure_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.FrameState.closure_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.trivial_inference.FrameState.const_type">
+<code class="descname">const_type</code><span class="sig-paren">(</span><em>i</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#FrameState.const_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.FrameState.const_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.trivial_inference.FrameState.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#FrameState.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.FrameState.copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.trivial_inference.FrameState.get_global">
+<code class="descname">get_global</code><span class="sig-paren">(</span><em>i</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#FrameState.get_global"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.FrameState.get_global" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.trivial_inference.FrameState.get_name">
+<code class="descname">get_name</code><span class="sig-paren">(</span><em>i</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#FrameState.get_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.FrameState.get_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.typehints.trivial_inference.TypeInferenceError">
+<em class="property">exception </em><code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">TypeInferenceError</code><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#TypeInferenceError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.TypeInferenceError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">exceptions.ValueError</span></code></a></p>
+<p>Error to raise when type inference failed.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.element_type">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">element_type</code><span class="sig-paren">(</span><em>hint</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#element_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.element_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the element type of a composite type.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.hashable">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">hashable</code><span class="sig-paren">(</span><em>c</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#hashable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.hashable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.infer_return_type">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">infer_return_type</code><span class="sig-paren">(</span><em>c</em>, <em>input_types</em>, <em>debug=False</em>, <em>depth=5</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#infer_return_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.infer_return_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyses a callable to deduce its return type.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>c</strong> – A Python callable to infer the return type of.</li>
+<li><strong>input_types</strong> – A sequence of inputs corresponding to the input types.</li>
+<li><strong>debug</strong> – Whether to print verbose debugging information.</li>
+<li><strong>depth</strong> – Maximum inspection depth during type inference.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A TypeConstraint that that the return value of this function will (likely)
+satisfy given the specified inputs.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.infer_return_type_func">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">infer_return_type_func</code><span class="sig-paren">(</span><em>f</em>, <em>input_types</em>, <em>debug=False</em>, <em>depth=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#infer_return_type_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.infer_return_type_func" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyses a function to deduce its return type.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>f</strong> – A Python function object to infer the return type of.</li>
+<li><strong>input_types</strong> – A sequence of inputs corresponding to the input types.</li>
+<li><strong>debug</strong> – Whether to print verbose debugging information.</li>
+<li><strong>depth</strong> – Maximum inspection depth during type inference.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A TypeConstraint that that the return value of this function will (likely)
+satisfy given the specified inputs.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#apache_beam.typehints.trivial_inference.TypeInferenceError" title="apache_beam.typehints.trivial_inference.TypeInferenceError"><code class="xref py py-exc docutils literal"><span class="pre">TypeInferenceError</span></code></a> – if no type can be inferred.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.instance_to_type">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">instance_to_type</code><span class="sig-paren">(</span><em>o</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#instance_to_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.instance_to_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a Python object o, return the corresponding type hint.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.key_value_types">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">key_value_types</code><span class="sig-paren">(</span><em>kv_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#key_value_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.key_value_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the key and value type of a KV type.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.union">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">union</code><span class="sig-paren">(</span><em>a</em>, <em>b</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#union"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.union" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the union of two types or Const values.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.trivial_inference.union_list">
+<code class="descclassname">apache_beam.typehints.trivial_inference.</code><code class="descname">union_list</code><span class="sig-paren">(</span><em>xs</em>, <em>ys</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/trivial_inference.html#union_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.trivial_inference.union_list" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.typehints.typecheck.html" class="btn btn-neutral float-right" title="apache_beam.typehints.typecheck module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.typehints.opcodes.html" class="btn btn-neutral" title="apache_beam.typehints.opcodes module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

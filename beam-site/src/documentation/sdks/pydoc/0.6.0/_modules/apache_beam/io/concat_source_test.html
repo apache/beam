@@ -1,0 +1,321 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.concat_source_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.concat_source_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the sources framework.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">range_trackers</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">source_test_utils</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.concat_source</span> <span class="k">import</span> <span class="n">ConcatSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">equal_to</span>
+
+
+<div class="viewcode-block" id="RangeSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.RangeSource">[docs]</a><span class="k">class</span> <span class="nc">RangeSource</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">split_freq</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="n">start</span> <span class="o">&lt;=</span> <span class="n">end</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start</span> <span class="o">=</span> <span class="n">start</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">=</span> <span class="n">end</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_split_freq</span> <span class="o">=</span> <span class="n">split_freq</span>
+
+  <span class="k">def</span> <span class="nf">_normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">end_position</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_start</span> <span class="k">if</span> <span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">start_position</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="k">if</span> <span class="n">end_position</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">end_position</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_round_up</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Rounds up to the nearest mulitple of split_freq.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">index</span> <span class="o">-</span> <span class="n">index</span> <span class="o">%</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_split_freq</span>
+
+<div class="viewcode-block" id="RangeSource.estimate_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.RangeSource.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span></div>
+
+<div class="viewcode-block" id="RangeSource.split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.RangeSource.split">[docs]</a>  <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">end_position</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">sub_start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">):</span>
+      <span class="n">sub_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">,</span> <span class="n">sub_start</span> <span class="o">+</span> <span class="n">desired_bundle_size</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span>
+          <span class="n">sub_end</span> <span class="o">-</span> <span class="n">sub_start</span><span class="p">,</span>
+          <span class="n">RangeSource</span><span class="p">(</span><span class="n">sub_start</span><span class="p">,</span> <span class="n">sub_end</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_freq</span><span class="p">),</span>
+          <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RangeSource.get_range_tracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.RangeSource.get_range_tracker">[docs]</a>  <span class="k">def</span> <span class="nf">get_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">end_position</span><span class="p">):</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">end_position</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RangeSource.read"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.RangeSource.read">[docs]</a>  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_round_up</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()),</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">_round_up</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">())):</span>
+      <span class="k">if</span> <span class="n">k</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_freq</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+          <span class="k">return</span>
+      <span class="k">yield</span> <span class="n">k</span></div>
+
+  <span class="c1"># For testing</span>
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_start</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_end</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span></div>
+
+
+<div class="viewcode-block" id="ConcatSourceTest"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest">[docs]</a><span class="k">class</span> <span class="nc">ConcatSourceTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_range_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_range_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_range_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span><span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_conact_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_conact_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_conact_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">([</span><span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span>
+                          <span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">())),</span>
+                     <span class="nb">range</span><span class="p">(</span><span class="mi">16</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                                                               <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">)))),</span>
+                     <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">625</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+
+    <span class="c1"># Simulate a read.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">fraction_consumed</span><span class="p">(),</span> <span class="mf">0.125</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">fraction_consumed</span><span class="p">(),</span> <span class="mf">0.375</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">14</span><span class="p">)),</span> <span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="mf">0.75</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="mi">9</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">8</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">)),</span> <span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">),</span> <span class="mf">11.</span> <span class="o">/</span> <span class="mi">12</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="mi">11</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_estimate_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">([</span><span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">),</span>
+                          <span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(),</span> <span class="mi">1000</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_position_at_fration"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_position_at_fration">[docs]</a>  <span class="k">def</span> <span class="nf">test_position_at_fration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">ranges</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">24</span><span class="p">),</span> <span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="mi">32</span><span class="p">)]</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">([</span><span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">((</span><span class="nb">range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="nb">range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="mf">32.</span><span class="p">,</span>
+                                               <span class="n">RangeSource</span><span class="p">(</span><span class="o">*</span><span class="nb">range</span><span class="p">),</span>
+                                               <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="nb">range</span> <span class="ow">in</span> <span class="n">ranges</span><span class="p">])</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">01</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">125</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">7</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">23</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">75</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">24</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">8</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">26</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">01</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">14</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">599</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="o">.</span><span class="mi">601</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">17</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_empty_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_empty_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_empty_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">read_all</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span>
+
+    <span class="n">empty</span> <span class="o">=</span> <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([])),</span> <span class="p">[])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">empty</span><span class="p">])),</span> <span class="p">[])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">empty</span><span class="p">,</span> <span class="n">empty</span><span class="p">])),</span> <span class="p">[])</span>
+
+    <span class="n">range10</span> <span class="o">=</span> <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">]),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span>
+                      <span class="p">[])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">]),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span>
+                      <span class="p">[])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">,</span> <span class="n">range10</span><span class="p">]),</span>
+                               <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span>
+                      <span class="p">[])</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_single_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_single_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_single_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">read_all</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span>
+
+    <span class="n">range10</span> <span class="o">=</span> <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">])),</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">]),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">]),</span> <span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span>
+                      <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_source_with_empty_ranges"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_source_with_empty_ranges">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_with_empty_ranges</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">read_all</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span>
+
+    <span class="n">empty</span> <span class="o">=</span> <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">empty</span><span class="p">),</span> <span class="p">[])</span>
+
+    <span class="n">range10</span> <span class="o">=</span> <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">empty</span><span class="p">,</span> <span class="n">empty</span><span class="p">,</span> <span class="n">range10</span><span class="p">])),</span>
+                      <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">empty</span><span class="p">,</span> <span class="n">range10</span><span class="p">,</span> <span class="n">empty</span><span class="p">])),</span>
+                      <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">read_all</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">([</span><span class="n">range10</span><span class="p">,</span> <span class="n">empty</span><span class="p">,</span> <span class="n">range10</span><span class="p">,</span> <span class="n">empty</span><span class="p">])),</span>
+                      <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">+</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_source_with_empty_ranges_exhastive"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_source_with_empty_ranges_exhastive">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_with_empty_ranges_exhastive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">empty</span> <span class="o">=</span> <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">([</span><span class="n">empty</span><span class="p">,</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                           <span class="n">empty</span><span class="p">,</span>
+                           <span class="n">empty</span><span class="p">,</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">13</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="mi">17</span><span class="p">),</span>
+                           <span class="n">empty</span><span class="p">,</span>
+                          <span class="p">])</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span><span class="n">source</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_run_concat_direct"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_run_concat_direct">[docs]</a>  <span class="k">def</span> <span class="nf">test_run_concat_direct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">([</span><span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">),</span>
+                          <span class="p">])</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">)))</span>
+
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ConcatSourceTest.test_conact_source_exhaustive"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source_test.ConcatSourceTest.test_conact_source_exhaustive">[docs]</a>  <span class="k">def</span> <span class="nf">test_conact_source_exhaustive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">ConcatSource</span><span class="p">([</span><span class="n">RangeSource</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">110</span><span class="p">),</span>
+                           <span class="n">RangeSource</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1010</span><span class="p">),</span>
+                          <span class="p">])</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span><span class="n">source</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.runner &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.runner</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;PipelineRunner, an abstract base runner object.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shelve</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;PipelineRunner&#39;</span><span class="p">,</span> <span class="s1">&#39;PipelineState&#39;</span><span class="p">,</span> <span class="s1">&#39;PipelineResult&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_get_runner_map</span><span class="p">(</span><span class="n">runner_names</span><span class="p">,</span> <span class="n">module_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Create a map of runner name in lower case to full import path to the</span>
+<span class="sd">  runner class.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="p">{</span><span class="n">runner_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">module_path</span> <span class="o">+</span> <span class="n">runner_name</span>
+          <span class="k">for</span> <span class="n">runner_name</span> <span class="ow">in</span> <span class="n">runner_names</span><span class="p">}</span>
+
+
+<span class="n">_DIRECT_RUNNER_PATH</span> <span class="o">=</span> <span class="s1">&#39;apache_beam.runners.direct.direct_runner.&#39;</span>
+<span class="n">_DATAFLOW_RUNNER_PATH</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s1">&#39;apache_beam.runners.dataflow.dataflow_runner.&#39;</span><span class="p">)</span>
+<span class="n">_TEST_RUNNER_PATH</span> <span class="o">=</span> <span class="s1">&#39;apache_beam.runners.test.&#39;</span>
+
+<span class="n">_KNOWN_DIRECT_RUNNERS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;DirectRunner&#39;</span><span class="p">,</span> <span class="s1">&#39;EagerRunner&#39;</span><span class="p">)</span>
+<span class="n">_KNOWN_DATAFLOW_RUNNERS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;DataflowRunner&#39;</span><span class="p">,)</span>
+<span class="n">_KNOWN_TEST_RUNNERS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;TestDataflowRunner&#39;</span><span class="p">,)</span>
+
+<span class="n">_RUNNER_MAP</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">_RUNNER_MAP</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_runner_map</span><span class="p">(</span><span class="n">_KNOWN_DIRECT_RUNNERS</span><span class="p">,</span>
+                                   <span class="n">_DIRECT_RUNNER_PATH</span><span class="p">))</span>
+<span class="n">_RUNNER_MAP</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_runner_map</span><span class="p">(</span><span class="n">_KNOWN_DATAFLOW_RUNNERS</span><span class="p">,</span>
+                                   <span class="n">_DATAFLOW_RUNNER_PATH</span><span class="p">))</span>
+<span class="n">_RUNNER_MAP</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_runner_map</span><span class="p">(</span><span class="n">_KNOWN_TEST_RUNNERS</span><span class="p">,</span>
+                                   <span class="n">_TEST_RUNNER_PATH</span><span class="p">))</span>
+
+<span class="n">_ALL_KNOWN_RUNNERS</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">_KNOWN_DIRECT_RUNNERS</span> <span class="o">+</span> <span class="n">_KNOWN_DATAFLOW_RUNNERS</span> <span class="o">+</span> <span class="n">_KNOWN_TEST_RUNNERS</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">create_runner</span><span class="p">(</span><span class="n">runner_name</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Creates a runner instance from a runner class name.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    runner_name: Name of the pipeline runner. Possible values are:</span>
+<span class="sd">      DirectRunner, DataflowRunner and TestDataflowRunner.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A runner object.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    RuntimeError: if an invalid runner name is used.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Get the qualified runner name by using the lower case runner name. If that</span>
+  <span class="c1"># fails try appending the name with &#39;runner&#39; and check if it matches.</span>
+  <span class="c1"># If that also fails, use the given runner name as is.</span>
+  <span class="n">runner_name</span> <span class="o">=</span> <span class="n">_RUNNER_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+      <span class="n">runner_name</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+      <span class="n">_RUNNER_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">runner_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;runner&#39;</span><span class="p">,</span> <span class="n">runner_name</span><span class="p">))</span>
+
+  <span class="k">if</span> <span class="s1">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">runner_name</span><span class="p">:</span>
+    <span class="n">module</span><span class="p">,</span> <span class="n">runner</span> <span class="o">=</span> <span class="n">runner_name</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">__import__</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="p">{},</span> <span class="p">{},</span> <span class="p">[</span><span class="n">runner</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">runner</span><span class="p">)()</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">runner_name</span> <span class="ow">in</span> <span class="n">_KNOWN_DATAFLOW_RUNNERS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s1">&#39;Google Cloud Dataflow runner not available, &#39;</span>
+            <span class="s1">&#39;please install apache_beam[gcp]&#39;</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s1">&#39;Unexpected pipeline runner: </span><span class="si">%s</span><span class="s1">. Valid values are </span><span class="si">%s</span><span class="s1"> &#39;</span>
+        <span class="s1">&#39;or the fully qualified name of a PipelineRunner subclass.&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">runner_name</span><span class="p">,</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_ALL_KNOWN_RUNNERS</span><span class="p">)))</span>
+
+
+<div class="viewcode-block" id="PipelineRunner"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner">[docs]</a><span class="k">class</span> <span class="nc">PipelineRunner</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A runner of a pipeline object.</span>
+
+<span class="sd">  The base runner provides a run() method for visiting every node in the</span>
+<span class="sd">  pipeline&#39;s DAG and executing the transforms computing the PValue in the node.</span>
+
+<span class="sd">  A custom runner will typically provide implementations for some of the</span>
+<span class="sd">  transform methods (ParDo, GroupByKey, Create, etc.). It may also</span>
+<span class="sd">  provide a new implementation for clear_pvalue(), which is used to wipe out</span>
+<span class="sd">  materialized values in order to reduce footprint.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PipelineRunner.run"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Execute the entire pipeline or the sub-DAG reachable from a node.&quot;&quot;&quot;</span>
+
+    <span class="c1"># Imported here to avoid circular dependencies.</span>
+    <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineVisitor</span>
+
+    <span class="k">class</span> <span class="nc">RunVisitor</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runner</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="n">runner</span>
+
+      <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">run_transform</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Error while visiting </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">)</span>
+          <span class="k">raise</span>
+
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">RunVisitor</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PipelineRunner.apply"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner.apply">[docs]</a>  <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Runner callback for a pipeline.apply call.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      transform: the transform to apply.</span>
+<span class="sd">      input: transform&#39;s input (typically a PCollection).</span>
+
+<span class="sd">    A concrete implementation of the Runner class may want to do custom</span>
+<span class="sd">    pipeline construction for a given transform.  To override the behavior</span>
+<span class="sd">    for a transform class Xyz, implement an apply_Xyz method with this same</span>
+<span class="sd">    signature.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">mro</span><span class="p">():</span>
+      <span class="n">m</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;apply_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">m</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="nb">input</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+        <span class="s1">&#39;Execution of [</span><span class="si">%s</span><span class="s1">] not implemented in runner </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PipelineRunner.apply_PTransform"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner.apply_PTransform">[docs]</a>  <span class="k">def</span> <span class="nf">apply_PTransform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+    <span class="c1"># The base case of apply is to call the transform&#39;s expand.</span>
+    <span class="k">return</span> <span class="n">transform</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineRunner.run_transform"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner.run_transform">[docs]</a>  <span class="k">def</span> <span class="nf">run_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Runner callback for a pipeline.run call.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      transform_node: transform node for the transform to run.</span>
+
+<span class="sd">    A concrete implementation of the Runner class must implement run_Abc for</span>
+<span class="sd">    some class Abc in the method resolution order for every non-composite</span>
+<span class="sd">    transform Xyz in the pipeline.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">mro</span><span class="p">():</span>
+      <span class="n">m</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;run_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">m</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+        <span class="s1">&#39;Execution of [</span><span class="si">%s</span><span class="s1">] not implemented in runner </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">PValueCache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Local cache for arbitrary information computed for PValue objects.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_disk_backed_cache</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># Cache of values computed while a runner executes a pipeline. This is a</span>
+    <span class="c1"># dictionary of PValues and their computed values. Note that in principle</span>
+    <span class="c1"># the runner could contain PValues from several pipelines without clashes</span>
+    <span class="c1"># since a PValue is associated with one and only one pipeline. The keys of</span>
+    <span class="c1"># the dictionary are tuple of PValue instance addresses obtained using id()</span>
+    <span class="c1"># and tag names converted to strings.</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_use_disk_backed_cache</span> <span class="o">=</span> <span class="n">use_disk_backed_cache</span>
+    <span class="k">if</span> <span class="n">use_disk_backed_cache</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_tempdir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="n">shelve</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tempdir</span><span class="p">,</span> <span class="s1">&#39;shelve&#39;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_disk_backed_cache</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+      <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tempdir</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">to_cache_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">transform</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">tag</span>
+
+  <span class="k">def</span> <span class="nf">_ensure_pvalue_has_real_producer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Ensure the passed-in PValue has the real_producer attribute.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pvalue: A PValue instance whose cached value is requested.</span>
+
+<span class="sd">    During the runner&#39;s execution only the results of the primitive transforms</span>
+<span class="sd">    are cached. Whenever we are looking for a PValue that is the output of a</span>
+<span class="sd">    composite transform we need to find the output of its rightmost transform</span>
+<span class="sd">    part.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">pvalue</span><span class="p">,</span> <span class="s1">&#39;real_producer&#39;</span><span class="p">):</span>
+      <span class="n">real_producer</span> <span class="o">=</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">producer</span>
+      <span class="k">while</span> <span class="n">real_producer</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+        <span class="n">real_producer</span> <span class="o">=</span> <span class="n">real_producer</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+      <span class="n">pvalue</span><span class="o">.</span><span class="n">real_producer</span> <span class="o">=</span> <span class="n">real_producer</span>
+
+  <span class="k">def</span> <span class="nf">is_cached</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pobj</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">AppliedPTransform</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pobj</span><span class="p">,</span> <span class="n">AppliedPTransform</span><span class="p">):</span>
+      <span class="n">transform</span> <span class="o">=</span> <span class="n">pobj</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_pvalue_has_real_producer</span><span class="p">(</span><span class="n">pobj</span><span class="p">)</span>
+      <span class="n">transform</span> <span class="o">=</span> <span class="n">pobj</span><span class="o">.</span><span class="n">real_producer</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="n">pobj</span><span class="o">.</span><span class="n">tag</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_cache_key</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span>
+
+  <span class="k">def</span> <span class="nf">cache_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">tag_or_value</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="n">tag_or_value</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="n">tag_or_value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_cache_key</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">tag</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">refcounts</span><span class="p">[</span><span class="n">tag</span><span class="p">]]</span>
+
+  <span class="k">def</span> <span class="nf">get_pvalue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gets the value associated with a PValue from the cache.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_pvalue_has_real_producer</span><span class="p">(</span><span class="n">pvalue</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">value_with_refcount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="n">pvalue</span><span class="p">)]</span>
+      <span class="n">value_with_refcount</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;PValue computed by </span><span class="si">%s</span><span class="s1"> (tag </span><span class="si">%s</span><span class="s1">): refcount: </span><span class="si">%d</span><span class="s1"> =&gt; </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="n">pvalue</span><span class="o">.</span><span class="n">real_producer</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="n">pvalue</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">value_with_refcount</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">value_with_refcount</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+      <span class="k">if</span> <span class="n">value_with_refcount</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_pvalue</span><span class="p">(</span><span class="n">pvalue</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">value_with_refcount</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">pvalue</span><span class="o">.</span><span class="n">tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+          <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_cache_key</span><span class="p">(</span><span class="n">pvalue</span><span class="o">.</span><span class="n">real_producer</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">):</span>
+        <span class="c1"># This is an undeclared, empty output of a DoFn executed</span>
+        <span class="c1"># in the local runner before this output was referenced.</span>
+        <span class="k">return</span> <span class="p">[]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+
+  <span class="k">def</span> <span class="nf">get_unwindowed_pvalue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">pvalue</span><span class="p">)]</span>
+
+  <span class="k">def</span> <span class="nf">clear_pvalue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Removes a PValue from the cache.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_cached</span><span class="p">(</span><span class="n">pvalue</span><span class="p">):</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="n">pvalue</span><span class="p">)]</span>
+
+  <span class="k">def</span> <span class="nf">key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pobj</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_pvalue_has_real_producer</span><span class="p">(</span><span class="n">pobj</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_cache_key</span><span class="p">(</span><span class="n">pobj</span><span class="o">.</span><span class="n">real_producer</span><span class="p">,</span> <span class="n">pobj</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PipelineState"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineState">[docs]</a><span class="k">class</span> <span class="nc">PipelineState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;State of the Pipeline, as returned by PipelineResult.state.</span>
+
+<span class="sd">  This is meant to be the union of all the states any runner can put a</span>
+<span class="sd">  pipeline in.  Currently, it represents the values of the dataflow</span>
+<span class="sd">  API JobState enum.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">UNKNOWN</span> <span class="o">=</span> <span class="s1">&#39;UNKNOWN&#39;</span>  <span class="c1"># not specified</span>
+  <span class="n">STOPPED</span> <span class="o">=</span> <span class="s1">&#39;STOPPED&#39;</span>  <span class="c1"># paused or not yet started</span>
+  <span class="n">RUNNING</span> <span class="o">=</span> <span class="s1">&#39;RUNNING&#39;</span>  <span class="c1"># currently running</span>
+  <span class="n">DONE</span> <span class="o">=</span> <span class="s1">&#39;DONE&#39;</span>  <span class="c1"># successfully completed (terminal state)</span>
+  <span class="n">FAILED</span> <span class="o">=</span> <span class="s1">&#39;FAILED&#39;</span>  <span class="c1"># failed (terminal state)</span>
+  <span class="n">CANCELLED</span> <span class="o">=</span> <span class="s1">&#39;CANCELLED&#39;</span>  <span class="c1"># explicitly cancelled (terminal state)</span>
+  <span class="n">UPDATED</span> <span class="o">=</span> <span class="s1">&#39;UPDATED&#39;</span>  <span class="c1"># replaced by another job (terminal state)</span>
+  <span class="n">DRAINING</span> <span class="o">=</span> <span class="s1">&#39;DRAINING&#39;</span>  <span class="c1"># still processing, no longer reading data</span>
+  <span class="n">DRAINED</span> <span class="o">=</span> <span class="s1">&#39;DRAINED&#39;</span>  <span class="c1"># draining completed (terminal state)</span></div>
+
+
+<div class="viewcode-block" id="PipelineResult"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineResult">[docs]</a><span class="k">class</span> <span class="nc">PipelineResult</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PipelineResult provides access to info about a pipeline.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">state</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the current state of the pipeline execution.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+
+<div class="viewcode-block" id="PipelineResult.wait_until_finish"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineResult.wait_until_finish">[docs]</a>  <span class="k">def</span> <span class="nf">wait_until_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Waits until the pipeline finishes and returns the final status.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      duration: The time to wait (in milliseconds) for job to finish. If it is</span>
+<span class="sd">        set to None, it will wait indefinitely until the job is finished.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: If there is a persistent problem getting job information.</span>
+<span class="sd">      NotImplementedError: If the runner does not support this operation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      The final state of the pipeline, or None on timeout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="PipelineResult.cancel"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineResult.cancel">[docs]</a>  <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Cancels the pipeline execution.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: If there is a persistent problem getting job information.</span>
+<span class="sd">      NotImplementedError: If the runner does not support this operation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      The final state of the pipeline.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="PipelineResult.metrics"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineResult.metrics">[docs]</a>  <span class="k">def</span> <span class="nf">metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns MetricsResult object to query metrics from the runner.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      NotImplementedError: If the runner does not support this operation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+  <span class="c1"># pylint: disable=unused-argument</span>
+<div class="viewcode-block" id="PipelineResult.aggregated_values"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.runner.PipelineResult.aggregated_values">[docs]</a>  <span class="k">def</span> <span class="nf">aggregated_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregator_or_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a dict of step names to values of the Aggregator.&quot;&quot;&quot;</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> does not implement aggregated_values&#39;</span><span class="p">,</span>
+                 <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{}</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

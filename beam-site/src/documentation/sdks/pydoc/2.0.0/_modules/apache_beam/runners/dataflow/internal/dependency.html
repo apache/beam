@@ -1,0 +1,633 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.internal.dependency &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.internal.dependency</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Support for installing custom code and required dependencies.</span>
+
+<span class="sd">Workflows, with the exception of very simple ones, are organized in multiple</span>
+<span class="sd">modules and packages. Typically, these modules and packages have</span>
+<span class="sd">dependencies on other standard libraries. Dataflow relies on the Python</span>
+<span class="sd">setuptools package to handle these scenarios. For further details please read:</span>
+<span class="sd">https://pythonhosted.org/an_example_pypi_project/setuptools.html</span>
+
+<span class="sd">When a runner tries to run a pipeline it will check for a --requirements_file</span>
+<span class="sd">and a --setup_file option.</span>
+
+<span class="sd">If --setup_file is present then it is assumed that the folder containing the</span>
+<span class="sd">file specified by the option has the typical layout required by setuptools and</span>
+<span class="sd">it will run &#39;python setup.py sdist&#39; to produce a source distribution. The</span>
+<span class="sd">resulting tarball (a .tar or .tar.gz file) will be staged at the GCS staging</span>
+<span class="sd">location specified as job option. When a worker starts it will check for the</span>
+<span class="sd">presence of this file and will run &#39;easy_install tarball&#39; to install the</span>
+<span class="sd">package in the worker.</span>
+
+<span class="sd">If --requirements_file is present then the file specified by the option will be</span>
+<span class="sd">staged in the GCS staging location.  When a worker starts it will check for the</span>
+<span class="sd">presence of this file and will run &#39;pip install -r requirements.txt&#39;. A</span>
+<span class="sd">requirements file can be easily generated by running &#39;pip freeze -r</span>
+<span class="sd">requirements.txt&#39;. The reason a Dataflow runner does not run this automatically</span>
+<span class="sd">is because quite often only a small fraction of the dependencies present in a</span>
+<span class="sd">requirements.txt file are actually needed for remote execution and therefore a</span>
+<span class="sd">one-time manual trimming is desirable.</span>
+
+<span class="sd">TODO(silviuc): Staged files should have a job specific prefix.</span>
+<span class="sd">To prevent several jobs in the same project stomping on each other due to a</span>
+<span class="sd">shared staging location.</span>
+
+<span class="sd">TODO(silviuc): Should we allow several setup packages?</span>
+<span class="sd">TODO(silviuc): We should allow customizing the exact command for setup build.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">version</span> <span class="k">as</span> <span class="n">beam_version</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystems</span> <span class="k">import</span> <span class="n">FileSystems</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">names</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">processes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+
+
+<span class="c1"># Update this version to the next version whenever there is a change that will</span>
+<span class="c1"># require changes to the execution environment.</span>
+<span class="n">BEAM_CONTAINER_VERSION</span> <span class="o">=</span> <span class="s1">&#39;2.0.0&#39;</span>
+
+<span class="c1"># Standard file names used for staging files.</span>
+<span class="n">WORKFLOW_TARBALL_FILE</span> <span class="o">=</span> <span class="s1">&#39;workflow.tar.gz&#39;</span>
+<span class="n">REQUIREMENTS_FILE</span> <span class="o">=</span> <span class="s1">&#39;requirements.txt&#39;</span>
+<span class="n">EXTRA_PACKAGES_FILE</span> <span class="o">=</span> <span class="s1">&#39;extra_packages.txt&#39;</span>
+
+<span class="n">GOOGLE_PACKAGE_NAME</span> <span class="o">=</span> <span class="s1">&#39;google-cloud-dataflow&#39;</span>
+<span class="n">BEAM_PACKAGE_NAME</span> <span class="o">=</span> <span class="s1">&#39;apache-beam&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">_dependency_file_copy</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Copies a local file to a GCS file or vice versa.&quot;&quot;&quot;</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;file copy from </span><span class="si">%s</span><span class="s1"> to </span><span class="si">%s</span><span class="s1">.&#39;</span><span class="p">,</span> <span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">from_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">to_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.io.gcp</span> <span class="k">import</span> <span class="n">gcsio</span>
+    <span class="k">if</span> <span class="n">from_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">to_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="c1"># Both files are GCS files so copy.</span>
+      <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">to_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="c1"># Only target is a GCS file, read local file and upload.</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">to_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">g</span><span class="p">:</span>
+          <span class="n">pfun</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">WRITE_CHUNK_SIZE</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="n">pfun</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Source is a GCS file but target is local file.</span>
+      <span class="k">with</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">()</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">g</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">to_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+          <span class="n">pfun</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">read</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="n">pfun</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="c1"># Branch used only for unit tests and integration tests.</span>
+    <span class="c1"># In such environments GCS support is not available.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">to_path</span><span class="p">)):</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created folder (since we have not done yet, and any errors &#39;</span>
+                   <span class="s1">&#39;will follow): </span><span class="si">%s</span><span class="s1"> &#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">to_path</span><span class="p">))</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">to_path</span><span class="p">))</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_dependency_file_download</span><span class="p">(</span><span class="n">from_url</span><span class="p">,</span> <span class="n">to_folder</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Downloads a file from a URL and returns path to the local file.&quot;&quot;&quot;</span>
+  <span class="c1"># TODO(silviuc): We should cache downloads so we do not do it for every job.</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="c1"># We check if the file is actually there because wget returns a file</span>
+    <span class="c1"># even for a 404 response (file will contain the contents of the 404</span>
+    <span class="c1"># response).</span>
+    <span class="n">response</span><span class="p">,</span> <span class="n">content</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="s1">&#39;httplib2&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Http</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">from_url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">400</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;Beam SDK not found at </span><span class="si">%s</span><span class="s1"> (response: </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">from_url</span><span class="p">,</span> <span class="n">response</span><span class="p">))</span>
+    <span class="n">local_download_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">to_folder</span><span class="p">,</span> <span class="s1">&#39;beam-sdk.tar.gz&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">local_download_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Failed to download Beam SDK from </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">from_url</span><span class="p">)</span>
+    <span class="k">raise</span>
+  <span class="k">return</span> <span class="n">local_download_file</span>
+
+
+<span class="k">def</span> <span class="nf">_stage_extra_packages</span><span class="p">(</span><span class="n">extra_packages</span><span class="p">,</span> <span class="n">staging_location</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">,</span>
+                          <span class="n">file_copy</span><span class="o">=</span><span class="n">_dependency_file_copy</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stages a list of local extra packages.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    extra_packages: Ordered list of local paths to extra packages to be staged.</span>
+<span class="sd">    staging_location: Staging location for the packages.</span>
+<span class="sd">    temp_dir: Temporary folder where the resource building can happen. Caller</span>
+<span class="sd">      is responsible for cleaning up this folder after this function returns.</span>
+<span class="sd">    file_copy: Callable for copying files. The default version will copy from</span>
+<span class="sd">      a local file to a GCS location using the gsutil tool available in the</span>
+<span class="sd">      Google Cloud SDK package.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A list of file names (no paths) for the resources staged. All the files</span>
+<span class="sd">    are assumed to be staged in staging_location.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    RuntimeError: If files specified are not found or do not have expected</span>
+<span class="sd">      name patterns.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">resources</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">staging_temp_dir</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">local_packages</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">extra_packages</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.tar&#39;</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.tar.gz&#39;</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.whl&#39;</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;The --extra_package option expects a full path ending with &#39;</span>
+          <span class="s1">&#39;&quot;.tar&quot; or &quot;.tar.gz&quot; instead of </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">package</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.whl&#39;</span><span class="p">):</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+          <span class="s1">&#39;The .whl package &quot;</span><span class="si">%s</span><span class="s1">&quot; is provided in --extra_package. &#39;</span>
+          <span class="s1">&#39;This functionality is not officially supported. Since wheel &#39;</span>
+          <span class="s1">&#39;packages are binary distributions, this package must be &#39;</span>
+          <span class="s1">&#39;binary-compatible with the worker environment (e.g. Python 2.7 &#39;</span>
+          <span class="s1">&#39;running on an x64 Linux host).&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">package</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">package</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">staging_temp_dir</span><span class="p">:</span>
+          <span class="n">staging_temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Downloading extra package: </span><span class="si">%s</span><span class="s1"> locally before staging&#39;</span><span class="p">,</span>
+                     <span class="n">package</span><span class="p">)</span>
+        <span class="n">_dependency_file_copy</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">staging_temp_dir</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;The file </span><span class="si">%s</span><span class="s1"> cannot be found. It was specified in the &#39;</span>
+            <span class="s1">&#39;--extra_packages command line option.&#39;</span> <span class="o">%</span> <span class="n">package</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">local_packages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">staging_temp_dir</span><span class="p">:</span>
+    <span class="n">local_packages</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_temp_dir</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span>
+            <span class="n">staging_temp_dir</span><span class="p">)])</span>
+
+  <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">local_packages</span><span class="p">:</span>
+    <span class="n">basename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+    <span class="n">staged_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_location</span><span class="p">,</span> <span class="n">basename</span><span class="p">)</span>
+    <span class="n">file_copy</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">basename</span><span class="p">)</span>
+  <span class="c1"># Create a file containing the list of extra packages and stage it.</span>
+  <span class="c1"># The file is important so that in the worker the packages are installed</span>
+  <span class="c1"># exactly in the order specified. This approach will avoid extra PyPI</span>
+  <span class="c1"># requests. For example if package A depends on package B and package A</span>
+  <span class="c1"># is installed first then the installer will try to satisfy the</span>
+  <span class="c1"># dependency on B by downloading the package from PyPI. If package B is</span>
+  <span class="c1"># installed first this is avoided.</span>
+  <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">EXTRA_PACKAGES_FILE</span><span class="p">),</span> <span class="s1">&#39;wt&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">local_packages</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">))</span>
+  <span class="n">staged_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_location</span><span class="p">,</span> <span class="n">EXTRA_PACKAGES_FILE</span><span class="p">)</span>
+  <span class="c1"># Note that the caller of this function is responsible for deleting the</span>
+  <span class="c1"># temporary folder where all temp files are created, including this one.</span>
+  <span class="n">file_copy</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">EXTRA_PACKAGES_FILE</span><span class="p">),</span> <span class="n">staged_path</span><span class="p">)</span>
+  <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">EXTRA_PACKAGES_FILE</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">resources</span>
+
+
+<span class="k">def</span> <span class="nf">_get_python_executable</span><span class="p">():</span>
+  <span class="c1"># Allow overriding the python executable to use for downloading and</span>
+  <span class="c1"># installing dependencies, otherwise use the python executable for</span>
+  <span class="c1"># the current process.</span>
+  <span class="n">python_bin</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;BEAM_PYTHON&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">sys</span><span class="o">.</span><span class="n">executable</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">python_bin</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not find Python executable.&#39;</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">python_bin</span>
+
+
+<span class="k">def</span> <span class="nf">_populate_requirements_cache</span><span class="p">(</span><span class="n">requirements_file</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">):</span>
+  <span class="c1"># The &#39;pip download&#39; command will not download again if it finds the</span>
+  <span class="c1"># tarball with the proper version already present.</span>
+  <span class="c1"># It will get the packages downloaded in the order they are presented in</span>
+  <span class="c1"># the requirements file and will not download package dependencies.</span>
+  <span class="n">cmd_args</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="n">_get_python_executable</span><span class="p">(),</span> <span class="s1">&#39;-m&#39;</span><span class="p">,</span> <span class="s1">&#39;pip&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">,</span> <span class="s1">&#39;--download&#39;</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">,</span>
+      <span class="s1">&#39;-r&#39;</span><span class="p">,</span> <span class="n">requirements_file</span><span class="p">,</span>
+      <span class="c1"># Download from PyPI source distributions.</span>
+      <span class="s1">&#39;--no-binary&#39;</span><span class="p">,</span> <span class="s1">&#39;:all:&#39;</span><span class="p">]</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Executing command: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">cmd_args</span><span class="p">)</span>
+  <span class="n">processes</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">cmd_args</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="stage_job_resources"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency.stage_job_resources">[docs]</a><span class="k">def</span> <span class="nf">stage_job_resources</span><span class="p">(</span>
+    <span class="n">options</span><span class="p">,</span> <span class="n">file_copy</span><span class="o">=</span><span class="n">_dependency_file_copy</span><span class="p">,</span> <span class="n">build_setup_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">temp_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">populate_requirements_cache</span><span class="o">=</span><span class="n">_populate_requirements_cache</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Creates (if needed) and stages job resources to options.staging_location.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    options: Command line options. More specifically the function will expect</span>
+<span class="sd">      staging_location, requirements_file, setup_file, and save_main_session</span>
+<span class="sd">      options to be present.</span>
+<span class="sd">    file_copy: Callable for copying files. The default version will copy from</span>
+<span class="sd">      a local file to a GCS location using the gsutil tool available in the</span>
+<span class="sd">      Google Cloud SDK package.</span>
+<span class="sd">    build_setup_args: A list of command line arguments used to build a setup</span>
+<span class="sd">      package. Used only if options.setup_file is not None. Used only for</span>
+<span class="sd">      testing.</span>
+<span class="sd">    temp_dir: Temporary folder where the resource building can happen. If None</span>
+<span class="sd">      then a unique temp directory will be created. Used only for testing.</span>
+<span class="sd">    populate_requirements_cache: Callable for populating the requirements cache.</span>
+<span class="sd">      Used only for testing.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A list of file names (no paths) for the resources staged. All the files</span>
+<span class="sd">    are assumed to be staged in options.staging_location.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    RuntimeError: If files specified are not found or error encountered while</span>
+<span class="sd">      trying to create the resources (e.g., build a setup package).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">temp_dir</span> <span class="ow">or</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+  <span class="n">resources</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+  <span class="n">setup_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span>
+  <span class="c1"># Make sure that all required options are specified. There are a few that have</span>
+  <span class="c1"># defaults to support local running scenarios.</span>
+  <span class="k">if</span> <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+        <span class="s1">&#39;The --staging_location option must be specified.&#39;</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+        <span class="s1">&#39;The --temp_location option must be specified.&#39;</span><span class="p">)</span>
+
+  <span class="c1"># Stage a requirements file if present.</span>
+  <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_file</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;The file </span><span class="si">%s</span><span class="s1"> cannot be found. It was specified in the &#39;</span>
+                         <span class="s1">&#39;--requirements_file command line option.&#39;</span> <span class="o">%</span>
+                         <span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_file</span><span class="p">)</span>
+    <span class="n">staged_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span>
+                                   <span class="n">REQUIREMENTS_FILE</span><span class="p">)</span>
+    <span class="n">file_copy</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_file</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">REQUIREMENTS_FILE</span><span class="p">)</span>
+    <span class="n">requirements_cache_path</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">(),</span> <span class="s1">&#39;dataflow-requirements-cache&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_cache</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_cache</span><span class="p">)</span>
+    <span class="c1"># Populate cache with packages from requirements and stage the files</span>
+    <span class="c1"># in the cache.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">requirements_cache_path</span><span class="p">):</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">requirements_cache_path</span><span class="p">)</span>
+    <span class="n">populate_requirements_cache</span><span class="p">(</span>
+        <span class="n">setup_options</span><span class="o">.</span><span class="n">requirements_file</span><span class="p">,</span> <span class="n">requirements_cache_path</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span>  <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">requirements_cache_path</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)):</span>
+      <span class="n">file_copy</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span>
+                                      <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">pkg</span><span class="p">)))</span>
+      <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">pkg</span><span class="p">))</span>
+
+  <span class="c1"># Handle a setup file if present.</span>
+  <span class="c1"># We will build the setup package locally and then copy it to the staging</span>
+  <span class="c1"># location because the staging location is a GCS path and the file cannot be</span>
+  <span class="c1"># created directly there.</span>
+  <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">setup_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">setup_file</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;The file </span><span class="si">%s</span><span class="s1"> cannot be found. It was specified in the &#39;</span>
+                         <span class="s1">&#39;--setup_file command line option.&#39;</span> <span class="o">%</span>
+                         <span class="n">setup_options</span><span class="o">.</span><span class="n">setup_file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">setup_file</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;setup.py&#39;</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;The --setup_file option expects the full path to a file named &#39;</span>
+          <span class="s1">&#39;setup.py instead of </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">setup_file</span><span class="p">)</span>
+    <span class="n">tarball_file</span> <span class="o">=</span> <span class="n">_build_setup_package</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">setup_file</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">,</span>
+                                        <span class="n">build_setup_args</span><span class="p">)</span>
+    <span class="n">staged_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span>
+                                   <span class="n">WORKFLOW_TARBALL_FILE</span><span class="p">)</span>
+    <span class="n">file_copy</span><span class="p">(</span><span class="n">tarball_file</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WORKFLOW_TARBALL_FILE</span><span class="p">)</span>
+
+  <span class="c1"># Handle extra local packages that should be staged.</span>
+  <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">extra_packages</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">resources</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="n">_stage_extra_packages</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">extra_packages</span><span class="p">,</span>
+                              <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span>
+                              <span class="n">temp_dir</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">file_copy</span><span class="o">=</span><span class="n">file_copy</span><span class="p">))</span>
+
+  <span class="c1"># Pickle the main session if requested.</span>
+  <span class="c1"># We will create the pickled main session locally and then copy it to the</span>
+  <span class="c1"># staging location because the staging location is a GCS path and the file</span>
+  <span class="c1"># cannot be created directly there.</span>
+  <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">save_main_session</span><span class="p">:</span>
+    <span class="n">pickled_session_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span>
+                                        <span class="n">names</span><span class="o">.</span><span class="n">PICKLED_MAIN_SESSION_FILE</span><span class="p">)</span>
+    <span class="n">pickler</span><span class="o">.</span><span class="n">dump_session</span><span class="p">(</span><span class="n">pickled_session_file</span><span class="p">)</span>
+    <span class="n">staged_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span>
+                                   <span class="n">names</span><span class="o">.</span><span class="n">PICKLED_MAIN_SESSION_FILE</span><span class="p">)</span>
+    <span class="n">file_copy</span><span class="p">(</span><span class="n">pickled_session_file</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">names</span><span class="o">.</span><span class="n">PICKLED_MAIN_SESSION_FILE</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">setup_options</span><span class="p">,</span> <span class="s1">&#39;sdk_location&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">==</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+      <span class="n">stage_tarball_from_remote_location</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">)</span> <span class="ow">or</span>
+          <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;http://&#39;</span><span class="p">)</span> <span class="ow">or</span>
+          <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;https://&#39;</span><span class="p">)):</span>
+      <span class="n">stage_tarball_from_remote_location</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">stage_tarball_from_remote_location</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">staged_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span>
+                                   <span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stage_tarball_from_remote_location</span><span class="p">:</span>
+      <span class="c1"># If --sdk_location is not specified then the appropriate package</span>
+      <span class="c1"># will be obtained from PyPI (https://pypi.python.org) based on the</span>
+      <span class="c1"># version of the currently running SDK. If the option is</span>
+      <span class="c1"># present then no version matching is made and the exact URL or path</span>
+      <span class="c1"># is expected.</span>
+      <span class="c1">#</span>
+      <span class="c1"># Unit tests running in the &#39;python setup.py test&#39; context will</span>
+      <span class="c1"># not have the sdk_location attribute present and therefore we</span>
+      <span class="c1"># will not stage a tarball.</span>
+      <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">==</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+        <span class="n">sdk_remote_location</span> <span class="o">=</span> <span class="s1">&#39;pypi&#39;</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">sdk_remote_location</span> <span class="o">=</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span>
+      <span class="n">_stage_beam_sdk_tarball</span><span class="p">(</span><span class="n">sdk_remote_location</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">)</span>
+      <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Check if we have a local Beam SDK tarball present. This branch is</span>
+      <span class="c1"># used by tests running with the SDK built at head.</span>
+      <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">==</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+        <span class="n">module_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+        <span class="n">sdk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">module_path</span><span class="p">),</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span>
+            <span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span><span class="p">):</span>
+        <span class="n">sdk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span><span class="p">,</span> <span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">sdk_path</span> <span class="o">=</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span>
+      <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">sdk_path</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Copying Beam SDK &quot;</span><span class="si">%s</span><span class="s1">&quot; to staging location.&#39;</span><span class="p">,</span> <span class="n">sdk_path</span><span class="p">)</span>
+        <span class="n">file_copy</span><span class="p">(</span><span class="n">sdk_path</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+        <span class="n">resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">==</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Cannot find default Beam SDK tar file &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
+                             <span class="n">sdk_path</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Beam SDK will not be staged since --sdk_location &#39;</span>
+                       <span class="s1">&#39;is empty.&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+              <span class="s1">&#39;The file &quot;</span><span class="si">%s</span><span class="s1">&quot; cannot be found. Its location was specified by &#39;</span>
+              <span class="s1">&#39;the --sdk_location command-line option.&#39;</span> <span class="o">%</span>
+              <span class="n">sdk_path</span><span class="p">)</span>
+
+  <span class="c1"># Delete all temp files created while staging job resources.</span>
+  <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">resources</span></div>
+
+
+<span class="k">def</span> <span class="nf">_build_setup_package</span><span class="p">(</span><span class="n">setup_file</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">,</span> <span class="n">build_setup_args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="n">saved_current_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">setup_file</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">build_setup_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">build_setup_args</span> <span class="o">=</span> <span class="p">[</span>
+          <span class="n">_get_python_executable</span><span class="p">(),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">setup_file</span><span class="p">),</span>
+          <span class="s1">&#39;sdist&#39;</span><span class="p">,</span> <span class="s1">&#39;--dist-dir&#39;</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">]</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Executing command: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">build_setup_args</span><span class="p">)</span>
+    <span class="n">processes</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">build_setup_args</span><span class="p">)</span>
+    <span class="n">output_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;*.tar.gz&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">output_files</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;File </span><span class="si">%s</span><span class="s1"> not found.&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;*.tar.gz&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">output_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="k">finally</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">saved_current_directory</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_stage_beam_sdk_tarball</span><span class="p">(</span><span class="n">sdk_remote_location</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stage a Beam SDK tarball with the appropriate version.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    sdk_remote_location: A GCS path to a SDK tarball or a URL from</span>
+<span class="sd">      the file can be downloaded.</span>
+<span class="sd">    staged_path: GCS path where the found SDK tarball should be copied.</span>
+<span class="sd">    temp_dir: path to temporary location where the file should be downloaded.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    RuntimeError: If wget on the URL specified returs errors or the file</span>
+<span class="sd">      cannot be copied from/to GCS.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">sdk_remote_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;http://&#39;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="n">sdk_remote_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;https://&#39;</span><span class="p">)):</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;Staging Beam SDK tarball from </span><span class="si">%s</span><span class="s1"> to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">sdk_remote_location</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">local_download_file</span> <span class="o">=</span> <span class="n">_dependency_file_download</span><span class="p">(</span>
+        <span class="n">sdk_remote_location</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">)</span>
+    <span class="n">_dependency_file_copy</span><span class="p">(</span><span class="n">local_download_file</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">sdk_remote_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+    <span class="c1"># Stage the file to the GCS staging area.</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;Staging Beam SDK tarball from </span><span class="si">%s</span><span class="s1"> to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">sdk_remote_location</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">_dependency_file_copy</span><span class="p">(</span><span class="n">sdk_remote_location</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">sdk_remote_location</span> <span class="o">==</span> <span class="s1">&#39;pypi&#39;</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Staging the SDK tarball from PyPI to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">staged_path</span><span class="p">)</span>
+    <span class="n">_dependency_file_copy</span><span class="p">(</span><span class="n">_download_pypi_sdk_package</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">),</span> <span class="n">staged_path</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+        <span class="s1">&#39;The --sdk_location option was used with an unsupported &#39;</span>
+        <span class="s1">&#39;type of location: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">sdk_remote_location</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_required_container_version"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency.get_required_container_version">[docs]</a><span class="k">def</span> <span class="nf">get_required_container_version</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Returns the Google Cloud Dataflow container version for remote execution.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># TODO(silviuc): Handle apache-beam versions when we have official releases.</span>
+  <span class="kn">import</span> <span class="nn">pkg_resources</span> <span class="k">as</span> <span class="nn">pkg</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span><span class="n">GOOGLE_PACKAGE_NAME</span><span class="p">)</span><span class="o">.</span><span class="n">version</span>
+    <span class="c1"># We drop any pre/post parts of the version and we keep only the X.Y.Z</span>
+    <span class="c1"># format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.</span>
+    <span class="n">container_version</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">pkg</span><span class="o">.</span><span class="n">parse_version</span><span class="p">(</span><span class="n">version</span><span class="p">)</span><span class="o">.</span><span class="n">_version</span><span class="o">.</span><span class="n">release</span>
+    <span class="c1"># We do, however, keep the &quot;.dev&quot; suffix if it is present.</span>
+    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;.*\.dev[0-9]*$&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+      <span class="n">container_version</span> <span class="o">+=</span> <span class="s1">&#39;.dev&#39;</span>
+    <span class="k">return</span> <span class="n">container_version</span>
+  <span class="k">except</span> <span class="n">pkg</span><span class="o">.</span><span class="n">DistributionNotFound</span><span class="p">:</span>
+    <span class="c1"># This case covers Apache Beam end-to-end testing scenarios. All these tests</span>
+    <span class="c1"># will run with a special container version.</span>
+    <span class="k">return</span> <span class="n">BEAM_CONTAINER_VERSION</span></div>
+
+
+<div class="viewcode-block" id="get_sdk_name_and_version"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency.get_sdk_name_and_version">[docs]</a><span class="k">def</span> <span class="nf">get_sdk_name_and_version</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Returns name and version of SDK reported to Google Cloud Dataflow.&quot;&quot;&quot;</span>
+  <span class="c1"># TODO(ccy): Make this check cleaner.</span>
+  <span class="n">container_version</span> <span class="o">=</span> <span class="n">get_required_container_version</span><span class="p">()</span>
+  <span class="k">if</span> <span class="n">container_version</span> <span class="o">==</span> <span class="n">BEAM_CONTAINER_VERSION</span><span class="p">:</span>
+    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Apache Beam SDK for Python&#39;</span><span class="p">,</span> <span class="n">beam_version</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+  <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Google Cloud Dataflow SDK for Python&#39;</span><span class="p">,</span> <span class="n">container_version</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_sdk_package_name"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency.get_sdk_package_name">[docs]</a><span class="k">def</span> <span class="nf">get_sdk_package_name</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Returns the PyPI package name to be staged to Google Cloud Dataflow.&quot;&quot;&quot;</span>
+  <span class="n">container_version</span> <span class="o">=</span> <span class="n">get_required_container_version</span><span class="p">()</span>
+  <span class="k">if</span> <span class="n">container_version</span> <span class="o">==</span> <span class="n">BEAM_CONTAINER_VERSION</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">BEAM_PACKAGE_NAME</span>
+  <span class="k">return</span> <span class="n">GOOGLE_PACKAGE_NAME</span></div>
+
+
+<span class="k">def</span> <span class="nf">_download_pypi_sdk_package</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Downloads SDK package from PyPI and returns path to local path.&quot;&quot;&quot;</span>
+  <span class="n">package_name</span> <span class="o">=</span> <span class="n">get_sdk_package_name</span><span class="p">()</span>
+  <span class="kn">import</span> <span class="nn">pkg_resources</span> <span class="k">as</span> <span class="nn">pkg</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span><span class="n">package_name</span><span class="p">)</span><span class="o">.</span><span class="n">version</span>
+  <span class="k">except</span> <span class="n">pkg</span><span class="o">.</span><span class="n">DistributionNotFound</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Please set --sdk_location command-line option &#39;</span>
+                       <span class="s1">&#39;or install a valid </span><span class="si">{}</span><span class="s1"> distribution.&#39;</span>
+                       <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">package_name</span><span class="p">))</span>
+
+  <span class="c1"># Get a source distribution for the SDK package from PyPI.</span>
+  <span class="n">cmd_args</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="n">_get_python_executable</span><span class="p">(),</span> <span class="s1">&#39;-m&#39;</span><span class="p">,</span> <span class="s1">&#39;pip&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">,</span> <span class="s1">&#39;--download&#39;</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">,</span>
+      <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">==</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">version</span><span class="p">),</span>
+      <span class="s1">&#39;--no-binary&#39;</span><span class="p">,</span> <span class="s1">&#39;:all:&#39;</span><span class="p">,</span> <span class="s1">&#39;--no-deps&#39;</span><span class="p">]</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Executing command: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">cmd_args</span><span class="p">)</span>
+  <span class="n">processes</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">cmd_args</span><span class="p">)</span>
+  <span class="n">zip_expected</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+      <span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">.zip&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">version</span><span class="p">))</span>
+  <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">zip_expected</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">zip_expected</span>
+  <span class="n">tgz_expected</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+      <span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">.tar.gz&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">version</span><span class="p">))</span>
+  <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">tgz_expected</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tgz_expected</span>
+  <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+      <span class="s1">&#39;Failed to download a source distribution for the running SDK. Expected &#39;</span>
+      <span class="s1">&#39;either </span><span class="si">%s</span><span class="s1"> or </span><span class="si">%s</span><span class="s1"> to be found in the download folder.&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">zip_expected</span><span class="p">,</span> <span class="n">tgz_expected</span><span class="p">))</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

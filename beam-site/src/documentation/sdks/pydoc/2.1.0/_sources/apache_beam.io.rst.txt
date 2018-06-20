@@ -1,0 +1,117 @@
+apache\_beam\.io package
+========================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.io.gcp
+
+Submodules
+----------
+
+apache\_beam\.io\.avroio module
+-------------------------------
+
+.. automodule:: apache_beam.io.avroio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.concat\_source module
+---------------------------------------
+
+.. automodule:: apache_beam.io.concat_source
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.filebasedsink module
+--------------------------------------
+
+.. automodule:: apache_beam.io.filebasedsink
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.filebasedsource module
+----------------------------------------
+
+.. automodule:: apache_beam.io.filebasedsource
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.filesystem module
+-----------------------------------
+
+.. automodule:: apache_beam.io.filesystem
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.filesystems module
+------------------------------------
+
+.. automodule:: apache_beam.io.filesystems
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.iobase module
+-------------------------------
+
+.. automodule:: apache_beam.io.iobase
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.localfilesystem module
+----------------------------------------
+
+.. automodule:: apache_beam.io.localfilesystem
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.range\_trackers module
+----------------------------------------
+
+.. automodule:: apache_beam.io.range_trackers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.source\_test\_utils module
+--------------------------------------------
+
+.. automodule:: apache_beam.io.source_test_utils
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.textio module
+-------------------------------
+
+.. automodule:: apache_beam.io.textio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.tfrecordio module
+-----------------------------------
+
+.. automodule:: apache_beam.io.tfrecordio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.io
+    :members:
+    :undoc-members:
+    :show-inheritance:

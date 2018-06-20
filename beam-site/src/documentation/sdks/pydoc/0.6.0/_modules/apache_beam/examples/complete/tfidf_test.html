@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.complete.tfidf_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.complete.tfidf_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Test for the TF-IDF example.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.examples.complete</span> <span class="k">import</span> <span class="n">tfidf</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+
+
+<span class="n">EXPECTED_RESULTS</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+    <span class="p">(</span><span class="s1">&#39;ghi&#39;</span><span class="p">,</span> <span class="s1">&#39;1.txt&#39;</span><span class="p">,</span> <span class="mf">0.3662040962227032</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">,</span> <span class="s1">&#39;1.txt&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">,</span> <span class="s1">&#39;3.txt&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">,</span> <span class="s1">&#39;2.txt&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;def&#39;</span><span class="p">,</span> <span class="s1">&#39;1.txt&#39;</span><span class="p">,</span> <span class="mf">0.13515503603605478</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;def&#39;</span><span class="p">,</span> <span class="s1">&#39;2.txt&#39;</span><span class="p">,</span> <span class="mf">0.2027325540540822</span><span class="p">)])</span>
+
+
+<span class="n">EXPECTED_LINE_RE</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;\(u</span><span class="se">\&#39;</span><span class="s1">([a-z]*)</span><span class="se">\&#39;</span><span class="s1">, \(</span><span class="se">\&#39;</span><span class="s1">.*([0-9]\.txt)</span><span class="se">\&#39;</span><span class="s1">, (.*)\)\)&#39;</span>
+
+
+<div class="viewcode-block" id="TfIdfTest"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf_test.TfIdfTest">[docs]</a><span class="k">class</span> <span class="nc">TfIdfTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TfIdfTest.create_file"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf_test.TfIdfTest.create_file">[docs]</a>  <span class="k">def</span> <span class="nf">create_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Creating temp file: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TfIdfTest.test_tfidf_transform"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf_test.TfIdfTest.test_tfidf_transform">[docs]</a>  <span class="k">def</span> <span class="nf">test_tfidf_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">uri_to_line</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;create sample&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span>
+        <span class="p">[(</span><span class="s1">&#39;1.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;abc def ghi&#39;</span><span class="p">),</span>
+         <span class="p">(</span><span class="s1">&#39;2.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;abc def&#39;</span><span class="p">),</span>
+         <span class="p">(</span><span class="s1">&#39;3.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;abc&#39;</span><span class="p">)])</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_line</span>
+        <span class="o">|</span> <span class="n">tfidf</span><span class="o">.</span><span class="n">TfIdf</span><span class="p">()</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">tfidf</span><span class="p">)):</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">uri</span><span class="p">,</span> <span class="n">tfidf</span><span class="p">)))</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span><span class="n">EXPECTED_RESULTS</span><span class="p">))</span>
+    <span class="c1"># Run the pipeline. Note that the assert_that above adds to the pipeline</span>
+    <span class="c1"># a check that the result PCollection contains expected values. To actually</span>
+    <span class="c1"># trigger the check the pipeline must be run.</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TfIdfTest.test_basics"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf_test.TfIdfTest.test_basics">[docs]</a>  <span class="k">def</span> <span class="nf">test_basics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Setup the files with expected content.</span>
+    <span class="n">temp_folder</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="s1">&#39;1.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;abc def ghi&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="s1">&#39;2.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;abc def&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="s1">&#39;3.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;abc&#39;</span><span class="p">)</span>
+    <span class="n">tfidf</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
+        <span class="s1">&#39;--uris=</span><span class="si">%s</span><span class="s1">/*&#39;</span> <span class="o">%</span> <span class="n">temp_folder</span><span class="p">,</span>
+        <span class="s1">&#39;--output&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="s1">&#39;result&#39;</span><span class="p">)])</span>
+    <span class="c1"># Parse result file and compare.</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span>
+                           <span class="s1">&#39;result-00000-of-00001&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">result_file</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">result_file</span><span class="p">:</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">EXPECTED_LINE_RE</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Result line: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+              <span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">))))</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Computed results: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">set</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">results</span><span class="p">),</span> <span class="n">EXPECTED_RESULTS</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

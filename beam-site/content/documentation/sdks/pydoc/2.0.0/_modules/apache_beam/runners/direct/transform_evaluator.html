@@ -1,0 +1,552 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct.transform_evaluator &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.direct.transform_evaluator</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;An evaluator of a specific application of a transform.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">import</span> <span class="nn">apache_beam.io</span> <span class="k">as</span> <span class="nn">io</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.common</span> <span class="k">import</span> <span class="n">DoFnRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.common</span> <span class="k">import</span> <span class="n">DoFnState</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.direct.watermark_manager</span> <span class="k">import</span> <span class="n">WatermarkManager</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.direct.transform_result</span> <span class="k">import</span> <span class="n">TransformResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.native_io.iobase</span> <span class="k">import</span> <span class="n">_NativeWrite</span>  <span class="c1"># pylint: disable=protected-access</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">core</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">GlobalWindows</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typecheck</span> <span class="k">import</span> <span class="n">OutputCheckWrapperDoFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typecheck</span> <span class="k">import</span> <span class="n">TypeCheckError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typecheck</span> <span class="k">import</span> <span class="n">TypeCheckWrapperDoFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">counters</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">TypeOptions</span>
+
+
+<div class="viewcode-block" id="TransformEvaluatorRegistry"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry">[docs]</a><span class="k">class</span> <span class="nc">TransformEvaluatorRegistry</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Creates instances of TransformEvaluator for the application of a transform.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="n">evaluation_context</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span> <span class="o">=</span> <span class="n">evaluation_context</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_evaluators</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">:</span> <span class="n">_BoundedReadEvaluator</span><span class="p">,</span>
+        <span class="n">core</span><span class="o">.</span><span class="n">Flatten</span><span class="p">:</span> <span class="n">_FlattenEvaluator</span><span class="p">,</span>
+        <span class="n">core</span><span class="o">.</span><span class="n">ParDo</span><span class="p">:</span> <span class="n">_ParDoEvaluator</span><span class="p">,</span>
+        <span class="n">core</span><span class="o">.</span><span class="n">_GroupByKeyOnly</span><span class="p">:</span> <span class="n">_GroupByKeyOnlyEvaluator</span><span class="p">,</span>
+        <span class="n">_NativeWrite</span><span class="p">:</span> <span class="n">_NativeWriteEvaluator</span><span class="p">,</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="TransformEvaluatorRegistry.for_application"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry.for_application">[docs]</a>  <span class="k">def</span> <span class="nf">for_application</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">input_committed_bundle</span><span class="p">,</span>
+      <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a TransformEvaluator suitable for processing given inputs.&quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">applied_ptransform</span>
+    <span class="k">assert</span> <span class="nb">bool</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">bool</span><span class="p">(</span><span class="n">side_inputs</span><span class="p">)</span>
+
+    <span class="c1"># Walk up the class hierarchy to find an evaluable type. This is necessary</span>
+    <span class="c1"># for supporting sub-classes of core transforms.</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">mro</span><span class="p">():</span>
+      <span class="n">evaluator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluators</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">evaluator</span><span class="p">:</span>
+        <span class="k">break</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">evaluator</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+          <span class="s1">&#39;Execution of [</span><span class="si">%s</span><span class="s1">] not implemented in runner </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="nb">type</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="p">),</span> <span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">evaluator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+                     <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span>
+                     <span class="n">scoped_metrics_container</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TransformEvaluatorRegistry.should_execute_serially"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry.should_execute_serially">[docs]</a>  <span class="k">def</span> <span class="nf">should_execute_serially</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns True if this applied_ptransform should run one bundle at a time.</span>
+
+<span class="sd">    Some TransformEvaluators use a global state object to keep track of their</span>
+<span class="sd">    global execution state. For example evaluator for _GroupByKeyOnly uses this</span>
+<span class="sd">    state as an in memory dictionary to buffer keys.</span>
+
+<span class="sd">    Serially executed evaluators will act as syncing point in the graph and</span>
+<span class="sd">    execution will not move forward until they receive all of their inputs. Once</span>
+<span class="sd">    they receive all of their input, they will release the combined output.</span>
+<span class="sd">    Their output may consist of multiple bundles as they may divide their output</span>
+<span class="sd">    into pieces before releasing.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      applied_ptransform: Transform to be used for execution.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      True if executor should execute applied_ptransform serially.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span>
+                      <span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">_GroupByKeyOnly</span><span class="p">,</span> <span class="n">_NativeWrite</span><span class="p">))</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_TransformEvaluator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An evaluator of a specific application of a transform.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+               <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span> <span class="o">=</span> <span class="n">evaluation_context</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span> <span class="o">=</span> <span class="n">applied_ptransform</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_input_committed_bundle</span> <span class="o">=</span> <span class="n">input_committed_bundle</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_side_inputs</span> <span class="o">=</span> <span class="n">side_inputs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_expand_outputs</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span> <span class="o">=</span> <span class="n">evaluation_context</span><span class="o">.</span><span class="n">get_execution_context</span><span class="p">(</span>
+        <span class="n">applied_ptransform</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span> <span class="o">=</span> <span class="n">scoped_metrics_container</span>
+    <span class="k">with</span> <span class="n">scoped_metrics_container</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_expand_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">pval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pval</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">):</span>
+        <span class="n">pvals</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pval</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">pvals</span> <span class="o">=</span> <span class="p">(</span><span class="n">pval</span><span class="p">,)</span>
+      <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pvals</span><span class="p">:</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_split_list_into_bundles</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">output_pcollection</span><span class="p">,</span> <span class="n">elements</span><span class="p">,</span> <span class="n">max_element_per_bundle</span><span class="p">,</span>
+      <span class="n">element_size_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Splits elements, an iterable, into multiple output bundles.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      output_pcollection: PCollection that the elements belong to.</span>
+<span class="sd">      elements: elements to be chunked into bundles.</span>
+<span class="sd">      max_element_per_bundle: (approximately) the maximum element per bundle.</span>
+<span class="sd">        If it is None, only a single bundle will be produced.</span>
+<span class="sd">      element_size_fn: Function to return the size of a given element.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      List of output uncommitted bundles with at least one bundle.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bundle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">create_bundle</span><span class="p">(</span><span class="n">output_pcollection</span><span class="p">)</span>
+    <span class="n">bundle_size</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">bundles</span> <span class="o">=</span> <span class="p">[</span><span class="n">bundle</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">max_element_per_bundle</span> <span class="ow">and</span> <span class="n">bundle_size</span> <span class="o">&gt;=</span> <span class="n">max_element_per_bundle</span><span class="p">:</span>
+        <span class="n">bundle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">create_bundle</span><span class="p">(</span><span class="n">output_pcollection</span><span class="p">)</span>
+        <span class="n">bundle_size</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">bundles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span>
+
+      <span class="n">bundle</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+      <span class="n">bundle_size</span> <span class="o">+=</span> <span class="n">element_size_fn</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">bundles</span>
+
+  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Starts a new bundle.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">process_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Processes a new element as part of the current bundle.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> do not process elements.&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Finishes the bundle and produces output.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">_BoundedReadEvaluator</span><span class="p">(</span><span class="n">_TransformEvaluator</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;TransformEvaluator for bounded Read transform.&quot;&quot;&quot;</span>
+
+  <span class="c1"># After some benchmarks, 1000 was optimal among {100,1000,10000}</span>
+  <span class="n">MAX_ELEMENT_PER_BUNDLE</span> <span class="o">=</span> <span class="mi">1000</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+               <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">input_committed_bundle</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">side_inputs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">source</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="o">.</span><span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">evaluation_context</span><span class="o">.</span><span class="n">pipeline_options</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_BoundedReadEvaluator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">input_committed_bundle</span><span class="p">,</span>
+        <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">output_pcollection</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_read_values_to_bundles</span><span class="p">(</span><span class="n">reader</span><span class="p">):</span>
+      <span class="n">read_result</span> <span class="o">=</span> <span class="p">[</span><span class="n">GlobalWindows</span><span class="o">.</span><span class="n">windowed_value</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">]</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_list_into_bundles</span><span class="p">(</span>
+          <span class="n">output_pcollection</span><span class="p">,</span> <span class="n">read_result</span><span class="p">,</span>
+          <span class="n">_BoundedReadEvaluator</span><span class="o">.</span><span class="n">MAX_ELEMENT_PER_BUNDLE</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+      <span class="c1"># Getting a RangeTracker for the default range of the source and reading</span>
+      <span class="c1"># the full source using that.</span>
+      <span class="n">range_tracker</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="n">reader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)</span>
+      <span class="n">bundles</span> <span class="o">=</span> <span class="n">_read_values_to_bundles</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="o">.</span><span class="n">reader</span><span class="p">()</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+        <span class="n">bundles</span> <span class="o">=</span> <span class="n">_read_values_to_bundles</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">TransformResult</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="p">,</span> <span class="n">bundles</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_FlattenEvaluator</span><span class="p">(</span><span class="n">_TransformEvaluator</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;TransformEvaluator for Flatten transform.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+               <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">side_inputs</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_FlattenEvaluator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">input_committed_bundle</span><span class="p">,</span>
+        <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">output_pcollection</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bundle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">create_bundle</span><span class="p">(</span><span class="n">output_pcollection</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">process_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bundle</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">bundles</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">bundle</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">TransformResult</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="p">,</span> <span class="n">bundles</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_TaggedReceivers</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Received ParDo output and redirect to the associated output bundle.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span> <span class="o">=</span> <span class="n">evaluation_context</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_null_receiver</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_undeclared_in_memory_tag_values</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_TaggedReceivers</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">undeclared_in_memory_tag_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_undeclared_in_memory_tag_values</span>
+            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">has_cache</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_undeclared_in_memory_tag_values</span>
+
+  <span class="k">class</span> <span class="nc">NullReceiver</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Ignores undeclared outputs, default execution mode.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="k">pass</span>
+
+  <span class="k">class</span> <span class="nc">_InMemoryReceiver</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Buffers undeclared outputs to the given dictionary.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="o">=</span> <span class="n">target</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_tag</span> <span class="o">=</span> <span class="n">tag</span>
+
+    <span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_tag</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__missing__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">has_cache</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_undeclared_in_memory_tag_values</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_undeclared_in_memory_tag_values</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+      <span class="n">receiver</span> <span class="o">=</span> <span class="n">_TaggedReceivers</span><span class="o">.</span><span class="n">_InMemoryReceiver</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_undeclared_in_memory_tag_values</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_null_receiver</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_null_receiver</span> <span class="o">=</span> <span class="n">_TaggedReceivers</span><span class="o">.</span><span class="n">NullReceiver</span><span class="p">()</span>
+      <span class="n">receiver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_null_receiver</span>
+    <span class="k">return</span> <span class="n">receiver</span>
+
+
+<span class="k">class</span> <span class="nc">_ParDoEvaluator</span><span class="p">(</span><span class="n">_TransformEvaluator</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;TransformEvaluator for ParDo transform.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">transform</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tagged_receivers</span> <span class="o">=</span> <span class="n">_TaggedReceivers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">output_tag</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
+      <span class="n">output_pcollection</span> <span class="o">=</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">output_tag</span><span class="p">)</span>
+      <span class="n">output_pcollection</span><span class="o">.</span><span class="n">producer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_tagged_receivers</span><span class="p">[</span><span class="n">output_tag</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">create_bundle</span><span class="p">(</span><span class="n">output_pcollection</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_tagged_receivers</span><span class="p">[</span><span class="n">output_tag</span><span class="p">]</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">output_tag</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_counter_factory</span> <span class="o">=</span> <span class="n">counters</span><span class="o">.</span><span class="n">CounterFactory</span><span class="p">()</span>
+
+    <span class="c1"># TODO(aaltay): Consider storing the serialized form as an optimization.</span>
+    <span class="n">dofn</span> <span class="o">=</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">dofn</span><span class="p">))</span>
+
+    <span class="n">pipeline_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">pipeline_options</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pipeline_options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="ow">and</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">TypeOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runtime_type_check</span><span class="p">):</span>
+      <span class="n">dofn</span> <span class="o">=</span> <span class="n">TypeCheckWrapperDoFn</span><span class="p">(</span><span class="n">dofn</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">())</span>
+
+    <span class="n">dofn</span> <span class="o">=</span> <span class="n">OutputCheckWrapperDoFn</span><span class="p">(</span><span class="n">dofn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">full_label</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="n">DoFnRunner</span><span class="p">(</span>
+        <span class="n">dofn</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_side_inputs</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">windowing</span><span class="p">,</span>
+        <span class="n">tagged_receivers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_tagged_receivers</span><span class="p">,</span>
+        <span class="n">step_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span>
+        <span class="n">state</span><span class="o">=</span><span class="n">DoFnState</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_counter_factory</span><span class="p">),</span>
+        <span class="n">scoped_metrics_container</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">process_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
+    <span class="n">bundles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tagged_receivers</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+    <span class="n">result_counters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter_factory</span><span class="o">.</span><span class="n">get_counters</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">TransformResult</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="p">,</span> <span class="n">bundles</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">result_counters</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tagged_receivers</span><span class="o">.</span><span class="n">undeclared_in_memory_tag_values</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_GroupByKeyOnlyEvaluator</span><span class="p">(</span><span class="n">_TransformEvaluator</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;TransformEvaluator for _GroupByKeyOnly transform.&quot;&quot;&quot;</span>
+
+  <span class="n">MAX_ELEMENT_PER_BUNDLE</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">class</span> <span class="nc">_GroupByKeyOnlyEvaluatorState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="c1"># output: {} key -&gt; [values]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+               <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">side_inputs</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_GroupByKeyOnlyEvaluator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">input_committed_bundle</span><span class="p">,</span>
+        <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">)</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">_is_final_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">watermarks</span><span class="o">.</span><span class="n">input_watermark</span>
+            <span class="o">==</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">existing_state</span>
+                  <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">existing_state</span>
+                  <span class="k">else</span> <span class="n">_GroupByKeyOnlyEvaluator</span><span class="o">.</span><span class="n">_GroupByKeyOnlyEvaluatorState</span><span class="p">())</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_pcollection</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outputs</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># The input type of a GroupByKey will be KV[Any, Any] or more specific.</span>
+    <span class="n">kv_type_hint</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">()</span><span class="o">.</span><span class="n">input_types</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">key_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">get_coder</span><span class="p">(</span><span class="n">kv_type_hint</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+  <span class="k">def</span> <span class="nf">process_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">completed</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">WindowedValue</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+      <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">value</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">key_coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;Input to _GroupByKeyOnly must be a PCollection of &#39;</span>
+                           <span class="s1">&#39;windowed key-value pairs. Instead received: </span><span class="si">%r</span><span class="s1">.&#39;</span>
+                           <span class="o">%</span> <span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_final_bundle</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+        <span class="c1"># Ignore empty bundles after emitting output. (This may happen because</span>
+        <span class="c1"># empty bundles do not affect input watermarks.)</span>
+        <span class="n">bundles</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">gbk_result</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">map</span><span class="p">(</span><span class="n">GlobalWindows</span><span class="o">.</span><span class="n">windowed_value</span><span class="p">,</span> <span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">v</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())))</span>
+
+        <span class="k">def</span> <span class="nf">len_element_fn</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+          <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">value</span>
+          <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+        <span class="n">bundles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_list_into_bundles</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_pcollection</span><span class="p">,</span> <span class="n">gbk_result</span><span class="p">,</span>
+            <span class="n">_GroupByKeyOnlyEvaluator</span><span class="o">.</span><span class="n">MAX_ELEMENT_PER_BUNDLE</span><span class="p">,</span> <span class="n">len_element_fn</span><span class="p">)</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span>
+      <span class="n">hold</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">bundles</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span>
+      <span class="n">hold</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_NEG_INF</span>
+
+    <span class="k">return</span> <span class="n">TransformResult</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="p">,</span> <span class="n">bundles</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">hold</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_NativeWriteEvaluator</span><span class="p">(</span><span class="n">_TransformEvaluator</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;TransformEvaluator for _NativeWrite transform.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+               <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">side_inputs</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_NativeWriteEvaluator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">evaluation_context</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">input_committed_bundle</span><span class="p">,</span>
+        <span class="n">side_inputs</span><span class="p">,</span> <span class="n">scoped_metrics_container</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">sink</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span> <span class="o">=</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">sink</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">_is_final_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">watermarks</span><span class="o">.</span><span class="n">input_watermark</span>
+            <span class="o">==</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span><span class="p">)</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">_has_already_produced_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">watermarks</span><span class="o">.</span><span class="n">output_watermark</span>
+            <span class="o">==</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># state: [values]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">existing_state</span>
+                  <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_execution_context</span><span class="o">.</span><span class="n">existing_state</span> <span class="k">else</span> <span class="p">[])</span>
+
+  <span class="k">def</span> <span class="nf">process_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># finish_bundle will append incoming bundles in memory until all the bundles</span>
+    <span class="c1"># carrying data is processed. This is done to produce only a single output</span>
+    <span class="c1"># shard (some tests depends on this behavior). It is possible to have</span>
+    <span class="c1"># incoming empty bundles after the output is produced, these bundles will be</span>
+    <span class="c1"># ignored and would not generate additional output files.</span>
+    <span class="c1"># TODO(altay): Do not wait until the last bundle to write in a single shard.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_final_bundle</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_already_produced_output</span><span class="p">:</span>
+        <span class="c1"># Ignore empty bundles that arrive after the output is produced.</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="p">[]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span><span class="o">.</span><span class="n">pipeline_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">pipeline_options</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span><span class="o">.</span><span class="n">writer</span><span class="p">()</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="n">hold</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span>
+      <span class="n">hold</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_NEG_INF</span>
+
+    <span class="k">return</span> <span class="n">TransformResult</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applied_ptransform</span><span class="p">,</span> <span class="p">[],</span> <span class="n">state</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">hold</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

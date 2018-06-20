@@ -1,0 +1,663 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.transforms.window module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.transforms package" href="apache_beam.transforms.html"/>
+        <link rel="next" title="apache_beam.typehints package" href="apache_beam.typehints.html"/>
+        <link rel="prev" title="apache_beam.transforms.util module" href="apache_beam.transforms.util.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.combiners.html">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.core.html">apache_beam.transforms.core module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.display.html">apache_beam.transforms.display module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.ptransform.html">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.sideinputs.html">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.timeutil.html">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.trigger.html">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.util.html">apache_beam.transforms.util module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.transforms.window module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.transforms.html">apache_beam.transforms package</a> &raquo;</li>
+        
+      <li>apache_beam.transforms.window module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.transforms.window.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.transforms.window">
+<span id="apache-beam-transforms-window-module"></span><h1>apache_beam.transforms.window module<a class="headerlink" href="#module-apache_beam.transforms.window" title="Permalink to this headline">¶</a></h1>
+<p>Windowing concepts.</p>
+<p>A WindowInto transform logically divides up or groups the elements of a
+PCollection into finite windows according to a windowing function (derived from
+WindowFn).</p>
+<p>The output of WindowInto contains the same elements as input, but they have been
+logically assigned to windows. The next GroupByKey(s) transforms, including one
+within a composite transform, will group by the combination of keys and windows.</p>
+<p>Windowing a PCollection allows chunks of it to be processed individually, before
+the entire PCollection is available.  This is especially important for
+PCollection(s) with unbounded size, since the full PCollection is never
+available at once, since more data is continually arriving. For PCollection(s)
+with a bounded size (aka. conventional batch mode), by default, all data is
+implicitly in a single window (see GlobalWindows), unless WindowInto is
+applied.</p>
+<p>For example, a simple form of windowing divides up the data into fixed-width
+time intervals, using FixedWindows.</p>
+<p>Seconds are used as the time unit for the built-in windowing primitives here.
+Integer or floating point seconds can be passed to these primitives.</p>
+<p>Internally, seconds, with microsecond granularity, are stored as
+timeutil.Timestamp and timeutil.Duration objects. This is done to avoid
+precision errors that would occur with floating point representations.</p>
+<p>Custom windowing function classes can be created, by subclassing from
+WindowFn.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.window.TimestampCombiner">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">TimestampCombiner</code><a class="reference internal" href="_modules/apache_beam/transforms/window.html#TimestampCombiner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.TimestampCombiner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Determines how output timestamps of grouping operations are assigned.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_EOW">
+<code class="descname">OUTPUT_AT_EOW</code><em class="property"> = 1</em><a class="headerlink" href="#apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_EOW" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_EARLIEST">
+<code class="descname">OUTPUT_AT_EARLIEST</code><em class="property"> = 3</em><a class="headerlink" href="#apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_EARLIEST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_LATEST">
+<code class="descname">OUTPUT_AT_LATEST</code><em class="property"> = 2</em><a class="headerlink" href="#apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_LATEST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED">
+<code class="descname">OUTPUT_AT_EARLIEST_TRANSFORMED</code><em class="property"> = 'OUTPUT_AT_EARLIEST_TRANSFORMED'</em><a class="headerlink" href="#apache_beam.transforms.window.TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.window.TimestampCombiner.get_impl">
+<em class="property">static </em><code class="descname">get_impl</code><span class="sig-paren">(</span><em>timestamp_combiner</em>, <em>window_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#TimestampCombiner.get_impl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.TimestampCombiner.get_impl" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.WindowFn">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">WindowFn</code><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.utils.urns.html#apache_beam.utils.urns.RunnerApiFn" title="apache_beam.utils.urns.RunnerApiFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.urns.RunnerApiFn</span></code></a></p>
+<p>An abstract windowing function defining a basic assign and merge.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.window.WindowFn.AssignContext">
+<em class="property">class </em><code class="descname">AssignContext</code><span class="sig-paren">(</span><em>timestamp</em>, <em>element=None</em>, <em>window=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.AssignContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.AssignContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Context passed to WindowFn.assign().</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>assign_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.assign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.assign" title="Permalink to this definition">¶</a></dt>
+<dd><p>Associates windows to an element.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>assign_context</strong> – Instance of AssignContext.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">An iterable of BoundedWindow.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.WindowFn.MergeContext">
+<em class="property">class </em><code class="descname">MergeContext</code><span class="sig-paren">(</span><em>windows</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.MergeContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.MergeContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Context passed to WindowFn.merge() to perform merging, if any.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.MergeContext.merge">
+<code class="descname">merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.MergeContext.merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.MergeContext.merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.merge">
+<code class="descname">merge</code><span class="sig-paren">(</span><em>merge_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a window that is the result of merging a set of windows.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.is_merging">
+<code class="descname">is_merging</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.is_merging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.is_merging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns whether this WindowFn merges windows.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.get_window_coder">
+<code class="descname">get_window_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.get_window_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.get_window_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.get_transformed_output_time">
+<code class="descname">get_transformed_output_time</code><span class="sig-paren">(</span><em>window</em>, <em>input_timestamp</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#WindowFn.get_transformed_output_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.get_transformed_output_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given input time and output window, returns output time for window.</p>
+<p>If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the
+Windowing, the output timestamp for the given window will be the earliest
+of the timestamps returned by get_transformed_output_time() for elements
+of the window.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>window</strong> – Output window of element.</li>
+<li><strong>input_timestamp</strong> – Input timestamp of element as a timeutil.Timestamp
+object.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Transformed timestamp.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.WindowFn.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.transforms.window.WindowFn.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.BoundedWindow">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">BoundedWindow</code><span class="sig-paren">(</span><em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#BoundedWindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.BoundedWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A window for timestamps in range (-infinity, end).</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.BoundedWindow.end">
+<code class="descname">end</code><a class="headerlink" href="#apache_beam.transforms.window.BoundedWindow.end" title="Permalink to this definition">¶</a></dt>
+<dd><p>End of window.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.BoundedWindow.max_timestamp">
+<code class="descname">max_timestamp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#BoundedWindow.max_timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.BoundedWindow.max_timestamp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.IntervalWindow">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">IntervalWindow</code><span class="sig-paren">(</span><em>start</em>, <em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#IntervalWindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.IntervalWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.BoundedWindow" title="apache_beam.transforms.window.BoundedWindow"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.BoundedWindow</span></code></a></p>
+<p>A window for timestamps in range [start, end).</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.IntervalWindow.start">
+<code class="descname">start</code><a class="headerlink" href="#apache_beam.transforms.window.IntervalWindow.start" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start of window as seconds since Unix epoch.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.IntervalWindow.end">
+<code class="descname">end</code><a class="headerlink" href="#apache_beam.transforms.window.IntervalWindow.end" title="Permalink to this definition">¶</a></dt>
+<dd><p>End of window as seconds since Unix epoch.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.IntervalWindow.intersects">
+<code class="descname">intersects</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#IntervalWindow.intersects"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.IntervalWindow.intersects" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.IntervalWindow.union">
+<code class="descname">union</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#IntervalWindow.union"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.IntervalWindow.union" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.TimestampedValue">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">TimestampedValue</code><span class="sig-paren">(</span><em>value</em>, <em>timestamp</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#TimestampedValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.TimestampedValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A timestamped value having a value and a timestamp.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.TimestampedValue.value">
+<code class="descname">value</code><a class="headerlink" href="#apache_beam.transforms.window.TimestampedValue.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>The underlying value.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.TimestampedValue.timestamp">
+<code class="descname">timestamp</code><a class="headerlink" href="#apache_beam.transforms.window.TimestampedValue.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Timestamp associated with the value as seconds since Unix epoch.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.GlobalWindow">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">GlobalWindow</code><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.BoundedWindow" title="apache_beam.transforms.window.BoundedWindow"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.BoundedWindow</span></code></a></p>
+<p>The default window into which all data is placed (via GlobalWindows).</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.NonMergingWindowFn">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">NonMergingWindowFn</code><a class="reference internal" href="_modules/apache_beam/transforms/window.html#NonMergingWindowFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.NonMergingWindowFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.WindowFn" title="apache_beam.transforms.window.WindowFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.WindowFn</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.transforms.window.NonMergingWindowFn.is_merging">
+<code class="descname">is_merging</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#NonMergingWindowFn.is_merging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.NonMergingWindowFn.is_merging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.NonMergingWindowFn.merge">
+<code class="descname">merge</code><span class="sig-paren">(</span><em>merge_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#NonMergingWindowFn.merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.NonMergingWindowFn.merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.GlobalWindows">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">GlobalWindows</code><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.NonMergingWindowFn" title="apache_beam.transforms.window.NonMergingWindowFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.NonMergingWindowFn</span></code></a></p>
+<p>A windowing function that assigns everything to one global window.</p>
+<dl class="classmethod">
+<dt id="apache_beam.transforms.window.GlobalWindows.windowed_value">
+<em class="property">classmethod </em><code class="descname">windowed_value</code><span class="sig-paren">(</span><em>value</em>, <em>timestamp=Timestamp(-9223372036854.775808)</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindows.windowed_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindows.windowed_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.GlobalWindows.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>assign_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindows.assign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindows.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.GlobalWindows.get_window_coder">
+<code class="descname">get_window_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindows.get_window_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindows.get_window_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.GlobalWindows.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindows.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindows.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.window.GlobalWindows.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_fn_parameter</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#GlobalWindows.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.GlobalWindows.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.FixedWindows">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">FixedWindows</code><span class="sig-paren">(</span><em>size</em>, <em>offset=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#FixedWindows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.NonMergingWindowFn" title="apache_beam.transforms.window.NonMergingWindowFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.NonMergingWindowFn</span></code></a></p>
+<p>A windowing function that assigns each element to one time interval.</p>
+<p>The attributes size and offset determine in what time interval a timestamp
+will be slotted. The time intervals have the following formula:
+[N * size + offset, (N + 1) * size + offset)</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.FixedWindows.size">
+<code class="descname">size</code><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows.size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Size of the window as seconds.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.FixedWindows.offset">
+<code class="descname">offset</code><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows.offset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Offset of this window as seconds since Unix epoch. Windows start at
+t=N * size + offset where t=0 is the epoch. The offset must be a value
+in range [0, size). If it is not it will be normalized to this range.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.FixedWindows.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#FixedWindows.assign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.FixedWindows.get_window_coder">
+<code class="descname">get_window_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#FixedWindows.get_window_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows.get_window_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.FixedWindows.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#FixedWindows.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.window.FixedWindows.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>fn_parameter</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#FixedWindows.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.FixedWindows.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.SlidingWindows">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">SlidingWindows</code><span class="sig-paren">(</span><em>size</em>, <em>period</em>, <em>offset=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#SlidingWindows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.NonMergingWindowFn" title="apache_beam.transforms.window.NonMergingWindowFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.NonMergingWindowFn</span></code></a></p>
+<p>A windowing function that assigns each element to a set of sliding windows.</p>
+<p>The attributes size and offset determine in what time interval a timestamp
+will be slotted. The time intervals have the following formula:
+[N * period + offset, N * period + offset + size)</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.SlidingWindows.size">
+<code class="descname">size</code><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Size of the window as seconds.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.SlidingWindows.period">
+<code class="descname">period</code><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.period" title="Permalink to this definition">¶</a></dt>
+<dd><p>Period of the windows as seconds.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.SlidingWindows.offset">
+<code class="descname">offset</code><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.offset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Offset of this window as seconds since Unix epoch. Windows start at
+t=N * period + offset where t=0 is the epoch. The offset must be a value
+in range [0, period). If it is not it will be normalized to this range.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.SlidingWindows.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#SlidingWindows.assign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.SlidingWindows.get_window_coder">
+<code class="descname">get_window_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#SlidingWindows.get_window_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.get_window_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.SlidingWindows.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#SlidingWindows.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.window.SlidingWindows.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>fn_parameter</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#SlidingWindows.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.SlidingWindows.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.window.Sessions">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.window.</code><code class="descname">Sessions</code><span class="sig-paren">(</span><em>gap_size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#Sessions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.Sessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.window.WindowFn" title="apache_beam.transforms.window.WindowFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.window.WindowFn</span></code></a></p>
+<p>A windowing function that groups elements into sessions.</p>
+<p>A session is defined as a series of consecutive events
+separated by a specified gap size.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.window.Sessions.gap_size">
+<code class="descname">gap_size</code><a class="headerlink" href="#apache_beam.transforms.window.Sessions.gap_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Size of the gap between windows as floating-point seconds.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.Sessions.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#Sessions.assign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.Sessions.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.Sessions.get_window_coder">
+<code class="descname">get_window_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#Sessions.get_window_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.Sessions.get_window_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.Sessions.merge">
+<code class="descname">merge</code><span class="sig-paren">(</span><em>merge_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#Sessions.merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.Sessions.merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.window.Sessions.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#Sessions.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.Sessions.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.window.Sessions.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>fn_parameter</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/window.html#Sessions.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.window.Sessions.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.typehints.html" class="btn btn-neutral float-right" title="apache_beam.typehints package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.transforms.util.html" class="btn btn-neutral" title="apache_beam.transforms.util module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

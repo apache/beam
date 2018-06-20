@@ -1,0 +1,7 @@
+apache\_beam\.error module
+==========================
+
+.. automodule:: apache_beam.error
+    :members:
+    :undoc-members:
+    :show-inheritance:

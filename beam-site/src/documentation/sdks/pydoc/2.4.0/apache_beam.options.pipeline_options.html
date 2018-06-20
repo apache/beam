@@ -1,0 +1,639 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.options.pipeline_options module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.options package" href="apache_beam.options.html"/>
+        <link rel="next" title="apache_beam.options.pipeline_options_validator module" href="apache_beam.options.pipeline_options_validator.html"/>
+        <link rel="prev" title="apache_beam.options package" href="apache_beam.options.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.options.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.options.pipeline_options module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.options.pipeline_options_validator.html">apache_beam.options.pipeline_options_validator module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.options.value_provider.html">apache_beam.options.value_provider module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.options.html">apache_beam.options package</a> &raquo;</li>
+        
+      <li>apache_beam.options.pipeline_options module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.options.pipeline_options.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.options.pipeline_options">
+<span id="apache-beam-options-pipeline-options-module"></span><h1>apache_beam.options.pipeline_options module<a class="headerlink" href="#module-apache_beam.options.pipeline_options" title="Permalink to this headline">¶</a></h1>
+<p>Pipeline options obtained from command line parsing.</p>
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">PipelineOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.display.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a></p>
+<p>Pipeline options class used as container for command line options.</p>
+<p>The class is essentially a wrapper over the standard argparse Python module
+(see <a class="reference external" href="https://docs.python.org/3/library/argparse.html">https://docs.python.org/3/library/argparse.html</a>).  To define one option
+or a group of options you subclass from PipelineOptions:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">XyzOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--abc&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;start&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--xyz&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;end&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The arguments for the add_argument() method are exactly the ones
+described in the argparse public documentation.</p>
+<p>Pipeline objects require an options object during initialization.
+This is obtained simply by initializing an options class as defined above:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">XyzOptions</span><span class="p">())</span>
+<span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">xyz</span> <span class="o">==</span> <span class="s1">&#39;end&#39;</span><span class="p">:</span>
+  <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Option xyz has an invalid value.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By default the options classes will use command line arguments to initialize
+the options.</p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="classmethod">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.from_dictionary">
+<em class="property">classmethod </em><code class="descname">from_dictionary</code><span class="sig-paren">(</span><em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.from_dictionary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.from_dictionary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a PipelineOptions from a dictionary of arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>options</strong> – Dictionary of argument value pairs.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A PipelineOptions object representing the given arguments.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.get_all_options">
+<code class="descname">get_all_options</code><span class="sig-paren">(</span><em>drop_default=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.get_all_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.get_all_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dictionary of all defined arguments.</p>
+<p>Returns a dictionary of all defined arguments (arguments that are defined in
+any subclass of PipelineOptions) into a dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>drop_default</strong> – If set to true, options that are equal to their default
+values, are not returned as part of the result dictionary.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Dictionary of all args and values.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.view_as">
+<code class="descname">view_as</code><span class="sig-paren">(</span><em>cls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.view_as"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.view_as" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.StandardOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">StandardOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#StandardOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.StandardOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.StandardOptions.DEFAULT_RUNNER">
+<code class="descname">DEFAULT_RUNNER</code><em class="property"> = 'DirectRunner'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.StandardOptions.DEFAULT_RUNNER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.TypeOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">TypeOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#TypeOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.TypeOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.DirectOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">DirectOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#DirectOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.DirectOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>DirectRunner-specific execution options.</p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">GoogleCloudOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#GoogleCloudOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Google Cloud Dataflow service execution options.</p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.BIGQUERY_API_SERVICE">
+<code class="descname">BIGQUERY_API_SERVICE</code><em class="property"> = 'bigquery.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.BIGQUERY_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.COMPUTE_API_SERVICE">
+<code class="descname">COMPUTE_API_SERVICE</code><em class="property"> = 'compute.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.COMPUTE_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.STORAGE_API_SERVICE">
+<code class="descname">STORAGE_API_SERVICE</code><em class="property"> = 'storage.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.STORAGE_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.DATAFLOW_ENDPOINT">
+<code class="descname">DATAFLOW_ENDPOINT</code><em class="property"> = 'https://dataflow.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.DATAFLOW_ENDPOINT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#GoogleCloudOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.HadoopFileSystemOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">HadoopFileSystemOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#HadoopFileSystemOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.HadoopFileSystemOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p><code class="docutils literal"><span class="pre">HadoopFileSystem</span></code> connection options.</p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.HadoopFileSystemOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#HadoopFileSystemOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.HadoopFileSystemOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.WorkerOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">WorkerOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#WorkerOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.WorkerOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Worker pool configuration options.</p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.WorkerOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#WorkerOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.WorkerOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.DebugOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">DebugOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#DebugOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.DebugOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.ProfilingOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">ProfilingOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#ProfilingOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.ProfilingOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.SetupOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">SetupOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#SetupOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.SetupOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.TestOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">TestOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#TestOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.TestOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Initialize an options class.</p>
+<p>The initializer will traverse all subclasses, add all their argparse
+arguments and then parse the command line specified by flags or by default
+the one obtained from sys.argv.</p>
+<p>The subclasses are not expected to require a redefinition of __init__.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>flags</strong> – An iterable of command line arguments to be used. If not specified
+then sys.argv will be used as input for parsing arguments.</li>
+<li><strong>**kwargs</strong> – Add overrides for arguments passed in flags.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.TestOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#TestOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.TestOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.options.pipeline_options_validator.html" class="btn btn-neutral float-right" title="apache_beam.options.pipeline_options_validator module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.options.html" class="btn btn-neutral" title="apache_beam.options package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

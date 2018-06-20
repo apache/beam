@@ -1,0 +1,463 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.examples.complete package" href="apache_beam.examples.complete.html" />
+    <link rel="prev" title="apache_beam.coders package" href="apache_beam.coders.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.complete.html" title="apache_beam.examples.complete package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.examples package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.streaming_wordcap">apache_beam.examples.streaming_wordcap module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.streaming_wordcount">apache_beam.examples.streaming_wordcount module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount">apache_beam.examples.wordcount module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount_debugging">apache_beam.examples.wordcount_debugging module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount_debugging_test">apache_beam.examples.wordcount_debugging_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount_it_test">apache_beam.examples.wordcount_it_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount_minimal">apache_beam.examples.wordcount_minimal module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount_minimal_test">apache_beam.examples.wordcount_minimal_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.wordcount_test">apache_beam.examples.wordcount_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.coders.html"
+                        title="previous chapter">apache_beam.coders package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.examples.complete.html"
+                        title="next chapter">apache_beam.examples.complete package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.examples.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-examples-package">
+<h1>apache_beam.examples package<a class="headerlink" href="#apache-beam-examples-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.examples.complete.html">apache_beam.examples.complete package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html">apache_beam.examples.complete.juliaset package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html">apache_beam.examples.complete.juliaset.juliaset package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset.juliaset">apache_beam.examples.complete.juliaset.juliaset.juliaset module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset.juliaset_test">apache_beam.examples.complete.juliaset.juliaset.juliaset_test module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset_main">apache_beam.examples.complete.juliaset.juliaset_main module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#module-apache_beam.examples.complete.juliaset">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.autocomplete">apache_beam.examples.complete.autocomplete module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.autocomplete_test">apache_beam.examples.complete.autocomplete_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.estimate_pi">apache_beam.examples.complete.estimate_pi module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.estimate_pi_test">apache_beam.examples.complete.estimate_pi_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.tfidf">apache_beam.examples.complete.tfidf module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.tfidf_test">apache_beam.examples.complete.tfidf_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.top_wikipedia_sessions">apache_beam.examples.complete.top_wikipedia_sessions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.top_wikipedia_sessions_test">apache_beam.examples.complete.top_wikipedia_sessions_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.examples.cookbook.html">apache_beam.examples.cookbook package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_schema">apache_beam.examples.cookbook.bigquery_schema module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_side_input">apache_beam.examples.cookbook.bigquery_side_input module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_side_input_test">apache_beam.examples.cookbook.bigquery_side_input_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_tornadoes">apache_beam.examples.cookbook.bigquery_tornadoes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_tornadoes_it_test">apache_beam.examples.cookbook.bigquery_tornadoes_it_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_tornadoes_test">apache_beam.examples.cookbook.bigquery_tornadoes_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigshuffle">apache_beam.examples.cookbook.bigshuffle module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigshuffle_test">apache_beam.examples.cookbook.bigshuffle_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.coders">apache_beam.examples.cookbook.coders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.coders_test">apache_beam.examples.cookbook.coders_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.combiners_test">apache_beam.examples.cookbook.combiners_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.custom_ptransform">apache_beam.examples.cookbook.custom_ptransform module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.custom_ptransform_test">apache_beam.examples.cookbook.custom_ptransform_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.datastore_wordcount">apache_beam.examples.cookbook.datastore_wordcount module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.filters">apache_beam.examples.cookbook.filters module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.filters_test">apache_beam.examples.cookbook.filters_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.group_with_coder">apache_beam.examples.cookbook.group_with_coder module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.group_with_coder_test">apache_beam.examples.cookbook.group_with_coder_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.mergecontacts">apache_beam.examples.cookbook.mergecontacts module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.mergecontacts_test">apache_beam.examples.cookbook.mergecontacts_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.multiple_output_pardo">apache_beam.examples.cookbook.multiple_output_pardo module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.multiple_output_pardo_test">apache_beam.examples.cookbook.multiple_output_pardo_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.examples.snippets.html">apache_beam.examples.snippets package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.snippets.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.snippets.html#module-apache_beam.examples.snippets.snippets">apache_beam.examples.snippets.snippets module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.snippets.html#module-apache_beam.examples.snippets.snippets_test">apache_beam.examples.snippets.snippets_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.snippets.html#module-apache_beam.examples.snippets">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.examples.streaming_wordcap">
+<span id="apache-beam-examples-streaming-wordcap-module"></span><h2>apache_beam.examples.streaming_wordcap module<a class="headerlink" href="#module-apache_beam.examples.streaming_wordcap" title="Permalink to this headline">¶</a></h2>
+<p>A streaming string-capitalization workflow.</p>
+<p>Important: streaming pipeline support in Python Dataflow is in development
+and is not yet available for use.</p>
+<dl class="function">
+<dt id="apache_beam.examples.streaming_wordcap.run">
+<code class="descclassname">apache_beam.examples.streaming_wordcap.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/streaming_wordcap.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.streaming_wordcap.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build and run the pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.streaming_wordcount">
+<span id="apache-beam-examples-streaming-wordcount-module"></span><h2>apache_beam.examples.streaming_wordcount module<a class="headerlink" href="#module-apache_beam.examples.streaming_wordcount" title="Permalink to this headline">¶</a></h2>
+<p>A streaming word-counting workflow.</p>
+<p>Important: streaming pipeline support in Python Dataflow is in development
+and is not yet available for use.</p>
+<dl class="function">
+<dt id="apache_beam.examples.streaming_wordcount.run">
+<code class="descclassname">apache_beam.examples.streaming_wordcount.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/streaming_wordcount.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.streaming_wordcount.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build and run the pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount">
+<span id="apache-beam-examples-wordcount-module"></span><h2>apache_beam.examples.wordcount module<a class="headerlink" href="#module-apache_beam.examples.wordcount" title="Permalink to this headline">¶</a></h2>
+<p>A word-counting workflow.</p>
+<dl class="class">
+<dt id="apache_beam.examples.wordcount.WordExtractingDoFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount.</code><code class="descname">WordExtractingDoFn</code><a class="reference internal" href="_modules/apache_beam/examples/wordcount.html#WordExtractingDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount.WordExtractingDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Parse each line of input text into words.</p>
+<dl class="method">
+<dt id="apache_beam.examples.wordcount.WordExtractingDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount.html#WordExtractingDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount.WordExtractingDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an iterator over the words of this element.</p>
+<p>The element is a line of text.  If the line is blank, note that, too.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>element</strong> &#8211; the element being processed</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The processed element.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.wordcount.run">
+<code class="descclassname">apache_beam.examples.wordcount.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main entry point; defines and runs the wordcount pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount_debugging">
+<span id="apache-beam-examples-wordcount-debugging-module"></span><h2>apache_beam.examples.wordcount_debugging module<a class="headerlink" href="#module-apache_beam.examples.wordcount_debugging" title="Permalink to this headline">¶</a></h2>
+<p>An example that verifies the counts and includes best practices.</p>
+<p>On top of the basic concepts in the wordcount example, this workflow introduces
+logging to Cloud Logging, and using assertions in a Dataflow pipeline.</p>
+<p>To execute this pipeline locally, specify a local output file or output prefix
+on GCS:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">output</span> <span class="p">[</span><span class="n">YOUR_LOCAL_FILE</span> <span class="o">|</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_OUTPUT_PREFIX</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>To execute this pipeline using the Google Cloud Dataflow service, specify
+pipeline configuration:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">project</span> <span class="n">YOUR_PROJECT_ID</span>
+<span class="o">--</span><span class="n">staging_location</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_STAGING_DIRECTORY</span>
+<span class="o">--</span><span class="n">temp_location</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_TEMP_DIRECTORY</span>
+<span class="o">--</span><span class="n">job_name</span> <span class="n">YOUR_JOB_NAME</span>
+<span class="o">--</span><span class="n">runner</span> <span class="n">DataflowRunner</span>
+</pre></div>
+</div>
+<p>and an output prefix on GCS:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">output</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_OUTPUT_PREFIX</span>
+</pre></div>
+</div>
+<dl class="class">
+<dt id="apache_beam.examples.wordcount_debugging.CountWords">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount_debugging.</code><code class="descname">CountWords</code><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging.html#CountWords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging.CountWords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform to count the occurrences of each word.</p>
+<p>A PTransform that converts a PCollection containing lines of text into a
+PCollection of (word, count) tuples.</p>
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_debugging.CountWords.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging.html#CountWords.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging.CountWords.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.wordcount_debugging.FilterTextFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount_debugging.</code><code class="descname">FilterTextFn</code><span class="sig-paren">(</span><em>pattern</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging.html#FilterTextFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging.FilterTextFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A DoFn that filters for a specific key based on a regular expression.</p>
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_debugging.FilterTextFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging.html#FilterTextFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging.FilterTextFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.wordcount_debugging.run">
+<code class="descclassname">apache_beam.examples.wordcount_debugging.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the debugging wordcount pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount_debugging_test">
+<span id="apache-beam-examples-wordcount-debugging-test-module"></span><h2>apache_beam.examples.wordcount_debugging_test module<a class="headerlink" href="#module-apache_beam.examples.wordcount_debugging_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the debugging wordcount example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.wordcount_debugging_test.WordCountTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount_debugging_test.</code><code class="descname">WordCountTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging_test.html#WordCountTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging_test.WordCountTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.wordcount_debugging_test.WordCountTest.SAMPLE_TEXT">
+<code class="descname">SAMPLE_TEXT</code><em class="property"> = 'xx yy Flourish\n zz Flourish Flourish stomach\n aa\n bb cc dd'</em><a class="headerlink" href="#apache_beam.examples.wordcount_debugging_test.WordCountTest.SAMPLE_TEXT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_debugging_test.WordCountTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging_test.html#WordCountTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging_test.WordCountTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_debugging_test.WordCountTest.get_results">
+<code class="descname">get_results</code><span class="sig-paren">(</span><em>temp_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging_test.html#WordCountTest.get_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging_test.WordCountTest.get_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_debugging_test.WordCountTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_debugging_test.html#WordCountTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_debugging_test.WordCountTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount_it_test">
+<span id="apache-beam-examples-wordcount-it-test-module"></span><h2>apache_beam.examples.wordcount_it_test module<a class="headerlink" href="#module-apache_beam.examples.wordcount_it_test" title="Permalink to this headline">¶</a></h2>
+<p>End-to-end test for the wordcount example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.wordcount_it_test.WordCountIT">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount_it_test.</code><code class="descname">WordCountIT</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_it_test.html#WordCountIT"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_it_test.WordCountIT" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.wordcount_it_test.WordCountIT.DEFAULT_CHECKSUM">
+<code class="descname">DEFAULT_CHECKSUM</code><em class="property"> = '33535a832b7db6d78389759577d4ff495980b9c0'</em><a class="headerlink" href="#apache_beam.examples.wordcount_it_test.WordCountIT.DEFAULT_CHECKSUM" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_it_test.WordCountIT.test_wordcount_it">
+<code class="descname">test_wordcount_it</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_it_test.html#WordCountIT.test_wordcount_it"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_it_test.WordCountIT.test_wordcount_it" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount_minimal">
+<span id="apache-beam-examples-wordcount-minimal-module"></span><h2>apache_beam.examples.wordcount_minimal module<a class="headerlink" href="#module-apache_beam.examples.wordcount_minimal" title="Permalink to this headline">¶</a></h2>
+<p>A minimalist word-counting workflow that counts words in Shakespeare.</p>
+<p>This is the first in a series of successively more detailed &#8216;word count&#8217;
+examples.</p>
+<p>Next, see the wordcount pipeline, then the wordcount_debugging pipeline, for
+more detailed examples that introduce additional concepts.</p>
+<p>Concepts:</p>
+<ol class="arabic simple">
+<li>Reading data from text files</li>
+<li>Specifying &#8216;inline&#8217; transforms</li>
+<li>Counting a PCollection</li>
+<li>Writing data to Cloud Storage as text files</li>
+</ol>
+<p>To execute this pipeline locally, first edit the code to specify the output
+location. Output location could be a local file path or an output prefix
+on GCS. (Only update the output location marked with the first CHANGE comment.)</p>
+<p>To execute this pipeline remotely, first edit the code to set your project ID,
+runner type, the staging location, the temp location, and the output location.
+The specified GCS bucket(s) must already exist. (Update all the places marked
+with a CHANGE comment.)</p>
+<p>Then, run the pipeline as described in the README. It will be deployed and run
+using the Google Cloud Dataflow Service. No args are required to run the
+pipeline. You can see the results in your output bucket in the GCS browser.</p>
+<dl class="function">
+<dt id="apache_beam.examples.wordcount_minimal.run">
+<code class="descclassname">apache_beam.examples.wordcount_minimal.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_minimal.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_minimal.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main entry point; defines and runs the wordcount pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount_minimal_test">
+<span id="apache-beam-examples-wordcount-minimal-test-module"></span><h2>apache_beam.examples.wordcount_minimal_test module<a class="headerlink" href="#module-apache_beam.examples.wordcount_minimal_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the minimal wordcount example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount_minimal_test.</code><code class="descname">WordCountMinimalTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_minimal_test.html#WordCountMinimalTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<p>Unit test for wordcount_minimal example with direct runner.</p>
+<dl class="attribute">
+<dt id="apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest.SAMPLE_TEXT">
+<code class="descname">SAMPLE_TEXT</code><em class="property"> = 'a b c a b a\n aa bb cc aa bb aa'</em><a class="headerlink" href="#apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest.SAMPLE_TEXT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_minimal_test.html#WordCountMinimalTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_minimal_test.html#WordCountMinimalTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_minimal_test.WordCountMinimalTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.wordcount_test">
+<span id="apache-beam-examples-wordcount-test-module"></span><h2>apache_beam.examples.wordcount_test module<a class="headerlink" href="#module-apache_beam.examples.wordcount_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the wordcount example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.wordcount_test.WordCountTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.wordcount_test.</code><code class="descname">WordCountTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_test.html#WordCountTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_test.WordCountTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.wordcount_test.WordCountTest.SAMPLE_TEXT">
+<code class="descname">SAMPLE_TEXT</code><em class="property"> = 'a b c a b a\n\n aa bb cc aa bb aa'</em><a class="headerlink" href="#apache_beam.examples.wordcount_test.WordCountTest.SAMPLE_TEXT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_test.WordCountTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_test.html#WordCountTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_test.WordCountTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.wordcount_test.WordCountTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/wordcount_test.html#WordCountTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.wordcount_test.WordCountTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.examples" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.complete.html" title="apache_beam.examples.complete package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.internal.gcp.json_value &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.internal.gcp.json_value</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;JSON conversion utility functions.&quot;&quot;&quot;</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py</span> <span class="k">import</span> <span class="n">extra_types</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">extra_types</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">ValueProvider</span>
+
+
+<span class="n">_MAXINT64</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">63</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="n">_MININT64</span> <span class="o">=</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">63</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_typed_value_descriptor"><a class="viewcode-back" href="../../../../apache_beam.internal.gcp.html#apache_beam.internal.gcp.json_value.get_typed_value_descriptor">[docs]</a><span class="k">def</span> <span class="nf">get_typed_value_descriptor</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Converts a basic type into a @type/value dictionary.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    obj: A basestring, bool, int, or float to be converted.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A dictionary containing the keys &#39;@type&#39; and &#39;value&#39; with the value for</span>
+<span class="sd">    the @type of appropriate type.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    TypeError: if the Python object has a type that is not supported.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+    <span class="n">type_name</span> <span class="o">=</span> <span class="s1">&#39;Text&#39;</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+    <span class="n">type_name</span> <span class="o">=</span> <span class="s1">&#39;Boolean&#39;</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="n">type_name</span> <span class="o">=</span> <span class="s1">&#39;Integer&#39;</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+    <span class="n">type_name</span> <span class="o">=</span> <span class="s1">&#39;Float&#39;</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Cannot get a type descriptor for </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+  <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;http://schema.org/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">type_name</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="to_json_value"><a class="viewcode-back" href="../../../../apache_beam.internal.gcp.html#apache_beam.internal.gcp.json_value.to_json_value">[docs]</a><span class="k">def</span> <span class="nf">to_json_value</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Converts Python objects into extra_types.JsonValue objects.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    obj: Python object to be converted. Can be &#39;None&#39;.</span>
+<span class="sd">    with_type: If true then the basic types (string, int, float, bool) will</span>
+<span class="sd">      be wrapped in @type/value dictionaries. Otherwise the straight value is</span>
+<span class="sd">      encoded into a JsonValue.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A JsonValue object using JsonValue, JsonArray and JsonObject types for the</span>
+<span class="sd">    corresponding values, lists, or dictionaries.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    TypeError: if the Python object contains a type that is not supported.</span>
+
+<span class="sd">  The types supported are str, bool, list, tuple, dict, and None. The Dataflow</span>
+<span class="sd">  API requires JsonValue(s) in many places, and it is quite convenient to be</span>
+<span class="sd">  able to specify these hierarchical objects using Python syntax.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">is_null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span>
+        <span class="n">array_value</span><span class="o">=</span><span class="n">extra_types</span><span class="o">.</span><span class="n">JsonArray</span><span class="p">(</span>
+            <span class="n">entries</span><span class="o">=</span><span class="p">[</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="n">with_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">]))</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="n">json_object</span> <span class="o">=</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonObject</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="n">json_object</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonObject</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span>
+              <span class="n">key</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="n">with_type</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">object_value</span><span class="o">=</span><span class="n">json_object</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">with_type</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">to_json_value</span><span class="p">(</span><span class="n">get_typed_value_descriptor</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">string_value</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">boolean_value</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">integer_value</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">long</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">_MININT64</span> <span class="o">&lt;=</span> <span class="n">obj</span> <span class="o">&lt;=</span> <span class="n">_MAXINT64</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">integer_value</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Can not encode </span><span class="si">{}</span><span class="s1"> as a 64-bit integer&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">double_value</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">ValueProvider</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">is_accessible</span><span class="p">():</span>
+      <span class="k">return</span> <span class="n">to_json_value</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">(</span><span class="n">is_null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Cannot convert </span><span class="si">%s</span><span class="s1"> to a JSON value.&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="from_json_value"><a class="viewcode-back" href="../../../../apache_beam.internal.gcp.html#apache_beam.internal.gcp.json_value.from_json_value">[docs]</a><span class="k">def</span> <span class="nf">from_json_value</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Converts extra_types.JsonValue objects into Python objects.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    v: JsonValue object to be converted.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A Python object structured as values, lists, and dictionaries corresponding</span>
+<span class="sd">    to JsonValue, JsonArray and JsonObject types.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    TypeError: if the JsonValue object contains a type that is not supported.</span>
+
+<span class="sd">  The types supported are str, bool, list, dict, and None. The Dataflow API</span>
+<span class="sd">  returns JsonValue(s) in many places and it is quite convenient to be able to</span>
+<span class="sd">  convert these hierarchical objects to much simpler Python objects.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonValue</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">string_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">string_value</span>
+    <span class="k">elif</span> <span class="n">v</span><span class="o">.</span><span class="n">boolean_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">boolean_value</span>
+    <span class="k">elif</span> <span class="n">v</span><span class="o">.</span><span class="n">integer_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">integer_value</span>
+    <span class="k">elif</span> <span class="n">v</span><span class="o">.</span><span class="n">double_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">double_value</span>
+    <span class="k">elif</span> <span class="n">v</span><span class="o">.</span><span class="n">array_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">from_json_value</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">array_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">v</span><span class="o">.</span><span class="n">object_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">from_json_value</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">object_value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">v</span><span class="o">.</span><span class="n">is_null</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonArray</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">from_json_value</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">entries</span><span class="p">]</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">extra_types</span><span class="o">.</span><span class="n">JsonObject</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">p</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">from_json_value</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">properties</span><span class="p">}</span>
+  <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Cannot convert </span><span class="si">%s</span><span class="s1"> from a JSON value.&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">v</span><span class="p">))</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

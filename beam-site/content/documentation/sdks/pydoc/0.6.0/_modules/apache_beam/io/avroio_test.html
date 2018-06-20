@@ -1,0 +1,471 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.avroio_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.avroio_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">avroio</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">source_test_utils</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display_test</span> <span class="k">import</span> <span class="n">DisplayDataItemMatcher</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">equal_to</span>
+
+<span class="c1"># Importing following private class for testing purposes.</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.avroio</span> <span class="k">import</span> <span class="n">_AvroSource</span> <span class="k">as</span> <span class="n">AvroSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.avroio</span> <span class="k">import</span> <span class="n">_AvroSink</span> <span class="k">as</span> <span class="n">AvroSink</span>
+
+<span class="kn">import</span> <span class="nn">avro.datafile</span>
+<span class="kn">from</span> <span class="nn">avro.datafile</span> <span class="k">import</span> <span class="n">DataFileWriter</span>
+<span class="kn">from</span> <span class="nn">avro.io</span> <span class="k">import</span> <span class="n">DatumWriter</span>
+<span class="kn">import</span> <span class="nn">avro.schema</span>
+<span class="kn">import</span> <span class="nn">hamcrest</span> <span class="k">as</span> <span class="nn">hc</span>
+
+
+<span class="c1"># Import snappy optionally; some tests will be skipped when import fails.</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">import</span> <span class="nn">snappy</span>  <span class="c1"># pylint: disable=import-error</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">snappy</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;snappy is not installed; some tests will be skipped.&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TestAvro"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro">[docs]</a><span class="k">class</span> <span class="nc">TestAvro</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="n">_temp_files</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="TestAvro.setUp"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Reducing the size of thread pools. Without this test execution may fail in</span>
+    <span class="c1"># environments with limited amount of resources.</span>
+    <span class="n">filebasedsource</span><span class="o">.</span><span class="n">MAX_NUM_THREADS_FOR_SIZE_ESTIMATION</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+<div class="viewcode-block" id="TestAvro.tearDown"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.tearDown">[docs]</a>  <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_temp_files</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_temp_files</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+  <span class="n">RECORDS</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Thomas&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;favorite_number&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="s1">&#39;favorite_color&#39;</span><span class="p">:</span> <span class="s1">&#39;blue&#39;</span><span class="p">},</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Henry&#39;</span><span class="p">,</span>
+                                          <span class="s1">&#39;favorite_number&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                                          <span class="s1">&#39;favorite_color&#39;</span><span class="p">:</span> <span class="s1">&#39;green&#39;</span><span class="p">},</span>
+             <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Toby&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;favorite_number&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+              <span class="s1">&#39;favorite_color&#39;</span><span class="p">:</span> <span class="s1">&#39;brown&#39;</span><span class="p">},</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Gordon&#39;</span><span class="p">,</span>
+                                           <span class="s1">&#39;favorite_number&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                                           <span class="s1">&#39;favorite_color&#39;</span><span class="p">:</span> <span class="s1">&#39;blue&#39;</span><span class="p">},</span>
+             <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Emily&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;favorite_number&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+              <span class="s1">&#39;favorite_color&#39;</span><span class="p">:</span> <span class="s1">&#39;Red&#39;</span><span class="p">},</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Percy&#39;</span><span class="p">,</span>
+                                         <span class="s1">&#39;favorite_number&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                                         <span class="s1">&#39;favorite_color&#39;</span><span class="p">:</span> <span class="s1">&#39;Green&#39;</span><span class="p">}]</span>
+
+  <span class="n">SCHEMA</span> <span class="o">=</span> <span class="n">avro</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">  {&quot;namespace&quot;: &quot;example.avro&quot;,</span>
+<span class="s1">   &quot;type&quot;: &quot;record&quot;,</span>
+<span class="s1">   &quot;name&quot;: &quot;User&quot;,</span>
+<span class="s1">   &quot;fields&quot;: [</span>
+<span class="s1">       {&quot;name&quot;: &quot;name&quot;, &quot;type&quot;: &quot;string&quot;},</span>
+<span class="s1">       {&quot;name&quot;: &quot;favorite_number&quot;,  &quot;type&quot;: [&quot;int&quot;, &quot;null&quot;]},</span>
+<span class="s1">       {&quot;name&quot;: &quot;favorite_color&quot;, &quot;type&quot;: [&quot;string&quot;, &quot;null&quot;]}</span>
+<span class="s1">   ]</span>
+<span class="s1">  }</span>
+<span class="s1">  &#39;&#39;&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_write_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">,</span>
+                  <span class="n">codec</span><span class="o">=</span><span class="s1">&#39;null&#39;</span><span class="p">,</span>
+                  <span class="n">count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">RECORDS</span><span class="p">)):</span>
+
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">writer</span> <span class="o">=</span> <span class="n">DataFileWriter</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">DatumWriter</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">,</span> <span class="n">codec</span><span class="o">=</span><span class="n">codec</span><span class="p">)</span>
+      <span class="n">len_records</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="n">len_records</span><span class="p">])</span>
+      <span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">_temp_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+
+  <span class="k">def</span> <span class="nf">_write_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_files</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="n">num_files</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+    <span class="n">file_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;mytemp&#39;</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">file_name</span>
+    <span class="n">file_name_prefix</span> <span class="o">=</span> <span class="n">file_name</span><span class="p">[:</span><span class="n">file_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">file_name_prefix</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;mytemp*&#39;</span>
+
+  <span class="k">def</span> <span class="nf">_run_avro_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">perform_splitting</span><span class="p">,</span>
+                     <span class="n">expected_result</span><span class="p">):</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+
+    <span class="n">read_records</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">perform_splitting</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">desired_bundle_size</span>
+      <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span>
+          <span class="n">split</span>
+          <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="n">desired_bundle_size</span><span class="p">)</span>
+      <span class="p">]</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Test is trivial. Please adjust it so that at least &#39;</span>
+                         <span class="s1">&#39;two splits get generated&#39;</span><span class="p">)</span>
+
+      <span class="n">sources_info</span> <span class="o">=</span> <span class="p">[</span>
+          <span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span>
+      <span class="p">]</span>
+      <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSourcesEqualReferenceSource</span><span class="p">((</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                                                          <span class="n">sources_info</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">read_records</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_result</span><span class="p">,</span> <span class="n">read_records</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestAvro.test_read_without_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_without_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_without_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">()</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_with_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_with_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_with_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">()</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_source_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_source_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;some_avro_source&#39;</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+
+    <span class="c1"># No extra avro parameters for AvroSource.</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;compression&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;some_avro_source&#39;</span>
+    <span class="n">read</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">ReadFromAvro</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">read</span><span class="p">)</span>
+
+    <span class="c1"># No extra avro parameters for AvroSource.</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;compression&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_sink_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_sink_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_sink_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;some_avro_sink&#39;</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">AvroSink</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">,</span>
+                    <span class="s1">&#39;null&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;.end&#39;</span><span class="p">,</span>
+                    <span class="mi">0</span><span class="p">,</span>
+                    <span class="kc">None</span><span class="p">,</span>
+                    <span class="s1">&#39;application/x-avro&#39;</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">sink</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;schema&#39;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">)),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;some_avro_sink-</span><span class="si">%(shard_num)05d</span><span class="s1">-of-</span><span class="si">%(num_shards)05d</span><span class="s1">.end&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;codec&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;null&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;compression&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;uncompressed&#39;</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_write_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_write_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;some_avro_sink&#39;</span>
+    <span class="n">write</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">WriteToAvro</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">write</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;schema&#39;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">)),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;some_avro_sink-</span><span class="si">%(shard_num)05d</span><span class="s1">-of-</span><span class="si">%(num_shards)05d</span><span class="s1">&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;codec&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;deflate&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;compression&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;uncompressed&#39;</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_reentrant_without_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_reentrant_without_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_reentrant_without_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">()</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertReentrantReadsSucceed</span><span class="p">((</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_reantrant_with_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_reantrant_with_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_reantrant_with_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">()</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">)]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertReentrantReadsSucceed</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_without_splitting_multiple_blocks"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_without_splitting_multiple_blocks">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_without_splitting_multiple_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">count</span><span class="o">=</span><span class="mi">12000</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span> <span class="o">*</span> <span class="mi">2000</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_with_splitting_multiple_blocks"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_with_splitting_multiple_blocks">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_with_splitting_multiple_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">count</span><span class="o">=</span><span class="mi">12000</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span> <span class="o">*</span> <span class="mi">2000</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_split_points"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_split_points">[docs]</a>  <span class="k">def</span> <span class="nf">test_split_points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">count</span><span class="o">=</span><span class="mi">12000</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">split</span>
+        <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">))</span>
+    <span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+        <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+
+    <span class="n">split_points_report</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">):</span>
+      <span class="n">split_points_report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">split_points</span><span class="p">())</span>
+
+    <span class="c1"># There are a total of three blocks. Each block has more than 10 records.</span>
+
+    <span class="c1"># When reading records of the first block, range_tracker.split_points()</span>
+    <span class="c1"># should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span>
+        <span class="n">split_points_report</span><span class="p">[:</span><span class="mi">10</span><span class="p">],</span>
+        <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="c1"># When reading records of last block, range_tracker.split_points() should</span>
+    <span class="c1"># return (2, 1)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">split_points_report</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:],</span> <span class="p">[(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_without_splitting_compressed_deflate"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_without_splitting_compressed_deflate">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_without_splitting_compressed_deflate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">codec</span><span class="o">=</span><span class="s1">&#39;deflate&#39;</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_with_splitting_compressed_deflate"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_with_splitting_compressed_deflate">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_with_splitting_compressed_deflate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">codec</span><span class="o">=</span><span class="s1">&#39;deflate&#39;</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">snappy</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;snappy not installed.&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestAvro.test_read_without_splitting_compressed_snappy"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_without_splitting_compressed_snappy">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_without_splitting_compressed_snappy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">codec</span><span class="o">=</span><span class="s1">&#39;snappy&#39;</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">snappy</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;snappy not installed.&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestAvro.test_read_with_splitting_compressed_snappy"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_with_splitting_compressed_snappy">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_with_splitting_compressed_snappy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">codec</span><span class="o">=</span><span class="s1">&#39;snappy&#39;</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_without_splitting_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_without_splitting_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_without_splitting_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_pattern</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span> <span class="o">*</span> <span class="mi">3</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_read_with_splitting_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_read_with_splitting_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_with_splitting_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_pattern</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">expected_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span> <span class="o">*</span> <span class="mi">3</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_avro_test</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">expected_result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_dynamic_work_rebalancing_exhaustive"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_dynamic_work_rebalancing_exhaustive">[docs]</a>  <span class="k">def</span> <span class="nf">test_dynamic_work_rebalancing_exhaustive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Adjusting block size so that we can perform a exhaustive dynamic</span>
+    <span class="c1"># work rebalancing test that completes within an acceptable amount of time.</span>
+    <span class="n">old_sync_interval</span> <span class="o">=</span> <span class="n">avro</span><span class="o">.</span><span class="n">datafile</span><span class="o">.</span><span class="n">SYNC_INTERVAL</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">avro</span><span class="o">.</span><span class="n">datafile</span><span class="o">.</span><span class="n">SYNC_INTERVAL</span> <span class="o">=</span> <span class="mi">2</span>
+      <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">(</span><span class="n">count</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+      <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+      <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span>
+                <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">))]</span>
+      <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+      <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span><span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="n">avro</span><span class="o">.</span><span class="n">datafile</span><span class="o">.</span><span class="n">SYNC_INTERVAL</span> <span class="o">=</span> <span class="n">old_sync_interval</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_corrupted_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_corrupted_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_corrupted_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="c1"># Corrupt the last character of the file which is also the last character of</span>
+    <span class="c1"># the last sync_marker.</span>
+    <span class="n">last_char_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">corrupted_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:</span><span class="n">last_char_index</span><span class="p">]</span>
+    <span class="n">corrupted_data</span> <span class="o">+=</span> <span class="s1">&#39;A&#39;</span> <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">last_char_index</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;B&#39;</span> <span class="k">else</span> <span class="s1">&#39;B&#39;</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">tempfile</span><span class="o">.</span><span class="n">template</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">corrupted_data</span><span class="p">)</span>
+      <span class="n">corrupted_file_name</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">AvroSource</span><span class="p">(</span><span class="n">corrupted_file_name</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">exn</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Unexpected sync marker&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_source_transform"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_source_transform">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_data</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">assert_that</span><span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">avroio</span><span class="o">.</span><span class="n">ReadFromAvro</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">equal_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestAvro.test_sink_transform"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_sink_transform">[docs]</a>  <span class="k">def</span> <span class="nf">test_sink_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">name</span>
+      <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+        <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">)</span> <span class="o">|</span> <span class="n">avroio</span><span class="o">.</span><span class="n">WriteToAvro</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">)</span>
+      <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+        <span class="c1"># json used for stable sortability</span>
+        <span class="n">readback</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">avroio</span><span class="o">.</span><span class="n">ReadFromAvro</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">)</span>
+        <span class="n">assert_that</span><span class="p">(</span><span class="n">readback</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">]))</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">snappy</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;snappy not installed.&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestAvro.test_sink_transform_snappy"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio_test.TestAvro.test_sink_transform_snappy">[docs]</a>  <span class="k">def</span> <span class="nf">test_sink_transform_snappy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">name</span>
+      <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+        <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">)</span> <span class="o">|</span> <span class="n">avroio</span><span class="o">.</span><span class="n">WriteToAvro</span><span class="p">(</span>
+            <span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCHEMA</span><span class="p">,</span> <span class="n">codec</span><span class="o">=</span><span class="s1">&#39;snappy&#39;</span><span class="p">)</span>
+      <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+        <span class="c1"># json used for stable sortability</span>
+        <span class="n">readback</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">avroio</span><span class="o">.</span><span class="n">ReadFromAvro</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">)</span>
+        <span class="n">assert_that</span><span class="p">(</span><span class="n">readback</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">RECORDS</span><span class="p">]))</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

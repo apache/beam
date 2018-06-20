@@ -1,0 +1,22 @@
+apache\_beam\.runners\.dataflow\.native\_io package
+===================================================
+
+Submodules
+----------
+
+apache\_beam\.runners\.dataflow\.native\_io\.iobase module
+----------------------------------------------------------
+
+.. automodule:: apache_beam.runners.dataflow.native_io.iobase
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.runners.dataflow.native_io
+    :members:
+    :undoc-members:
+    :show-inheritance:

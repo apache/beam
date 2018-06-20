@@ -1,0 +1,7 @@
+apache\_beam\.pvalue module
+===========================
+
+.. automodule:: apache_beam.pvalue
+    :members:
+    :undoc-members:
+    :show-inheritance:

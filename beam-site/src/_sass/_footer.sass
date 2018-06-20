@@ -1,0 +1,44 @@
+.footer
+  background: $color-dark
+  padding: 40px 0
+  margin-top: 70px
+  @at-root .body--index &
+    margin-top: 0
+
+  color: #fff
+  .footer__contained
+    +contained
+
+  a
+    color: #fff
+
+  .footer__cols
+    display: flex
+    justify-content: space-around
+
+  .footer__cols__col
+    padding: 5px
+    box-sizing: border-box
+
+    &:first-child
+      +md
+        width: 20%
+
+    &--md
+      +md
+        width: 20%
+
+    .footer__cols__col__title
+      color: #fff
+      font-weight: $font-weight-bold
+      margin-bottom: $pad
+
+    .footer__cols__col__link
+      margin-bottom: 4px
+
+    .footer__cols__col__logo
+      margin-bottom: $pad
+
+  .footer__bottom
+    margin-top: $pad-md
+    text-align: center

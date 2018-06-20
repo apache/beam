@@ -1,0 +1,507 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.datastore.v1.datastoreio &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.datastore.v1.datastoreio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A connector for reading from and writing to Google Cloud Datastore&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="c1"># Protect against environments where datastore library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">datastore_pb2</span>
+  <span class="kn">from</span> <span class="nn">googledatastore</span> <span class="k">import</span> <span class="n">helper</span> <span class="k">as</span> <span class="n">datastore_helper</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="k">pass</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">helper</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">query_splitter</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Create</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">DoFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">FlatMap</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">GroupByKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Map</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">ParDo</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">Values</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ReadFromDatastore&#39;</span><span class="p">,</span> <span class="s1">&#39;WriteToDatastore&#39;</span><span class="p">,</span> <span class="s1">&#39;DeleteFromDatastore&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ReadFromDatastore"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore">[docs]</a><span class="k">class</span> <span class="nc">ReadFromDatastore</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` for reading from Google Cloud Datastore.</span>
+
+<span class="sd">  To read a ``PCollection[Entity]`` from a Cloud Datastore ``Query``, use</span>
+<span class="sd">  ``ReadFromDatastore`` transform by providing a `project` id and a `query` to</span>
+<span class="sd">  read from. You can optionally provide a `namespace` and/or specify how many</span>
+<span class="sd">  splits you want for the query through `num_splits` option.</span>
+
+<span class="sd">  Note: Normally, a runner will read from Cloud Datastore in parallel across</span>
+<span class="sd">  many workers. However, when the `query` is configured with a `limit` or if the</span>
+<span class="sd">  query contains inequality filters like `GREATER_THAN, LESS_THAN` etc., then</span>
+<span class="sd">  all the returned results will be read by a single worker in order to ensure</span>
+<span class="sd">  correct data. Since data is read from a single worker, this could have</span>
+<span class="sd">  significant impact on the performance of the job.</span>
+
+<span class="sd">  The semantics for the query splitting is defined below:</span>
+<span class="sd">    1. If `num_splits` is equal to 0, then the number of splits will be chosen</span>
+<span class="sd">    dynamically at runtime based on the query data size.</span>
+
+<span class="sd">    2. Any value of `num_splits` greater than</span>
+<span class="sd">    `ReadFromDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.</span>
+
+<span class="sd">    3. If the `query` has a user limit set, or contains inequality filters, then</span>
+<span class="sd">    `num_splits` will be ignored and no split will be performed.</span>
+
+<span class="sd">    4. Under certain cases Cloud Datastore is unable to split query to the</span>
+<span class="sd">    requested number of splits. In such cases we just use whatever the Cloud</span>
+<span class="sd">    Datastore returns.</span>
+
+<span class="sd">  See https://developers.google.com/datastore/ for more details on Google Cloud</span>
+<span class="sd">  Datastore.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># An upper bound on the number of splits for a query.</span>
+  <span class="n">_NUM_QUERY_SPLITS_MAX</span> <span class="o">=</span> <span class="mi">50000</span>
+  <span class="c1"># A lower bound on the number of splits for a query. This is to ensure that</span>
+  <span class="c1"># we parellelize the query even when Datastore statistics are not available.</span>
+  <span class="n">_NUM_QUERY_SPLITS_MIN</span> <span class="o">=</span> <span class="mi">12</span>
+  <span class="c1"># Default bundle size of 64MB.</span>
+  <span class="n">_DEFAULT_BUNDLE_SIZE_BYTES</span> <span class="o">=</span> <span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_splits</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the ReadFromDatastore transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      project: The Project ID</span>
+<span class="sd">      query: Cloud Datastore query to be read from.</span>
+<span class="sd">      namespace: An optional namespace.</span>
+<span class="sd">      num_splits: Number of splits for the query.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+      <span class="kn">from</span> <span class="nn">apitools.base</span> <span class="k">import</span> <span class="n">py</span>  <span class="c1"># pylint: disable=unused-variable</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+          <span class="s1">&#39;Google Cloud IO not available, &#39;</span>
+          <span class="s1">&#39;please install apache_beam[gcp]&#39;</span><span class="p">)</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;datastoreio read transform is experimental.&#39;</span><span class="p">)</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">project</span><span class="p">:</span>
+      <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Project cannot be empty&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">query</span><span class="p">:</span>
+      <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Query cannot be empty&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num_splits</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;num_splits must be greater than or equal 0&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_project</span> <span class="o">=</span> <span class="n">project</span>
+    <span class="c1"># using _namespace conflicts with DisplayData._namespace</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="n">query</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span> <span class="o">=</span> <span class="n">num_splits</span>
+
+<div class="viewcode-block" id="ReadFromDatastore.expand"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c1"># This is a composite transform involves the following:</span>
+    <span class="c1">#   1. Create a singleton of the user provided `query` and apply a ``ParDo``</span>
+    <span class="c1">#   that splits the query into `num_splits` and assign each split query a</span>
+    <span class="c1">#   unique `int` as the key. The resulting output is of the type</span>
+    <span class="c1">#   ``PCollection[(int, Query)]``.</span>
+    <span class="c1">#</span>
+    <span class="c1">#   If the value of `num_splits` is less than or equal to 0, then the</span>
+    <span class="c1">#   number of splits will be computed dynamically based on the size of the</span>
+    <span class="c1">#   data for the `query`.</span>
+    <span class="c1">#</span>
+    <span class="c1">#   2. The resulting ``PCollection`` is sharded using a ``GroupByKey``</span>
+    <span class="c1">#   operation. The queries are extracted from the (int, Iterable[Query]) and</span>
+    <span class="c1">#   flattened to output a ``PCollection[Query]``.</span>
+    <span class="c1">#</span>
+    <span class="c1">#   3. In the third step, a ``ParDo`` reads entities for each query and</span>
+    <span class="c1">#   outputs a ``PCollection[Entity]``.</span>
+
+    <span class="n">queries</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span>
+               <span class="o">|</span> <span class="s1">&#39;UserQuery&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">])</span>
+               <span class="o">|</span> <span class="s1">&#39;SplitQuery&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">SplitQueryFn</span><span class="p">(</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span><span class="p">,</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span><span class="p">)))</span>
+
+    <span class="n">sharded_queries</span> <span class="o">=</span> <span class="p">(</span><span class="n">queries</span>
+                       <span class="o">|</span> <span class="n">GroupByKey</span><span class="p">()</span>
+                       <span class="o">|</span> <span class="n">Values</span><span class="p">()</span>
+                       <span class="o">|</span> <span class="s1">&#39;Flatten&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">))</span>
+
+    <span class="n">entities</span> <span class="o">=</span> <span class="n">sharded_queries</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span>
+        <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">ReadFn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">entities</span></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.display_data"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">disp_data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;project&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span>
+                 <span class="s1">&#39;query&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">),</span>
+                 <span class="s1">&#39;num_splits&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span><span class="p">}</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">disp_data</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span>
+
+    <span class="k">return</span> <span class="n">disp_data</span></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.SplitQueryFn"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn">[docs]</a>  <span class="k">class</span> <span class="nc">SplitQueryFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A `DoFn` that splits a given query into multiple sub-queries.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">SplitQueryFn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_project</span> <span class="o">=</span> <span class="n">project</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="n">query</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span> <span class="o">=</span> <span class="n">num_splits</span>
+
+<div class="viewcode-block" id="ReadFromDatastore.SplitQueryFn.start_bundle"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.start_bundle">[docs]</a>    <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">get_datastore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.SplitQueryFn.process"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.process">[docs]</a>    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="c1"># distinct key to be used to group query splits.</span>
+      <span class="n">key</span> <span class="o">=</span> <span class="mi">1</span>
+
+      <span class="c1"># If query has a user set limit, then the query cannot be split.</span>
+      <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;limit&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[(</span><span class="n">key</span><span class="p">,</span> <span class="n">query</span><span class="p">)]</span>
+
+      <span class="c1"># Compute the estimated numSplits if not specified by the user.</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">estimated_num_splits</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">get_estimated_num_splits</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">estimated_num_splits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span>
+
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Splitting the query into </span><span class="si">%d</span><span class="s2"> splits&quot;</span><span class="p">,</span> <span class="n">estimated_num_splits</span><span class="p">)</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">query_splits</span> <span class="o">=</span> <span class="n">query_splitter</span><span class="o">.</span><span class="n">get_splits</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">estimated_num_splits</span><span class="p">,</span>
+            <span class="n">helper</span><span class="o">.</span><span class="n">make_partition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span><span class="p">))</span>
+      <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to parallelize the given query: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span>
+                        <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">query_splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">query</span><span class="p">]</span>
+
+      <span class="n">sharded_query_splits</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">split_query</span> <span class="ow">in</span> <span class="n">query_splits</span><span class="p">:</span>
+        <span class="n">sharded_query_splits</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">split_query</span><span class="p">))</span>
+        <span class="n">key</span> <span class="o">+=</span> <span class="mi">1</span>
+
+      <span class="k">return</span> <span class="n">sharded_query_splits</span></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.SplitQueryFn.display_data"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.SplitQueryFn.display_data">[docs]</a>    <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="n">disp_data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;project&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span>
+                   <span class="s1">&#39;query&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">),</span>
+                   <span class="s1">&#39;num_splits&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_splits</span><span class="p">}</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">disp_data</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span>
+
+      <span class="k">return</span> <span class="n">disp_data</span></div></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.ReadFn"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn">[docs]</a>  <span class="k">class</span> <span class="nc">ReadFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A DoFn that reads entities from Cloud Datastore, for a given query.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">ReadFn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_project</span> <span class="o">=</span> <span class="n">project</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="ReadFromDatastore.ReadFn.start_bundle"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.start_bundle">[docs]</a>    <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">get_datastore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.ReadFn.process"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.process">[docs]</a>    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="c1"># Returns an iterator of entities that reads in batches.</span>
+      <span class="n">entities</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">fetch_entities</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span><span class="p">,</span>
+                                       <span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">entities</span></div>
+
+<div class="viewcode-block" id="ReadFromDatastore.ReadFn.display_data"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.ReadFn.display_data">[docs]</a>    <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="n">disp_data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;project&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">}</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">disp_data</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datastore_namespace</span>
+
+      <span class="k">return</span> <span class="n">disp_data</span></div></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ReadFromDatastore.query_latest_statistics_timestamp"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.query_latest_statistics_timestamp">[docs]</a>  <span class="k">def</span> <span class="nf">query_latest_statistics_timestamp</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">datastore</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Fetches the latest timestamp of statistics from Cloud Datastore.</span>
+
+<span class="sd">    Cloud Datastore system tables with statistics are periodically updated.</span>
+<span class="sd">    This method fethes the latest timestamp (in microseconds) of statistics</span>
+<span class="sd">    update using the `__Stat_Total__` table.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_latest_timestamp_query</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+    <span class="n">resp</span> <span class="o">=</span> <span class="n">datastore</span><span class="o">.</span><span class="n">run_query</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Datastore total statistics unavailable.&quot;</span><span class="p">)</span>
+
+    <span class="n">entity</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">entity</span>
+    <span class="k">return</span> <span class="n">datastore_helper</span><span class="o">.</span><span class="n">micros_from_timestamp</span><span class="p">(</span>
+        <span class="n">entity</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;timestamp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">timestamp_value</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ReadFromDatastore.get_estimated_size_bytes"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.get_estimated_size_bytes">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_bytes</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">datastore</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the estimated size of the data returned by the given query.</span>
+
+<span class="sd">    Cloud Datastore provides no way to get a good estimate of how large the</span>
+<span class="sd">    result of a query is going to be. Hence we use the __Stat_Kind__ system</span>
+<span class="sd">    table to get size of the entire kind as an approximate estimate, assuming</span>
+<span class="sd">    exactly 1 kind is specified in the query.</span>
+<span class="sd">    See https://cloud.google.com/datastore/docs/concepts/stats.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">kind</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">latest_timestamp</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">query_latest_statistics_timestamp</span><span class="p">(</span>
+        <span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">datastore</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Latest stats timestamp for kind </span><span class="si">%s</span><span class="s1"> is </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                 <span class="n">kind</span><span class="p">,</span> <span class="n">latest_timestamp</span><span class="p">)</span>
+
+    <span class="n">kind_stats_query</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">helper</span><span class="o">.</span><span class="n">make_kind_stats_query</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">latest_timestamp</span><span class="p">))</span>
+
+    <span class="n">req</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">kind_stats_query</span><span class="p">)</span>
+    <span class="n">resp</span> <span class="o">=</span> <span class="n">datastore</span><span class="o">.</span><span class="n">run_query</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Datastore statistics for kind </span><span class="si">%s</span><span class="s2"> unavailable&quot;</span> <span class="o">%</span> <span class="n">kind</span><span class="p">)</span>
+
+    <span class="n">entity</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">entity</span>
+    <span class="k">return</span> <span class="n">datastore_helper</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;entity_bytes&#39;</span><span class="p">])</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ReadFromDatastore.get_estimated_num_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.ReadFromDatastore.get_estimated_num_splits">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_num_splits</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">datastore</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Computes the number of splits to be performed on the given query.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">estimated_size_bytes</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">get_estimated_size_bytes</span><span class="p">(</span>
+          <span class="n">project</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">datastore</span><span class="p">)</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Estimated size bytes for query: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">estimated_size_bytes</span><span class="p">)</span>
+      <span class="n">num_splits</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">_NUM_QUERY_SPLITS_MAX</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span>
+          <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">estimated_size_bytes</span><span class="p">)</span> <span class="o">/</span>
+           <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">_DEFAULT_BUNDLE_SIZE_BYTES</span><span class="p">))))</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Failed to fetch estimated size bytes: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+      <span class="c1"># Fallback in case estimated size is unavailable.</span>
+      <span class="n">num_splits</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">_NUM_QUERY_SPLITS_MIN</span>
+
+    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_splits</span><span class="p">,</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">_NUM_QUERY_SPLITS_MIN</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_Mutate</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` that writes mutations to Cloud Datastore.</span>
+
+<span class="sd">  Only idempotent Datastore mutation operations (upsert and delete) are</span>
+<span class="sd">  supported, as the commits are retried when failures occur.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Max allowed Datastore write batch size.</span>
+  <span class="n">_WRITE_BATCH_SIZE</span> <span class="o">=</span> <span class="mi">500</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">mutation_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a Mutate transform.</span>
+
+<span class="sd">     Args:</span>
+<span class="sd">       project: The Project ID</span>
+<span class="sd">       mutation_fn: A function that converts `entities` or `keys` to</span>
+<span class="sd">         `mutations`.</span>
+<span class="sd">     &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_project</span> <span class="o">=</span> <span class="n">project</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mutation_fn</span> <span class="o">=</span> <span class="n">mutation_fn</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;datastoreio write transform is experimental.&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="o">|</span> <span class="s1">&#39;Convert to Mutation&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mutation_fn</span><span class="p">)</span>
+            <span class="o">|</span> <span class="s1">&#39;Write Mutation to Datastore&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">_Mutate</span><span class="o">.</span><span class="n">DatastoreWriteFn</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">)))</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;project&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span>
+            <span class="s1">&#39;mutation_fn&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mutation_fn</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">}</span>
+
+  <span class="k">class</span> <span class="nc">DatastoreWriteFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A ``DoFn`` that write mutations to Datastore.</span>
+
+<span class="sd">    Mutations are written in batches, where the maximum batch size is</span>
+<span class="sd">    `Mutate._WRITE_BATCH_SIZE`.</span>
+
+<span class="sd">    Commits are non-transactional. If a commit fails because of a conflict over</span>
+<span class="sd">    an entity group, the commit will be retried. This means that the mutation</span>
+<span class="sd">    should be idempotent (`upsert` and `delete` mutations) to prevent duplicate</span>
+<span class="sd">    data or errors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_project</span> <span class="o">=</span> <span class="n">project</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">get_datastore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">_Mutate</span><span class="o">.</span><span class="n">_WRITE_BATCH_SIZE</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flush_batch</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flush_batch</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">_flush_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="c1"># Flush the current batch of mutations to Cloud Datastore.</span>
+      <span class="n">helper</span><span class="o">.</span><span class="n">write_mutations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span><span class="p">)</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Successfully wrote </span><span class="si">%d</span><span class="s2"> mutations.&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mutations</span> <span class="o">=</span> <span class="p">[]</span>
+
+
+<div class="viewcode-block" id="WriteToDatastore"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.WriteToDatastore">[docs]</a><span class="k">class</span> <span class="nc">WriteToDatastore</span><span class="p">(</span><span class="n">_Mutate</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">):</span>
+
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+      <span class="kn">from</span> <span class="nn">apitools.base</span> <span class="k">import</span> <span class="n">py</span>  <span class="c1"># pylint: disable=unused-variable</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+          <span class="s1">&#39;Google Cloud IO not available, &#39;</span>
+          <span class="s1">&#39;please install apache_beam[gcp]&#39;</span><span class="p">)</span>
+
+    <span class="nb">super</span><span class="p">(</span><span class="n">WriteToDatastore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">project</span><span class="p">,</span> <span class="n">WriteToDatastore</span><span class="o">.</span><span class="n">to_upsert_mutation</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="WriteToDatastore.to_upsert_mutation"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.WriteToDatastore.to_upsert_mutation">[docs]</a>  <span class="k">def</span> <span class="nf">to_upsert_mutation</span><span class="p">(</span><span class="n">entity</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">key</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Entities to be written to the Cloud Datastore must &#39;</span>
+                       <span class="s1">&#39;have complete keys:</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">entity</span><span class="p">)</span>
+    <span class="n">mutation</span> <span class="o">=</span> <span class="n">datastore_pb2</span><span class="o">.</span><span class="n">Mutation</span><span class="p">()</span>
+    <span class="n">mutation</span><span class="o">.</span><span class="n">upsert</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mutation</span></div></div>
+
+
+<div class="viewcode-block" id="DeleteFromDatastore"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.DeleteFromDatastore">[docs]</a><span class="k">class</span> <span class="nc">DeleteFromDatastore</span><span class="p">(</span><span class="n">_Mutate</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` to delete a ``PCollection[Key]`` from Cloud Datastore.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DeleteFromDatastore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">project</span><span class="p">,</span> <span class="n">DeleteFromDatastore</span><span class="o">.</span><span class="n">to_delete_mutation</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DeleteFromDatastore.to_delete_mutation"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio.DeleteFromDatastore.to_delete_mutation">[docs]</a>  <span class="k">def</span> <span class="nf">to_delete_mutation</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Keys to be deleted from the Cloud Datastore must be &#39;</span>
+                       <span class="s1">&#39;complete:</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&quot;, key&#39;</span><span class="p">)</span>
+    <span class="n">mutation</span> <span class="o">=</span> <span class="n">datastore_pb2</span><span class="o">.</span><span class="n">Mutation</span><span class="p">()</span>
+    <span class="n">mutation</span><span class="o">.</span><span class="n">delete</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mutation</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

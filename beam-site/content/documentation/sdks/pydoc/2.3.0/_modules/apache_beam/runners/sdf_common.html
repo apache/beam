@@ -1,0 +1,402 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.sdf_common &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.runners.sdf_common</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.runners.sdf_common</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;This module contains Splittable DoFn logic that&#39;s common to all runners.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">typecoders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">AppliedPTransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PTransformOverride</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.common</span> <span class="k">import</span> <span class="n">DoFnInvoker</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.common</span> <span class="k">import</span> <span class="n">DoFnSignature</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">ParDo</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.ptransform</span> <span class="k">import</span> <span class="n">PTransform</span>
+
+
+<div class="viewcode-block" id="SplittableParDoOverride"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplittableParDoOverride">[docs]</a><span class="k">class</span> <span class="nc">SplittableParDoOverride</span><span class="p">(</span><span class="n">PTransformOverride</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform override for ParDo transformss of SplittableDoFns.</span>
+
+<span class="sd">  Replaces the ParDo transform with a SplittableParDo transform that performs</span>
+<span class="sd">  SDF specific logic.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SplittableParDoOverride.get_matcher"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplittableParDoOverride.get_matcher">[docs]</a>  <span class="k">def</span> <span class="nf">get_matcher</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_matcher</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">):</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">AppliedPTransform</span><span class="p">)</span>
+      <span class="n">transform</span> <span class="o">=</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">transform</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">ParDo</span><span class="p">):</span>
+        <span class="n">signature</span> <span class="o">=</span> <span class="n">DoFnSignature</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">fn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">signature</span><span class="o">.</span><span class="n">is_splittable_dofn</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">_matcher</span></div>
+
+<div class="viewcode-block" id="SplittableParDoOverride.get_replacement_transform"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplittableParDoOverride.get_replacement_transform">[docs]</a>  <span class="k">def</span> <span class="nf">get_replacement_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ptransform</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ptransform</span><span class="p">,</span> <span class="n">ParDo</span><span class="p">)</span>
+    <span class="n">do_fn</span> <span class="o">=</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">fn</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="n">DoFnSignature</span><span class="p">(</span><span class="n">do_fn</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">signature</span><span class="o">.</span><span class="n">is_splittable_dofn</span><span class="p">():</span>
+      <span class="k">return</span> <span class="n">SplittableParDo</span><span class="p">(</span><span class="n">ptransform</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">ptransform</span></div></div>
+
+
+<div class="viewcode-block" id="SplittableParDo"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplittableParDo">[docs]</a><span class="k">class</span> <span class="nc">SplittableParDo</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform that processes a PCollection using a Splittable DoFn.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ptransform</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ptransform</span><span class="p">,</span> <span class="n">ParDo</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_ptransform</span> <span class="o">=</span> <span class="n">ptransform</span>
+
+<div class="viewcode-block" id="SplittableParDo.expand"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplittableParDo.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="n">sdf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ptransform</span><span class="o">.</span><span class="n">fn</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="n">DoFnSignature</span><span class="p">(</span><span class="n">sdf</span><span class="p">)</span>
+    <span class="n">invoker</span> <span class="o">=</span> <span class="n">DoFnInvoker</span><span class="o">.</span><span class="n">create_invoker</span><span class="p">(</span><span class="n">signature</span><span class="p">,</span> <span class="n">process_invocation</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">element_coder</span> <span class="o">=</span> <span class="n">typecoders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">get_coder</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">element_type</span><span class="p">)</span>
+    <span class="n">restriction_coder</span> <span class="o">=</span> <span class="n">invoker</span><span class="o">.</span><span class="n">invoke_restriction_coder</span><span class="p">()</span>
+
+    <span class="n">keyed_elements</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span>
+                      <span class="o">|</span> <span class="s1">&#39;pair&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">PairWithRestrictionFn</span><span class="p">(</span><span class="n">sdf</span><span class="p">))</span>
+                      <span class="o">|</span> <span class="s1">&#39;split&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">SplitRestrictionFn</span><span class="p">(</span><span class="n">sdf</span><span class="p">))</span>
+                      <span class="o">|</span> <span class="s1">&#39;explode&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">ExplodeWindowsFn</span><span class="p">())</span>
+                      <span class="o">|</span> <span class="s1">&#39;random&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">RandomUniqueKeyFn</span><span class="p">()))</span>
+
+    <span class="k">return</span> <span class="n">keyed_elements</span> <span class="o">|</span> <span class="n">ProcessKeyedElements</span><span class="p">(</span>
+        <span class="n">sdf</span><span class="p">,</span> <span class="n">element_coder</span><span class="p">,</span> <span class="n">restriction_coder</span><span class="p">,</span>
+        <span class="n">pcoll</span><span class="o">.</span><span class="n">windowing</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ptransform</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ptransform</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ElementAndRestriction"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.ElementAndRestriction">[docs]</a><span class="k">class</span> <span class="nc">ElementAndRestriction</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A holder for an element and a restriction.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">restriction</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">element</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">restriction</span> <span class="o">=</span> <span class="n">restriction</span></div>
+
+
+<div class="viewcode-block" id="PairWithRestrictionFn"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.PairWithRestrictionFn">[docs]</a><span class="k">class</span> <span class="nc">PairWithRestrictionFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform that pairs each element with a restriction.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">do_fn</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_do_fn</span> <span class="o">=</span> <span class="n">do_fn</span>
+
+<div class="viewcode-block" id="PairWithRestrictionFn.start_bundle"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.PairWithRestrictionFn.start_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="n">DoFnSignature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_do_fn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_invoker</span> <span class="o">=</span> <span class="n">DoFnInvoker</span><span class="o">.</span><span class="n">create_invoker</span><span class="p">(</span>
+        <span class="n">signature</span><span class="p">,</span> <span class="n">process_invocation</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PairWithRestrictionFn.process"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.PairWithRestrictionFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">initial_restriction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_invoker</span><span class="o">.</span><span class="n">invoke_initial_restriction</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">ElementAndRestriction</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">initial_restriction</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SplitRestrictionFn"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplitRestrictionFn">[docs]</a><span class="k">class</span> <span class="nc">SplitRestrictionFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform that perform initial splitting of Splittable DoFn inputs.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">do_fn</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_do_fn</span> <span class="o">=</span> <span class="n">do_fn</span>
+
+<div class="viewcode-block" id="SplitRestrictionFn.start_bundle"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplitRestrictionFn.start_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="n">DoFnSignature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_do_fn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_invoker</span> <span class="o">=</span> <span class="n">DoFnInvoker</span><span class="o">.</span><span class="n">create_invoker</span><span class="p">(</span>
+        <span class="n">signature</span><span class="p">,</span> <span class="n">process_invocation</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SplitRestrictionFn.process"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.SplitRestrictionFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element_and_restriction</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="n">element_and_restriction</span><span class="o">.</span><span class="n">element</span>
+    <span class="n">restriction</span> <span class="o">=</span> <span class="n">element_and_restriction</span><span class="o">.</span><span class="n">restriction</span>
+    <span class="n">restriction_parts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_invoker</span><span class="o">.</span><span class="n">invoke_split</span><span class="p">(</span>
+        <span class="n">element</span><span class="p">,</span>
+        <span class="n">restriction</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">restriction_parts</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">ElementAndRestriction</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">part</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ExplodeWindowsFn"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.ExplodeWindowsFn">[docs]</a><span class="k">class</span> <span class="nc">ExplodeWindowsFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform that forces the runner to explode windows.</span>
+
+<span class="sd">  This is done to make sure that Splittable DoFn proceses an element for each of</span>
+<span class="sd">  the windows that element belongs to.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ExplodeWindowsFn.process"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.ExplodeWindowsFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="n">element</span></div></div>
+
+
+<div class="viewcode-block" id="RandomUniqueKeyFn"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.RandomUniqueKeyFn">[docs]</a><span class="k">class</span> <span class="nc">RandomUniqueKeyFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform that assigns a unique key to each element.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RandomUniqueKeyFn.process"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.RandomUniqueKeyFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="c1"># We ignore UUID collisions here since they are extremely rare.</span>
+    <span class="k">yield</span> <span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">bytes</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ProcessKeyedElements"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.ProcessKeyedElements">[docs]</a><span class="k">class</span> <span class="nc">ProcessKeyedElements</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A primitive transform that performs SplittableDoFn magic.</span>
+
+<span class="sd">  Input to this transform should be a PCollection of keyed ElementAndRestriction</span>
+<span class="sd">  objects.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">sdf</span><span class="p">,</span> <span class="n">element_coder</span><span class="p">,</span> <span class="n">restriction_coder</span><span class="p">,</span> <span class="n">windowing_strategy</span><span class="p">,</span>
+      <span class="n">ptransform_args</span><span class="p">,</span> <span class="n">ptransform_kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sdf</span> <span class="o">=</span> <span class="n">sdf</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">element_coder</span> <span class="o">=</span> <span class="n">element_coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">restriction_coder</span> <span class="o">=</span> <span class="n">restriction_coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">windowing_strategy</span> <span class="o">=</span> <span class="n">windowing_strategy</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ptransform_args</span> <span class="o">=</span> <span class="n">ptransform_args</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ptransform_kwargs</span> <span class="o">=</span> <span class="n">ptransform_kwargs</span>
+
+<div class="viewcode-block" id="ProcessKeyedElements.expand"><a class="viewcode-back" href="../../../apache_beam.runners.sdf_common.html#apache_beam.runners.sdf_common.ProcessKeyedElements.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

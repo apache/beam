@@ -1,0 +1,7 @@
+apache\_beam\.io\.gcp\.datastore\.v1\.fake\_datastore module
+============================================================
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.fake_datastore
+    :members:
+    :undoc-members:
+    :show-inheritance:

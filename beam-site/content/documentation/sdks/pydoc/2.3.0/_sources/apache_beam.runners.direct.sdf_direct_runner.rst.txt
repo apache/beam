@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.sdf\_direct\_runner module
+=========================================================
+
+.. automodule:: apache_beam.runners.direct.sdf_direct_runner
+    :members:
+    :undoc-members:
+    :show-inheritance:

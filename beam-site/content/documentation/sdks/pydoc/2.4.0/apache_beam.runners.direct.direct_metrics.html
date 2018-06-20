@@ -1,0 +1,327 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.direct.direct_metrics module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners.direct package" href="apache_beam.runners.direct.html"/>
+        <link rel="next" title="apache_beam.runners.direct.direct_runner module" href="apache_beam.runners.direct.direct_runner.html"/>
+        <link rel="prev" title="apache_beam.runners.direct.consumer_tracking_pipeline_visitor module" href="apache_beam.runners.direct.consumer_tracking_pipeline_visitor.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.experimental.html">apache_beam.runners.experimental package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.job.html">apache_beam.runners.job package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.direct.direct_metrics module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.direct.direct_metrics.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.direct.direct_metrics">
+<span id="apache-beam-runners-direct-direct-metrics-module"></span><h1>apache_beam.runners.direct.direct_metrics module<a class="headerlink" href="#module-apache_beam.runners.direct.direct_metrics" title="Permalink to this headline">¶</a></h1>
+<p>DirectRunner implementation of MetricResults. It is in charge not only of
+responding to queries of current metrics, but also of keeping the common
+state consistent.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.direct_metrics.</code><code class="descname">DirectMetrics</code><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.metrics.metric.MetricResults</span></code></p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_logical">
+<code class="descname">commit_logical</code><span class="sig-paren">(</span><em>bundle</em>, <em>updates</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.commit_logical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_logical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_physical">
+<code class="descname">commit_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>updates</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.commit_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.update_physical">
+<code class="descname">update_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>updates</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.update_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.update_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.query">
+<code class="descname">query</code><span class="sig-paren">(</span><em>filter=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.query" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.direct_metrics.</code><code class="descname">DirectMetric</code><span class="sig-paren">(</span><em>aggregator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Keeps a consistent state for a single metric.</p>
+<p>It keeps track of the metric’s physical and logical updates.
+It’s thread safe.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.commit_logical">
+<code class="descname">commit_logical</code><span class="sig-paren">(</span><em>bundle</em>, <em>update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.commit_logical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.commit_logical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.commit_physical">
+<code class="descname">commit_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.commit_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.commit_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.update_physical">
+<code class="descname">update_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.update_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.update_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.extract_committed">
+<code class="descname">extract_committed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.extract_committed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.extract_committed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.extract_latest_attempted">
+<code class="descname">extract_latest_attempted</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.extract_latest_attempted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.extract_latest_attempted" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.runners.direct.direct_runner.html" class="btn btn-neutral float-right" title="apache_beam.runners.direct.direct_runner module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.direct.consumer_tracking_pipeline_visitor.html" class="btn btn-neutral" title="apache_beam.runners.direct.consumer_tracking_pipeline_visitor module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

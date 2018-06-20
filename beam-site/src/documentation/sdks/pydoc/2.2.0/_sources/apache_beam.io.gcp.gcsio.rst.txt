@@ -1,0 +1,7 @@
+apache\_beam\.io\.gcp\.gcsio module
+===================================
+
+.. automodule:: apache_beam.io.gcp.gcsio
+    :members:
+    :undoc-members:
+    :show-inheritance:

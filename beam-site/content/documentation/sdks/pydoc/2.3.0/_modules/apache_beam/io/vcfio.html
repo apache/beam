@@ -1,0 +1,708 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.vcfio &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.io.vcfio</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.io.vcfio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A source for reading from VCF files (version 4.x).</span>
+
+<span class="sd">The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+
+<span class="kn">import</span> <span class="nn">vcf</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.iobase</span> <span class="k">import</span> <span class="n">Read</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.textio</span> <span class="k">import</span> <span class="n">_TextSource</span> <span class="k">as</span> <span class="n">TextSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ReadFromVcf&#39;</span><span class="p">,</span> <span class="s1">&#39;Variant&#39;</span><span class="p">,</span> <span class="s1">&#39;VariantCall&#39;</span><span class="p">,</span> <span class="s1">&#39;VariantInfo&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;MalformedVcfRecord&#39;</span><span class="p">]</span>
+
+<span class="c1"># Stores data about variant INFO fields. The type of &#39;data&#39; is specified in the</span>
+<span class="c1"># VCF headers. &#39;field_count&#39; is a string that specifies the number of fields</span>
+<span class="c1"># that the data type contains. Its value can either be a number representing a</span>
+<span class="c1"># constant number of fields, `None` indicating that the value is not set</span>
+<span class="c1"># (equivalent to &#39;.&#39; in the VCF file) or one of:</span>
+<span class="c1">#   - &#39;A&#39;: one value per alternate allele.</span>
+<span class="c1">#   - &#39;G&#39;: one value for each possible genotype.</span>
+<span class="c1">#   - &#39;R&#39;: one value for each possible allele (including the reference).</span>
+<span class="n">VariantInfo</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;VariantInfo&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;field_count&#39;</span><span class="p">])</span>
+<span class="c1"># Stores data about failed VCF record reads. `line` is the text line that</span>
+<span class="c1"># caused the failed read and `file_name` is the name of the file that the read</span>
+<span class="c1"># failed in.</span>
+<span class="n">MalformedVcfRecord</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;MalformedVcfRecord&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;file_name&#39;</span><span class="p">,</span> <span class="s1">&#39;line&#39;</span><span class="p">])</span>
+<span class="n">MISSING_FIELD_VALUE</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>  <span class="c1"># Indicates field is missing in VCF record.</span>
+<span class="n">PASS_FILTER</span> <span class="o">=</span> <span class="s1">&#39;PASS&#39;</span>  <span class="c1"># Indicates that all filters have been passed.</span>
+<span class="n">END_INFO_KEY</span> <span class="o">=</span> <span class="s1">&#39;END&#39;</span>  <span class="c1"># The info key that explicitly specifies end of a record.</span>
+<span class="n">GENOTYPE_FORMAT_KEY</span> <span class="o">=</span> <span class="s1">&#39;GT&#39;</span>  <span class="c1"># The genotype format key in a call.</span>
+<span class="n">PHASESET_FORMAT_KEY</span> <span class="o">=</span> <span class="s1">&#39;PS&#39;</span>  <span class="c1"># The phaseset format key.</span>
+<span class="n">DEFAULT_PHASESET_VALUE</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>  <span class="c1"># Default phaseset value if call is phased, but</span>
+                              <span class="c1"># no &#39;PS&#39; is present.</span>
+<span class="n">MISSING_GENOTYPE_VALUE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># Genotype to use when &#39;.&#39; is used in GT field.</span>
+
+
+<div class="viewcode-block" id="Variant"><a class="viewcode-back" href="../../../apache_beam.io.vcfio.html#apache_beam.io.vcfio.Variant">[docs]</a><span class="k">class</span> <span class="nc">Variant</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A class to store info about a genomic variant.</span>
+
+<span class="sd">  Each object corresponds to a single record in a VCF file.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">reference_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">reference_bases</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">alternate_bases</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">quality</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">calls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the :class:`Variant` object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      reference_name (str): The reference on which this variant occurs</span>
+<span class="sd">        (such as `chr20` or `X`). .</span>
+<span class="sd">      start (int): The position at which this variant occurs (0-based).</span>
+<span class="sd">        Corresponds to the first base of the string of reference bases.</span>
+<span class="sd">      end (int): The end position (0-based) of this variant. Corresponds to the</span>
+<span class="sd">        first base after the last base in the reference allele.</span>
+<span class="sd">      reference_bases (str): The reference bases for this variant.</span>
+<span class="sd">      alternate_bases (List[str]): The bases that appear instead of the</span>
+<span class="sd">        reference bases.</span>
+<span class="sd">      names (List[str]): Names for the variant, for example a RefSNP ID.</span>
+<span class="sd">      quality (float): Phred-scaled quality score (-10log10 prob(call is wrong))</span>
+<span class="sd">        Higher values imply better quality.</span>
+<span class="sd">      filters (List[str]): A list of filters (normally quality filters) this</span>
+<span class="sd">        variant has failed. `PASS` indicates this variant has passed all</span>
+<span class="sd">        filters.</span>
+<span class="sd">      info (dict): A map of additional variant information. The key is specified</span>
+<span class="sd">        in the VCF record and the value is of type ``VariantInfo``.</span>
+<span class="sd">      calls (list of :class:`VariantCall`): The variant calls for this variant.</span>
+<span class="sd">        Each one represents the determination of genotype with respect to this</span>
+<span class="sd">        variant.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reference_name</span> <span class="o">=</span> <span class="n">reference_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">start</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">end</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reference_bases</span> <span class="o">=</span> <span class="n">reference_bases</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alternate_bases</span> <span class="o">=</span> <span class="n">alternate_bases</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="n">names</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">quality</span> <span class="o">=</span> <span class="n">quality</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="n">filters</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="n">info</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span> <span class="o">=</span> <span class="n">calls</span> <span class="ow">or</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Variant</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="nb">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">vars</span><span class="p">(</span><span class="n">other</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reference_name</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">reference_bases</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">alternate_bases</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">quality</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">calls</span><span class="p">]])</span>
+
+  <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Variant</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+    <span class="c1"># Elements should first be sorted by reference_name, start, end.</span>
+    <span class="c1"># Ordering of other members is not important, but must be</span>
+    <span class="c1"># deterministic.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_name</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">reference_name</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_name</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">reference_name</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">start</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">start</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">end</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">end</span>
+
+    <span class="n">self_vars</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">other_vars</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">self_vars</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">self_vars</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">!=</span> <span class="n">other_vars</span><span class="p">[</span><span class="n">key</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">self_vars</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">other_vars</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Variant</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+    <span class="k">return</span> <span class="bp">self</span> <span class="o">&lt;</span> <span class="n">other</span> <span class="ow">or</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Variant</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+    <span class="k">return</span> <span class="n">other</span> <span class="o">&lt;</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Variant</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+    <span class="k">return</span> <span class="n">other</span> <span class="o">&lt;=</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="VariantCall"><a class="viewcode-back" href="../../../apache_beam.io.vcfio.html#apache_beam.io.vcfio.VariantCall">[docs]</a><span class="k">class</span> <span class="nc">VariantCall</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A class to store info about a variant call.</span>
+
+<span class="sd">  A call represents the determination of genotype with respect to a particular</span>
+<span class="sd">  variant. It may include associated information such as quality and phasing.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">genotype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">phaseset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the :class:`VariantCall` object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      name (str): The name of the call.</span>
+<span class="sd">      genotype (List[int]): The genotype of this variant call as specified by</span>
+<span class="sd">        the VCF schema. The values are either `0` representing the reference,</span>
+<span class="sd">        or a 1-based index into alternate bases. Ordering is only important if</span>
+<span class="sd">        `phaseset` is present. If a genotype is not called (that is, a `.` is</span>
+<span class="sd">        present in the GT string), -1 is used</span>
+<span class="sd">      phaseset (str): If this field is present, this variant call&#39;s genotype</span>
+<span class="sd">        ordering implies the phase of the bases and is consistent with any other</span>
+<span class="sd">        variant calls in the same reference sequence which have the same</span>
+<span class="sd">        phaseset value. If the genotype data was phased but no phase set was</span>
+<span class="sd">        specified, this field will be set to `*`.</span>
+<span class="sd">      info (dict): A map of additional variant call information. The key is</span>
+<span class="sd">        specified in the VCF record and the type of the value is specified by</span>
+<span class="sd">        the VCF header FORMAT.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">genotype</span> <span class="o">=</span> <span class="n">genotype</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">phaseset</span> <span class="o">=</span> <span class="n">phaseset</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="n">info</span> <span class="ow">or</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">genotype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">phaseset</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">)</span> <span class="o">==</span>
+            <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">genotype</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">phaseset</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">genotype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">phaseset</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">]])</span></div>
+
+
+<span class="k">class</span> <span class="nc">_VcfSource</span><span class="p">(</span><span class="n">filebasedsource</span><span class="o">.</span><span class="n">FileBasedSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A source for reading VCF files.</span>
+
+<span class="sd">  Parses VCF files (version 4) using PyVCF library. If file_pattern specifies</span>
+<span class="sd">  multiple files, then the header from each file is used separately to parse</span>
+<span class="sd">  the content. However, the output will be a uniform PCollection of</span>
+<span class="sd">  :class:`Variant` objects.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">DEFAULT_VCF_READ_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">65536</span>  <span class="c1"># 64kB</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_pattern</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+               <span class="n">buffer_size</span><span class="o">=</span><span class="n">DEFAULT_VCF_READ_BUFFER_SIZE</span><span class="p">,</span>
+               <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">allow_malformed_records</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_VcfSource</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span>
+                                     <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">,</span>
+                                     <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_header_lines_per_file</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span> <span class="o">=</span> <span class="n">buffer_size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_allow_malformed_records</span> <span class="o">=</span> <span class="n">allow_malformed_records</span>
+
+  <span class="k">def</span> <span class="nf">read_records</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="n">record_iterator</span> <span class="o">=</span> <span class="n">_VcfSource</span><span class="o">.</span><span class="n">_VcfRecordIterator</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span>
+        <span class="n">range_tracker</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pattern</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allow_malformed_records</span><span class="p">,</span>
+        <span class="n">buffer_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span><span class="p">,</span>
+        <span class="n">skip_header_lines</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Convert iterator to generator to abstract behavior</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">record_iterator</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">line</span>
+
+  <span class="k">class</span> <span class="nc">_VcfRecordIterator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An Iterator for processing a single VCF file.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">file_name</span><span class="p">,</span>
+                 <span class="n">range_tracker</span><span class="p">,</span>
+                 <span class="n">file_pattern</span><span class="p">,</span>
+                 <span class="n">compression_type</span><span class="p">,</span>
+                 <span class="n">allow_malformed_records</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_header_lines</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_allow_malformed_records</span> <span class="o">=</span> <span class="n">allow_malformed_records</span>
+
+      <span class="n">text_source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span>
+          <span class="n">file_pattern</span><span class="p">,</span>
+          <span class="mi">0</span><span class="p">,</span>  <span class="c1"># min_bundle_size</span>
+          <span class="n">compression_type</span><span class="p">,</span>
+          <span class="kc">True</span><span class="p">,</span>  <span class="c1"># strip_trailing_newlines</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span>  <span class="c1"># coder</span>
+          <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+          <span class="n">header_processor_fns</span><span class="o">=</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">),</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">_store_header_lines</span><span class="p">),</span>
+          <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">_text_lines</span> <span class="o">=</span> <span class="n">text_source</span><span class="o">.</span><span class="n">read_records</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span>
+                                                  <span class="n">range_tracker</span><span class="p">)</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vcf_reader</span> <span class="o">=</span> <span class="n">vcf</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">fsock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_generator</span><span class="p">())</span>
+      <span class="k">except</span> <span class="ne">SyntaxError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="c1"># Throw the exception inside the generator to ensure file is properly</span>
+        <span class="c1"># closed (it&#39;s opened inside TextSource.read_records).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_text_lines</span><span class="o">.</span><span class="n">throw</span><span class="p">(</span>
+            <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;An exception was raised when reading header from VCF &#39;</span>
+                       <span class="s1">&#39;file </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span>
+                                        <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">(</span><span class="n">e</span><span class="p">))))</span>
+
+    <span class="k">def</span> <span class="nf">_store_header_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">header_lines</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_header_lines</span> <span class="o">=</span> <span class="n">header_lines</span>
+
+    <span class="k">def</span> <span class="nf">_create_generator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="n">header_processed</span> <span class="o">=</span> <span class="kc">False</span>
+      <span class="k">for</span> <span class="n">text_line</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_lines</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">header_processed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_lines</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">header</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_lines</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span> <span class="o">=</span> <span class="n">header</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span>
+          <span class="n">header_processed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># PyVCF has explicit str() calls when parsing INFO fields, which fails</span>
+        <span class="c1"># with UTF-8 decoded strings. Encode the line back to UTF-8.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span> <span class="o">=</span> <span class="n">text_line</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vcf_reader</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_to_variant_record</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vcf_reader</span><span class="o">.</span><span class="n">infos</span><span class="p">,</span>
+                                               <span class="bp">self</span><span class="o">.</span><span class="n">_vcf_reader</span><span class="o">.</span><span class="n">formats</span><span class="p">)</span>
+      <span class="k">except</span> <span class="p">(</span><span class="ne">LookupError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_allow_malformed_records</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+              <span class="s1">&#39;An exception was raised when reading record from VCF file &#39;</span>
+              <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">. Invalid record was </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span><span class="p">,</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+          <span class="k">return</span> <span class="n">MalformedVcfRecord</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span><span class="p">)</span>
+
+        <span class="c1"># Throw the exception inside the generator to ensure file is properly</span>
+        <span class="c1"># closed (it&#39;s opened inside TextSource.read_records).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_text_lines</span><span class="o">.</span><span class="n">throw</span><span class="p">(</span>
+            <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;An exception was raised when reading record from VCF &#39;</span>
+                       <span class="s1">&#39;file </span><span class="si">%s</span><span class="s1">. Invalid record was </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_last_record</span><span class="p">,</span>
+                           <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">(</span><span class="n">e</span><span class="p">))))</span>
+
+    <span class="k">def</span> <span class="nf">_convert_to_variant_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">,</span> <span class="n">infos</span><span class="p">,</span> <span class="n">formats</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Converts the PyVCF record to a :class:`Variant` object.</span>
+
+<span class="sd">      Args:</span>
+<span class="sd">        record (:class:`~vcf.model._Record`): An object containing info about a</span>
+<span class="sd">          variant.</span>
+<span class="sd">        infos (dict): The PyVCF dict storing INFO extracted from the VCF header.</span>
+<span class="sd">          The key is the info key and the value is :class:`~vcf.parser._Info`.</span>
+<span class="sd">        formats (dict): The PyVCF dict storing FORMAT extracted from the VCF</span>
+<span class="sd">          header. The key is the FORMAT key and the value is</span>
+<span class="sd">          :class:`~vcf.parser._Format`.</span>
+<span class="sd">      Returns:</span>
+<span class="sd">        A :class:`Variant` object from the given record.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="n">variant</span> <span class="o">=</span> <span class="n">Variant</span><span class="p">()</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">reference_name</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">CHROM</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">start</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">end</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">reference_bases</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">record</span><span class="o">.</span><span class="n">REF</span> <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">REF</span> <span class="o">!=</span> <span class="n">MISSING_FIELD_VALUE</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="c1"># ALT fields are classes in PyVCF (e.g. Substitution), so need convert</span>
+      <span class="c1"># them to their string representations.</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">alternate_bases</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+          <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">record</span><span class="o">.</span><span class="n">ALT</span> <span class="k">if</span> <span class="n">r</span><span class="p">]</span> <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">ALT</span> <span class="k">else</span> <span class="p">[])</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">ID</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">ID</span> <span class="k">else</span> <span class="p">[])</span>
+      <span class="n">variant</span><span class="o">.</span><span class="n">quality</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">QUAL</span>
+      <span class="c1"># PyVCF uses None for &#39;.&#39; and an empty list for &#39;PASS&#39;.</span>
+      <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">FILTER</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">variant</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">FILTER</span> <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">FILTER</span> <span class="k">else</span> <span class="p">[</span><span class="n">PASS_FILTER</span><span class="p">])</span>
+      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">record</span><span class="o">.</span><span class="n">INFO</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="c1"># Special case: END info value specifies end of the record, so adjust</span>
+        <span class="c1"># variant.end and do not include it as part of variant.info.</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="n">END_INFO_KEY</span><span class="p">:</span>
+          <span class="n">variant</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">v</span>
+          <span class="k">continue</span>
+        <span class="n">field_count</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">:</span>
+          <span class="n">field_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_field_count_as_string</span><span class="p">(</span><span class="n">infos</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">num</span><span class="p">)</span>
+        <span class="n">variant</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">VariantInfo</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">field_count</span><span class="o">=</span><span class="n">field_count</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">record</span><span class="o">.</span><span class="n">samples</span><span class="p">:</span>
+        <span class="n">call</span> <span class="o">=</span> <span class="n">VariantCall</span><span class="p">()</span>
+        <span class="n">call</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">sample</span>
+        <span class="k">for</span> <span class="n">allele</span> <span class="ow">in</span> <span class="n">sample</span><span class="o">.</span><span class="n">gt_alleles</span> <span class="ow">or</span> <span class="p">[</span><span class="n">MISSING_GENOTYPE_VALUE</span><span class="p">]:</span>
+          <span class="k">if</span> <span class="n">allele</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">allele</span> <span class="o">=</span> <span class="n">MISSING_GENOTYPE_VALUE</span>
+          <span class="n">call</span><span class="o">.</span><span class="n">genotype</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">allele</span><span class="p">))</span>
+        <span class="n">phaseset_from_format</span> <span class="o">=</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">PHASESET_FORMAT_KEY</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="n">PHASESET_FORMAT_KEY</span> <span class="ow">in</span> <span class="n">sample</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">_fields</span>
+                                <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Note: Call is considered phased if it contains the &#39;PS&#39; key regardless</span>
+        <span class="c1"># of whether it uses &#39;|&#39;.</span>
+        <span class="k">if</span> <span class="n">phaseset_from_format</span> <span class="ow">or</span> <span class="n">sample</span><span class="o">.</span><span class="n">phased</span><span class="p">:</span>
+          <span class="n">call</span><span class="o">.</span><span class="n">phaseset</span> <span class="o">=</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">phaseset_from_format</span><span class="p">)</span> <span class="k">if</span> <span class="n">phaseset_from_format</span>
+                           <span class="k">else</span> <span class="n">DEFAULT_PHASESET_VALUE</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">sample</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">_fields</span><span class="p">:</span>
+          <span class="c1"># Genotype and phaseset (if present) are already included.</span>
+          <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">(</span><span class="n">GENOTYPE_FORMAT_KEY</span><span class="p">,</span> <span class="n">PHASESET_FORMAT_KEY</span><span class="p">):</span>
+            <span class="k">continue</span>
+          <span class="n">data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+          <span class="c1"># Convert single values to a list for cases where the number of fields</span>
+          <span class="c1"># is unknown. This is to ensure consistent types across all records.</span>
+          <span class="c1"># Note: this is already done for INFO fields in PyVCF.</span>
+          <span class="k">if</span> <span class="p">(</span><span class="n">field</span> <span class="ow">in</span> <span class="n">formats</span> <span class="ow">and</span>
+              <span class="n">formats</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+              <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">long</span><span class="p">,</span> <span class="n">basestring</span><span class="p">,</span> <span class="nb">bool</span><span class="p">))):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span><span class="p">]</span>
+          <span class="n">call</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="n">variant</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">call</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">variant</span>
+
+    <span class="k">def</span> <span class="nf">_get_field_count_as_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_count</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Returns the string representation of field_count from PyVCF.</span>
+
+<span class="sd">      PyVCF converts field counts to an integer with some predefined constants</span>
+<span class="sd">      as specified in the vcf.parser.field_counts dict (e.g. &#39;A&#39; is -1). This</span>
+<span class="sd">      method converts them back to their string representation to avoid having</span>
+<span class="sd">      direct dependency on the arbitrary PyVCF constants.</span>
+<span class="sd">      Args:</span>
+<span class="sd">        field_count (int): An integer representing the number of fields in INFO</span>
+<span class="sd">          as specified by PyVCF.</span>
+<span class="sd">      Returns:</span>
+<span class="sd">        A string representation of field_count (e.g. &#39;-1&#39; becomes &#39;A&#39;).</span>
+<span class="sd">      Raises:</span>
+<span class="sd">        ValueError: if the field_count is not valid.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="k">if</span> <span class="n">field_count</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">elif</span> <span class="n">field_count</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">field_count</span><span class="p">)</span>
+      <span class="n">field_count_to_string</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vcf</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">field_counts</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+      <span class="k">if</span> <span class="n">field_count</span> <span class="ow">in</span> <span class="n">field_count_to_string</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">field_count_to_string</span><span class="p">[</span><span class="n">field_count</span><span class="p">]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid value for field_count: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">field_count</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReadFromVcf"><a class="viewcode-back" href="../../../apache_beam.io.vcfio.html#apache_beam.io.vcfio.ReadFromVcf">[docs]</a><span class="k">class</span> <span class="nc">ReadFromVcf</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A :class:`~apache_beam.transforms.ptransform.PTransform` for reading VCF</span>
+<span class="sd">  files.</span>
+
+<span class="sd">  Parses VCF files (version 4) using PyVCF library. If file_pattern specifies</span>
+<span class="sd">  multiple files, then the header from each file is used separately to parse</span>
+<span class="sd">  the content. However, the output will be a PCollection of</span>
+<span class="sd">  :class:`Variant` (or :class:`MalformedVcfRecord` for failed reads) objects.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span>
+      <span class="n">file_pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+      <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+      <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">allow_malformed_records</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+      <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the :class:`ReadFromVcf` transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_pattern (str): The file path to read from either as a single file or</span>
+<span class="sd">        a glob pattern.</span>
+<span class="sd">      compression_type (str): Used to handle compressed input files.</span>
+<span class="sd">        Typical value is :attr:`CompressionTypes.AUTO</span>
+<span class="sd">        &lt;apache_beam.io.filesystem.CompressionTypes.AUTO&gt;`, in which case the</span>
+<span class="sd">        underlying file_path&#39;s extension will be used to detect the compression.</span>
+<span class="sd">      validate (bool): flag to verify that the files exist during the pipeline</span>
+<span class="sd">        creation time.</span>
+<span class="sd">      allow_malformed_records (bool): determines if failed VCF</span>
+<span class="sd">        record reads will be tolerated. Failed record reads will result in a</span>
+<span class="sd">        :class:`MalformedVcfRecord` being returned from the read of the record</span>
+<span class="sd">        rather than a :class:`Variant`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromVcf</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">_VcfSource</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="p">,</span>
+        <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">,</span>
+        <span class="n">allow_malformed_records</span><span class="o">=</span><span class="n">allow_malformed_records</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReadFromVcf.expand"><a class="viewcode-back" href="../../../apache_beam.io.vcfio.html#apache_beam.io.vcfio.ReadFromVcf.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">|</span> <span class="n">Read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

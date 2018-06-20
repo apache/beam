@@ -1,0 +1,7 @@
+apache\_beam\.io\.gcp\.datastore\.v1\.query\_splitter module
+============================================================
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.query_splitter
+    :members:
+    :undoc-members:
+    :show-inheritance:

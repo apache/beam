@@ -1,0 +1,23 @@
+apache\_beam\.portability package
+=================================
+
+.. automodule:: apache_beam.portability
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.portability.api
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.portability.common_urns
+   apache_beam.portability.python_urns
+

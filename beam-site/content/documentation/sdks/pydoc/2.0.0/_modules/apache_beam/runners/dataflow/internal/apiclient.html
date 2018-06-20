@@ -1,0 +1,850 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.internal.apiclient &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.internal.apiclient</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot; For internal use only. No backwards compatibility guarantees.</span>
+
+<span class="sd">Dataflow client utility functions.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">codecs</span>
+<span class="kn">import</span> <span class="nn">getpass</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">StringIO</span> <span class="k">import</span> <span class="n">StringIO</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+
+<span class="kn">from</span> <span class="nn">apitools.base.py</span> <span class="k">import</span> <span class="n">encoding</span>
+<span class="kn">from</span> <span class="nn">apitools.base.py</span> <span class="k">import</span> <span class="n">exceptions</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal.gcp.auth</span> <span class="k">import</span> <span class="n">get_service_credentials</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal.gcp.json_value</span> <span class="k">import</span> <span class="n">to_json_value</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystems</span> <span class="k">import</span> <span class="n">FileSystems</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="k">import</span> <span class="n">storage</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">dependency</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.clients</span> <span class="k">import</span> <span class="n">dataflow</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.dependency</span> <span class="k">import</span> <span class="n">get_required_container_version</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.dependency</span> <span class="k">import</span> <span class="n">get_sdk_name_and_version</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.names</span> <span class="k">import</span> <span class="n">PropertyNames</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">cy_combiners</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">retry</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">DebugOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">StandardOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">WorkerOptions</span>
+
+
+<div class="viewcode-block" id="Step"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Step">[docs]</a><span class="k">class</span> <span class="nc">Step</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Wrapper for a dataflow Step protobuf.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_kind</span><span class="p">,</span> <span class="n">step_name</span><span class="p">,</span> <span class="n">additional_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">step_kind</span> <span class="o">=</span> <span class="n">step_kind</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">step_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Step</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="n">step_kind</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">step_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">properties</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_additional_properties</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">additional_properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">for</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="ow">in</span> <span class="n">additional_properties</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Step.add_property"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Step.add_property">[docs]</a>  <span class="k">def</span> <span class="nf">add_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_additional_properties</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">with_type</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">additionalProperties</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">Step</span><span class="o">.</span><span class="n">PropertiesValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="n">with_type</span><span class="p">)))</span></div>
+
+  <span class="k">def</span> <span class="nf">_get_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a list of all output labels for a step.&quot;&quot;&quot;</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">additionalProperties</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">array_value</span><span class="o">.</span><span class="n">entries</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">entry_prop</span> <span class="ow">in</span> <span class="n">entry</span><span class="o">.</span><span class="n">object_value</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">entry_prop</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span>
+              <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry_prop</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">string_value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">outputs</span>
+
+  <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reduce hook for pickling the Step class more easily.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">Step</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">step_kind</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_additional_properties</span><span class="p">))</span>
+
+<div class="viewcode-block" id="Step.get_output"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Step.get_output">[docs]</a>  <span class="k">def</span> <span class="nf">get_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns name if it is one of the outputs or first output if name is None.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      tag: tag of the output as a string or None if we want to get the</span>
+<span class="sd">        name of the first output.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      The name of the output associated with the tag or the first output</span>
+<span class="sd">      if tag was None.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if the tag does not exist within outputs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_outputs</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">&#39;Cannot find named output: </span><span class="si">%s</span><span class="s1"> in </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">outputs</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">name</span></div></div>
+
+
+<div class="viewcode-block" id="Environment"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Environment">[docs]</a><span class="k">class</span> <span class="nc">Environment</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Wrapper for a dataflow Environment protobuf.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">environment_version</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">standard_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">WorkerOptions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">debug_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">DebugOptions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">clusterManagerApiService</span> <span class="o">=</span> <span class="n">GoogleCloudOptions</span><span class="o">.</span><span class="n">COMPUTE_API_SERVICE</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/cloud_dataflow&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">GoogleCloudOptions</span><span class="o">.</span><span class="n">BIGQUERY_API_SERVICE</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">tempStoragePrefix</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="s1">&#39;gs:/&#39;</span><span class="p">,</span>
+            <span class="n">GoogleCloudOptions</span><span class="o">.</span><span class="n">STORAGE_API_SERVICE</span><span class="p">))</span>
+    <span class="c1"># User agent information.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">userAgent</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">UserAgentValue</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">local</span> <span class="o">=</span> <span class="s1">&#39;localhost&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">dataflow_endpoint</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">service_account_email</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">serviceAccountEmail</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">service_account_email</span><span class="p">)</span>
+
+    <span class="n">sdk_name</span><span class="p">,</span> <span class="n">version_string</span> <span class="o">=</span> <span class="n">get_sdk_name_and_version</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">userAgent</span><span class="o">.</span><span class="n">additionalProperties</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">UserAgentValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s1">&#39;name&#39;</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">sdk_name</span><span class="p">)),</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">UserAgentValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s1">&#39;version&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">version_string</span><span class="p">))])</span>
+    <span class="c1"># Version information.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">VersionValue</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">standard_options</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+      <span class="n">job_type</span> <span class="o">=</span> <span class="s1">&#39;PYTHON_STREAMING&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">job_type</span> <span class="o">=</span> <span class="s1">&#39;PYTHON_BATCH&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">additionalProperties</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">VersionValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s1">&#39;job_type&#39;</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">job_type</span><span class="p">)),</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">VersionValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s1">&#39;major&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">environment_version</span><span class="p">))])</span>
+    <span class="c1"># Experiments</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">debug_options</span><span class="o">.</span><span class="n">experiments</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">debug_options</span><span class="o">.</span><span class="n">experiments</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">experiment</span><span class="p">)</span>
+    <span class="c1"># Worker pool(s) information.</span>
+    <span class="n">package_descriptors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">packages</span><span class="p">:</span>
+      <span class="n">package_descriptors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">dataflow</span><span class="o">.</span><span class="n">Package</span><span class="p">(</span>
+              <span class="n">location</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                      <span class="s1">&#39;gs:/&#39;</span><span class="p">,</span> <span class="n">GoogleCloudOptions</span><span class="o">.</span><span class="n">STORAGE_API_SERVICE</span><span class="p">),</span>
+                  <span class="n">package</span><span class="p">),</span>
+              <span class="n">name</span><span class="o">=</span><span class="n">package</span><span class="p">))</span>
+
+    <span class="n">pool</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">WorkerPool</span><span class="p">(</span>
+        <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;local&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">local</span> <span class="k">else</span> <span class="s1">&#39;harness&#39;</span><span class="p">,</span>
+        <span class="n">packages</span><span class="o">=</span><span class="n">package_descriptors</span><span class="p">,</span>
+        <span class="n">taskrunnerSettings</span><span class="o">=</span><span class="n">dataflow</span><span class="o">.</span><span class="n">TaskRunnerSettings</span><span class="p">(</span>
+            <span class="n">parallelWorkerSettings</span><span class="o">=</span><span class="n">dataflow</span><span class="o">.</span><span class="n">WorkerSettings</span><span class="p">(</span>
+                <span class="n">baseUrl</span><span class="o">=</span><span class="n">GoogleCloudOptions</span><span class="o">.</span><span class="n">DATAFLOW_ENDPOINT</span><span class="p">,</span>
+                <span class="n">servicePath</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">dataflow_endpoint</span><span class="p">)))</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">autoscalingSettings</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">AutoscalingSettings</span><span class="p">()</span>
+    <span class="c1"># Set worker pool options received through command line.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">num_workers</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">numWorkers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">num_workers</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">max_num_workers</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">autoscalingSettings</span><span class="o">.</span><span class="n">maxNumWorkers</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">max_num_workers</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">autoscaling_algorithm</span><span class="p">:</span>
+      <span class="n">values_enum</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">AutoscalingSettings</span><span class="o">.</span><span class="n">AlgorithmValueValuesEnum</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">autoscalingSettings</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="s1">&#39;NONE&#39;</span><span class="p">:</span> <span class="n">values_enum</span><span class="o">.</span><span class="n">AUTOSCALING_ALGORITHM_NONE</span><span class="p">,</span>
+          <span class="s1">&#39;THROUGHPUT_BASED&#39;</span><span class="p">:</span> <span class="n">values_enum</span><span class="o">.</span><span class="n">AUTOSCALING_ALGORITHM_BASIC</span><span class="p">,</span>
+      <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">autoscaling_algorithm</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">machine_type</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">machineType</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">machine_type</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">disk_size_gb</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">diskSizeGb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">disk_size_gb</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">disk_type</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">diskType</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">disk_type</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">zone</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">zone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">zone</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">network</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">network</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">worker_harness_container_image</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">workerHarnessContainerImage</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">worker_harness_container_image</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Default to using the worker harness container image for the current SDK</span>
+      <span class="c1"># version.</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">workerHarnessContainerImage</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="s1">&#39;dataflow.gcr.io/v1beta3/python:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+          <span class="n">get_required_container_version</span><span class="p">())</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">use_public_ips</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_options</span><span class="o">.</span><span class="n">use_public_ips</span><span class="p">:</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">ipConfiguration</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">WorkerPool</span>
+            <span class="o">.</span><span class="n">IpConfigurationValueValuesEnum</span><span class="o">.</span><span class="n">WORKER_IP_PUBLIC</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">ipConfiguration</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">WorkerPool</span>
+            <span class="o">.</span><span class="n">IpConfigurationValueValuesEnum</span><span class="o">.</span><span class="n">WORKER_IP_PRIVATE</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">standard_options</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+      <span class="c1"># Use separate data disk for streaming.</span>
+      <span class="n">disk</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Disk</span><span class="p">()</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">local</span><span class="p">:</span>
+        <span class="n">disk</span><span class="o">.</span><span class="n">diskType</span> <span class="o">=</span> <span class="s1">&#39;local&#39;</span>
+      <span class="c1"># TODO(ccy): allow customization of disk.</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">dataDisks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">disk</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">workerPools</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pool</span><span class="p">)</span>
+
+    <span class="n">sdk_pipeline_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get_all_options</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">sdk_pipeline_options</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">sdkPipelineOptions</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">SdkPipelineOptionsValue</span><span class="p">())</span>
+
+      <span class="n">options_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span>
+                      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">sdk_pipeline_options</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span>
+                      <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">}</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">sdkPipelineOptions</span><span class="o">.</span><span class="n">additionalProperties</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">SdkPipelineOptionsValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+              <span class="n">key</span><span class="o">=</span><span class="s1">&#39;options&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">options_dict</span><span class="p">)))</span>
+
+      <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+      <span class="n">items</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">get_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">sdkPipelineOptions</span><span class="o">.</span><span class="n">additionalProperties</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">dataflow</span><span class="o">.</span><span class="n">Environment</span><span class="o">.</span><span class="n">SdkPipelineOptionsValue</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+              <span class="n">key</span><span class="o">=</span><span class="s1">&#39;display_data&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">items</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Wrapper for a dataflow Job protobuf.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">encode_shortstrings</span><span class="p">(</span><span class="n">input_buffer</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Encoder (from Unicode) that suppresses long base64 strings.&quot;&quot;&quot;</span>
+      <span class="n">original_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_buffer</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">original_len</span> <span class="o">&gt;</span> <span class="mi">150</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">base64_str_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">input_buffer</span><span class="p">):</span>
+          <span class="n">input_buffer</span> <span class="o">=</span> <span class="s1">&#39;&lt;string of </span><span class="si">%d</span><span class="s1"> bytes&gt;&#39;</span> <span class="o">%</span> <span class="n">original_len</span>
+          <span class="n">input_buffer</span> <span class="o">=</span> <span class="n">input_buffer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="n">errors</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">matched</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coder_str_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">input_buffer</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">matched</span><span class="p">:</span>
+            <span class="n">input_buffer</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&lt;string of </span><span class="si">%d</span><span class="s1"> bytes&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">matched</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">matched</span><span class="o">.</span><span class="n">end</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">matched</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+            <span class="n">input_buffer</span> <span class="o">=</span> <span class="n">input_buffer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="n">errors</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">input_buffer</span><span class="p">,</span> <span class="n">original_len</span>
+
+    <span class="k">def</span> <span class="nf">decode_shortstrings</span><span class="p">(</span><span class="n">input_buffer</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Decoder (to Unicode) that suppresses long base64 strings.&quot;&quot;&quot;</span>
+      <span class="n">shortened</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">encode_shortstrings</span><span class="p">(</span><span class="n">input_buffer</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">unicode</span><span class="p">(</span><span class="n">shortened</span><span class="p">),</span> <span class="n">length</span>
+
+    <span class="k">def</span> <span class="nf">shortstrings_registerer</span><span class="p">(</span><span class="n">encoding_name</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">encoding_name</span> <span class="o">==</span> <span class="s1">&#39;shortstrings&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">codecs</span><span class="o">.</span><span class="n">CodecInfo</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;shortstrings&#39;</span><span class="p">,</span>
+                                <span class="n">encode</span><span class="o">=</span><span class="n">encode_shortstrings</span><span class="p">,</span>
+                                <span class="n">decode</span><span class="o">=</span><span class="n">decode_shortstrings</span><span class="p">)</span>
+      <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">codecs</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">shortstrings_registerer</span><span class="p">)</span>
+
+    <span class="c1"># Use json &quot;dump string&quot; method to get readable formatting;</span>
+    <span class="c1"># further modify it to not output too-long strings, aimed at the</span>
+    <span class="c1"># 10,000+ character hex-encoded &quot;serialized_fn&quot; values.</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">encoding</span><span class="o">.</span><span class="n">MessageToJson</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="p">),</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;shortstrings&#39;</span><span class="p">),</span>
+        <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_build_default_job_name</span><span class="p">(</span><span class="n">user_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generates a default name for a job.</span>
+
+<span class="sd">    user_name is lowercased, and any characters outside of [-a-z0-9]</span>
+<span class="sd">    are removed. If necessary, the user_name is truncated to shorten</span>
+<span class="sd">    the job name to 63 characters.&quot;&quot;&quot;</span>
+    <span class="n">user_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;[^-a-z0-9]&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">user_name</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+    <span class="n">date_component</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m</span><span class="si">%d</span><span class="s1">%H%M%S-</span><span class="si">%f</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">app_user_name</span> <span class="o">=</span> <span class="s1">&#39;beamapp-</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user_name</span><span class="p">)</span>
+    <span class="n">job_name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">-</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">app_user_name</span><span class="p">,</span> <span class="n">date_component</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">job_name</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">63</span><span class="p">:</span>
+      <span class="n">job_name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">-</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">app_user_name</span><span class="p">[:</span><span class="o">-</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">job_name</span><span class="p">)</span> <span class="o">-</span> <span class="mi">63</span><span class="p">)],</span>
+                                <span class="n">date_component</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">job_name</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Job.default_job_name"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Job.default_job_name">[docs]</a>  <span class="k">def</span> <span class="nf">default_job_name</span><span class="p">(</span><span class="n">job_name</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">job_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">job_name</span> <span class="o">=</span> <span class="n">Job</span><span class="o">.</span><span class="n">_build_default_job_name</span><span class="p">(</span><span class="n">getpass</span><span class="o">.</span><span class="n">getuser</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">job_name</span></div>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_job_name</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span><span class="p">)</span>
+
+    <span class="n">required_google_cloud_options</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;project&#39;</span><span class="p">,</span> <span class="s1">&#39;job_name&#39;</span><span class="p">,</span> <span class="s1">&#39;temp_location&#39;</span><span class="p">]</span>
+    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">option</span> <span class="k">for</span> <span class="n">option</span> <span class="ow">in</span> <span class="n">required_google_cloud_options</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="p">,</span> <span class="n">option</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Missing required configuration parameters: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">missing</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Defaulting to the temp_location as staging_location: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span><span class="p">)</span>
+      <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span>
+       <span class="o">.</span><span class="n">staging_location</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span>
+
+    <span class="c1"># Make the staging and temp locations job name and time specific. This is</span>
+    <span class="c1"># needed to avoid clashes between job submissions using the same staging</span>
+    <span class="c1"># area or team members using same job names. This method is not entirely</span>
+    <span class="c1"># foolproof since two job submissions with same name can happen at exactly</span>
+    <span class="c1"># the same time. However the window is extremely small given that</span>
+    <span class="c1"># time.time() has at least microseconds granularity. We add the suffix only</span>
+    <span class="c1"># for GCS staging locations where the potential for such clashes is high.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="n">path_suffix</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span><span class="p">,</span> <span class="n">path_suffix</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span><span class="p">,</span> <span class="n">path_suffix</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">TypeValueValuesEnum</span><span class="o">.</span><span class="n">JOB_TYPE_STREAMING</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">TypeValueValuesEnum</span><span class="o">.</span><span class="n">JOB_TYPE_BATCH</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">base64_str_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^[A-Za-z0-9+/]*=*$&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coder_str_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Job.json"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.Job.json">[docs]</a>  <span class="k">def</span> <span class="nf">json</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">encoding</span><span class="o">.</span><span class="n">MessageToJson</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">proto</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reduce hook for pickling the Job class more easily.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">Job</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="p">,))</span></div>
+
+
+<div class="viewcode-block" id="DataflowApplicationClient"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient">[docs]</a><span class="k">class</span> <span class="nc">DataflowApplicationClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A Dataflow API client used by application code to create and query jobs.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">environment_version</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a Dataflow API client object.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">standard_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">environment_version</span> <span class="o">=</span> <span class="n">environment_version</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">no_auth</span><span class="p">:</span>
+      <span class="n">credentials</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">credentials</span> <span class="o">=</span> <span class="n">get_service_credentials</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowV1b3</span><span class="p">(</span>
+        <span class="n">url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">dataflow_endpoint</span><span class="p">,</span>
+        <span class="n">credentials</span><span class="o">=</span><span class="n">credentials</span><span class="p">,</span>
+        <span class="n">get_credentials</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">no_auth</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_storage_client</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageV1</span><span class="p">(</span>
+        <span class="n">url</span><span class="o">=</span><span class="s1">&#39;https://www.googleapis.com/storage/v1&#39;</span><span class="p">,</span>
+        <span class="n">credentials</span><span class="o">=</span><span class="n">credentials</span><span class="p">,</span>
+        <span class="n">get_credentials</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">no_auth</span><span class="p">))</span>
+
+  <span class="c1"># TODO(silviuc): Refactor so that retry logic can be applied.</span>
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">no_retries</span>  <span class="c1"># Using no_retries marks this as an integration point.</span>
+  <span class="k">def</span> <span class="nf">_gcs_file_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">):</span>
+    <span class="n">to_folder</span><span class="p">,</span> <span class="n">to_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">to_path</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">stage_file</span><span class="p">(</span><span class="n">to_folder</span><span class="p">,</span> <span class="n">to_name</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DataflowApplicationClient.stage_file"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.stage_file">[docs]</a>  <span class="k">def</span> <span class="nf">stage_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gcs_or_local_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span>
+                 <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Stages a file at a GCS or local path with stream-supplied contents.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">gcs_or_local_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+      <span class="n">local_path</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">gcs_or_local_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Staging file locally to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">local_path</span><span class="p">)</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">local_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+      <span class="k">return</span>
+    <span class="n">gcs_location</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">gcs_or_local_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcs_location</span><span class="p">[</span><span class="mi">5</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsInsertRequest</span><span class="p">(</span>
+        <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Starting GCS upload to </span><span class="si">%s</span><span class="s1">...&#39;</span><span class="p">,</span> <span class="n">gcs_location</span><span class="p">)</span>
+    <span class="n">upload</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">Upload</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Insert</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="n">upload</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">HttpError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">reportable_errors</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="mi">403</span><span class="p">:</span> <span class="s1">&#39;access denied&#39;</span><span class="p">,</span>
+          <span class="mi">404</span><span class="p">:</span> <span class="s1">&#39;bucket not found&#39;</span><span class="p">,</span>
+      <span class="p">}</span>
+      <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="n">reportable_errors</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">((</span><span class="s1">&#39;Could not upload to GCS path </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">. Please verify &#39;</span>
+                       <span class="s1">&#39;that credentials are valid and that you have write &#39;</span>
+                       <span class="s1">&#39;access to the specified path.&#39;</span><span class="p">)</span> <span class="o">%</span>
+                      <span class="p">(</span><span class="n">gcs_or_local_path</span><span class="p">,</span> <span class="n">reportable_errors</span><span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">status_code</span><span class="p">]))</span>
+      <span class="k">raise</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Completed GCS upload to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">gcs_location</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span></div>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">no_retries</span>  <span class="c1"># Using no_retries marks this as an integration point.</span>
+  <span class="k">def</span> <span class="nf">create_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates job description. May stage and/or submit for remote execution.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_job_description</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+    <span class="c1"># Stage and submit the job when necessary</span>
+    <span class="n">dataflow_job_file</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">DebugOptions</span><span class="p">)</span><span class="o">.</span><span class="n">dataflow_job_file</span>
+    <span class="n">template_location</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">job</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">template_location</span><span class="p">)</span>
+
+    <span class="n">job_location</span> <span class="o">=</span> <span class="n">template_location</span> <span class="ow">or</span> <span class="n">dataflow_job_file</span>
+    <span class="k">if</span> <span class="n">job_location</span><span class="p">:</span>
+      <span class="n">gcs_or_local_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">job_location</span><span class="p">)</span>
+      <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">job_location</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">stage_file</span><span class="p">(</span><span class="n">gcs_or_local_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">StringIO</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">json</span><span class="p">()))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">template_location</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_job_description</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;A template was just created at location </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                 <span class="n">template_location</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="DataflowApplicationClient.create_job_description"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.create_job_description">[docs]</a>  <span class="k">def</span> <span class="nf">create_job_description</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a job described by the workflow proto.&quot;&quot;&quot;</span>
+    <span class="n">resources</span> <span class="o">=</span> <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span>
+        <span class="n">job</span><span class="o">.</span><span class="n">options</span><span class="p">,</span> <span class="n">file_copy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_gcs_file_copy</span><span class="p">)</span>
+    <span class="n">job</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">environment</span> <span class="o">=</span> <span class="n">Environment</span><span class="p">(</span>
+        <span class="n">packages</span><span class="o">=</span><span class="n">resources</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">options</span><span class="p">,</span>
+        <span class="n">environment_version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">environment_version</span><span class="p">)</span><span class="o">.</span><span class="n">proto</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;JOB: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">job</span><span class="p">)</span></div>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span><span class="n">num_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">initial_delay_secs</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">get_job_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsGetMetricsRequest</span><span class="p">()</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">jobId</span> <span class="o">=</span> <span class="n">job_id</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">region</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">projectId</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">projects_locations_jobs</span><span class="o">.</span><span class="n">GetMetrics</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">BadStatusCodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;HTTP status </span><span class="si">%d</span><span class="s1">. Unable to query metrics&#39;</span><span class="p">,</span>
+                    <span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+      <span class="k">raise</span>
+    <span class="k">return</span> <span class="n">response</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span><span class="n">num_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">submit_job_description</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates and excutes a job request.&quot;&quot;&quot;</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsCreateRequest</span><span class="p">()</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">projectId</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">region</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">proto</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">projects_locations_jobs</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">BadStatusCodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;HTTP status </span><span class="si">%d</span><span class="s1"> trying to create job&#39;</span>
+                    <span class="s1">&#39; at dataflow service endpoint </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">dataflow_endpoint</span><span class="p">)</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">fatal</span><span class="p">(</span><span class="s1">&#39;details of server error: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+      <span class="k">raise</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Create job: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span>
+    <span class="c1"># The response is a Job proto with the id for the new job.</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created job with id: [</span><span class="si">%s</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;To access the Dataflow monitoring console, please navigate to &#39;</span>
+        <span class="s1">&#39;https://console.developers.google.com/project/</span><span class="si">%s</span><span class="s1">/dataflow/job/</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">response</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">()</span>  <span class="c1"># Using retry defaults from utils/retry.py</span>
+  <span class="k">def</span> <span class="nf">modify_job_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">new_state</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Modify the run state of the job.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      job_id: The id of the job.</span>
+<span class="sd">      new_state: A string representing the new desired state. It could be set to</span>
+<span class="sd">      either &#39;JOB_STATE_DONE&#39;, &#39;JOB_STATE_CANCELLED&#39; or &#39;JOB_STATE_DRAINING&#39;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      True if the job was modified successfully.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">new_state</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_DONE&#39;</span><span class="p">:</span>
+      <span class="n">new_state</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">RequestedStateValueValuesEnum</span><span class="o">.</span><span class="n">JOB_STATE_DONE</span>
+    <span class="k">elif</span> <span class="n">new_state</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_CANCELLED&#39;</span><span class="p">:</span>
+      <span class="n">new_state</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">RequestedStateValueValuesEnum</span><span class="o">.</span><span class="n">JOB_STATE_CANCELLED</span>
+    <span class="k">elif</span> <span class="n">new_state</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_DRAINING&#39;</span><span class="p">:</span>
+      <span class="n">new_state</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">RequestedStateValueValuesEnum</span><span class="o">.</span><span class="n">JOB_STATE_DRAINING</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Other states could only be set by the service.</span>
+      <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">request</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsUpdateRequest</span><span class="p">()</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">jobId</span> <span class="o">=</span> <span class="n">job_id</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">projectId</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">region</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">Job</span><span class="p">(</span><span class="n">requestedState</span><span class="o">=</span><span class="n">new_state</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">projects_jobs</span><span class="o">.</span><span class="n">Update</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">()</span>  <span class="c1"># Using retry defaults from utils/retry.py</span>
+  <span class="k">def</span> <span class="nf">get_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gets the job status for a submitted job.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      job_id: A string representing the job_id for the workflow as returned</span>
+<span class="sd">        by the a create_job() request.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A Job proto. See below for interesting fields.</span>
+
+<span class="sd">    The Job proto returned from a get_job() request contains some interesting</span>
+<span class="sd">    fields:</span>
+<span class="sd">      currentState: An object representing the current state of the job. The</span>
+<span class="sd">        string representation of the object (str() result) has the following</span>
+<span class="sd">        possible values: JOB_STATE_UNKNONW, JOB_STATE_STOPPED,</span>
+<span class="sd">        JOB_STATE_RUNNING, JOB_STATE_DONE, JOB_STATE_FAILED,</span>
+<span class="sd">        JOB_STATE_CANCELLED.</span>
+<span class="sd">      createTime: UTC time when the job was created</span>
+<span class="sd">        (e.g. &#39;2015-03-10T00:01:53.074Z&#39;)</span>
+<span class="sd">      currentStateTime: UTC time for the current state of the job.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsGetRequest</span><span class="p">()</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">jobId</span> <span class="o">=</span> <span class="n">job_id</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">projectId</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">region</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">projects_locations_jobs</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">()</span>  <span class="c1"># Using retry defaults from utils/retry.py</span>
+  <span class="k">def</span> <span class="nf">list_messages</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">start_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">page_token</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+      <span class="n">minimum_importance</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;List messages associated with the execution of a job.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      job_id: A string representing the job_id for the workflow as returned</span>
+<span class="sd">        by the a create_job() request.</span>
+<span class="sd">      start_time: If specified, only messages generated after the start time</span>
+<span class="sd">        will be returned, otherwise all messages since job started will be</span>
+<span class="sd">        returned. The value is a string representing UTC time</span>
+<span class="sd">        (e.g., &#39;2015-08-18T21:03:50.644Z&#39;)</span>
+<span class="sd">      end_time: If specified, only messages generated before the end time</span>
+<span class="sd">        will be returned, otherwise all messages up to current time will be</span>
+<span class="sd">        returned. The value is a string representing UTC time</span>
+<span class="sd">        (e.g., &#39;2015-08-18T21:03:50.644Z&#39;)</span>
+<span class="sd">      page_token: A string to be used as next page token if the list call</span>
+<span class="sd">        returned paginated results.</span>
+<span class="sd">      minimum_importance: Filter for messages based on importance. The possible</span>
+<span class="sd">        string values in increasing order of importance are: JOB_MESSAGE_DEBUG,</span>
+<span class="sd">        JOB_MESSAGE_DETAILED, JOB_MESSAGE_BASIC, JOB_MESSAGE_WARNING,</span>
+<span class="sd">        JOB_MESSAGE_ERROR. For example, a filter set on warning will allow only</span>
+<span class="sd">        warnings and errors and exclude all others.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A tuple consisting of a list of JobMessage instances and a</span>
+<span class="sd">      next page token string.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      RuntimeError: if an unexpected value for the message_importance argument</span>
+<span class="sd">        is used.</span>
+
+<span class="sd">    The JobMessage objects returned by the call contain the following  fields:</span>
+<span class="sd">      id: A unique string identifier for the message.</span>
+<span class="sd">      time: A string representing the UTC time of the message</span>
+<span class="sd">        (e.g., &#39;2015-08-18T21:03:50.644Z&#39;)</span>
+<span class="sd">      messageImportance: An enumeration value for the message importance. The</span>
+<span class="sd">        value if converted to string will have the following possible values:</span>
+<span class="sd">        JOB_MESSAGE_DEBUG, JOB_MESSAGE_DETAILED, JOB_MESSAGE_BASIC,</span>
+<span class="sd">        JOB_MESSAGE_WARNING, JOB_MESSAGE_ERROR.</span>
+<span class="sd">     messageText: A message string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsMessagesListRequest</span><span class="p">(</span>
+        <span class="n">jobId</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">page_token</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">request</span><span class="o">.</span><span class="n">pageToken</span> <span class="o">=</span> <span class="n">page_token</span>
+    <span class="k">if</span> <span class="n">start_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">request</span><span class="o">.</span><span class="n">startTime</span> <span class="o">=</span> <span class="n">start_time</span>
+    <span class="k">if</span> <span class="n">end_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">request</span><span class="o">.</span><span class="n">endTime</span> <span class="o">=</span> <span class="n">end_time</span>
+    <span class="k">if</span> <span class="n">minimum_importance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">minimum_importance</span> <span class="o">==</span> <span class="s1">&#39;JOB_MESSAGE_DEBUG&#39;</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">minimumImportance</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsMessagesListRequest</span>
+            <span class="o">.</span><span class="n">MinimumImportanceValueValuesEnum</span>
+            <span class="o">.</span><span class="n">JOB_MESSAGE_DEBUG</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">minimum_importance</span> <span class="o">==</span> <span class="s1">&#39;JOB_MESSAGE_DETAILED&#39;</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">minimumImportance</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsMessagesListRequest</span>
+            <span class="o">.</span><span class="n">MinimumImportanceValueValuesEnum</span>
+            <span class="o">.</span><span class="n">JOB_MESSAGE_DETAILED</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">minimum_importance</span> <span class="o">==</span> <span class="s1">&#39;JOB_MESSAGE_BASIC&#39;</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">minimumImportance</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsMessagesListRequest</span>
+            <span class="o">.</span><span class="n">MinimumImportanceValueValuesEnum</span>
+            <span class="o">.</span><span class="n">JOB_MESSAGE_BASIC</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">minimum_importance</span> <span class="o">==</span> <span class="s1">&#39;JOB_MESSAGE_WARNING&#39;</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">minimumImportance</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsMessagesListRequest</span>
+            <span class="o">.</span><span class="n">MinimumImportanceValueValuesEnum</span>
+            <span class="o">.</span><span class="n">JOB_MESSAGE_WARNING</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">minimum_importance</span> <span class="o">==</span> <span class="s1">&#39;JOB_MESSAGE_ERROR&#39;</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">minimumImportance</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataflow</span><span class="o">.</span><span class="n">DataflowProjectsLocationsJobsMessagesListRequest</span>
+            <span class="o">.</span><span class="n">MinimumImportanceValueValuesEnum</span>
+            <span class="o">.</span><span class="n">JOB_MESSAGE_ERROR</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;Unexpected value for minimum_importance argument: </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">minimum_importance</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">projects_locations_jobs_messages</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">jobMessages</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">nextPageToken</span></div>
+
+
+<div class="viewcode-block" id="MetricUpdateTranslators"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators">[docs]</a><span class="k">class</span> <span class="nc">MetricUpdateTranslators</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Translators between accumulators and dataflow metric updates.&quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MetricUpdateTranslators.translate_boolean"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_boolean">[docs]</a>  <span class="k">def</span> <span class="nf">translate_boolean</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+    <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">boolean</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MetricUpdateTranslators.translate_scalar_mean_int"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_mean_int">[docs]</a>  <span class="k">def</span> <span class="nf">translate_scalar_mean_int</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">:</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">integerMean</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">IntegerMean</span><span class="p">()</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">integerMean</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span><span class="p">)</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">integerMean</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">nameAndKind</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MetricUpdateTranslators.translate_scalar_mean_float"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_mean_float">[docs]</a>  <span class="k">def</span> <span class="nf">translate_scalar_mean_float</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">:</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">floatingPointMean</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">FloatingPointMean</span><span class="p">()</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">floatingPointMean</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">floatingPointMean</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span>
+          <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">nameAndKind</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MetricUpdateTranslators.translate_scalar_counter_int"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_counter_int">[docs]</a>  <span class="k">def</span> <span class="nf">translate_scalar_counter_int</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+    <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">integer</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">accumulator</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MetricUpdateTranslators.translate_scalar_counter_float"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_counter_float">[docs]</a>  <span class="k">def</span> <span class="nf">translate_scalar_counter_float</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+    <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">floatingPoint</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="to_split_int"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.to_split_int">[docs]</a><span class="k">def</span> <span class="nf">to_split_int</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+  <span class="n">res</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">SplitInt64</span><span class="p">()</span>
+  <span class="n">res</span><span class="o">.</span><span class="n">lowBits</span> <span class="o">=</span> <span class="n">n</span> <span class="o">&amp;</span> <span class="mh">0xffffffff</span>
+  <span class="n">res</span><span class="o">.</span><span class="n">highBits</span> <span class="o">=</span> <span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">32</span>
+  <span class="k">return</span> <span class="n">res</span></div>
+
+
+<div class="viewcode-block" id="translate_distribution"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.translate_distribution">[docs]</a><span class="k">def</span> <span class="nf">translate_distribution</span><span class="p">(</span><span class="n">distribution_update</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Translate metrics DistributionUpdate to dataflow distribution update.&quot;&quot;&quot;</span>
+  <span class="n">dist_update_proto</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">DistributionUpdate</span><span class="p">()</span>
+  <span class="n">dist_update_proto</span><span class="o">.</span><span class="n">min</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">distribution_update</span><span class="o">.</span><span class="n">min</span><span class="p">)</span>
+  <span class="n">dist_update_proto</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">distribution_update</span><span class="o">.</span><span class="n">max</span><span class="p">)</span>
+  <span class="n">dist_update_proto</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">distribution_update</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+  <span class="n">dist_update_proto</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">distribution_update</span><span class="o">.</span><span class="n">sum</span><span class="p">)</span>
+  <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">distribution</span> <span class="o">=</span> <span class="n">dist_update_proto</span></div>
+
+
+<div class="viewcode-block" id="translate_value"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.translate_value">[docs]</a><span class="k">def</span> <span class="nf">translate_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">metric_update_proto</span><span class="p">):</span>
+  <span class="n">metric_update_proto</span><span class="o">.</span><span class="n">integer</span> <span class="o">=</span> <span class="n">to_split_int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="translate_scalar"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.translate_scalar">[docs]</a><span class="k">def</span> <span class="nf">translate_scalar</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update</span><span class="p">):</span>
+  <span class="n">metric_update</span><span class="o">.</span><span class="n">scalar</span> <span class="o">=</span> <span class="n">to_json_value</span><span class="p">(</span><span class="n">accumulator</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="translate_mean"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient.translate_mean">[docs]</a><span class="k">def</span> <span class="nf">translate_mean</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">metric_update</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">:</span>
+    <span class="n">metric_update</span><span class="o">.</span><span class="n">meanSum</span> <span class="o">=</span> <span class="n">to_json_value</span><span class="p">(</span><span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">metric_update</span><span class="o">.</span><span class="n">meanCount</span> <span class="o">=</span> <span class="n">to_json_value</span><span class="p">(</span><span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="c1"># A denominator of 0 will raise an error in the service.</span>
+    <span class="c1"># What it means is we have nothing to report yet, so don&#39;t.</span>
+    <span class="n">metric_update</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># To enable a counter on the service, add it to this dictionary.</span>
+<span class="n">metric_translations</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">CountCombineFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">SumInt64Fn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MinInt64Fn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MaxInt64Fn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanInt64Fn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">translate_mean</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">SumFloatFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MinFloatFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MaxFloatFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanFloatFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">translate_mean</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">AllCombineFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;and&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">AnyCombineFn</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;or&#39;</span><span class="p">,</span> <span class="n">translate_scalar</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="n">counter_translations</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">CountCombineFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_int</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">SumInt64Fn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_int</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MinInt64Fn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">MIN</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_int</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MaxInt64Fn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">MAX</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_int</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanInt64Fn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">MEAN</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_mean_int</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">SumFloatFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_float</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MinFloatFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">MIN</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_float</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MaxFloatFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">MAX</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_counter_float</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanFloatFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">MEAN</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_mean_float</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">AllCombineFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">AND</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_boolean</span><span class="p">),</span>
+    <span class="n">cy_combiners</span><span class="o">.</span><span class="n">AnyCombineFn</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">dataflow</span><span class="o">.</span><span class="n">NameAndKind</span><span class="o">.</span><span class="n">KindValueValuesEnum</span><span class="o">.</span><span class="n">OR</span><span class="p">,</span>
+        <span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_boolean</span><span class="p">),</span>
+<span class="p">}</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
