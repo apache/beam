@@ -274,7 +274,7 @@ public class ProcessBundleHandler {
    * A {@link BeamFnStateClient} which counts the number of outstanding {@link StateRequest}s and
    * blocks till they are all finished.
    */
-  private class BlockTillStateCallsFinish extends HandleStateCallsForBundle {
+  private static class BlockTillStateCallsFinish extends HandleStateCallsForBundle {
     private final BeamFnStateClient beamFnStateClient;
     private final Phaser phaser;
     private int currentPhase;
@@ -296,6 +296,8 @@ public class ProcessBundleHandler {
     }
 
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored") // async arriveAndDeregister task doesn't need
+                                                  // monitoring.
     public void handle(StateRequest.Builder requestBuilder,
         CompletableFuture<StateResponse> response) {
       // Register each request with the phaser and arrive and deregister each time a request
@@ -310,7 +312,7 @@ public class ProcessBundleHandler {
    * A {@link BeamFnStateClient} which fails all requests because the {@link ProcessBundleRequest}
    * does not contain a State API {@link ApiServiceDescriptor}.
    */
-  private class FailAllStateCallsForBundle extends HandleStateCallsForBundle {
+  private static class FailAllStateCallsForBundle extends HandleStateCallsForBundle {
     private final ProcessBundleRequest request;
 
     private FailAllStateCallsForBundle(ProcessBundleRequest request) {
@@ -329,7 +331,8 @@ public class ProcessBundleHandler {
     }
   }
 
-  private abstract class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {
+  private abstract static class HandleStateCallsForBundle
+      implements AutoCloseable, BeamFnStateClient {
   }
 
   private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory<Object> {

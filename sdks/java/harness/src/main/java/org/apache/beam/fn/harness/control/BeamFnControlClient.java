@@ -25,6 +25,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.EnumMap;
+import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -135,7 +136,7 @@ public class BeamFnControlClient {
   public void processInstructionRequests(Executor executor)
       throws InterruptedException, ExecutionException {
     BeamFnApi.InstructionRequest request;
-    while ((request = bufferedInstructions.take()) != POISON_PILL) {
+    while (!Objects.equals((request = bufferedInstructions.take()), POISON_PILL)) {
       BeamFnApi.InstructionRequest currentRequest = request;
       executor.execute(
           () -> {
