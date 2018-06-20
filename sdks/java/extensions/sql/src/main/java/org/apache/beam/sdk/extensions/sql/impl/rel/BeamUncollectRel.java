@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -46,32 +45,24 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
-  }
+  public PCollection<Row> implement(PCollectionList<Row> pinput) {
+    checkArgument(
+        pinput.size() == 1,
+        "Wrong number of inputs for %s: %s",
+        BeamUncollectRel.class.getSimpleName(),
+        pinput);
+    PCollection<Row> upstream = pinput.get(0);
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    // Each row of the input contains a single array of things to be emitted; Calcite knows
+    // what the row looks like
+    Schema outputSchema = CalciteUtils.toBeamSchema(getRowType());
 
-    @Override
-    public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      checkArgument(
-          pinput.size() == 1,
-          "Wrong number of inputs for %s: %s",
-          BeamUncollectRel.class.getSimpleName(),
-          pinput);
-      PCollection<Row> upstream = pinput.get(0);
+    PCollection<Row> uncollected =
+        upstream
+            .apply(ParDo.of(new UncollectDoFn(outputSchema)))
+            .setCoder(outputSchema.getRowCoder());
 
-      // Each row of the input contains a single array of things to be emitted; Calcite knows
-      // what the row looks like
-      Schema outputSchema = CalciteUtils.toBeamSchema(getRowType());
-
-      PCollection<Row> uncollected =
-          upstream
-              .apply(ParDo.of(new UncollectDoFn(outputSchema)))
-              .setCoder(outputSchema.getRowCoder());
-
-      return uncollected;
-    }
+    return uncollected;
   }
 
   private static class UncollectDoFn extends DoFn<Row, Row> {

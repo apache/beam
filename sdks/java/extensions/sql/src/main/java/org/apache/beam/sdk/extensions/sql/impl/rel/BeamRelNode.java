@@ -32,7 +32,7 @@ public interface BeamRelNode extends RelNode {
     return getInputs();
   };
 
-  PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
+  PCollection<Row> implement(PCollectionList<Row> pinputs);
 
   /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
   default Map<String, String> getPipelineOptions() {

@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
@@ -39,7 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
  * BeamMinusRel}.
  */
-public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+public class BeamSetOperator {
   /** Set operator type. */
   public enum OpType implements Serializable {
     UNION,
@@ -47,22 +46,10 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
     MINUS
   }
 
-  private BeamRelNode beamRelNode;
-  private boolean all;
-  private OpType opType;
-
-  public BeamSetOperatorRelBase(BeamRelNode beamRelNode, OpType opType, boolean all) {
-    this.beamRelNode = beamRelNode;
-    this.opType = opType;
-    this.all = all;
-  }
-
-  public PCollection<Row> expand(PCollectionList<Row> inputs) {
+  public static PCollection<Row> implement(
+      OpType opType, boolean all, PCollectionList<Row> inputs) {
     checkArgument(
-        inputs.size() == 2,
-        "Wrong number of arguments to %s: %s",
-        beamRelNode.getClass().getSimpleName(),
-        inputs);
+        inputs.size() == 2, "Wrong number of arguments to set operation %s: %s", opType, inputs);
     PCollection<Row> leftRows = inputs.get(0);
     PCollection<Row> rightRows = inputs.get(1);
 

@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -74,7 +73,7 @@ public class BeamUnionRel extends Union implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, all);
+  public PCollection<Row> implement(PCollectionList<Row> pinputs) {
+    return BeamSetOperator.implement(BeamSetOperator.OpType.UNION, all, pinputs);
   }
 }

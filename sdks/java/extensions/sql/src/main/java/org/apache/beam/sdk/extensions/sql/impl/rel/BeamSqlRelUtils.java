@@ -63,7 +63,7 @@ public class BeamSqlRelUtils {
 
     String name = node.getClass().getSimpleName() + "_" + node.getId();
     PCollectionList<Row> input = buildPCollectionList(node.getPCollectionInputs(), pipeline, cache);
-    PTransform<PCollectionList<Row>, PCollection<Row>> transform = node.buildPTransform();
+    PTransform<PCollectionList<Row>, PCollection<Row>> transform = new Transform(node);
     output = Pipeline.applyTransform(name, input, transform);
 
     cache.put(node.getId(), output);
@@ -76,5 +76,18 @@ public class BeamSqlRelUtils {
       input = ((RelSubset) input).getBest();
     }
     return (BeamRelNode) input;
+  }
+
+  private static class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    private final BeamRelNode node;
+
+    public Transform(BeamRelNode node) {
+      this.node = node;
+    }
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinputs) {
+      return node.implement(pinputs);
+    }
   }
 }

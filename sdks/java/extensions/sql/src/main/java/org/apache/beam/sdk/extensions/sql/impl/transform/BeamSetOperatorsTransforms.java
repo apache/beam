@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import java.util.Iterator;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSetOperatorRelBase;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSetOperator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -41,15 +41,12 @@ public abstract class BeamSetOperatorsTransforms {
   public static class SetOperatorFilteringDoFn extends DoFn<KV<Row, CoGbkResult>, Row> {
     private TupleTag<Row> leftTag;
     private TupleTag<Row> rightTag;
-    private BeamSetOperatorRelBase.OpType opType;
+    private BeamSetOperator.OpType opType;
     // ALL?
     private boolean all;
 
     public SetOperatorFilteringDoFn(
-        TupleTag<Row> leftTag,
-        TupleTag<Row> rightTag,
-        BeamSetOperatorRelBase.OpType opType,
-        boolean all) {
+        TupleTag<Row> leftTag, TupleTag<Row> rightTag, BeamSetOperator.OpType opType, boolean all) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;
       this.opType = opType;
