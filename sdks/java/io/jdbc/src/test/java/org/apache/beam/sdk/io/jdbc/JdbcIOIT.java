@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
 import java.sql.SQLException;
@@ -68,25 +69,32 @@ public class JdbcIOIT {
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
-
   @Rule
   public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule
   public TestPipeline pipelineRead = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws SQLException {
+  public static void setup() throws Exception {
     PostgresIOTestPipelineOptions options = readIOTestPipelineOptions(
       PostgresIOTestPipelineOptions.class);
 
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
+    executeWithRetry(JdbcIOIT::createTable);
+  }
+
+  private static void createTable() throws SQLException {
     DatabaseTestHelper.createTable(dataSource, tableName);
   }
 
   @AfterClass
-  public static void tearDown() throws SQLException {
+  public static void tearDown() throws Exception {
+    executeWithRetry(JdbcIOIT::deleteTable);
+  }
+
+  private static void deleteTable() throws SQLException {
     DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
