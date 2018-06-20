@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import com.google.api.client.util.Base64;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -36,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -256,7 +256,7 @@ public class BeamFileSystemArtifactServicesTest {
       metadata.add(
           ArtifactMetadata.newBuilder()
               .setName(fileName)
-              .setMd5(Base64.encodeBase64String(md5.get(fileName)))
+              .setMd5(Base64.getEncoder().encodeToString(md5.get(fileName)))
               .build());
     }
 

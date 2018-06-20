@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.artifact;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.util.Base64;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -30,12 +29,14 @@ import com.google.common.hash.Hashing;
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.JsonFormat;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -106,8 +107,9 @@ public class BeamFileSystemArtifactRetrievalService
               .findFirst()
               .orElseThrow(
                   () ->
-                      new FileNotFoundException(
-                          String.format("Artifact location not found in manifest: %s", name)));
+                      new StatusRuntimeException(
+                          Status.NOT_FOUND.withDescription(
+                              String.format("Artifact location not found in manifest: %s", name))));
 
       List<ArtifactMetadata> existingArtifacts = proxyManifest.getManifest().getArtifactList();
       ArtifactMetadata metadata =
@@ -117,8 +119,9 @@ public class BeamFileSystemArtifactRetrievalService
               .findFirst()
               .orElseThrow(
                   () ->
-                      new FileNotFoundException(
-                          String.format("Artifact metadata not found in manifest: %s", name)));
+                      new StatusRuntimeException(
+                          Status.NOT_FOUND.withDescription(
+                              String.format("Artifact metadata not found in manifest: %s", name))));
 
       ResourceId artifactResourceId =
           FileSystems.matchNewResource(location.getUri(), false /* is directory */);
@@ -136,13 +139,14 @@ public class BeamFileSystemArtifactRetrievalService
         }
       }
       if (metadata.getMd5() != null && !metadata.getMd5().isEmpty()) {
-        ByteString expected = ByteString.copyFrom(Base64.decodeBase64(metadata.getMd5()));
+        ByteString expected = ByteString.copyFrom(Base64.getDecoder().decode(metadata.getMd5()));
         ByteString actual = ByteString.copyFrom(hasher.hash().asBytes());
         if (!actual.equals(expected)) {
-          throw new IllegalStateException(
-              String.format(
-                  "Artifact %s is corrupt: expected md5 %s, actual %s",
-                  name, expected.toString(), actual.toString()));
+          throw new StatusRuntimeException(
+              Status.DATA_LOSS.withDescription(
+                  String.format(
+                      "Artifact %s is corrupt: expected md5 %s, actual %s",
+                      name, expected.toString(), actual.toString())));
         }
       }
       responseObserver.onCompleted();
