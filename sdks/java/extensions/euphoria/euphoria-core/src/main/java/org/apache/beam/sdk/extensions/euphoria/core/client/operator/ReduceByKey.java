@@ -55,13 +55,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -261,9 +261,10 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunction<V, OutputT> reducer, TypeHint<OutputT> outputTypeHint) {
+        ReduceFunction<V, OutputT> reducer, TypeDescriptor<OutputT> outputTypeDescriptor) {
       return reduceBy(
-          (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)), outputTypeHint);
+          (Stream<V> in, Collector<OutputT> ctx) ->
+              ctx.collect(reducer.apply(in)), outputTypeDescriptor);
     }
 
     /**
@@ -279,8 +280,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
         ReduceFunctor<V, OutputT> reducer);
 
     default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunctor<V, OutputT> reducer, TypeHint<OutputT> outputTypeHint) {
-      return reduceBy(TypeAwareReduceFunctor.of(reducer, outputTypeHint));
+        ReduceFunctor<V, OutputT> reducer, TypeDescriptor<OutputT> outputTypeDescriptor) {
+      return reduceBy(TypeAwareReduceFunctor.of(reducer, outputTypeDescriptor));
     }
 
     /**
@@ -296,7 +297,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     default WindowByBuilder<InputT, K, V, V> combineBy(
-        CombinableReduceFunction<V> reducer, TypeHint<V> typeHint) {
+        CombinableReduceFunction<V> reducer, TypeDescriptor<V> typeHint) {
       return reduceBy(TypeAwareReduceFunctor.of(toReduceFunctor(reducer), typeHint));
     }
   }
@@ -360,7 +361,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
 
     @Override
     public <K> ValueByReduceByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
       return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
@@ -397,7 +398,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     public <V> ReduceByCombineByBuilder<InputT, K, V> valueBy(
-        UnaryFunction<InputT, V> valueExtractor, TypeHint<V> typeHint) {
+        UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> typeHint) {
       return valueBy(TypeAwareUnaryFunction.of(valueExtractor, typeHint));
     }
 

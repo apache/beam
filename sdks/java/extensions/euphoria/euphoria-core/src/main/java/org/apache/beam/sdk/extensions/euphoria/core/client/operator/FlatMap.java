@@ -34,7 +34,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A transformation of a dataset from one type into another allowing user code to generate zero,
@@ -187,8 +187,8 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
 
     public <OutputT> EventTimeBuilder<InputT, OutputT> using(
-        UnaryFunctor<InputT, OutputT> functor, TypeHint<OutputT> outputTypeHint) {
-      return using(TypeAwareUnaryFunctor.of(functor, outputTypeHint));
+        UnaryFunctor<InputT, OutputT> functor, TypeDescriptor<OutputT> outputTypeDescriptor) {
+      return using(TypeAwareUnaryFunctor.of(functor, outputTypeDescriptor));
     }
   }
 

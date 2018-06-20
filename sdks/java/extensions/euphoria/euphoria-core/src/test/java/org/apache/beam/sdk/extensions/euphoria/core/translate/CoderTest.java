@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package org.apache.beam.sdk.extensions.euphoria.beam;
+package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import static org.apache.beam.sdk.extensions.euphoria.beam.TestUtils.defaultOptions;
+import static org.apache.beam.sdk.extensions.euphoria.core.translate.TestUtils.defaultOptions;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
@@ -28,7 +28,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider.Factory;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
@@ -39,17 +38,21 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFu
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.junit.Test;
 
-/** Tests getting coder from functions and type aware functions. */
+/**
+ * Tests getting coder from functions and type aware functions.
+ */
 public class CoderTest {
 
   private final UnaryFunction<String, String> unaryFunction = a -> a;
 
-  private final BeamExecutorContext beamExecutorContext =
-      new BeamExecutorContext(
+  private final TranslationContext translationContext =
+      new TranslationContext(
           mock(DAG.class),
           mock(Factory.class),
           Pipeline.create(defaultOptions()),
@@ -59,28 +62,30 @@ public class CoderTest {
   @Test
   public void testGetCoder() {
 
-    final Coder<String> coder = beamExecutorContext.getCoder(unaryFunction);
+    final Coder<String> coder = translationContext.getCoder(unaryFunction);
     assertEquals(StringUtf8Coder.class, coder.getClass());
 
     final Coder<String> coder2 =
-        beamExecutorContext.getCoder(TypeAwareUnaryFunction.of(unaryFunction, TypeHint.ofString()));
+        translationContext.getCoder(
+            TypeAwareUnaryFunction.of(unaryFunction, TypeDescriptors.strings()));
     assertEquals(StringUtf8Coder.class, coder2.getClass());
 
     BinaryFunctor<Integer, Integer, Integer> binaryFunctor = (a, b, c) -> c.collect(a + b);
-    final Coder<Integer> coder3 = beamExecutorContext.getCoder(binaryFunctor);
+    final Coder<Integer> coder3 = translationContext.getCoder(binaryFunctor);
     assertEquals(KryoCoder.class, coder3.getClass());
 
     final Coder<Integer> coder4 =
-        beamExecutorContext.getCoder(TypeAwareBinaryFunctor.of(binaryFunctor, TypeHint.ofInt()));
+        translationContext
+            .getCoder(TypeAwareBinaryFunctor.of(binaryFunctor, TypeDescriptors.integers()));
     assertEquals(VarIntCoder.class, coder4.getClass());
 
     ReduceFunctor<Pair<Integer, Integer>, Pair<Integer, String>> reduceFunctor =
         (in, c) -> c.collect(Pair.of(1, ""));
-    final Coder<Pair<Integer, String>> coder5 = beamExecutorContext.getCoder(reduceFunctor);
+    final Coder<Pair<Integer, String>> coder5 = translationContext.getCoder(reduceFunctor);
     assertEquals(KryoCoder.class, coder5.getClass());
 
     final UnaryFunction<String, Pair<String, String>> pairUnaryFunction = a -> Pair.of(a, a);
-    final Coder<Pair<String, String>> coder6 = beamExecutorContext.getCoder(pairUnaryFunction);
+    final Coder<Pair<String, String>> coder6 = translationContext.getCoder(pairUnaryFunction);
     assertEquals(SerializableCoder.class, coder6.getClass());
   }
 
@@ -89,24 +94,24 @@ public class CoderTest {
     ReduceFunctor<Pair<Integer, Integer>, Pair<NotSerializableClass, String>> reduceFunctor =
         (in, c) -> c.collect(Pair.of(new NotSerializableClass(), ""));
 
-    beamExecutorContext.getCoder(
+    translationContext.getCoder(
         TypeAwareReduceFunctor.of(
-            reduceFunctor, TypeHint.ofPair(NotSerializableClass.class, String.class)));
+            reduceFunctor, TypeHint.pairs(NotSerializableClass.class, String.class)));
   }
 
   @Test
   public void testLambdaReturnType() {
 
-    assertEquals(String.class, BeamExecutorContext.getLambdaReturnType(unaryFunction));
+    assertEquals(String.class, translationContext.getLambdaReturnType(unaryFunction));
 
     UnaryFunction<String, Pair<String, String>> unaryFunction2 = a -> Pair.of(a, a);
 
-    assertEquals(Pair.class, BeamExecutorContext.getLambdaReturnType(unaryFunction2));
+    assertEquals(Pair.class, translationContext.getLambdaReturnType(unaryFunction2));
 
     //noinspection Convert2Lambda - test returning type for anonymous inner class
     assertEquals(
         Integer.class,
-        BeamExecutorContext.getLambdaReturnType(
+        translationContext.getLambdaReturnType(
             new AnonymousClass() {
               @Override
               public Integer testMethod() {
@@ -116,8 +121,11 @@ public class CoderTest {
   }
 
   interface AnonymousClass {
+
     Integer testMethod();
   }
 
-  private class NotSerializableClass {}
+  private class NotSerializableClass {
+
+  }
 }

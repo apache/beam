@@ -19,14 +19,15 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import java.io.Serializable;
 import java.util.Objects;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.TypeHintAware;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.TypeDescriptorAware;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
-abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeHintAware<T> {
+abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeDescriptorAware<T> {
 
   private final FuncT function;
-  private final TypeHint<T> typeHint;
+  private final TypeDescriptor<T> typeHint;
 
-  AbstractTypeAware(FuncT function, TypeHint<T> typeHint) {
+  AbstractTypeAware(FuncT function, TypeDescriptor<T> typeHint) {
     this.function = Objects.requireNonNull(function);
     this.typeHint = Objects.requireNonNull(typeHint);
   }
@@ -36,7 +37,7 @@ abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeHintAwar
   }
 
   @Override
-  public TypeHint<T> getTypeHint() {
+  public TypeDescriptor<T> getTypeDescriptor() {
     return typeHint;
   }
 }
