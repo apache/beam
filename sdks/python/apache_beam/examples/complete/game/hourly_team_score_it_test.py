@@ -66,6 +66,9 @@ class HourlyTeamScoreIT(unittest.TestCase):
     self.dataset = client.dataset(unique_dataset_name, project=self.project)
     self.dataset.create()
 
+  def _cleanup_dataset(self):
+    self.dataset.delete()
+
   @attr('IT')
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
@@ -84,6 +87,8 @@ class HourlyTeamScoreIT(unittest.TestCase):
                                                bigquery_verifier)}
 
     # Register clean up before pipeline execution
+    # Note that actual execution happens in reverse order.
+    self.addCleanup(self._cleanup_dataset)
     self.addCleanup(utils.delete_bq_table, self.project,
                     self.dataset.name, self.OUTPUT_TABLE)
 
