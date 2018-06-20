@@ -120,7 +120,7 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
-      OutboundObserverFactory outboundObserverFactory) {
+      OutboundObserverFactory outboundObserverFactory) throws Exception {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
         options,
@@ -160,8 +160,6 @@ public class FnHarness {
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
-    } catch (Throwable t) {
-      t.printStackTrace();
     } finally {
       System.out.println("Shutting SDK harness down.");
     }

@@ -143,7 +143,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
-        String pTransformId,
+        String ptransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
         Map<String, PCollection> pCollections,
@@ -175,7 +175,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           new FnApiDoFnRunner<>(
               pipelineOptions,
               beamFnStateClient,
-              pTransformId,
+              ptransformId,
               processBundleInstructionId,
               doFnInfo.getDoFn(),
               doFnInfo.getInputCoder(),
@@ -204,7 +204,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
-        String pTransformId,
+        String ptransformId,
         RunnerApi.PTransform pTransform,
         Supplier<String> processBundleInstructionId,
         Map<String, RunnerApi.PCollection> pCollections,
@@ -285,7 +285,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<>(
           pipelineOptions,
           beamFnStateClient,
-          pTransformId,
+          ptransformId,
           processBundleInstructionId,
           doFn,
           inputCoder,
@@ -654,7 +654,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      return bindSideInputView(view.getTagInternal());
+      return (T) bindSideInputView(view.getTagInternal());
     }
 
     @Override
@@ -869,7 +869,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
                 @Override
                 public <T> T sideInput(PCollectionView<T> view) {
-                  return bindSideInputView(view.getTagInternal());
+                  return (T) bindSideInputView(view.getTagInternal());
                 }
 
                 @Override
@@ -985,7 +985,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     abstract WindowMappingFn<W> getWindowMappingFn();
   }
 
-  private <T, K, V> T bindSideInputView(TupleTag<?> view) {
+  private <K, V> Object bindSideInputView(TupleTag<?> view) {
     SideInputSpec sideInputSpec = sideInputSpecMap.get(view);
     checkArgument(sideInputSpec != null,
         "Attempting to access unknown side input %s.",
@@ -1006,7 +1006,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         .setPtransformId(ptransformId)
         .setSideInputId(view.getId())
         .setWindow(encodedWindow);
-    return (T) stateKeyObjectCache.computeIfAbsent(
+    return stateKeyObjectCache.computeIfAbsent(
         cacheKeyBuilder.build(),
         key -> sideInputSpec.getViewFn().apply(createMultimapSideInput(
             view.getId(), encodedWindow, kvCoder.getKeyCoder(), kvCoder.getValueCoder())));
