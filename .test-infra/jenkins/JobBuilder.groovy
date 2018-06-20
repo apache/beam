@@ -52,7 +52,7 @@ class JobBuilder {
     autoBuilds.with(jobDefinition)
   }
 
-  private void defineGhprbPostCommitJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
+  private void defineGhprbTriggeredJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
     def ghprbBuilds = scope.job(name) {
       cjp.setPullRequestBuildTrigger(
         delegate,
