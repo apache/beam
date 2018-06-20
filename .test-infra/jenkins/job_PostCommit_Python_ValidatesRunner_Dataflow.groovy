@@ -17,23 +17,16 @@
  */
 
 import common_job_properties
+import JobBuilder
 
 // This job runs the suite of Python ValidatesRunner tests against the
 // Dataflow runner.
-job('beam_PostCommit_Py_VR_Dataflow') {
+JobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python Dataflow ValidatesRunner',
+  'Google Cloud Dataflow Runner Python ValidatesRunner Tests', this) {
   description('Runs Python ValidatesRunner suite on the Dataflow runner.')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Google Cloud Dataflow Runner Python ValidatesRunner Tests',
-      'Run Python Dataflow ValidatesRunner')
 
   // Execute gradle task to test Python SDK.
   steps {

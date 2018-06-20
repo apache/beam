@@ -17,23 +17,16 @@
  */
 
 import common_job_properties
+import JobBuilder
 
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
-job('beam_PostCommit_Py_ValCont') {
+JobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
+  'Run Python Dataflow ValidatesContainer', 'Google Cloud Dataflow Runner Python ValidatesContainer Tests', this) {
   description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate, '30 3 * * *', false)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Google Cloud Dataflow Runner Python ValidatesContainer Tests',
-      'Run Python Dataflow ValidatesContainer')
 
   // Execute shell command to test Python SDK.
   steps {
