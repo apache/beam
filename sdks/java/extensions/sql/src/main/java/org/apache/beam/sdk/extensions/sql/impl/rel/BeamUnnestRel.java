@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
@@ -35,7 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -64,11 +66,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
-    return new Transform();
-  }
-
-  @Override
   public Correlate copy(
       RelTraitSet relTraitSet,
       RelNode left,
@@ -80,14 +77,22 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
         getCluster(), relTraitSet, left, right, correlationId, requiredColumns, joinType);
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamUnnestRel.this);
+  @Override
+  public PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
+    BeamRelNode input = BeamSqlRelUtils.getBeamRelInput(left);
+    return BeamSqlRelUtils.toPCollection(pipeline, input, cache);
+  }
 
+  @Override
+  public PTransform<PInput, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PInput, PCollection<Row>> {
+    @Override
+    public PCollection<Row> expand(PInput pinput) {
       // The set of rows where we run the correlated unnest for each row
-      PCollection<Row> outer =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(left).toPTransform());
+      PCollection<Row> outer = (PCollection<Row>) pinput;
 
       // The correlated subquery
       BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
@@ -103,7 +108,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
 
       return outer
           .apply(
-              stageName,
               ParDo.of(
                   new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
           .setCoder(joinedSchema.getRowCoder());

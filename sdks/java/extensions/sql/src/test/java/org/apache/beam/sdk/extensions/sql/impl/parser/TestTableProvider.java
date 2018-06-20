@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -34,8 +33,8 @@ import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
@@ -123,37 +122,23 @@ public class TestTableProvider implements TableProvider {
     }
 
     @Override
-    public PCollection<Row> buildIOReader(Pipeline pipeline) {
+    public PCollection<Row> buildIOReader(PBegin begin) {
       TableWithRows tableWithRows =
           GLOBAL_TABLES
               .get(this.tableWithRows.tableProviderInstanceId)
               .get(this.tableWithRows.table.getName());
-      return pipeline.apply(Create.of(tableWithRows.rows).withCoder(rowCoder()));
+      return begin.apply(Create.of(tableWithRows.rows).withCoder(rowCoder()));
     }
 
     @Override
-    public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-      return new Collector(tableWithRows);
+    public POutput buildIOWriter(PCollection<Row> input) {
+      input.apply(ParDo.of(new CollectorFn(tableWithRows)));
+      return PDone.in(input.getPipeline());
     }
 
     @Override
     public Schema getSchema() {
       return tableWithRows.table.getSchema();
-    }
-  }
-
-  private static final class Collector extends PTransform<PCollection<Row>, POutput> {
-
-    private TableWithRows tableWithRows;
-
-    Collector(TableWithRows tableWithRows) {
-      this.tableWithRows = tableWithRows;
-    }
-
-    @Override
-    public POutput expand(PCollection<Row> input) {
-      input.apply(ParDo.of(new CollectorFn(tableWithRows)));
-      return PDone.in(input.getPipeline());
     }
   }
 
