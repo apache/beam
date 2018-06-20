@@ -42,7 +42,7 @@ class JobBuilder {
                             jobDefinition = {}) {
     JobBuilder jb = new JobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
-    jb.defineGhprbTriggeredJob(nameBase + "_hgprb", triggerPhrase, githubUiHint, true)
+    jb.defineGhprbTriggeredJob(nameBase + "_hgprb", triggerPhrase, githubUiHint, false)
   }
 
   private void defineAutoPostCommitJob(name) {
@@ -52,13 +52,13 @@ class JobBuilder {
     autoBuilds.with(jobDefinition)
   }
 
-  private void defineGhprbPostCommitJob(name, triggerPhrase, githubUiHint, onlyTriggerOnPhrase) {
+  private void defineGhprbPostCommitJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
     def ghprbBuilds = scope.job(name) {
       cjp.setPullRequestBuildTrigger(
         delegate,
         githubUiHint,
         triggerPhrase,
-        onlyTriggerOnPhrase)
+        !triggerOnPrCommit)
     }
     ghprbBuilds.with(jobDefinition)
   }
