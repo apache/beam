@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
 import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
@@ -86,7 +87,7 @@ public class HadoopInputFormatIOIT {
   public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setUp() throws SQLException {
+  public static void setUp() throws Exception {
     PostgresIOTestPipelineOptions options = readIOTestPipelineOptions(
       PostgresIOTestPipelineOptions.class);
 
@@ -94,8 +95,12 @@ public class HadoopInputFormatIOIT {
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopInputFormatIOIT");
 
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    executeWithRetry(HadoopInputFormatIOIT::createTable);
     setupHadoopConfiguration(options);
+  }
+
+  private static void createTable() throws SQLException {
+    DatabaseTestHelper.createTable(dataSource, tableName);
   }
 
   private static void setupHadoopConfiguration(PostgresIOTestPipelineOptions options) {
@@ -120,7 +125,11 @@ public class HadoopInputFormatIOIT {
   }
 
   @AfterClass
-  public static void tearDown() throws SQLException {
+  public static void tearDown() throws Exception {
+    executeWithRetry(HadoopInputFormatIOIT::deleteTable);
+  }
+
+  private static void deleteTable() throws SQLException {
     DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
