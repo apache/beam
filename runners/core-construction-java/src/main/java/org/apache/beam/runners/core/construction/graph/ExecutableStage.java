@@ -112,8 +112,8 @@ public interface ExecutableStage {
    * <p>The executable stage can be reconstructed from the resulting {@link ExecutableStagePayload}
    * via {@link #fromPayload(ExecutableStagePayload)}.
    */
-  default PTransform toPTransform() {
-    PTransform.Builder pt = PTransform.newBuilder();
+  default PTransform toPTransform(String uniqueName) {
+    PTransform.Builder pt = PTransform.newBuilder().setUniqueName(uniqueName);
     ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
 
     payload.setEnvironment(getEnvironment());
@@ -168,7 +168,7 @@ public interface ExecutableStage {
    * Return an {@link ExecutableStage} constructed from the provided {@link FunctionSpec}
    * representation.
    *
-   * <p>See {@link #toPTransform()} for how the payload is constructed.
+   * <p>See {@link #toPTransform} for how the payload is constructed.
    *
    * <p>Note: The payload contains some information redundant with the {@link PTransform} it is the
    * payload of. The {@link ExecutableStagePayload} should be sufficiently rich to construct a
