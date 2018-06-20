@@ -48,13 +48,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.Storag
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -313,9 +313,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
         UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
-        TypeHint<K> keyTypeHint) {
-      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeHint),
-          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeHint));
+        TypeDescriptor<K> keyTypeDescriptor) {
+      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
+          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
     }
   }
 
@@ -344,8 +344,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
-        BinaryFunctor<LeftT, RightT, OutputT> joinFunc, TypeHint<OutputT> outputTypeHint) {
-      return using(TypeAwareBinaryFunctor.of(joinFunc, outputTypeHint));
+        BinaryFunctor<LeftT, RightT, OutputT> joinFunc,
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
+      return using(TypeAwareBinaryFunctor.of(joinFunc, outputTypeDescriptor));
     }
   }
 

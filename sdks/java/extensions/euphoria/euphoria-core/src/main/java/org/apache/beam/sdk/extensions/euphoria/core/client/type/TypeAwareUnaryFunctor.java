@@ -19,17 +19,18 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** TODO: complete javadoc. */
 public class TypeAwareUnaryFunctor<InT, OutT>
     extends AbstractTypeAware<UnaryFunctor<InT, OutT>, OutT> implements UnaryFunctor<InT, OutT> {
 
-  private TypeAwareUnaryFunctor(UnaryFunctor<InT, OutT> function, TypeHint<OutT> resultType) {
+  private TypeAwareUnaryFunctor(UnaryFunctor<InT, OutT> function, TypeDescriptor<OutT> resultType) {
     super(function, resultType);
   }
 
   public static <InT, OutT> TypeAwareUnaryFunctor<InT, OutT> of(
-      UnaryFunctor<InT, OutT> function, TypeHint<OutT> typeHint) {
+      UnaryFunctor<InT, OutT> function, TypeDescriptor<OutT> typeHint) {
     return new TypeAwareUnaryFunctor<>(function, typeHint);
   }
 
