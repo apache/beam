@@ -17,9 +17,11 @@
  */
 
 import common_job_properties
+import JobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-job('beam_PostCommit_Java_ValidatesRunner_Flink_Gradle') {
+JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Flink_Gradle',
+  'Run Flink ValidatesRunner', 'Apache Flink Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Flink runner.')
 
   // Set common parameters.
@@ -29,15 +31,6 @@ job('beam_PostCommit_Java_ValidatesRunner_Flink_Gradle') {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Apache Flink Runner ValidatesRunner Tests',
-    'Run Flink ValidatesRunner')
 
   // Gradle goals for this job.
   steps {

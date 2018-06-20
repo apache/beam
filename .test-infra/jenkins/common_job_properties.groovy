@@ -124,11 +124,11 @@ class common_job_properties {
 
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
-  private static void setPullRequestBuildTrigger(context,
-                                                 String commitStatusContext,
-                                                 String prTriggerPhrase = '',
-                                                 boolean onlyTriggerPhraseToggle = true,
-                                                 String successComment = '--none--') {
+  static void setPullRequestBuildTrigger(context,
+                                         String commitStatusContext,
+                                         String prTriggerPhrase = '',
+                                         boolean onlyTriggerPhraseToggle = true,
+                                         String successComment = '--none--') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -229,6 +229,7 @@ class common_job_properties {
                             boolean triggerEveryPush = true,
                             String notifyAddress = 'commits@beam.apache.org',
                             boolean emailIndividuals = true) {
+
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.

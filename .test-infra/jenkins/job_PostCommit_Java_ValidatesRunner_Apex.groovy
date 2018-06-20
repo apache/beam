@@ -17,9 +17,11 @@
  */
 
 import common_job_properties
+import JobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Apex runner.
-job('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle') {
+JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle',
+  'Run Apex ValidatesRunner', 'Apache Apex Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Apex runner.')
   previousNames('beam_PostCommit_Java_ValidatesRunner_Apex')
   previousNames('beam_PostCommit_Java_RunnableOnService_Apex')
@@ -31,15 +33,6 @@ job('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle') {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Apache Apex Runner ValidatesRunner Tests',
-    'Run Apex ValidatesRunner')
 
   // Gradle goals for this job.
   steps {
