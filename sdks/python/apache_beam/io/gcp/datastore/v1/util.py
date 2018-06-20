@@ -19,7 +19,12 @@
 #
 # For internal use only; no backwards-compatibility guarantees.
 
+from __future__ import absolute_import
+from __future__ import division
+
 import math
+from builtins import object
+from builtins import range
 
 
 class MovingSum(object):

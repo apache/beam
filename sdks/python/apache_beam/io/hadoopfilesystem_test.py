@@ -23,6 +23,9 @@ import io
 import logging
 import posixpath
 import unittest
+from builtins import object
+
+from future.utils import itervalues
 
 from apache_beam.io import hadoopfilesystem as hdfs
 from apache_beam.io.filesystem import BeamIOError
@@ -125,7 +128,7 @@ class FakeHdfs(object):
           'list must be called on a directory, got file: %s' % path)
 
     result = []
-    for file in self.files.itervalues():
+    for file in itervalues(self.files):
       if file.stat['path'].startswith(path):
         fs = file.get_file_status()
         result.append((fs[hdfs._FILE_STATUS_PATH_SUFFIX], fs))

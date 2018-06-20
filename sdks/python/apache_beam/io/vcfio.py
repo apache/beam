@@ -24,9 +24,11 @@ from __future__ import absolute_import
 
 import logging
 import traceback
+from builtins import next
+from builtins import object
 from collections import namedtuple
 
-from six import string_types
+from future.utils import iteritems
 
 import vcf
 
@@ -38,8 +40,10 @@ from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
 
 try:
-  long        # Python 2
+  unicode  # pylint: disable=unicode-builtin
+  int        # Python 2
 except NameError:
+  unicode = str
   long = int  # Python 3
 
 
@@ -320,6 +324,9 @@ class _VcfSource(filebasedsource.FileBasedSource):
       return self
 
     def next(self):
+      return self.__next__()
+
+    def __next__(self):
       try:
         record = next(self._vcf_reader)
         return self._convert_to_variant_record(record, self._vcf_reader.infos,
@@ -371,7 +378,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
       if record.FILTER is not None:
         variant.filters.extend(
             record.FILTER if record.FILTER else [PASS_FILTER])
-      for k, v in record.INFO.iteritems():
+      for k, v in iteritems(record.INFO):
         # Special case: END info value specifies end of the record, so adjust
         # variant.end and do not include it as part of variant.info.
         if k == END_INFO_KEY:
@@ -406,7 +413,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, long, string_types, bool))):
+              isinstance(data, (int, float, int, str, unicode, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)
