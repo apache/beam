@@ -20,17 +20,21 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** TODO: complete javadoc. */
+/**
+ * TODO: complete javadoc.
+ */
 public class TypeAwareReduceFunctor<InT, OutT>
     extends AbstractTypeAware<ReduceFunctor<InT, OutT>, OutT> implements ReduceFunctor<InT, OutT> {
 
-  private TypeAwareReduceFunctor(ReduceFunctor<InT, OutT> functor, TypeHint<OutT> resultType) {
+  private TypeAwareReduceFunctor(ReduceFunctor<InT, OutT> functor,
+      TypeDescriptor<OutT> resultType) {
     super(functor, resultType);
   }
 
   public static <InT, OutT> TypeAwareReduceFunctor<InT, OutT> of(
-      ReduceFunctor<InT, OutT> functor, TypeHint<OutT> typeHint) {
+      ReduceFunctor<InT, OutT> functor, TypeDescriptor<OutT> typeHint) {
     return new TypeAwareReduceFunctor<>(functor, typeHint);
   }
 

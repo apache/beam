@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.beam.sdk.extensions.euphoria.beam;
+package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

@@ -29,8 +29,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Left outer join of two input datasets producing single new dataset.
@@ -131,9 +131,9 @@ public class LeftJoin {
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
         UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
-        TypeHint<K> keyTypeHint) {
-      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeHint),
-          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeHint));
+        TypeDescriptor<K> keyTypeDescriptor) {
+      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
+          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
     }
   }
 
@@ -165,7 +165,7 @@ public class LeftJoin {
 
     public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
         BinaryFunctor<LeftT, Optional<RightT>, OutputT> joinFunc,
-        TypeHint<OutputT> outputTypeHint) {
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
       Objects.requireNonNull(joinFunc);
 
       @SuppressWarnings("unchecked")
@@ -175,7 +175,7 @@ public class LeftJoin {
       paramsCasted.joinFunc =
           TypeAwareBinaryFunctor.of(
               (left, right, context) -> joinFunc.apply(left, Optional.ofNullable(right), context),
-              outputTypeHint);
+              outputTypeDescriptor);
 
       return new Join.WindowingBuilder<>(paramsCasted);
     }

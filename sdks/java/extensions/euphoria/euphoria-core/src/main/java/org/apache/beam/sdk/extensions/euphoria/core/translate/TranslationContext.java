@@ -49,7 +49,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryF
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.PairCoder;
@@ -66,7 +65,7 @@ import org.slf4j.LoggerFactory;
  */
 class TranslationContext {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamExecutorContext.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
   private final Map<Dataset<?>, PCollection<?>> datasetToPCollection = new HashMap<>();
   private final Pipeline pipeline;
   private final Duration allowedLateness;
@@ -177,7 +176,8 @@ class TranslationContext {
   <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunction<InputT, OutputT> unaryFunction) {
 
     if (unaryFunction instanceof TypeAwareUnaryFunction) {
-      return getCoder(((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeHint());
+      return getCoder(
+          ((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeDescriptor());
     }
 
     return inferCoderFromLambda(unaryFunction).orElse(getFallbackCoder(unaryFunction));
@@ -185,7 +185,7 @@ class TranslationContext {
 
   <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunctor<InputT, OutputT> unaryFunctor) {
     if (unaryFunctor instanceof TypeAwareUnaryFunctor) {
-      return getCoder(((TypeAwareUnaryFunctor<InputT, OutputT>) unaryFunctor).getTypeHint());
+      return getCoder(((TypeAwareUnaryFunctor<InputT, OutputT>) unaryFunctor).getTypeDescriptor());
     }
 
     return getFallbackCoder(unaryFunctor);
@@ -209,11 +209,11 @@ class TranslationContext {
     final Type lambdaType = getLambdaReturnType(unaryFunction);
     if (lambdaType != null) {
       try {
+
         return Optional.of(getCoder(lambdaType));
       } catch (IllegalArgumentException e) {
         // suppress exception, failed to infer coder from return type.
         LOG.debug("Couldn't infer coder for lambda return type {}", lambdaType);
-
       }
     }
     return Optional.empty();
@@ -223,30 +223,31 @@ class TranslationContext {
       BinaryFunctor<LeftT, RightT, OutputT> binaryFunctor) {
     if (binaryFunctor instanceof TypeAwareBinaryFunctor) {
       return getCoder(
-          ((TypeAwareBinaryFunctor<LeftT, RightT, OutputT>) binaryFunctor).getTypeHint());
+          ((TypeAwareBinaryFunctor<LeftT, RightT, OutputT>) binaryFunctor).getTypeDescriptor());
     }
     return getFallbackCoder(binaryFunctor);
   }
 
   <InputT, OutputT> Coder<OutputT> getCoder(ReduceFunctor<InputT, OutputT> reduceFunctor) {
     if (reduceFunctor instanceof TypeAwareReduceFunctor) {
-      return getCoder(((TypeAwareReduceFunctor<InputT, OutputT>) reduceFunctor).getTypeHint());
+      return getCoder(
+          ((TypeAwareReduceFunctor<InputT, OutputT>) reduceFunctor).getTypeDescriptor());
     }
     return getFallbackCoder(reduceFunctor);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> Coder<T> getCoder(Type type) {
+  private <T> Coder<T> getCoder(TypeDescriptor<T> typeHint) {
     try {
-      return pipeline.getCoderRegistry().getCoder((TypeDescriptor<T>) TypeDescriptor.of(type));
+      return pipeline.getCoderRegistry().getCoder(typeHint);
     } catch (CannotProvideCoderException e) {
       throw new IllegalArgumentException("Unable to provide coder for type hint.", e);
     }
   }
 
   @SuppressWarnings("unchecked")
-  private <T> Coder<T> getCoder(TypeHint<T> typeHint) {
-    return getCoder(typeHint.getType());
+  private <T> Coder<T> getCoder(Type type) {
+    return getCoder((TypeDescriptor<T>) TypeDescriptor.of(type));
   }
 
   AccumulatorProvider.Factory getAccumulatorFactory() {

@@ -7,79 +7,39 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
+
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
-import com.google.common.reflect.TypeParameter;
-import com.google.common.reflect.TypeToken;
-import java.io.Serializable;
-import java.lang.reflect.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
-/** TODO: complete javadoc. */
-public abstract class TypeHint<T> implements Serializable {
+/**
+ * Util for easier creation of TypeDescriptors.
+ */
+public class TypeHint {
 
-  private final TypeToken<T> type;
+  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
+      TypeDescriptor<K> key, TypeDescriptor<V> value) {
 
-  protected TypeHint() {
-    this.type = new TypeToken<T>(this.getClass()) {};
+    return new TypeDescriptor<Pair<K, V>>() {
+    }.where(new TypeParameter<K>() {
+    }, key)
+        .where(new TypeParameter<V>() {
+        }, value);
   }
 
-  private TypeHint(TypeToken<T> type) {
-    this.type = type;
-  }
-
-  public static <T> TypeHint<T> of(TypeToken<T> type) {
-    return new SimpleTypeHint<>(type);
-  }
-
-  public static <T> TypeHint<T> of(Class<T> clazz) {
-    return new SimpleTypeHint<>(TypeToken.of(clazz));
-  }
-
-  public static TypeHint<String> ofString() {
-    return TypeHint.of(String.class);
-  }
-
-  public static TypeHint<Long> ofLong() {
-    return TypeHint.of(Long.class);
-  }
-
-  public static TypeHint<Integer> ofInt() {
-    return TypeHint.of(Integer.class);
-  }
-
-  public static <T1, T2> TypeHint<Pair<T1, T2>> ofPair(TypeToken<T1> left, TypeToken<T2> right) {
-    return new SimpleTypeHint<>(
-        new TypeToken<Pair<T1, T2>>(Pair.class) {}.where(new TypeParameter<T1>() {}, left)
-            .where(new TypeParameter<T2>() {}, right));
-  }
-
-  public static <T1, T2> TypeHint<Pair<T1, T2>> ofPair(Class<T1> left, Class<T2> right) {
-    return new SimpleTypeHint<>(
-        new TypeToken<Pair<T1, T2>>(Pair.class) {}.where(new TypeParameter<T1>() {}, left)
-            .where(new TypeParameter<T2>() {}, right));
-  }
-
-  public final Type getType() {
-    return type.getType();
-  }
-
-  public final TypeToken<T> getTypeToken() {
-    return type;
-  }
-
-  private static class SimpleTypeHint<T> extends TypeHint<T> {
-
-    private SimpleTypeHint(TypeToken<T> tt) {
-      super(tt);
-    }
+  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
+      Class<K> key, Class<V> value) {
+    return pairs(TypeDescriptor.of(key), TypeDescriptor.of(value));
   }
 }

@@ -39,11 +39,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateF
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateMerger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -250,14 +250,14 @@ public class ReduceStateByKey<
     }
 
     public <K> ValueByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
 
       return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
 
     public <K> ValueByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, Class<K> typeHint) {
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, TypeHint.of(typeHint)));
+      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, TypeDescriptor.of(typeHint)));
     }
   }
 

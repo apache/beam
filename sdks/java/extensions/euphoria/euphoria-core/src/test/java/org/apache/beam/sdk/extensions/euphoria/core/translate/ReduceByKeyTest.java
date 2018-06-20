@@ -42,12 +42,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.CountTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -166,9 +166,9 @@ public class ReduceByKeyTest {
     input = AssignEventTime.of(input).using(Pair::getSecond).output();
     Dataset<Pair<String, Integer>> reduced =
         ReduceByKey.of(input)
-            .keyBy(e -> "", TypeHint.ofString())
-            .valueBy(Pair::getFirst, TypeHint.ofInt())
-            .combineBy(Sums.ofInts(), TypeHint.ofInt())
+            .keyBy(e -> "", TypeDescriptors.strings())
+            .valueBy(Pair::getFirst, TypeDescriptors.integers())
+            .combineBy(Sums.ofInts(), TypeDescriptors.integers())
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
             .triggeredBy(AfterWatermark.pastEndOfWindow())
             .discardingFiredPanes()
