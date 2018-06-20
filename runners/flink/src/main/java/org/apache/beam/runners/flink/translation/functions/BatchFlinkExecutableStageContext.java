@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.functions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalNotification;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
