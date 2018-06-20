@@ -356,6 +356,7 @@ public abstract class Row implements Serializable {
    */
   public static class Builder {
     private List<Object> values = new ArrayList<>();
+    private boolean attached = false;
     private Schema schema;
 
     Builder(Schema schema) {
@@ -384,6 +385,11 @@ public abstract class Row implements Serializable {
     public Builder addArray(Object ... values) {
       addArray(Arrays.asList(values));
       return this;
+    }
+
+    public Builder attachValues(List<Object> values) {
+      this.attached = true;
+      return addValues(values);
     }
 
     private List<Object> verify(Schema schema, List<Object> values) {
@@ -482,7 +488,7 @@ public abstract class Row implements Serializable {
             }
             break;
           case INT16:
-            if (value instanceof Short){
+            if (value instanceof Short) {
             return value;
           }
             break;
@@ -545,7 +551,8 @@ public abstract class Row implements Serializable {
 
     public Row build() {
       checkNotNull(schema);
-      return new AutoValue_Row(verify(schema, values), schema);
+      List<Object> values = attached ? this.values : verify(schema, this.values);
+      return new AutoValue_Row(values, schema);
     }
   }
 }
