@@ -1118,7 +1118,7 @@ class CombineGlobally(PTransform):
     return clone
 
   def with_fanout(self, fanout):
-    return self._clone(fanout=fanout)
+    return self._clone(fanout=self.fanout)
 
   def with_defaults(self, has_defaults=True):
     return self._clone(has_defaults=has_defaults)

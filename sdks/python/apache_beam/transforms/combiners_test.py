@@ -336,6 +336,14 @@ class CombineTest(unittest.TestCase):
               lambda key: random.randrange(0, 5)))
       assert_that(result, equal_to([(None, 499.5)]))
 
+  def test_global_fanout(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(range(100))
+          | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
+      assert_that(result, equal_to([49.5]))
+
 
 if __name__ == '__main__':
   unittest.main()
