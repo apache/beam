@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
@@ -32,6 +34,20 @@ public class BeamSqlRelUtils {
 
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
     return toPCollection(pipeline, node, new HashMap());
+  }
+
+  /** Transforms the inputs into a PInput. */
+  private static PCollectionList<Row> buildPCollectionList(
+      List<RelNode> inputRels, Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
+    if (inputRels.isEmpty()) {
+      return PCollectionList.empty(pipeline);
+    } else {
+      return PCollectionList.of(
+          inputRels
+              .stream()
+              .map(input -> BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache))
+              .collect(Collectors.toList()));
+    }
   }
 
   /**
@@ -46,9 +62,8 @@ public class BeamSqlRelUtils {
     }
 
     String name = node.getClass().getSimpleName() + "_" + node.getId();
-    PInput input = node.buildPInput(pipeline, cache);
-    PTransform<PInput, PCollection<Row>> transform = node.buildPTransform();
-
+    PCollectionList<Row> input = buildPCollectionList(node.getPCollectionInputs(), pipeline, cache);
+    PTransform<PCollectionList<Row>, PCollection<Row>> transform = node.buildPTransform();
     output = Pipeline.applyTransform(name, input, transform);
 
     cache.put(node.getId(), output);
