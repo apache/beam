@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -30,7 +32,6 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -38,7 +39,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
  * BeamMinusRel}.
  */
-public class BeamSetOperatorRelBase extends PTransform<PInput, PCollection<Row>> {
+public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCollection<Row>> {
   /** Set operator type. */
   public enum OpType implements Serializable {
     UNION,
@@ -56,9 +57,12 @@ public class BeamSetOperatorRelBase extends PTransform<PInput, PCollection<Row>>
     this.all = all;
   }
 
-  public PCollection<Row> expand(PInput pinput) {
-    PCollectionList<Row> inputs = (PCollectionList<Row>) pinput;
-    assert inputs.size() == 2;
+  public PCollection<Row> expand(PCollectionList<Row> inputs) {
+    checkArgument(
+        inputs.size() == 2,
+        "Wrong number of arguments to %s: %s",
+        beamRelNode.getClass().getSimpleName(),
+        inputs);
     PCollection<Row> leftRows = inputs.get(0);
     PCollection<Row> rightRows = inputs.get(1);
 

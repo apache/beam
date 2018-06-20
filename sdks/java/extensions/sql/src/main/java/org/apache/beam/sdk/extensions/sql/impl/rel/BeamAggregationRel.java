@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
@@ -39,7 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
@@ -73,15 +74,20 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PInput, PCollection<Row>> buildPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PInput, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PInput pinput) {
-      PCollection<Row> upstream = (PCollection<Row>) pinput;
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamAggregationRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> upstream = pinput.get(0);
       if (windowField.isPresent()) {
         upstream =
             upstream
