@@ -26,15 +26,15 @@ JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle',
   previousNames('beam_PostCommit_Java_ValidatesRunner_Apex')
   previousNames('beam_PostCommit_Java_RunnableOnService_Apex')
 
-// Set common parameters.
+  // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
 
-// Publish all test results to Jenkins
+  // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
 
-// Gradle goals for this job.
+  // Gradle goals for this job.
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
