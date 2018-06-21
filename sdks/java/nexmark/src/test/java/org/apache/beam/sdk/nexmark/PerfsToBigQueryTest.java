@@ -104,16 +104,16 @@ public class PerfsToBigQueryTest {
     assertEquals("Wrong number of rows inserted", 2, actualRows.size());
     List<TableRow> expectedRows = new ArrayList<>();
     TableRow row1 = new TableRow()
-        .set("Runtime(sec)", nexmarkPerf1.runtimeSec).set("Events(/sec)", nexmarkPerf1.eventsPerSec)
+        .set("runtimeSec", nexmarkPerf1.runtimeSec).set("eventsPerSec", nexmarkPerf1.eventsPerSec)
         // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
         // to for bowing into Integer in the expectedRows.
-        .set("Size of the result collection", (int) nexmarkPerf1.numResults);
+        .set("numResults", (int) nexmarkPerf1.numResults);
     expectedRows.add(row1);
     TableRow row2 = new TableRow()
-        .set("Runtime(sec)", nexmarkPerf2.runtimeSec).set("Events(/sec)", nexmarkPerf2.eventsPerSec)
+        .set("runtimeSec", nexmarkPerf2.runtimeSec).set("eventsPerSec", nexmarkPerf2.eventsPerSec)
         // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
         // to for bowing into Integer in the expectedRows.
-        .set("Size of the result collection", (int) nexmarkPerf2.numResults);
+        .set("numResults", (int) nexmarkPerf2.numResults);
     expectedRows.add(row2);
     assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
 
