@@ -22,7 +22,8 @@ import JobBuilder
 // This job runs the suite of ValidatesRunner tests against the Gearpump
 // runner.
 JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Gearpump_Gradle',
-  'Run Gearpump ValidatesRunner', 'Apache Gearpump Runner ValidatesRunner Tests', this) {
+  'Run Gearpump ValidatesRunner', 'Apache Gearpump Runner ValidatesRunner Tests',
+  this) {
   description('Runs the ValidatesRunner suite on the Gearpump runner.')
   previousNames('beam_PostCommit_Java_ValidatesRunner_Gearpump')
   previousNames('beam_PostCommit_Java_RunnableOnService_Gearpump')
@@ -30,7 +31,7 @@ JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Gearpump_Gradle',
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(
     delegate,
-    'gearpump-runner')
+    'master')
 
   // Publish all test results to Jenkins
   publishers {
@@ -46,3 +47,4 @@ JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Gearpump_Gradle',
     }
   }
 }
+
