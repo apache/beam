@@ -70,7 +70,6 @@ import copy
 import sys
 import types
 from builtins import next
-from builtins import object
 from builtins import zip
 
 from future.utils import with_metaclass
@@ -417,6 +416,7 @@ class AnyTypeConstraint(TypeConstraint):
     return 'Any'
 
   def __hash__(self):
+    # TODO(BEAM - 3730)
     return hash(id(self))
 
   def type_check(self, instance):
@@ -432,6 +432,7 @@ class TypeVariable(AnyTypeConstraint):
     return type(self) == type(other) and self.name == other.name
 
   def __hash__(self):
+    # TODO(BEAM - 3730)
     return hash(id(self))
 
   def __repr__(self):

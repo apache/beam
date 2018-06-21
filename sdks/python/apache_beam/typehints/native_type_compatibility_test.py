@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import typing
 import unittest
-from builtins import object
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
