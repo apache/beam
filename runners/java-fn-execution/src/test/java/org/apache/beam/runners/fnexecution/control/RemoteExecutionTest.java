@@ -136,6 +136,7 @@ public class RemoteExecutionTest implements Serializable {
         () -> {
           try {
             FnHarness.main(
+                "id",
                 PipelineOptionsFactory.create(),
                 loggingServer.getApiServiceDescriptor(),
                 controlServer.getApiServiceDescriptor(),
