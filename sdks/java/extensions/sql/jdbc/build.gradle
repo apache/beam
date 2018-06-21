@@ -37,6 +37,12 @@ dependencies {
   integrationTest library.java.junit
 }
 
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+          'beam.version': version,
+  ]
+}
+
 shadowJar {
   manifest {
     attributes "Main-Class": "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
