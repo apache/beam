@@ -154,3 +154,5 @@ include "beam-sdks-python"
 project(":beam-sdks-python").dir = file("sdks/python")
 include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
+include "beam-vendor-guava-20"
+project(":beam-vendor-guava-20").dir = file("vendor/guava/20")

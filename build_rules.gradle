@@ -972,6 +972,26 @@ artifactId=${project.name}
   }
 }
 
+// Configures a module to be a vendored library
+ext.vendoredJavaLibrary = {
+  project, dependency, destPackage, srcPackages ->
+    println "vendoredJavaLibrary(${dependency} -> org.apache.beam.vendor.${destPackage})"
+
+    apply plugin: 'com.github.johnrengelman.shadow'
+    apply plugin: 'java'
+
+    project.dependencies {
+      compile dependency
+    }
+
+    project.shadowJar {
+      classifier = null
+      for (srcPackage in srcPackages) {
+        relocate srcPackage, "org.apache.beam.vendor.${destPackage}.${srcPackage}"
+      }
+    }
+}
+
 // Reads and contains all necessary performance test parameters
 class JavaPerformanceTestConfiguration {
 
