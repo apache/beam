@@ -754,6 +754,10 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
+  def apply_Read(self, transform, unused_pbegin):
+    # Always consider Read to be a primitive for dataflow.
+    return beam.pvalue.PCollection(transform.pipeline)
+
   def run_Read(self, transform_node):
     transform = transform_node.transform
     step = self._add_step(
