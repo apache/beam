@@ -42,7 +42,7 @@ class JobBuilder {
                             jobDefinition = {}) {
     JobBuilder jb = new JobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
-    jb.defineGhprbTriggeredJob(nameBase + "_hgprb", triggerPhrase, githubUiHint, false)
+    jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
   }
 
   private void defineAutoPostCommitJob(name) {
