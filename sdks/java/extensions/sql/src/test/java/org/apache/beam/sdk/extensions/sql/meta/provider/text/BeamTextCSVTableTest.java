@@ -23,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -150,7 +151,7 @@ public class BeamTextCSVTableTest {
         printer.println();
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new UncheckedIOException(e);
     }
   }
 }

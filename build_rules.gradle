@@ -335,25 +335,38 @@ ext.DEFAULT_SHADOW_CLOSURE = {
   }
 }
 
-// A class defining the set of configurable properties accepted by applyJavaNature
+/** A class defining the set of configurable properties accepted by applyJavaNature */
 class JavaNatureConfiguration {
-  double javaVersion = 1.8        // Controls the JDK source language and target compatibility
-  boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
-  boolean enableErrorProne = true // Controls whether the errorprone plugin is enabled and configured
-  boolean failOnWarning = false // Controls whether compiler warnings are treated as errors
-
+  /** Controls the JDK source language and target compatibility */
+  double javaVersion = 1.8
+  /** Controls whether the findbugs plugin is enabled and configured */
+  boolean enableFindbugs = true
+  /** Controls whether the errorprone plugin is enabled and configured */
+  boolean enableErrorProne = true
+  /** Controls whether compiler warnings are treated as errors */
+  boolean failOnWarning = false
+  /**
+   * List of additional lint warnings to disable.
+   * In addition, defaultLintSuppressions defined below
+   * will be applied to all projects.
+   */
+  List<String> disableLintWarnings = []
+  /** Controls whether spotless plugin enforces autoformat */
   //TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this default to true?
-  boolean enableSpotless = false // Controls whether spotless plugin enforces autoformat
-  boolean testShadowJar = false  // Controls whether tests are run with shadowJar
+  boolean enableSpotless = false
+  /** Controls whether tests are run with shadowJar */
+  boolean testShadowJar = false
 
-  // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
-  // Users can compose their closure with the default closure via:
-  // DEFAULT_SHADOW_CLOSURE << {
-  //    dependencies {
-  //      include(...)
-  //    }
-  //    relocate(...)
-  // }
+  /**
+   * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
+   * Users can compose their closure with the default closure via:
+   * DEFAULT_SHADOW_CLOSURE << {
+   *    dependencies {
+   *      include(...)
+   *    }
+   *    relocate(...)
+   * }
+   */
   Closure shadowClosure;
 }
 
@@ -417,8 +430,22 @@ ext.applyJavaNature = {
   sourceCompatibility = configuration.javaVersion
   targetCompatibility = configuration.javaVersion
   tasks.withType(JavaCompile) {
+    def defaultLintSuppressions = [
+      'options',
+      'cast',
+      'deprecation',
+      'processing',
+      'rawtypes',
+      'serial',
+      'try',
+      'unchecked',
+      'varargs',
+    ]
+
     options.encoding = "UTF-8"
-    options.compilerArgs += ["-Xlint:all","-Xlint:-options","-Xlint:-cast","-Xlint:-deprecation","-Xlint:-processing","-Xlint:-rawtypes","-Xlint:-serial","-Xlint:-try","-Xlint:-unchecked","-Xlint:-varargs","-parameters"]
+    options.compilerArgs += ['-parameters', '-Xlint:all'] + (
+      defaultLintSuppressions + configuration.disableLintWarnings
+    ).collect { "-Xlint:-${it}" }
     if (configuration.enableErrorProne) {
       options.compilerArgs += [
         "-XepDisableWarningsInGeneratedCode",

@@ -44,7 +44,7 @@ public class BeamSqlCardinalityExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    Collection<Object> collection = opValueEvaluated(0, inputRow, window, env);
+    Collection<Object> collection = (Collection) opValueEvaluated(0, inputRow, window, env);
     return BeamSqlPrimitive.of(outputType, collection.size());
   }
 }
