@@ -17,12 +17,12 @@
  */
 
 import common_job_properties
-import JobBuilder
+import PostcommitJobBuilder
 
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle',
   'Run Dataflow ValidatesRunner', 'Google Cloud Dataflow Runner ValidatesRunner Tests', this) {
 
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
