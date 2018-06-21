@@ -1,5 +1,13 @@
 # Apache Beam website
 
+_**The website source code is currently being migrated from 
+https://github.com/apache/beam-site, but is not yet ready. Please 
+continue to contribute changes at 
+[apache/beam-site](https://github.com/apache/beam-site) according to 
+the [website contribution guide](https://beam.apache.org/contribute/#contributing-to-the-website). 
+You can track migration progress via 
+[[BEAM-4493]](https://issues.apache.org/jira/browse/BEAM-4493).**_
+
 This is the website for [Apache Beam](https://beam.apache.org/), hosted at:
 
     https://beam.apache.org/
