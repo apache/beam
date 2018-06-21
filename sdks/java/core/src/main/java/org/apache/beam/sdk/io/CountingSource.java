@@ -528,4 +528,3 @@ public class CountingSource {
     public void finalizeCheckpoint() throws IOException {}
    }
 }
-j
