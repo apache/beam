@@ -17,7 +17,9 @@
  */
 package org.apache.beam.examples;
 
+import java.util.Arrays;
 import org.apache.beam.examples.common.ExampleUtils;
+import org.apache.beam.runners.reference.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -27,6 +29,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -186,8 +189,12 @@ public class WordCount {
   }
 
   public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+    WordCountOptions options = PipelineOptionsFactory.fromArgs(args)
       .as(WordCountOptions.class);
+    options.setRunner(PortableRunner.class);
+    options.as(PortablePipelineOptions.class).setJobEndpoint("localhost:8099");
+    options.setInputFile("gs://apache-beam-samples/shakespeare/*");
+    options.setOutput("gs://deft-kirpichov-sandbox-e2e-test/");
 
     runWordCount(options);
   }

@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.TextFormat;
+import io.grpc.ClientInterceptor;
 import java.util.EnumMap;
 import java.util.List;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.fn.channel.WorkerIdInterceptor;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.io.FileSystems;
@@ -65,6 +67,7 @@ public class FnHarness {
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
+  private static final String WORKER_ID = "WORKER_ID";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String env)
@@ -80,6 +83,7 @@ public class FnHarness {
     System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
     System.out.format("Control location %s%n", System.getenv(CONTROL_API_SERVICE_DESCRIPTOR));
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
+    System.out.format("Worker id %s%n", System.getenv(WORKER_ID));
 
     ObjectMapper objectMapper = new ObjectMapper().registerModules(
         ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
@@ -92,18 +96,22 @@ public class FnHarness {
     Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
         getApiServiceDescriptor(CONTROL_API_SERVICE_DESCRIPTOR);
 
-    main(options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
+    String workerId = System.getenv(WORKER_ID);
+
+    main(options, loggingApiServiceDescriptor, controlApiServiceDescriptor, workerId);
   }
 
   public static void main(PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor) throws Exception {
+      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
+      String workerId) {
     ManagedChannelFactory channelFactory;
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    ClientInterceptor interceptor = new WorkerIdInterceptor(workerId);
     if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
-      channelFactory = ManagedChannelFactory.createEpoll();
+      channelFactory = ManagedChannelFactory.createEpoll(interceptor);
     } else {
-      channelFactory = ManagedChannelFactory.createDefault();
+      channelFactory = ManagedChannelFactory.createDefault(interceptor);
     }
     OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
