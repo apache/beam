@@ -26,15 +26,24 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -122,6 +131,14 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
+  public boolean isLimitOnly() {
+    return fieldIndices.size() == 0;
+  }
+
+  public int getCount() {
+    return count;
+  }
+
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
@@ -146,27 +163,70 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
       BeamSqlRowComparator comparator =
           new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
-      // first find the top (offset + count)
-      PCollection<List<Row>> rawStream =
-          upstream
-              .apply(
-                  "extractTopOffsetAndFetch",
-                  Top.of(startIndex + count, comparator).withoutDefaults())
-              .setCoder(ListCoder.of(upstream.getCoder()));
 
-      // strip the `leading offset`
-      if (startIndex > 0) {
-        rawStream =
-            rawStream
+      PCollection<Row> retStream;
+
+      // There is a need to separate ORDER BY LIMIT and LIMIT, because GroupByKey is not allowed
+      // on unbounded data in global window(Top transform uses GroupByKey internally).
+      // If it is ORDER BY LIMIT.
+      if (fieldIndices.size() > 0) {
+        // first find the top (offset + count)
+        PCollection<List<Row>> rawStream =
+            upstream
                 .apply(
-                    "stripLeadingOffset", ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                    "extractTopOffsetAndFetch",
+                    Top.of(startIndex + count, comparator).withoutDefaults())
                 .setCoder(ListCoder.of(upstream.getCoder()));
+
+        // strip the `leading offset`
+        if (startIndex > 0) {
+          rawStream =
+              rawStream
+                  .apply(
+                      "stripLeadingOffset",
+                      ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                  .setCoder(ListCoder.of(upstream.getCoder()));
+        }
+
+        retStream = rawStream.apply("flatten", Flatten.iterables());
+      } else { // If it is LIMIT only
+        retStream = upstream.apply(new BeamSqlLimitTransforms<Row>());
       }
 
-      PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
-      orderedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      retStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      return retStream;
+    }
+  }
 
-      return orderedStream;
+  private class BeamSqlLimitTransforms<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      Coder<T> coder = input.getCoder();
+      PCollection<KV<String, T>> keyedRow =
+          input.apply(WithKeys.of("DummyKey")).setCoder(KvCoder.of(StringUtf8Coder.of(), coder));
+
+      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount())));
+    }
+  }
+
+  private static class LimitFn<T> extends DoFn<KV<String, T>, T> {
+    private final Integer limitCount;
+
+    public LimitFn(int c) {
+      limitCount = c;
+    }
+
+    @StateId("counter")
+    private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
+
+    @ProcessElement
+    public void processElement(
+        ProcessContext context, @StateId("counter") ValueState<Integer> counterState) {
+      int current = (counterState.read() != null ? counterState.read() : 0);
+      if (current < limitCount) {
+        context.output(context.element().getValue());
+        counterState.write(current + 1);
+      }
     }
   }
 

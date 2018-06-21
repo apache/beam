@@ -80,6 +80,18 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
   }
 
+  public int getLimitCountOfSortRel() {
+    if (input instanceof BeamSortRel) {
+      return ((BeamSortRel) input).getCount();
+    }
+
+    throw new RuntimeException("Could not get the limit count from a non BeamSortRel input.");
+  }
+
+  public boolean isInputSortRelAndLimitOnly() {
+    return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
+  }
+
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */
   public static class CalcFn extends DoFn<Row, Row> {
     private BeamSqlExpressionExecutor executor;
