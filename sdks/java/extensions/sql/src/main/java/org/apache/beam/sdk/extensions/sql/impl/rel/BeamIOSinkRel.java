@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -100,24 +99,16 @@ public class BeamIOSinkRel extends TableModify
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
-  }
+  public PCollection<Row> implement(PCollectionList<Row> pinput) {
+    checkArgument(
+        pinput.size() == 1,
+        "Wrong number of inputs for %s: %s",
+        BeamIOSinkRel.class.getSimpleName(),
+        pinput);
+    PCollection<Row> input = pinput.get(0);
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    sqlTable.buildIOWriter(input);
 
-    @Override
-    public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      checkArgument(
-          pinput.size() == 1,
-          "Wrong number of inputs for %s: %s",
-          BeamIOSinkRel.class.getSimpleName(),
-          pinput);
-      PCollection<Row> input = pinput.get(0);
-
-      sqlTable.buildIOWriter(input);
-
-      return input;
-    }
+    return input;
   }
 }

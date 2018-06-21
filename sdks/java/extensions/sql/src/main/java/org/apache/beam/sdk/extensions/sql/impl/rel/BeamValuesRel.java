@@ -29,7 +29,6 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -60,30 +59,22 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
-  }
+  public PCollection<Row> implement(PCollectionList<Row> pinput) {
+    checkArgument(
+        pinput.size() == 0,
+        "Should not have received input for %s: %s",
+        BeamValuesRel.class.getSimpleName(),
+        pinput);
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
-
-    @Override
-    public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      checkArgument(
-          pinput.size() == 0,
-          "Should not have received input for %s: %s",
-          BeamValuesRel.class.getSimpleName(),
-          pinput);
-
-      if (tuples.isEmpty()) {
-        throw new IllegalStateException("Values with empty tuples!");
-      }
-
-      Schema schema = CalciteUtils.toBeamSchema(getRowType());
-
-      List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
-
-      return pinput.getPipeline().begin().apply(Create.of(rows)).setCoder(schema.getRowCoder());
+    if (tuples.isEmpty()) {
+      throw new IllegalStateException("Values with empty tuples!");
     }
+
+    Schema schema = CalciteUtils.toBeamSchema(getRowType());
+
+    List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
+
+    return pinput.getPipeline().begin().apply(Create.of(rows)).setCoder(schema.getRowCoder());
   }
 
   private Row tupleToRow(Schema schema, ImmutableList<RexLiteral> tuple) {

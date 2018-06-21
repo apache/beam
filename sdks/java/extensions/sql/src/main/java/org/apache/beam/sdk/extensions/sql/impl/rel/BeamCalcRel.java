@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,29 +54,21 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
-  }
+  public PCollection<Row> implement(PCollectionList<Row> pinputs) {
+    checkArgument(
+        pinputs.size() == 1,
+        "Wrong number of inputs for %s: %s",
+        BeamCalcRel.class.getSimpleName(),
+        pinputs);
+    PCollection<Row> upstream = pinputs.get(0);
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamCalcRel.this.getProgram());
 
-    @Override
-    public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      checkArgument(
-          pinput.size() == 1,
-          "Wrong number of inputs for %s: %s",
-          BeamCalcRel.class.getSimpleName(),
-          pinput);
-      PCollection<Row> upstream = pinput.get(0);
+    PCollection<Row> projectStream =
+        upstream.apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))));
+    projectStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
-      BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamCalcRel.this.getProgram());
-
-      PCollection<Row> projectStream =
-          upstream.apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))));
-      projectStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
-
-      return projectStream;
-    }
+    return projectStream;
   }
 
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */

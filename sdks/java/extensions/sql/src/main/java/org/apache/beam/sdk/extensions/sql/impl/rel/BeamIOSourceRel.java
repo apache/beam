@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -46,21 +45,13 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
-  }
-
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
-
-    @Override
-    public PCollection<Row> expand(PCollectionList<Row> input) {
-      checkArgument(
-          input.size() == 0,
-          "Should not have received input for %s: %s",
-          BeamIOSourceRel.class.getSimpleName(),
-          input);
-      return sqlTable.buildIOReader(input.getPipeline().begin());
-    }
+  public PCollection<Row> implement(PCollectionList<Row> input) {
+    checkArgument(
+        input.size() == 0,
+        "Should not have received input for %s: %s",
+        BeamIOSourceRel.class.getSimpleName(),
+        input);
+    return sqlTable.buildIOReader(input.getPipeline().begin());
   }
 
   protected BeamSqlTable getBeamSqlTable() {

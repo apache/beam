@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
@@ -81,34 +80,26 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
-  }
+  public PCollection<Row> implement(PCollectionList<Row> pinput) {
+    // The set of rows where we run the correlated unnest for each row
+    PCollection<Row> outer = pinput.get(0);
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      // The set of rows where we run the correlated unnest for each row
-      PCollection<Row> outer = pinput.get(0);
+    // The correlated subquery
+    BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
+    Schema innerSchema = CalciteUtils.toBeamSchema(uncollect.getRowType());
+    checkArgument(innerSchema.getFieldCount() == 1, "Can only UNNEST a single column");
 
-      // The correlated subquery
-      BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
-      Schema innerSchema = CalciteUtils.toBeamSchema(uncollect.getRowType());
-      checkArgument(
-          innerSchema.getFieldCount() == 1, "Can only UNNEST a single column", getClass());
+    BeamSqlExpressionExecutor expr =
+        new BeamSqlFnExecutor(
+            ((BeamCalcRel) BeamSqlRelUtils.getBeamRelInput(uncollect.getInput())).getProgram());
 
-      BeamSqlExpressionExecutor expr =
-          new BeamSqlFnExecutor(
-              ((BeamCalcRel) BeamSqlRelUtils.getBeamRelInput(uncollect.getInput())).getProgram());
+    Schema joinedSchema = CalciteUtils.toBeamSchema(rowType);
 
-      Schema joinedSchema = CalciteUtils.toBeamSchema(rowType);
-
-      return outer
-          .apply(
-              ParDo.of(
-                  new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
-          .setCoder(joinedSchema.getRowCoder());
-    }
+    return outer
+        .apply(
+            ParDo.of(
+                new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
+        .setCoder(joinedSchema.getRowCoder());
   }
 
   private static class UnnestFn extends DoFn<Row, Row> {
