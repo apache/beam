@@ -129,7 +129,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
             .findFirst()
             .get();
     ExecutableStagePayload basePayload =
-        ExecutableStagePayload.parseFrom(firstEnvStage.toPTransform().getSpec().getPayload());
+        ExecutableStagePayload.parseFrom(firstEnvStage.toPTransform("foo").getSpec().getPayload());
 
     Environment secondEnv = Environment.newBuilder().setUrl("second_env").build();
     ExecutableStage secondEnvStage =

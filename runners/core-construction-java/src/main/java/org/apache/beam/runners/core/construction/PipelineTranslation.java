@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -91,10 +92,13 @@ public class PipelineTranslation {
             }
           }
         });
-    return RunnerApi.Pipeline.newBuilder()
+    RunnerApi.Pipeline res = RunnerApi.Pipeline.newBuilder()
         .setComponents(components.toComponents())
         .addAllRootTransformIds(rootIds)
         .build();
+    // Validate that translation didn't produce an invalid pipeline.
+    PipelineValidator.validate(res);
+    return res;
   }
 
   private static DisplayData evaluateDisplayData(HasDisplayData component) {
@@ -102,6 +106,7 @@ public class PipelineTranslation {
   }
 
   public static Pipeline fromProto(final RunnerApi.Pipeline pipelineProto) throws IOException {
+    PipelineValidator.validate(pipelineProto);
     TransformHierarchy transforms = new TransformHierarchy();
     Pipeline pipeline = Pipeline.forTransformHierarchy(transforms, PipelineOptionsFactory.create());
 
