@@ -41,6 +41,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.slf4j.Logger;
@@ -152,6 +153,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
         StatusException exception = Status.NOT_FOUND.withDescription(errMessage).asException();
         responseObserver.onError(exception);
         return;
+      }
+      try {
+        PipelineValidator.validate(preparation.pipeline());
+      } catch (Exception e) {
+        responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withCause(e)));
       }
 
       // create new invocation
