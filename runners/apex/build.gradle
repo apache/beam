@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Apex"

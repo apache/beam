@@ -23,7 +23,7 @@ def dependOnProjects = [":beam-model-pipeline", ":beam-runners-core-construction
                         ":beam-runners-core-java", ":beam-runners-local-java-core",
                         ":beam-runners-java-fn-execution", ":beam-sdks-java-fn-execution"]
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(failOnWarning: true, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
