@@ -40,6 +40,7 @@ class JobBuilder {
                             githubUiHint,
                             scope,
                             jobDefinition = {}) {
+
     JobBuilder jb = new JobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
     jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
