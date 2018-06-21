@@ -145,10 +145,10 @@ public class Main<OptionT extends NexmarkOptions> {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT"),
-                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT"),
+                    new TableFieldSchema().setName("runtimeSec").setType("FLOAT"),
+                    new TableFieldSchema().setName("eventsPerSec").setType("FLOAT"),
                     new TableFieldSchema()
-                        .setName("Size of the result collection")
+                        .setName("numResults")
                         .setType("INTEGER")));
 
     String tableSpec =
@@ -163,9 +163,9 @@ public class Main<OptionT extends NexmarkOptions> {
         input -> {
           NexmarkPerf nexmarkPerf = input.getValue();
           TableRow row = new TableRow()
-              .set("Runtime(sec)", nexmarkPerf.runtimeSec)
-              .set("Events(/sec)", nexmarkPerf.eventsPerSec)
-              .set("Size of the result collection", nexmarkPerf.numResults);
+              .set("runtimeSec", nexmarkPerf.runtimeSec)
+              .set("eventsPerSec", nexmarkPerf.eventsPerSec)
+              .set("numResults", nexmarkPerf.numResults);
           return row;
         };
     BigQueryIO.Write io =
