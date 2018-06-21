@@ -17,10 +17,10 @@
  */
 
 import common_job_properties
-import JobBuilder
+import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Apex runner.
-JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle',
   'Run Apex ValidatesRunner', 'Apache Apex Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Apex runner.')
   previousNames('beam_PostCommit_Java_ValidatesRunner_Apex')

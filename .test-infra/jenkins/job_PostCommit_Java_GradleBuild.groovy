@@ -17,12 +17,12 @@
  */
 
 import common_job_properties
-import JobBuilder
+import PostcommitJobBuilder
 
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-JobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java PostCommit',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java PostCommit',
   'Java SDK Post Commit Tests', this) {
 
   description('Runs PostCommit tests on the Java SDK.')

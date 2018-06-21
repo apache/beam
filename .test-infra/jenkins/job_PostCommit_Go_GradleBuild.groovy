@@ -17,12 +17,12 @@
  */
 
 import common_job_properties
-import JobBuilder
+import PostcommitJobBuilder
 
 
 // This is the Go postcommit which runs a gradle build, and the current set
 // of postcommit tests.
-JobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
   './gradlew :goPostCommit', this) {
   description('Runs Go PostCommit tests against master.')
 
