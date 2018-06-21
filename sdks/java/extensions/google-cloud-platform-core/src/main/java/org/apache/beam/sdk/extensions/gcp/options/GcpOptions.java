@@ -350,7 +350,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
     @VisibleForTesting
     static String getRegionFromZone(String zone) {
-      String[] zoneParts = zone.split("-");
+      String[] zoneParts = zone.split("-", -1);
       checkArgument(zoneParts.length >= 2, "Invalid zone provided: %s", zone);
       return zoneParts[0] + "-" + zoneParts[1];
     }
