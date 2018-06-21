@@ -87,7 +87,7 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
     List<WindowedValue<KV<K, V>>> broadcastVariable =
         runtimeContext.getBroadcastVariable(collectionNode.getId());
 
-    ImmutableMultimap.Builder<SideInputKey<K, W>, V> multimap = ImmutableMultimap.builder();
+    ImmutableMultimap.Builder<SideInputKey, V> multimap = ImmutableMultimap.builder();
     for (WindowedValue<KV<K, V>> windowedValue : broadcastVariable) {
       K key = windowedValue.getValue().getKey();
       V value = windowedValue.getValue().getValue();
@@ -95,37 +95,45 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
       for (BoundedWindow boundedWindow : windowedValue.getWindows()) {
         @SuppressWarnings("unchecked")
         W window = (W) boundedWindow;
-        multimap.put(SideInputKey.of(key, window), value);
+        multimap.put(
+            SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)),
+            value);
       }
     }
 
-    return new SideInputHandler<>(multimap.build());
+    return new SideInputHandler<>(multimap.build(), keyCoder, windowCoder);
   }
 
   private static class SideInputHandler<K, V, W extends BoundedWindow>
       implements MultimapSideInputHandler<K, V, W> {
 
-    private final Multimap<SideInputKey<K, W>, V> collection;
+    private final Multimap<SideInputKey, V> collection;
+    private final Coder<K> keyCoder;
+    private final Coder<W> windowCoder;
 
-    private SideInputHandler(Multimap<SideInputKey<K, W>, V> collection) {
+    private SideInputHandler(Multimap<SideInputKey, V> collection, Coder<K> keyCoder,
+        Coder<W> windowCoder) {
       this.collection = collection;
+      this.keyCoder = keyCoder;
+      this.windowCoder = windowCoder;
     }
 
     @Override
     public Iterable<V> get(K key, W window) {
-      return collection.get(SideInputKey.of(key, window));
+      return collection
+          .get(SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)));
     }
   }
 
   @AutoValue
-  abstract static class SideInputKey<K, W extends BoundedWindow> {
-    static <K, W extends BoundedWindow> SideInputKey<K, W> of(K key, W window) {
-      return new AutoValue_FlinkBatchSideInputHandlerFactory_SideInputKey<>(key, window);
+  abstract static class SideInputKey{
+    static SideInputKey of(Object key, Object window) {
+      return new AutoValue_FlinkBatchSideInputHandlerFactory_SideInputKey(key, window);
     }
 
     @Nullable
-    abstract K key();
+    abstract Object key();
 
-    abstract W window();
+    abstract Object window();
   }
 }
