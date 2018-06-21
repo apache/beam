@@ -80,7 +80,7 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
       }
       method = Class.forName(className).getMethod(methodName, paraClass.toArray(new Class<?>[] {}));
       if (!Modifier.isStatic(method.getModifiers())) {
-        udfIns = Class.forName(className).newInstance();
+        udfIns = Class.forName(className).getDeclaredConstructor().newInstance();
       }
     } catch (Exception e) {
       throw new RuntimeException(e);

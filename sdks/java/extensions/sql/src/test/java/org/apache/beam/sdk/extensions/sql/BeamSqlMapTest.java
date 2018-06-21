@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.HashMap;
+import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -60,25 +60,10 @@ public class BeamSqlMapTest {
     PAssert.that(result)
         .containsInAnyOrder(
             Row.withSchema(resultType)
-                .addValues(
-                    1,
-                    new HashMap<String, Integer>() {
-                      {
-                        put("key11", 11);
-                        put("key22", 22);
-                      }
-                    })
+                .addValues(1, ImmutableMap.of("key11", 11, "key22", 22))
                 .build(),
             Row.withSchema(resultType)
-                .addValues(
-                    2,
-                    new HashMap<String, Integer>() {
-                      {
-                        put("key33", 33);
-                        put("key44", 44);
-                        put("key55", 55);
-                      }
-                    })
+                .addValues(2, ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
                 .build());
 
     pipeline.run();
@@ -100,24 +85,8 @@ public class BeamSqlMapTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultType)
-                .addValues(
-                    42,
-                    new HashMap<String, Integer>() {
-                      {
-                        put("aa", 1);
-                      }
-                    })
-                .build(),
-            Row.withSchema(resultType)
-                .addValues(
-                    42,
-                    new HashMap<String, Integer>() {
-                      {
-                        put("aa", 1);
-                      }
-                    })
-                .build());
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", 1)).build(),
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", 1)).build());
 
     pipeline.run();
   }
@@ -148,24 +117,11 @@ public class BeamSqlMapTest {
             Create.of(
                     Row.withSchema(INPUT_ROW_TYPE)
                         .addValues(1)
-                        .addValue(
-                            new HashMap<String, Integer>() {
-                              {
-                                put("key11", 11);
-                                put("key22", 22);
-                              }
-                            })
+                        .addValue(ImmutableMap.of("key11", 11, "key22", 22))
                         .build(),
                     Row.withSchema(INPUT_ROW_TYPE)
                         .addValues(2)
-                        .addValue(
-                            new HashMap<String, Integer>() {
-                              {
-                                put("key33", 33);
-                                put("key44", 44);
-                                put("key55", 55);
-                              }
-                            })
+                        .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
                         .build())
                 .withCoder(INPUT_ROW_TYPE.getRowCoder()));
   }

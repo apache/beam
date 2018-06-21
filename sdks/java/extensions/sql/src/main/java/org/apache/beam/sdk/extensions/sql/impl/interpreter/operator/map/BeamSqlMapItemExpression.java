@@ -42,7 +42,7 @@ public class BeamSqlMapItemExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    Map<Object, Object> map = opValueEvaluated(0, inputRow, window, env);
+    Map<Object, Object> map = (Map) opValueEvaluated(0, inputRow, window, env);
     Object key = opValueEvaluated(1, inputRow, window, env);
     return BeamSqlPrimitive.of(outputType, map.get(key));
   }

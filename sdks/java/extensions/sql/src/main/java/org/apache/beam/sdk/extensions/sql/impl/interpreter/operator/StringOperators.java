@@ -28,6 +28,7 @@ public class StringOperators {
 
   /** A {@link BeamSqlOperator} that returns a string. */
   public interface StringOperator extends BeamSqlOperator {
+    @Override
     default SqlTypeName getOutputType() {
       return SqlTypeName.VARCHAR;
     }
@@ -35,10 +36,13 @@ public class StringOperators {
 
   @FunctionalInterface
   private interface StringUnaryOperator extends BeamSqlUnaryOperator {
+
+    @Override
     default boolean accept(BeamSqlExpression arg) {
       return SqlTypeName.CHAR_TYPES.contains(arg.getOutputType());
     }
 
+    @Override
     default SqlTypeName getOutputType() {
       return SqlTypeName.VARCHAR;
     }
@@ -190,10 +194,10 @@ public class StringOperators {
                   && SqlTypeName.CHAR_TYPES.contains(operands.get(1).getOutputType())
                   && SqlTypeName.INT_TYPES.contains(operands.get(2).getOutputType()))
               || (operands.size() == 4
-                      && SqlTypeName.CHAR_TYPES.contains(operands.get(0).getOutputType())
-                      && SqlTypeName.CHAR_TYPES.contains(operands.get(1).getOutputType())
-                      && SqlTypeName.INT_TYPES.contains(operands.get(2).getOutputType()))
-                  && SqlTypeName.INT_TYPES.contains(operands.get(3).getOutputType());
+                  && SqlTypeName.CHAR_TYPES.contains(operands.get(0).getOutputType())
+                  && SqlTypeName.CHAR_TYPES.contains(operands.get(1).getOutputType())
+                  && SqlTypeName.INT_TYPES.contains(operands.get(2).getOutputType())
+                  && SqlTypeName.INT_TYPES.contains(operands.get(3).getOutputType()));
         }
 
         @Override

@@ -23,11 +23,13 @@ import java.util.List;
 
 /** An operator that is applied to already-evaluated arguments. */
 public interface BeamSqlBinaryOperator extends BeamSqlOperator {
+  @Override
   default BeamSqlPrimitive apply(List<BeamSqlPrimitive> arguments) {
     checkArgument(arguments.size() == 2, "Unary operator %s received more than one argument", this);
     return apply(arguments.get(0), arguments.get(1));
   }
 
+  @Override
   default boolean accept(List<BeamSqlExpression> arguments) {
     return arguments.size() == 2 && accept(arguments.get(0), arguments.get(1));
   }
