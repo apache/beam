@@ -1852,21 +1852,25 @@ public class Combine {
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply("AddNonce", ParDo.of(
           new DoFn<KV<K, InputT>, KV<K, InputT>>() {
-            transient int counter;
+            transient int nonce;
             @StartBundle
             public void startBundle() {
-              counter = ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE);
+              // Spreading a hot key across all possible sub-keys for all bundles
+              // would defeat the goal of not overwhelming downstream reducers
+              // (as well as making less efficient use of PGBK combining tables).
+              // Instead, each bundle independently makes a consistent choice about
+              // which "shard" of a key to send its intermediate results.
+              nonce = ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE);
             }
 
             @ProcessElement
             public void processElement(@Element KV<K, InputT> kv,
                                        MultiOutputReceiver receiver) {
-              int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
+              int spread = hotKeyFanout.apply(kv.getKey());
               if (spread <= 1) {
                 receiver.get(cold).output(kv);
               } else {
-                int nonce = counter++ % spread;
-                receiver.get(hot).output(KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                receiver.get(hot).output(KV.of(KV.of(kv.getKey(), nonce % spread), kv.getValue()));
               }
             }
           })
