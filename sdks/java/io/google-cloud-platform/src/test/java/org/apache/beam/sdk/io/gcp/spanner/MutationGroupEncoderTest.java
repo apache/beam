@@ -146,6 +146,17 @@ public class MutationGroupEncoderTest {
   }
 
   @Test
+  public void testUtf8() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+    builder.addKeyPart("test", "id", false);
+    builder.addColumn("test", "string_column", "STRING(MAX)");
+    SpannerSchema schema = builder.build();
+
+    Mutation mutation = Mutation.newInsertBuilder("test").set("string_column").to("абвгд").build();
+    encodeAndVerify(g(mutation), schema);
+  }
+
+  @Test
   public void testDeleteCaseInsensitive() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
     builder.addKeyPart("test", "bool_field", false);
