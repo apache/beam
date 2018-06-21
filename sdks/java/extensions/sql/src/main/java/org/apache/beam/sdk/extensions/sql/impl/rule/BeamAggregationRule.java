@@ -49,9 +49,7 @@ public class BeamAggregationRule extends RelOptRule {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
     RelNode x = updateWindow(call, aggregate, project);
-    if (x != null) {
-      call.transformTo(x);
-    }
+    call.transformTo(x);
   }
 
   private static RelNode updateWindow(RelOptRuleCall call, Aggregate aggregate, Project project) {
