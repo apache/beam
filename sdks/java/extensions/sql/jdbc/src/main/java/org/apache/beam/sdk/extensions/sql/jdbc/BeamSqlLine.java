@@ -19,17 +19,41 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 
 import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.CONNECT_STRING_PREFIX;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import javax.annotation.Nullable;
 import sqlline.SqlLine;
 
 /** {@link BeamSqlLine} provides default arguments to SqlLine. */
 public class BeamSqlLine {
-  public static void main(String[] args) throws IOException {
-    String[] args2 = new String[2 + args.length];
-    args2[0] = "-u";
-    args2[1] = CONNECT_STRING_PREFIX;
-    System.arraycopy(args, 0, args2, 2, args.length);
 
-    SqlLine.main(args2);
+  private static final String NICKNAME = "BeamSQL";
+
+  public static void main(String[] args) throws IOException {
+
+    // Until we learn otherwise, we expect to add -nn <nickname> -u <url>
+    @Nullable String databaseUrl = null;
+    @Nullable String nickname = null;
+
+    // Provide -u and -nn only if they do not exist
+    for (int i = 0; i < args.length; i++) {
+      if (args[i].equals("-u")) {
+        databaseUrl = args[++i];
+      } else if (args[i].equals("-nn")) {
+        nickname = args[++i];
+      }
+    }
+
+    ImmutableList.Builder wrappedArgs = ImmutableList.builder().addAll(Arrays.asList(args));
+    if (databaseUrl == null) {
+      wrappedArgs.add("-u").add(CONNECT_STRING_PREFIX);
+    }
+    if (nickname == null) {
+      wrappedArgs.add("-nn").add(NICKNAME);
+    }
+    List<String> wrappedArgList = wrappedArgs.build();
+    SqlLine.main(wrappedArgList.toArray(new String[wrappedArgList.size()]));
   }
 }
