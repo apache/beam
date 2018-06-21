@@ -26,9 +26,12 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes all Apache Beam Java SDK examples."""
 
-/** Define the list of runners which execute a precommit test. */
-// https://issues.apache.org/jira/browse/BEAM-3583
-def preCommitRunners = ["dataflowRunner", "dataflowStreamingRunner", "directRunner", "flinkRunner", "sparkRunner"]
+/** Define the list of runners which execute a precommit test.
+ * Some runners are run from separate projects, see the preCommit task below
+ * for details.
+ */
+// TODO: Add apexRunner - https://issues.apache.org/jira/browse/BEAM-3583
+def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
 for (String runner : preCommitRunners) {
   configurations.create(runner + "PreCommit")
 }
@@ -72,8 +75,6 @@ dependencies {
   }
   // https://issues.apache.org/jira/browse/BEAM-3583
   // apexRunnerPreCommit project(path: ":beam-runners-apex", configuration: "shadow")
-  dataflowRunnerPreCommit project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
-  dataflowStreamingRunnerPreCommit project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
   directRunnerPreCommit project(path: ":beam-runners-direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(path: ":beam-runners-flink_2.11", configuration: "shadow")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
@@ -91,25 +92,20 @@ dependencies {
  */
 def preCommitRunnerClass = [
   apexRunner: "org.apache.beam.runners.apex.TestApexRunner",
-  dataflowRunner: "TestDataflowRunner",
-  dataflowStreamingRunner: "TestDataflowRunner",
   directRunner: "org.apache.beam.runners.direct.DirectRunner",
   flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
   sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
-def preCommitAdditionalFlags = [
-  dataflowStreamingRunner: [ "--streaming=true" ],
-]
-def gcsProject = project.findProperty('gcsProject') ?: 'apache-beam-testing'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
     def preCommitBeamTestPipelineOptions = [
-       "--project=${gcsProject}",
+       "--project=${gcpProject}",
        "--tempRoot=${gcsTempRoot}",
        "--runner=" + preCommitRunnerClass[runner],
-    ] + preCommitAdditionalFlags[runner]
+    ]
     classpath = configurations."${runner}PreCommit"
     include "**/WordCountIT.class"
     if (!"sparkRunner".equals(runner)) {
@@ -126,5 +122,7 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
+  dependsOn ":runners:google-cloud-dataflow-java:examples:preCommit"
+  dependsOn ":runners:google-cloud-dataflow-java:examples-streaming:preCommit"
 }
 
