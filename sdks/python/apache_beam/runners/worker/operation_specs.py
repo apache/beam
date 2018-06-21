@@ -337,6 +337,10 @@ def get_coder_from_spec(coder_spec):
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
     return coders.coders.GlobalWindowCoder()
+  elif coder_spec['@type'] == 'kind:varint':
+    assert ('component_encodings' not in coder_spec
+            or len(coder_spec['component_encodings'] == 0))
+    return coders.coders.VarIntCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1
     return coders.coders.LengthPrefixCoder(
