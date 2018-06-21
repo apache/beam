@@ -87,6 +87,9 @@ class BeamModulePlugin implements Plugin<Project> {
      * }
      */
     Closure shadowClosure;
+
+    /** Controls whether this project is published to Maven. */
+    boolean publish = true
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -718,7 +721,8 @@ class BeamModulePlugin implements Plugin<Project> {
         project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
       }
 
-      if (isRelease(project) || project.hasProperty('publishing')) {
+      if ((isRelease(project) || project.hasProperty('publishing')) &&
+      configuration.publish) {
         project.apply plugin: "maven-publish"
 
         // Create a task which emulates the maven-archiver plugin in generating a
