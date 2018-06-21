@@ -33,6 +33,13 @@ buildscript {
   repositories {
     maven { url offlineRepositoryRoot }
 
+    if (gradle.hasProperty('extraMavenUrls')) {
+      gradle.ext.extraMavenUrls.each {
+        mavenUrl ->
+          return maven { url mavenUrl }
+      }
+    }
+
     // To run gradle in offline mode, one must first invoke
     // 'updateOfflineRepository' to create an offline repo
     // inside the root project directory. See the application
