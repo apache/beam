@@ -58,7 +58,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.NoopTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
@@ -74,6 +73,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -417,9 +418,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           @Override
           protected Dataset<Pair<String, Long>> getOutput(Dataset<String> input) {
             return ReduceByKey.of(input)
-                .keyBy(e -> e, TypeHint.of(String.class))
-                .valueBy(e -> 1L, TypeHint.of(Long.class))
-                .combineBy(Sums.ofLongs(), TypeHint.of(Long.class))
+                .keyBy(e -> e, TypeDescriptor.of(String.class))
+                .valueBy(e -> 1L, TypeDescriptor.of(Long.class))
+                .combineBy(Sums.ofLongs(), TypeDescriptor.of(Long.class))
                 .output();
           }
         });
@@ -641,9 +642,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(Pair::getSecond).output();
             Dataset<Pair<String, Integer>> reduced =
                 ReduceByKey.of(input)
-                    .keyBy(e -> "", TypeHint.ofString())
-                    .valueBy(Pair::getFirst, TypeHint.ofInt())
-                    .combineBy(Sums.ofInts(), TypeHint.ofInt())
+                    .keyBy(e -> "", TypeDescriptors.strings())
+                    .valueBy(Pair::getFirst, TypeDescriptors.integers())
+                    .combineBy(Sums.ofInts(), TypeDescriptors.integers())
 //                    .windowBy(Time.of(Duration.ofSeconds(5)))
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(5)))
                     .triggeredBy(AfterWatermark.pastEndOfWindow())

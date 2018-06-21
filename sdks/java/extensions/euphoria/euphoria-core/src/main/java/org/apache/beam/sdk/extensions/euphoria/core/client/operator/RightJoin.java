@@ -27,7 +27,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Right outer join of two input datasets producing single new dataset.
@@ -119,6 +122,13 @@ public class RightJoin {
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
       return new UsingBuilder<>(paramsCasted);
     }
+
+    public <K> UsingBuilder<LeftT, RightT, K> by(
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        TypeDescriptor<K> keyTypeDescriptor) {
+      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
+          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
+    }
   }
 
   /**
@@ -127,6 +137,7 @@ public class RightJoin {
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final BuilderParams<LeftT, RightT, K, ?, ?> params;
+
 
     UsingBuilder(BuilderParams<LeftT, RightT, K, ?, ?> params) {
       this.params = params;
@@ -146,5 +157,23 @@ public class RightJoin {
 
       return new Join.WindowingBuilder<>(paramsCasted);
     }
+
+    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+        BinaryFunctor<Optional<LeftT>, RightT, OutputT> joinFunc,
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
+      Objects.requireNonNull(joinFunc);
+
+      @SuppressWarnings("unchecked")
+      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+
+      paramsCasted.joinFunc =
+          TypeAwareBinaryFunctor.of(
+              (left, right, context) -> joinFunc.apply(Optional.ofNullable(left), right, context),
+              outputTypeDescriptor);
+
+      return new Join.WindowingBuilder<>(paramsCasted);
+    }
+
   }
 }

@@ -27,7 +27,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Left outer join of two input datasets producing single new dataset.
@@ -125,6 +128,13 @@ public class LeftJoin {
 
       return new UsingBuilder<>(paramsCasted);
     }
+
+    public <K> UsingBuilder<LeftT, RightT, K> by(
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        TypeDescriptor<K> keyTypeDescriptor) {
+      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
+          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
+    }
   }
 
   /**
@@ -149,6 +159,23 @@ public class LeftJoin {
 
       paramsCasted.joinFunc = (left, right, context) ->
           joinFunc.apply(left, Optional.ofNullable(right), context);
+
+      return new Join.WindowingBuilder<>(paramsCasted);
+    }
+
+    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+        BinaryFunctor<LeftT, Optional<RightT>, OutputT> joinFunc,
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
+      Objects.requireNonNull(joinFunc);
+
+      @SuppressWarnings("unchecked")
+      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+
+      paramsCasted.joinFunc =
+          TypeAwareBinaryFunctor.of(
+              (left, right, context) -> joinFunc.apply(left, Optional.ofNullable(right), context),
+              outputTypeDescriptor);
 
       return new Join.WindowingBuilder<>(paramsCasted);
     }

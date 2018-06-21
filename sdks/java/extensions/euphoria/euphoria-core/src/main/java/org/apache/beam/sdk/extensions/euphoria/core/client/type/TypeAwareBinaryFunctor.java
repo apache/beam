@@ -19,27 +19,30 @@
 
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeParameter;
 
 /**
- * Util for easier creation of TypeDescriptors.
+ * Save output type of {@link BinaryFunctor}.
  */
-public class TypeHint {
+public class TypeAwareBinaryFunctor<LeftT, RightT, OutT>
+    extends AbstractTypeAware<BinaryFunctor<LeftT, RightT, OutT>, OutT>
+    implements BinaryFunctor<LeftT, RightT, OutT> {
 
-  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
-      TypeDescriptor<K> key, TypeDescriptor<V> value) {
-
-    return new TypeDescriptor<Pair<K, V>>() {
-    }.where(new TypeParameter<K>() {
-    }, key)
-        .where(new TypeParameter<V>() {
-        }, value);
+  private TypeAwareBinaryFunctor(
+      BinaryFunctor<LeftT, RightT, OutT> function,
+      TypeDescriptor<OutT> typeHint) {
+    super(function, typeHint);
   }
 
-  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
-      Class<K> key, Class<V> value) {
-    return pairs(TypeDescriptor.of(key), TypeDescriptor.of(value));
+  public static <LeftT, RightT, OutT> TypeAwareBinaryFunctor<LeftT, RightT, OutT> of(
+      BinaryFunctor<LeftT, RightT, OutT> function, TypeDescriptor<OutT> typeHint) {
+    return new TypeAwareBinaryFunctor<>(function, typeHint);
+  }
+
+  @Override
+  public void apply(LeftT left, RightT right, Collector<OutT> collector) {
+    getDelegate().apply(left, right, collector);
   }
 }

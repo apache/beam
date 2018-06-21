@@ -44,12 +44,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.Storag
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -282,6 +284,12 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
       return new ValueByBuilder<>(paramsCasted);
     }
+
+    @Override
+    public <K> ValueByBuilder<InputT, K> keyBy(
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
+      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
+    }
   }
 
   /**
@@ -302,6 +310,11 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
       paramsCasted.valueFn = requireNonNull(valueFn);
       return new ScoreByBuilder<>(paramsCasted);
+    }
+
+    public <V> ScoreByBuilder<InputT, K, V> valueBy(
+        UnaryFunction<InputT, V> valueFn, TypeDescriptor<V> valueTypeDescriptor) {
+      return valueBy(TypeAwareUnaryFunction.of(valueFn, valueTypeDescriptor));
     }
   }
 
