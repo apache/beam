@@ -54,7 +54,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -259,7 +258,7 @@ public class GcsUtil {
         prefix, p.toString());
 
     String pageToken = null;
-    List<GcsPath> results = new LinkedList<>();
+    List<GcsPath> results = new ArrayList<>();
     do {
       Objects objects = listObjects(gcsPattern.getBucket(), prefix, pageToken);
       if (objects.getItems() == null) {
@@ -586,7 +585,7 @@ public class GcsUtil {
                     TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>())));
 
-    List<CompletionStage<Void>> futures = new LinkedList<>();
+    List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchRequest batch : batches) {
       futures.add(MoreFutures.runAsync(
           () -> batch.execute(),
@@ -620,7 +619,7 @@ public class GcsUtil {
   List<BatchRequest> makeGetBatches(
       Collection<GcsPath> paths,
       List<StorageObjectOrIOException[]> results) throws IOException {
-    List<BatchRequest> batches = new LinkedList<>();
+    List<BatchRequest> batches = new ArrayList<>();
     for (List<GcsPath> filesToGet :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
       BatchRequest batch = createBatchRequest();
@@ -647,7 +646,7 @@ public class GcsUtil {
         srcList.size(),
         destList.size());
 
-    List<BatchRequest> batches = new LinkedList<>();
+    List<BatchRequest> batches = new ArrayList<>();
     BatchRequest batch = createBatchRequest();
     for (int i = 0; i < srcList.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
@@ -665,7 +664,7 @@ public class GcsUtil {
   }
 
   List<BatchRequest> makeRemoveBatches(Collection<String> filenames) throws IOException {
-    List<BatchRequest> batches = new LinkedList<>();
+    List<BatchRequest> batches = new ArrayList<>();
     for (List<String> filesToDelete :
         Lists.partition(Lists.newArrayList(filenames), MAX_REQUESTS_PER_BATCH)) {
       BatchRequest batch = createBatchRequest();
