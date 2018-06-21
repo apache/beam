@@ -18,12 +18,16 @@
 """Unit tests for the PTransform and descendants."""
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import collections
 import operator
 import re
 import unittest
+from builtins import map
+from builtins import range
+from builtins import zip
 from functools import reduce
 
 import hamcrest as hc
@@ -382,7 +386,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(vals)
     result = pcoll | 'Mean' >> beam.CombineGlobally(self._MeanCombineFn())
-    assert_that(result, equal_to([sum(vals) / len(vals)]))
+    assert_that(result, equal_to([sum(vals) // len(vals)]))
     pipeline.run()
 
   def test_combine_with_callable(self):
@@ -413,8 +417,8 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
                                                [('b', x) for x in vals_2]))
     result = pcoll | 'Mean' >> beam.CombinePerKey(self._MeanCombineFn())
-    assert_that(result, equal_to([('a', sum(vals_1) / len(vals_1)),
-                                  ('b', sum(vals_2) / len(vals_2))]))
+    assert_that(result, equal_to([('a', sum(vals_1) // len(vals_1)),
+                                  ('b', sum(vals_2) // len(vals_2))]))
     pipeline.run()
 
   def test_combine_per_key_with_callable(self):

@@ -25,8 +25,9 @@ import itertools
 import random
 import re
 import types
-
-from six import string_types
+from builtins import map
+from builtins import object
+from builtins import range
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -82,6 +83,10 @@ __all__ = [
     'Impulse',
     ]
 
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -902,7 +907,8 @@ class ParDo(PTransformWithSideInputs):
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
-      raise ValueError('Unexpected keyword arguments: %s' % main_kw.keys())
+      raise ValueError('Unexpected keyword arguments: %s' %
+                       list(main_kw.keys()))
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
@@ -1712,6 +1718,10 @@ class Windowing(object):
           and self.timestamp_combiner == other.timestamp_combiner)
     return False
 
+  def __hash__(self):
+    return hash((type(self), self.windowfn, self.accumulation_mode,
+                 self.timestamp_combiner))
+
   def is_default(self):
     return self._is_default
 
@@ -1792,7 +1802,7 @@ class WindowInto(ParDo):
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     timestamp_combiner = kwargs.pop('timestamp_combiner', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
     self.windowing = Windowing(
         windowfn, triggerfn, accumulation_mode, timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
@@ -1861,7 +1871,7 @@ class Flatten(PTransform):
     super(Flatten, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
@@ -1906,7 +1916,7 @@ class Create(PTransform):
       value: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(value, string_types):
+    if isinstance(value, (unicode, str)):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)
     elif isinstance(value, dict):
@@ -1941,7 +1951,7 @@ class Create(PTransform):
 
   @staticmethod
   def _create_source_from_iterable(values, coder):
-    return Create._create_source(map(coder.encode, values), coder)
+    return Create._create_source(list(map(coder.encode, values)), coder)
 
   @staticmethod
   def _create_source(serialized_values, coder):

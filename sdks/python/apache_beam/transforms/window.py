@@ -50,7 +50,11 @@ WindowFn.
 from __future__ import absolute_import
 
 import abc
+from builtins import object
+from builtins import range
+from functools import total_ordering
 
+from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 from past.builtins import cmp
@@ -109,10 +113,8 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
@@ -191,15 +193,41 @@ class BoundedWindow(object):
   def max_timestamp(self):
     return self.end.predecessor()
 
-  def __cmp__(self, other):
+  def cmp(self, other):
     # Order first by endpoint, then arbitrarily.
-    return cmp(self.end, other.end) or cmp(hash(self), hash(other))
+    end_cmp = (self.end > other.end) - (self.end < other.end)
+    hash_cmp = (hash(self) > hash(other)) - (hash(self) < hash(other))
+    return end_cmp or hash_cmp
 
   def __eq__(self, other):
-    raise NotImplementedError
+    return self.cmp(other) == 0
+
+  def __ne__(self, other):
+    return self.cmp(other) != 0
+
+  def __lt__(self, other):
+    return self.cmp(other) < 0
+
+  def __le__(self, other):
+    return self.cmp(other) <= 0
+
+  def __gt__(self, other):
+    return self.cmp(other) > 0
+
+  def __ge__(self, other):
+    return self.cmp(other) >= 0
 
   def __hash__(self):
-    return hash(self.end)
+    return hash(self)
+
+  # def __lt__(self, other):
+  #   if self.end == other.end:
+  #     return hash(self) < hash(other)
+  #   else:
+  #     return self.end < other.end
+
+  def __hash__(self):
+    return hash(self)
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
@@ -234,6 +262,7 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -246,10 +275,17 @@ class TimestampedValue(object):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
+    return (type(self) == type(other)) and (self.value == other.value) and \
+           (self.timestamp == other.timestamp)
+
+  def __hash__(self):
+    return hash((type(self), self.value, self.timestamp))
+
+  def __lt__(self, other):
     if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
+      return type(self) < type(other)
+    return (self.value, self.timestamp) < (other.value, other.timestamp)
 
 
 class GlobalWindow(BoundedWindow):
@@ -348,6 +384,9 @@ class FixedWindows(NonMergingWindowFn):
     if type(self) == type(other) == FixedWindows:
       return self.size == other.size and self.offset == other.offset
 
+  def __hash__(self):
+    return hash((type(self), self.size, self.offset))
+
   def __ne__(self, other):
     return not self == other
 
@@ -406,6 +445,9 @@ class SlidingWindows(NonMergingWindowFn):
       return (self.size == other.size
               and self.offset == other.offset
               and self.period == other.period)
+
+  def __hash__(self):
+    return hash((type(self), self.offset, self.period))
 
   def to_runner_api_parameter(self, context):
     return (common_urns.sliding_windows.urn,
@@ -473,6 +515,9 @@ class Sessions(WindowFn):
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
+
+  def __hash__(self):
+    return hash((type(self), self.gap_size))
 
   def to_runner_api_parameter(self, context):
     return (common_urns.session_windows.urn,

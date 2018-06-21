@@ -19,11 +19,17 @@
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import collections
 import contextlib
 import random
 import time
+from builtins import object
+from builtins import range
+from builtins import zip
+
+from future.utils import itervalues
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
@@ -114,12 +120,12 @@ class CoGroupByKey(PTransform):
     super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(pvalueish.viewvalues())
+      return pvalueish, tuple(itervalues(pvalueish))
     except AttributeError:
       pcolls = tuple(pvalueish)
       return pcolls, pcolls

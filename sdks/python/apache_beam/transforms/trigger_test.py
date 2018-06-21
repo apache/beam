@@ -17,12 +17,17 @@
 
 """Unit tests for the triggering classes."""
 
+from __future__ import absolute_import
+
 import collections
 import os.path
 import pickle
 import unittest
+from builtins import range
+from builtins import zip
 
 import yaml
+from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
@@ -382,7 +387,7 @@ class TriggerTest(unittest.TestCase):
       pickle.dumps(unpicklable)
     for unwindowed in driver.process_elements(None, unpicklable, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
-                       range(10))
+                       list(range(10)))
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -421,12 +426,12 @@ class TriggerPipelineTest(unittest.TestCase):
                 | beam.GroupByKey()
                 | beam.Map(format_result))
       assert_that(result, equal_to(
-          {
+          iteritems({
               'A-5': {1, 2, 3, 4, 5},
               # A-10, A-11 never emitted due to AfterCount(3) never firing.
               'B-4': {6, 7, 8, 9},
               'B-3': {10, 15, 16},
-          }.iteritems()))
+          })))
 
 
 class TranscriptTest(unittest.TestCase):
@@ -556,7 +561,7 @@ class TranscriptTest(unittest.TestCase):
 
     for line in spec['transcript']:
 
-      action, params = line.items()[0]
+      action, params = list(line.items())[0]
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.

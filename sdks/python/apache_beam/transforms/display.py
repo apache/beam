@@ -41,12 +41,18 @@ from __future__ import absolute_import
 import calendar
 import inspect
 import json
+from builtins import object
 from datetime import datetime
 from datetime import timedelta
 
-import six
+from future.utils import iteritems
 
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 
 class HasDisplayData(object):
@@ -141,7 +147,7 @@ class DisplayData(object):
 
     items = {k: (v if DisplayDataItem._get_value_type(v) is not None
                  else str(v))
-             for k, v in pipeline_options.display_data().items()}
+             for k, v in iteritems(pipeline_options.display_data())}
     return cls(pipeline_options._namespace(), items)
 
   @classmethod
@@ -169,7 +175,7 @@ class DisplayDataItem(object):
   display item belongs to.
   """
   typeDict = {str:'STRING',
-              six.text_type:'STRING',
+              unicode:'STRING',
               int:'INTEGER',
               float:'FLOAT',
               bool: 'BOOLEAN',
