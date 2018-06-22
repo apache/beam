@@ -1,0 +1,421 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.display &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.display</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">DisplayData, its classes, interfaces and methods.</span>
+
+<span class="sd">The classes in this module allow users and transform developers to define</span>
+<span class="sd">static display data to be displayed when a pipeline runs. PTransforms, DoFns</span>
+<span class="sd">and other pipeline components are subclasses of the HasDisplayData mixin. To</span>
+<span class="sd">add static display data to a component, you can override the display_data</span>
+<span class="sd">method of the HasDisplayData class.</span>
+
+<span class="sd">Available classes:</span>
+
+<span class="sd">- HasDisplayData - Components that inherit from this class can have static</span>
+<span class="sd">    display data shown in the UI.</span>
+<span class="sd">- DisplayDataItem - This class represents static display data elements.</span>
+<span class="sd">- DisplayData - Internal class that is used to create display data and</span>
+<span class="sd">    communicate it to the API.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">calendar</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;HasDisplayData&#39;</span><span class="p">,</span> <span class="s1">&#39;DisplayDataItem&#39;</span><span class="p">,</span> <span class="s1">&#39;DisplayData&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="HasDisplayData"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.HasDisplayData">[docs]</a><span class="k">class</span> <span class="nc">HasDisplayData</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Basic mixin for elements that contain display data.</span>
+
+<span class="sd">  It implements only the display_data method and a _namespace method.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="HasDisplayData.display_data"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.HasDisplayData.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Returns the display data associated to a pipeline component.</span>
+
+<span class="sd">    It should be reimplemented in pipeline components that wish to have</span>
+<span class="sd">    static display data.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A dictionary containing key:value pairs. The value might be an</span>
+<span class="sd">      integer, float or string value; a DisplayDataItem for values that</span>
+<span class="sd">      have more data (e.g. short value, label, url); or a HasDisplayData</span>
+<span class="sd">      instance that has more display data that should be picked up. For</span>
+<span class="sd">      example:</span>
+
+<span class="sd">      { &#39;key1&#39;: &#39;string_value&#39;,</span>
+<span class="sd">        &#39;key2&#39;: 1234,</span>
+<span class="sd">        &#39;key3&#39;: 3.14159265,</span>
+<span class="sd">        &#39;key4&#39;: DisplayDataItem(&#39;apache.org&#39;, url=&#39;http://apache.org&#39;),</span>
+<span class="sd">        &#39;key5&#39;: subComponent }</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{}</span></div>
+
+  <span class="k">def</span> <span class="nf">_namespace</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DisplayData"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayData">[docs]</a><span class="k">class</span> <span class="nc">DisplayData</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Static display data associated with a pipeline component.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">display_data_dict</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_populate_items</span><span class="p">(</span><span class="n">display_data_dict</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_populate_items</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display_data_dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Populates the list of display data items.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">display_data_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">HasDisplayData</span><span class="p">):</span>
+        <span class="n">subcomponent_display_data</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">_namespace</span><span class="p">(),</span>
+                                                <span class="n">element</span><span class="o">.</span><span class="n">display_data</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">items</span> <span class="o">+=</span> <span class="n">subcomponent_display_data</span><span class="o">.</span><span class="n">items</span>
+        <span class="k">continue</span>
+
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">DisplayDataItem</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">should_drop</span><span class="p">():</span>
+          <span class="k">continue</span>
+        <span class="n">element</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+        <span class="n">element</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+        <span class="k">continue</span>
+
+      <span class="c1"># If it&#39;s not a HasDisplayData element,</span>
+      <span class="c1"># nor a dictionary, then it&#39;s a simple value</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">DisplayDataItem</span><span class="p">(</span><span class="n">element</span><span class="p">,</span>
+                          <span class="n">namespace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+                          <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">))</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="DisplayData.create_from_options"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayData.create_from_options">[docs]</a>  <span class="k">def</span> <span class="nf">create_from_options</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pipeline_options</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Creates DisplayData from a PipelineOptions instance.</span>
+
+<span class="sd">    When creating DisplayData, this method will convert the value of any</span>
+<span class="sd">    item of a non-supported type to its string representation.</span>
+<span class="sd">    The normal DisplayData.create_from method rejects those items.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A DisplayData instance with populated items.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If the has_display_data argument is not an instance of</span>
+<span class="sd">        HasDisplayData.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pipeline_options</span><span class="p">,</span> <span class="n">PipelineOptions</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Element of class </span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1"> does not subclass PipelineOptions&#39;</span>
+          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pipeline_options</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
+                  <span class="n">pipeline_options</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="n">items</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span> <span class="k">if</span> <span class="n">DisplayDataItem</span><span class="o">.</span><span class="n">_get_value_type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                 <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+             <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">display_data</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">pipeline_options</span><span class="o">.</span><span class="n">_namespace</span><span class="p">(),</span> <span class="n">items</span><span class="p">)</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="DisplayData.create_from"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayData.create_from">[docs]</a>  <span class="k">def</span> <span class="nf">create_from</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">has_display_data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Creates DisplayData from a HasDisplayData instance.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A DisplayData instance with populated items.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If the has_display_data argument is not an instance of</span>
+<span class="sd">        HasDisplayData.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">has_display_data</span><span class="p">,</span> <span class="n">HasDisplayData</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Element of class </span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1"> does not subclass HasDisplayData&#39;</span>
+                       <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">has_display_data</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
+                               <span class="n">has_display_data</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">has_display_data</span><span class="o">.</span><span class="n">_namespace</span><span class="p">(),</span> <span class="n">has_display_data</span><span class="o">.</span><span class="n">display_data</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="DisplayDataItem"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayDataItem">[docs]</a><span class="k">class</span> <span class="nc">DisplayDataItem</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; A DisplayDataItem represents a unit of static display data.</span>
+
+<span class="sd">  Each item is identified by a key and the namespace of the component the</span>
+<span class="sd">  display item belongs to.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">typeDict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">str</span><span class="p">:</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span>
+              <span class="n">unicode</span><span class="p">:</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span>
+              <span class="nb">int</span><span class="p">:</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">,</span>
+              <span class="nb">float</span><span class="p">:</span><span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span>
+              <span class="nb">bool</span><span class="p">:</span> <span class="s1">&#39;BOOLEAN&#39;</span><span class="p">,</span>
+              <span class="n">timedelta</span><span class="p">:</span><span class="s1">&#39;DURATION&#39;</span><span class="p">,</span>
+              <span class="n">datetime</span><span class="p">:</span><span class="s1">&#39;TIMESTAMP&#39;</span><span class="p">}</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shortValue</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_value_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span> <span class="o">=</span> <span class="p">(</span><span class="n">shortValue</span> <span class="k">if</span> <span class="n">shortValue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_get_short_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">url</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_drop_if_none</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_drop_if_default</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="DisplayDataItem.drop_if_none"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayDataItem.drop_if_none">[docs]</a>  <span class="k">def</span> <span class="nf">drop_if_none</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; The item should be dropped if its value is None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Returns self.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_drop_if_none</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="DisplayDataItem.drop_if_default"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayDataItem.drop_if_default">[docs]</a>  <span class="k">def</span> <span class="nf">drop_if_default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; The item should be dropped if its value is equal to its default.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Returns self.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_default</span> <span class="o">=</span> <span class="n">default</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_drop_if_default</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="DisplayDataItem.should_drop"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayDataItem.should_drop">[docs]</a>  <span class="k">def</span> <span class="nf">should_drop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Return True if the item should be dropped, or False if it should not</span>
+<span class="sd">    be dropped. This depends on the drop_if_none, and drop_if_default calls.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      True or False; depending on whether the item should be dropped or kept.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_if_none</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_if_default</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="DisplayDataItem.is_valid"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayDataItem.is_valid">[docs]</a>  <span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Checks that all the necessary fields of the DisplayDataItem are</span>
+<span class="sd">    filled in. It checks that neither key, namespace, value or type are None.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If the item does not have a key, namespace, value or type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid DisplayDataItem. Key must not be None&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid DisplayDataItem. Namespace must not be None&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid DisplayDataItem. Value must not be None&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Invalid DisplayDataItem. Value </span><span class="si">{}</span><span class="s1"> is of an unsupported type.&#39;</span>
+          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">))</span></div>
+
+  <span class="k">def</span> <span class="nf">_get_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+           <span class="s1">&#39;namespace&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+           <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s1">&#39;CLASS&#39;</span> <span class="k">else</span> <span class="s1">&#39;STRING&#39;</span><span class="p">}</span>
+    <span class="c1"># TODO: Python Class types should not be special-cased once</span>
+    <span class="c1"># the Fn API is in.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">res</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">res</span><span class="p">[</span><span class="s1">&#39;shortValue&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">res</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span>
+    <span class="n">res</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+<div class="viewcode-block" id="DisplayDataItem.get_dict"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display.DisplayDataItem.get_dict">[docs]</a>  <span class="k">def</span> <span class="nf">get_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Returns the internal-API dictionary representing the DisplayDataItem.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A dictionary. The internal-API dictionary representing the</span>
+<span class="sd">      DisplayDataItem</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if the item is not valid.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">is_valid</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dict</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;DisplayDataItem(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_dict</span><span class="p">()))</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dict</span><span class="p">()</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_get_dict</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())))</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_format_value</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">type_</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Returns the API representation of a value given its type.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      value: The value of the item that needs to be shortened.</span>
+<span class="sd">      type_(string): The type of the value.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A formatted value in the form of a float, int, or string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">if</span> <span class="n">type_</span> <span class="o">==</span> <span class="s1">&#39;CLASS&#39;</span><span class="p">:</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">type_</span> <span class="o">==</span> <span class="s1">&#39;DURATION&#39;</span><span class="p">:</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span><span class="o">*</span><span class="mi">1000</span>
+    <span class="k">elif</span> <span class="n">type_</span> <span class="o">==</span> <span class="s1">&#39;TIMESTAMP&#39;</span><span class="p">:</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="n">calendar</span><span class="o">.</span><span class="n">timegm</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span><span class="o">*</span><span class="mi">1000</span> <span class="o">+</span> <span class="n">value</span><span class="o">.</span><span class="n">microsecond</span><span class="o">//</span><span class="mi">1000</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_get_short_value</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">type_</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Calculates the short value for an item.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      value: The value of the item that needs to be shortened.</span>
+<span class="sd">      type_(string): The type of the value.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      The unqualified name of a class if type_ is &#39;CLASS&#39;. None otherwise.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">type_</span> <span class="o">==</span> <span class="s1">&#39;CLASS&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_get_value_type</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Infers the type of a given value.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      value: The value whose type needs to be inferred. For &#39;DURATION&#39; and</span>
+<span class="sd">        &#39;TIMESTAMP&#39;, the corresponding Python type is datetime.timedelta and</span>
+<span class="sd">        datetime.datetime respectively. For Python classes, the API type is</span>
+<span class="sd">        just &#39;STRING&#39; at the moment.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      One of &#39;STRING&#39;, &#39;INTEGER&#39;, &#39;FLOAT&#39;, &#39;CLASS&#39;, &#39;DURATION&#39;, or</span>
+<span class="sd">      &#39;TIMESTAMP&#39;, depending on the type of the value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#TODO: Fix Args: documentation once the Python classes handling has changed</span>
+    <span class="n">type_</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">typeDict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">type_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">type_</span> <span class="o">=</span> <span class="s1">&#39;CLASS&#39;</span> <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">type_</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">type_</span> <span class="o">=</span> <span class="s1">&#39;STRING&#39;</span>
+    <span class="k">return</span> <span class="n">type_</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

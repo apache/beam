@@ -1,0 +1,258 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.testing.test_pipeline &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.testing.test_pipeline</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Test Pipeline, a wrapper of Pipeline for test purpose&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">shlex</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">Pipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineState</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">nose.plugins.skip</span> <span class="k">import</span> <span class="n">SkipTest</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;TestPipeline&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+
+<div class="viewcode-block" id="TestPipeline"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_pipeline.TestPipeline">[docs]</a><span class="k">class</span> <span class="nc">TestPipeline</span><span class="p">(</span><span class="n">Pipeline</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;TestPipeline class is used inside of Beam tests that can be configured to</span>
+<span class="sd">  run against pipeline runner.</span>
+
+<span class="sd">  It has a functionality to parse arguments from command line and build pipeline</span>
+<span class="sd">  options for tests who runs against a pipeline runner and utilizes resources</span>
+<span class="sd">  of the pipeline runner. Those test functions are recommended to be tagged by</span>
+<span class="sd">  @attr(&quot;ValidatesRunner&quot;) annotation.</span>
+
+<span class="sd">  In order to configure the test with customized pipeline options from command</span>
+<span class="sd">  line, system argument &#39;test-pipeline-options&#39; can be used to obtains a list</span>
+<span class="sd">  of pipeline options. If no options specified, default value will be used.</span>
+
+<span class="sd">  For example, use following command line to execute all ValidatesRunner tests::</span>
+
+<span class="sd">    python setup.py nosetests -a ValidatesRunner \</span>
+<span class="sd">        --test-pipeline-options=&quot;--runner=DirectRunner \</span>
+<span class="sd">                                 --job_name=myJobName \</span>
+<span class="sd">                                 --num_workers=1&quot;</span>
+
+<span class="sd">  For example, use assert_that for test validation::</span>
+
+<span class="sd">    pipeline = TestPipeline()</span>
+<span class="sd">    pcoll = ...</span>
+<span class="sd">    assert_that(pcoll, equal_to(...))</span>
+<span class="sd">    pipeline.run()</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">runner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">is_integration_test</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+               <span class="n">blocking</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a pipeline object for test.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      runner: An object of type &#39;PipelineRunner&#39; that will be used to execute</span>
+<span class="sd">        the pipeline. For registered runners, the runner name can be specified,</span>
+<span class="sd">        otherwise a runner object must be supplied.</span>
+<span class="sd">      options: A configured &#39;PipelineOptions&#39; object containing arguments</span>
+<span class="sd">        that should be used for running the pipeline job.</span>
+<span class="sd">      argv: A list of arguments (such as sys.argv) to be used for building a</span>
+<span class="sd">        &#39;PipelineOptions&#39; object. This will only be used if argument &#39;options&#39;</span>
+<span class="sd">        is None.</span>
+<span class="sd">      is_integration_test: True if the test is an integration test, False</span>
+<span class="sd">        otherwise.</span>
+<span class="sd">      blocking: Run method will wait until pipeline execution is completed.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if either the runner or options argument is not of the</span>
+<span class="sd">      expected type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">is_integration_test</span> <span class="o">=</span> <span class="n">is_integration_test</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">options_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_test_option_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">blocking</span> <span class="o">=</span> <span class="n">blocking</span>
+    <span class="k">if</span> <span class="n">options</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">options_list</span><span class="p">)</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">TestPipeline</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">runner</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestPipeline.run"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_pipeline.TestPipeline.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">TestPipeline</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">blocking</span><span class="p">:</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+      <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span> <span class="s2">&quot;Pipeline execution failed.&quot;</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+
+  <span class="k">def</span> <span class="nf">_parse_test_option_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argv</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parse value of command line argument: --test-pipeline-options to get</span>
+<span class="sd">    pipeline options.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      argv: An iterable of command line arguments to be used. If not specified</span>
+<span class="sd">        then sys.argv will be used as input for parsing arguments.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      An argument list of options that can be parsed by argparser or directly</span>
+<span class="sd">      build a pipeline option.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--test-pipeline-options&#39;</span><span class="p">,</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                        <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;only run tests providing service options&#39;</span><span class="p">)</span>
+    <span class="n">known</span><span class="p">,</span> <span class="n">unused_argv</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_integration_test</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">known</span><span class="o">.</span><span class="n">test_pipeline_options</span><span class="p">:</span>
+      <span class="c1"># Skip integration test when argument &#39;--test-pipeline-options&#39; is not</span>
+      <span class="c1"># specified since nose calls integration tests when runs unit test by</span>
+      <span class="c1"># &#39;setup.py test&#39;.</span>
+      <span class="k">raise</span> <span class="n">SkipTest</span><span class="p">(</span><span class="s1">&#39;IT is skipped because --test-pipeline-options &#39;</span>
+                     <span class="s1">&#39;is not specified&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">known</span><span class="o">.</span><span class="n">test_pipeline_options</span><span class="p">)</span> \
+      <span class="k">if</span> <span class="n">known</span><span class="o">.</span><span class="n">test_pipeline_options</span> <span class="k">else</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="TestPipeline.get_full_options_as_args"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_pipeline.TestPipeline.get_full_options_as_args">[docs]</a>  <span class="k">def</span> <span class="nf">get_full_options_as_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_opts</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get full pipeline options as an argument list.</span>
+
+<span class="sd">    Append extra pipeline options to existing option list if provided.</span>
+<span class="sd">    Test verifier (if contains in extra options) should be pickled before</span>
+<span class="sd">    appending, and will be unpickled later in the TestRunner.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">options_list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">extra_opts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">and</span> <span class="n">v</span><span class="p">:</span>
+        <span class="n">options</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;--</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="s1">&#39;matcher&#39;</span> <span class="ow">in</span> <span class="n">k</span><span class="p">:</span>
+        <span class="n">options</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;--</span><span class="si">%s</span><span class="s1">=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">options</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;--</span><span class="si">%s</span><span class="s1">=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">options</span></div>
+
+<div class="viewcode-block" id="TestPipeline.get_option"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_pipeline.TestPipeline.get_option">[docs]</a>  <span class="k">def</span> <span class="nf">get_option</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opt_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get a pipeline option value by name</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      opt_name: The name of the pipeline option.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      None if option is not found in existing option list which is generated</span>
+<span class="sd">      by parsing value of argument `test-pipeline-options`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">opt_name</span> <span class="o">=</span> <span class="n">opt_name</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="k">if</span> <span class="n">opt_name</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;--&#39;</span> <span class="k">else</span> <span class="n">opt_name</span>
+    <span class="c1"># Option name should start with &#39;--&#39; when it&#39;s used for parsing.</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--&#39;</span> <span class="o">+</span> <span class="n">opt_name</span><span class="p">,</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                        <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">)</span>
+    <span class="n">known</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">options_list</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">known</span><span class="p">,</span> <span class="n">opt_name</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">known</span><span class="p">,</span> <span class="n">opt_name</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

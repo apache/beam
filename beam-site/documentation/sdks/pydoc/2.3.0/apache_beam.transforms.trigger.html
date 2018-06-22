@@ -1,0 +1,684 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.transforms.trigger module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.transforms package" href="apache_beam.transforms.html"/>
+        <link rel="next" title="apache_beam.transforms.util module" href="apache_beam.transforms.util.html"/>
+        <link rel="prev" title="apache_beam.transforms.timeutil module" href="apache_beam.transforms.timeutil.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.combiners.html">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.core.html">apache_beam.transforms.core module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.display.html">apache_beam.transforms.display module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.ptransform.html">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.sideinputs.html">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.timeutil.html">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.util.html">apache_beam.transforms.util module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.window.html">apache_beam.transforms.window module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.transforms.html">apache_beam.transforms package</a> &raquo;</li>
+        
+      <li>apache_beam.transforms.trigger module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.transforms.trigger.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.transforms.trigger">
+<span id="apache-beam-transforms-trigger-module"></span><h1>apache_beam.transforms.trigger module<a class="headerlink" href="#module-apache_beam.transforms.trigger" title="Permalink to this headline">¶</a></h1>
+<p>Support for Dataflow triggers.</p>
+<p>Triggers control when in processing time windows get emitted.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.AccumulationMode">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">AccumulationMode</code><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AccumulationMode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AccumulationMode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Controls what to do with data when a trigger fires multiple times.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.trigger.AccumulationMode.DISCARDING">
+<code class="descname">DISCARDING</code><em class="property"> = 1</em><a class="headerlink" href="#apache_beam.transforms.trigger.AccumulationMode.DISCARDING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.trigger.AccumulationMode.ACCUMULATING">
+<code class="descname">ACCUMULATING</code><em class="property"> = 2</em><a class="headerlink" href="#apache_beam.transforms.trigger.AccumulationMode.ACCUMULATING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.TriggerFn">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">TriggerFn</code><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A TriggerFn determines when window (panes) are emitted.</p>
+<p>See <a class="reference external" href="https://beam.apache.org/documentation/programming-guide/#triggers">https://beam.apache.org/documentation/programming-guide/#triggers</a></p>
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.TriggerFn.on_element">
+<code class="descname">on_element</code><span class="sig-paren">(</span><em>element</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.on_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.on_element" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when a new element arrives in a window.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>element</strong> – the element being added</li>
+<li><strong>window</strong> – the window to which the element is being added</li>
+<li><strong>context</strong> – a context (e.g. a TriggerContext instance) for managing state
+and setting timers</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.TriggerFn.on_merge">
+<code class="descname">on_merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.on_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.on_merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when multiple windows are merged.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>to_be_merged</strong> – the set of windows to be merged</li>
+<li><strong>merge_result</strong> – the window into which the windows are being merged</li>
+<li><strong>context</strong> – a context (e.g. a TriggerContext instance) for managing state
+and setting timers</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.TriggerFn.should_fire">
+<code class="descname">should_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.should_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.should_fire" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether this trigger should cause the window to fire.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>watermark</strong> – (a lower bound on) the watermark of the system</li>
+<li><strong>window</strong> – the window whose trigger is being considered</li>
+<li><strong>context</strong> – a context (e.g. a TriggerContext instance) for managing state
+and setting timers</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">whether this trigger should cause a firing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.TriggerFn.on_fire">
+<code class="descname">on_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.on_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.on_fire" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when a trigger actually fires.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>watermark</strong> – (a lower bound on) the watermark of the system</li>
+<li><strong>window</strong> – the window whose trigger is being fired</li>
+<li><strong>context</strong> – a context (e.g. a TriggerContext instance) for managing state
+and setting timers</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">whether this trigger is finished</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.TriggerFn.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear any state and timers used by this TriggerFn.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.TriggerFn.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.TriggerFn.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#TriggerFn.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.TriggerFn.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">DefaultTrigger</code><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.trigger.TriggerFn" title="apache_beam.transforms.trigger.TriggerFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.TriggerFn</span></code></a></p>
+<p>Semantically Repeatedly(AfterWatermark()), but more optimized.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.on_element">
+<code class="descname">on_element</code><span class="sig-paren">(</span><em>element</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.on_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.on_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.on_merge">
+<code class="descname">on_merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.on_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.on_merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.should_fire">
+<code class="descname">should_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.should_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.should_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.on_fire">
+<code class="descname">on_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.on_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.on_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.DefaultTrigger.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#DefaultTrigger.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.DefaultTrigger.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.AfterWatermark">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">AfterWatermark</code><span class="sig-paren">(</span><em>early=None</em>, <em>late=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.trigger.TriggerFn" title="apache_beam.transforms.trigger.TriggerFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.TriggerFn</span></code></a></p>
+<p>Fire exactly once when the watermark passes the end of the window.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>early</strong> – if not None, a speculative trigger to repeatedly evaluate before
+the watermark passes the end of the window</li>
+<li><strong>late</strong> – if not None, a speculative trigger to repeatedly evaluate after
+the watermark passes the end of the window</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.LATE_TAG">
+<code class="descname">LATE_TAG</code><em class="property"> = CombiningValueStateTag(is_late, CallableWrapperCombineFn(&lt;built-in function any&gt;))</em><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.LATE_TAG" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.is_late">
+<code class="descname">is_late</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.is_late"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.is_late" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.on_element">
+<code class="descname">on_element</code><span class="sig-paren">(</span><em>element</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.on_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.on_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.on_merge">
+<code class="descname">on_merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.on_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.on_merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.should_fire">
+<code class="descname">should_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.should_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.should_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.on_fire">
+<code class="descname">on_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.on_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.on_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterWatermark.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterWatermark.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterWatermark.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.AfterCount">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">AfterCount</code><span class="sig-paren">(</span><em>count</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.trigger.TriggerFn" title="apache_beam.transforms.trigger.TriggerFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.TriggerFn</span></code></a></p>
+<p>Fire when there are at least count elements in this window pane.</p>
+<p>AfterCount is experimental. No backwards compatibility guarantees.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.trigger.AfterCount.COUNT_TAG">
+<code class="descname">COUNT_TAG</code><em class="property"> = CombiningValueStateTag(count, &lt;apache_beam.transforms.combiners.CountCombineFn object&gt;)</em><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.COUNT_TAG" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterCount.on_element">
+<code class="descname">on_element</code><span class="sig-paren">(</span><em>element</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.on_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.on_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterCount.on_merge">
+<code class="descname">on_merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.on_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.on_merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterCount.should_fire">
+<code class="descname">should_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.should_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.should_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterCount.on_fire">
+<code class="descname">on_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.on_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.on_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterCount.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.AfterCount.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterCount.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterCount.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterCount.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.Repeatedly">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">Repeatedly</code><span class="sig-paren">(</span><em>underlying</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.trigger.TriggerFn" title="apache_beam.transforms.trigger.TriggerFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.TriggerFn</span></code></a></p>
+<p>Repeatedly invoke the given trigger, never finishing.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.Repeatedly.on_element">
+<code class="descname">on_element</code><span class="sig-paren">(</span><em>element</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.on_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.on_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.Repeatedly.on_merge">
+<code class="descname">on_merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.on_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.on_merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.Repeatedly.should_fire">
+<code class="descname">should_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.should_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.should_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.Repeatedly.on_fire">
+<code class="descname">on_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.on_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.on_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.Repeatedly.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.Repeatedly.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.Repeatedly.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#Repeatedly.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.Repeatedly.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.AfterAny">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">AfterAny</code><span class="sig-paren">(</span><em>*triggers</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterAny"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterAny" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger._ParallelTriggerFn</span></code></p>
+<p>Fires when any subtrigger fires.</p>
+<p>Also finishes when any subtrigger finishes.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterAny.combine_op">
+<code class="descname">combine_op</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.transforms.trigger.AfterAny.combine_op" title="Permalink to this definition">¶</a></dt>
+<dd><p>any(iterable) -&gt; bool</p>
+<p>Return True if bool(x) is True for any x in the iterable.
+If the iterable is empty, return False.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.AfterAll">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">AfterAll</code><span class="sig-paren">(</span><em>*triggers</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterAll"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterAll" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger._ParallelTriggerFn</span></code></p>
+<p>Fires when all subtriggers have fired.</p>
+<p>Also finishes when all subtriggers have finished.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterAll.combine_op">
+<code class="descname">combine_op</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.transforms.trigger.AfterAll.combine_op" title="Permalink to this definition">¶</a></dt>
+<dd><p>all(iterable) -&gt; bool</p>
+<p>Return True if bool(x) is True for all values x in the iterable.
+If the iterable is empty, return True.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.AfterEach">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">AfterEach</code><span class="sig-paren">(</span><em>*triggers</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.trigger.TriggerFn" title="apache_beam.transforms.trigger.TriggerFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.TriggerFn</span></code></a></p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.trigger.AfterEach.INDEX_TAG">
+<code class="descname">INDEX_TAG</code><em class="property"> = CombiningValueStateTag(index, CallableWrapperCombineFn(&lt;function &lt;lambda&gt;&gt;))</em><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.INDEX_TAG" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterEach.on_element">
+<code class="descname">on_element</code><span class="sig-paren">(</span><em>element</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.on_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.on_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterEach.on_merge">
+<code class="descname">on_merge</code><span class="sig-paren">(</span><em>to_be_merged</em>, <em>merge_result</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.on_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.on_merge" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterEach.should_fire">
+<code class="descname">should_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.should_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.should_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterEach.on_fire">
+<code class="descname">on_fire</code><span class="sig-paren">(</span><em>watermark</em>, <em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.on_fire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.on_fire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterEach.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>window</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.AfterEach.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.AfterEach.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#AfterEach.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.AfterEach.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.trigger.OrFinally">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.trigger.</code><code class="descname">OrFinally</code><span class="sig-paren">(</span><em>*triggers</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#OrFinally"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.OrFinally" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.trigger.AfterAny" title="apache_beam.transforms.trigger.AfterAny"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.AfterAny</span></code></a></p>
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.trigger.OrFinally.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#OrFinally.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.OrFinally.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.trigger.OrFinally.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/trigger.html#OrFinally.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.trigger.OrFinally.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.transforms.util.html" class="btn btn-neutral float-right" title="apache_beam.transforms.util module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.transforms.timeutil.html" class="btn btn-neutral" title="apache_beam.transforms.timeutil module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

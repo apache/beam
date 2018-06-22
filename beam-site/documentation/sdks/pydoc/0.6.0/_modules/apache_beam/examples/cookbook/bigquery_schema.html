@@ -1,0 +1,219 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.cookbook.bigquery_schema &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.cookbook.bigquery_schema</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A workflow that writes to a BigQuery table with nested and repeated fields.</span>
+
+<span class="sd">Demonstrates how to build a bigquery.TableSchema object with nested and repeated</span>
+<span class="sd">fields. Also, shows how to generate data to be written to a BigQuery table with</span>
+<span class="sd">nested and repeated fields.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.bigquery_schema.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Run the workflow.&quot;&quot;&quot;</span>
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span>
+      <span class="p">(</span><span class="s1">&#39;Output BigQuery table for results specified as: PROJECT:DATASET.TABLE &#39;</span>
+       <span class="s1">&#39;or DATASET.TABLE.&#39;</span><span class="p">))</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="n">pipeline_args</span><span class="p">)</span>
+
+  <span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="k">import</span> <span class="n">bigquery</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+
+  <span class="n">table_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">()</span>
+
+  <span class="c1"># Fields that use standard types.</span>
+  <span class="n">kind_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">kind_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;kind&#39;</span>
+  <span class="n">kind_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;string&#39;</span>
+  <span class="n">kind_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;nullable&#39;</span>
+  <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kind_schema</span><span class="p">)</span>
+
+  <span class="n">full_name_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">full_name_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;fullName&#39;</span>
+  <span class="n">full_name_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;string&#39;</span>
+  <span class="n">full_name_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;required&#39;</span>
+  <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">full_name_schema</span><span class="p">)</span>
+
+  <span class="n">age_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">age_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;age&#39;</span>
+  <span class="n">age_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;integer&#39;</span>
+  <span class="n">age_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;nullable&#39;</span>
+  <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">age_schema</span><span class="p">)</span>
+
+  <span class="n">gender_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">gender_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;gender&#39;</span>
+  <span class="n">gender_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;string&#39;</span>
+  <span class="n">gender_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;nullable&#39;</span>
+  <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gender_schema</span><span class="p">)</span>
+
+  <span class="c1"># A nested field</span>
+  <span class="n">phone_number_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">phone_number_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;phoneNumber&#39;</span>
+  <span class="n">phone_number_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;record&#39;</span>
+  <span class="n">phone_number_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;nullable&#39;</span>
+
+  <span class="n">area_code</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">area_code</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;areaCode&#39;</span>
+  <span class="n">area_code</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;integer&#39;</span>
+  <span class="n">area_code</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;nullable&#39;</span>
+  <span class="n">phone_number_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">area_code</span><span class="p">)</span>
+
+  <span class="n">number</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">number</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;number&#39;</span>
+  <span class="n">number</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;integer&#39;</span>
+  <span class="n">number</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;nullable&#39;</span>
+  <span class="n">phone_number_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">number</span><span class="p">)</span>
+  <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">phone_number_schema</span><span class="p">)</span>
+
+  <span class="c1"># A repeated field.</span>
+  <span class="n">children_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+  <span class="n">children_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;children&#39;</span>
+  <span class="n">children_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="s1">&#39;string&#39;</span>
+  <span class="n">children_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;repeated&#39;</span>
+  <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">children_schema</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">create_random_record</span><span class="p">(</span><span class="n">record_id</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;kind&#39;</span><span class="p">:</span> <span class="s1">&#39;kind&#39;</span> <span class="o">+</span> <span class="n">record_id</span><span class="p">,</span> <span class="s1">&#39;fullName&#39;</span><span class="p">:</span> <span class="s1">&#39;fullName&#39;</span><span class="o">+</span><span class="n">record_id</span><span class="p">,</span>
+            <span class="s1">&#39;age&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">record_id</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;gender&#39;</span><span class="p">:</span> <span class="s1">&#39;male&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;phoneNumber&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;areaCode&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">record_id</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+                <span class="s1">&#39;number&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">record_id</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100000</span><span class="p">},</span>
+            <span class="s1">&#39;children&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;child&#39;</span> <span class="o">+</span> <span class="n">record_id</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;child&#39;</span> <span class="o">+</span> <span class="n">record_id</span> <span class="o">+</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;child&#39;</span> <span class="o">+</span> <span class="n">record_id</span> <span class="o">+</span> <span class="s1">&#39;3&#39;</span><span class="p">]</span>
+           <span class="p">}</span>
+
+  <span class="c1"># pylint: disable=expression-not-assigned</span>
+  <span class="n">record_ids</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;CreateIDs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">,</span> <span class="s1">&#39;4&#39;</span><span class="p">,</span> <span class="s1">&#39;5&#39;</span><span class="p">])</span>
+  <span class="n">records</span> <span class="o">=</span> <span class="n">record_ids</span> <span class="o">|</span> <span class="s1">&#39;CreateRecords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">create_random_record</span><span class="p">)</span>
+  <span class="n">records</span> <span class="o">|</span> <span class="s1">&#39;write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySink</span><span class="p">(</span>
+          <span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+          <span class="n">schema</span><span class="o">=</span><span class="n">table_schema</span><span class="p">,</span>
+          <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">,</span>
+          <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">))</span>
+
+  <span class="c1"># Run the pipeline (all operations are deferred until run() is called).</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

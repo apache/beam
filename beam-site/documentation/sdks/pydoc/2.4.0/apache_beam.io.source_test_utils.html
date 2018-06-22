@@ -1,0 +1,525 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.source_test_utils module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.textio module" href="apache_beam.io.textio.html"/>
+        <link rel="prev" title="apache_beam.io.restriction_trackers module" href="apache_beam.io.restriction_trackers.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystemio.html">apache_beam.io.filesystemio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.source_test_utils module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.source_test_utils.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.source_test_utils">
+<span id="apache-beam-io-source-test-utils-module"></span><h1>apache_beam.io.source_test_utils module<a class="headerlink" href="#module-apache_beam.io.source_test_utils" title="Permalink to this headline">¶</a></h1>
+<p>Helper functions and test harnesses for source implementations.</p>
+<p>This module contains helper functions and test harnesses for checking
+correctness of source (a subclass of <code class="docutils literal"><span class="pre">iobase.BoundedSource</span></code>) and range
+tracker (a subclass of``iobase.RangeTracker``) implementations.</p>
+<p>Contains a few lightweight utilities (e.g. reading items from a source such as
+<code class="docutils literal"><span class="pre">readFromSource()</span></code>, as well as heavyweight property testing and stress
+testing harnesses that help getting a large amount of test coverage with few
+code.</p>
+<p>Most notable ones are:
+* <code class="docutils literal"><span class="pre">assertSourcesEqualReferenceSource()</span></code> helps testing that the data read by
+the union of sources produced by <code class="docutils literal"><span class="pre">BoundedSource.split()</span></code> is the same as data
+read by the original source.
+* If your source implements dynamic work rebalancing, use the
+<code class="docutils literal"><span class="pre">assertSplitAtFraction()</span></code> family of functions - they test behavior of
+<code class="docutils literal"><span class="pre">RangeTracker.try_split()</span></code>, in particular, that various consistency
+properties are respected and the total set of data read by the source is
+preserved when splits happen. Use <code class="docutils literal"><span class="pre">assertSplitAtFractionBehavior()</span></code> to test
+individual cases of <code class="docutils literal"><span class="pre">RangeTracker.try_split()</span></code> and use
+<code class="docutils literal"><span class="pre">assertSplitAtFractionExhaustive()</span></code> as a heavy-weight stress test including
+concurrency. We strongly recommend to use both.</p>
+<dl class="docutils">
+<dt>For example usages, see the unit tests of modules such as</dt>
+<dd><ul class="first last simple">
+<li>apache_beam.io.source_test_utils_test.py</li>
+<li>apache_beam.io.avroio_test.py</li>
+</ul>
+</dd>
+</dl>
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.read_from_source">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">read_from_source</code><span class="sig-paren">(</span><em>source</em>, <em>start_position=None</em>, <em>stop_position=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#read_from_source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.read_from_source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads elements from the given <code class="docutils literal"><span class="pre">`BoundedSource`</span></code>.</p>
+<p>Only reads elements within the given position range.
+:param source: <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">BoundedSource</span></code></a> implementation.
+:type source: ~apache_beam.io.iobase.BoundedSource
+:param start_position: start position for reading.
+:type start_position: int
+:param stop_position: stop position for reading.
+:type stop_position: int</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">the set of values read from the sources.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">List[<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a>]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_sources_equal_reference_source">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_sources_equal_reference_source</code><span class="sig-paren">(</span><em>reference_source_info</em>, <em>sources_info</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_sources_equal_reference_source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_sources_equal_reference_source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tests if a reference source is equal to a given set of sources.</p>
+<p>Given a reference source (a <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">BoundedSource</span></code></a>
+and a position range) and a list of sources, assert that the union of the
+records read from the list of sources is equal to the records read from the
+reference source.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>reference_source_info</strong> (<em>Tuple</em><em>[</em><a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><em>BoundedSource</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>]</em>) – a three-tuple that gives the reference
+<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">BoundedSource</span></code></a>, position to start
+reading at, and position to stop reading at.</li>
+<li><strong>sources_info</strong> (<em>Iterable</em><em>[</em><em>Tuple</em><em>[</em><a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><em>BoundedSource</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>]</em><em>]</em>) – a set of sources. Each source is a three-tuple that is of the same
+format described above.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if the set of data produced by the reference source
+and the given set of sources are not equivalent.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_reentrant_reads_succeed">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_reentrant_reads_succeed</code><span class="sig-paren">(</span><em>source_info</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_reentrant_reads_succeed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_reentrant_reads_succeed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tests if a given source can be read in a reentrant manner.</p>
+<p>Assume that given source produces the set of values <code class="docutils literal"><span class="pre">{v1,</span> <span class="pre">v2,</span> <span class="pre">v3,</span> <span class="pre">...</span> <span class="pre">vn}</span></code>.
+For <code class="docutils literal"><span class="pre">i</span></code> in range <code class="docutils literal"><span class="pre">[1,</span> <span class="pre">n-1]</span></code> this method performs a reentrant read after
+reading <code class="docutils literal"><span class="pre">i</span></code> elements and verifies that both the original and reentrant read
+produce the expected set of values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>source_info</strong> (<em>Tuple</em><em>[</em><a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><em>BoundedSource</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>]</em>) – a three-tuple that gives the reference
+<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">BoundedSource</span></code></a>, position to start reading
+at, and a position to stop reading at.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if source is too trivial or reentrant read result
+in an incorrect read.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_split_at_fraction_behavior">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_split_at_fraction_behavior</code><span class="sig-paren">(</span><em>source</em>, <em>num_items_to_read_before_split</em>, <em>split_fraction</em>, <em>expected_outcome</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_split_at_fraction_behavior"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_split_at_fraction_behavior" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verifies the behaviour of splitting a source at a given fraction.</p>
+<p>Asserts that splitting a <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">BoundedSource</span></code></a> either
+fails after reading <strong>num_items_to_read_before_split</strong> items, or succeeds in
+a way that is consistent according to
+<a class="reference internal" href="#apache_beam.io.source_test_utils.assert_split_at_fraction_succeeds_and_consistent" title="apache_beam.io.source_test_utils.assert_split_at_fraction_succeeds_and_consistent"><code class="xref py py-func docutils literal"><span class="pre">assert_split_at_fraction_succeeds_and_consistent()</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>source</strong> (<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><em>BoundedSource</em></a>) – the source to perform
+dynamic splitting on.</li>
+<li><strong>num_items_to_read_before_split</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – number of items to read before
+splitting.</li>
+<li><strong>split_fraction</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) – fraction to split at.</li>
+<li><strong>expected_outcome</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – a value from
+<code class="xref py py-class docutils literal"><span class="pre">ExpectedSplitOutcome</span></code>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a tuple that gives the number of items produced by reading
+the two ranges produced after dynamic splitting. If splitting did not
+occur, the first value of the tuple will represent the full set of records
+read by the source while the second value of the tuple will be <code class="docutils literal"><span class="pre">-1</span></code>.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Tuple[<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)">int</a>, <a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)">int</a>]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_split_at_fraction_succeeds_and_consistent">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_split_at_fraction_succeeds_and_consistent</code><span class="sig-paren">(</span><em>source</em>, <em>num_items_to_read_before_split</em>, <em>split_fraction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_split_at_fraction_succeeds_and_consistent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_split_at_fraction_succeeds_and_consistent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verifies some consistency properties of dynamic work rebalancing.</p>
+<p>Equivalent to the following pseudocode::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">original_range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">getRangeTracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+<span class="n">original_reader</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">original_range_tracker</span><span class="p">)</span>
+<span class="n">items_before_split</span> <span class="o">=</span> <span class="n">read</span> <span class="n">N</span> <span class="n">items</span> <span class="kn">from</span> <span class="nn">original_reader</span>
+<span class="n">suggested_split_position</span> <span class="o">=</span> <span class="n">original_range_tracker</span><span class="o">.</span><span class="n">position_for_fraction</span><span class="p">(</span>
+  <span class="n">split_fraction</span><span class="p">)</span>
+<span class="n">original_stop_position</span> <span class="o">-</span> <span class="n">original_range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+<span class="n">split_result</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">()</span>
+<span class="n">split_position</span><span class="p">,</span> <span class="n">split_fraction</span> <span class="o">=</span> <span class="n">split_result</span>
+<span class="n">primary_range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+  <span class="n">original_range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">(),</span> <span class="n">split_position</span><span class="p">)</span>
+<span class="n">residual_range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">split_position</span><span class="p">,</span>
+  <span class="n">original_stop_position</span><span class="p">)</span>
+
+<span class="k">assert</span> <span class="n">that</span><span class="p">:</span> <span class="n">items</span> <span class="n">when</span> <span class="n">reading</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">primary_range_tracker</span><span class="p">)</span> <span class="o">==</span>
+  <span class="n">items_before_split</span> <span class="o">+</span> <span class="n">items</span> <span class="kn">from</span> <span class="nn">continuing</span> <span class="n">to</span> <span class="n">read</span> <span class="s1">&#39;original_reader&#39;</span>
+<span class="k">assert</span> <span class="n">that</span><span class="p">:</span> <span class="n">items</span> <span class="n">when</span> <span class="n">reading</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">original_range_tracker</span><span class="p">)</span> <span class="o">=</span>
+  <span class="n">items</span> <span class="n">when</span> <span class="n">reading</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">primary_range_tracker</span><span class="p">)</span> <span class="o">+</span> <span class="n">items</span> <span class="n">when</span> <span class="n">reading</span>
+<span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">residual_range_tracker</span><span class="p">)</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>source</strong> – source to perform dynamic work rebalancing on.</li>
+<li><strong>num_items_to_read_before_split</strong> – number of items to read before splitting.</li>
+<li><strong>split_fraction</strong> – fraction to split at.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_split_at_fraction_fails">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_split_at_fraction_fails</code><span class="sig-paren">(</span><em>source</em>, <em>num_items_to_read_before_split</em>, <em>split_fraction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_split_at_fraction_fails"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_split_at_fraction_fails" title="Permalink to this definition">¶</a></dt>
+<dd><p>Asserts that dynamic work rebalancing at a given fraction fails.</p>
+<p>Asserts that trying to perform dynamic splitting after reading
+‘num_items_to_read_before_split’ items from the source fails.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>source</strong> – source to perform dynamic splitting on.</li>
+<li><strong>num_items_to_read_before_split</strong> – number of items to read before splitting.</li>
+<li><strong>split_fraction</strong> – fraction to split at.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_split_at_fraction_binary">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_split_at_fraction_binary</code><span class="sig-paren">(</span><em>source</em>, <em>expected_items</em>, <em>num_items_to_read_before_split</em>, <em>left_fraction</em>, <em>left_result</em>, <em>right_fraction</em>, <em>right_result</em>, <em>stats</em>, <em>start_position=None</em>, <em>stop_position=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_split_at_fraction_binary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_split_at_fraction_binary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs dynamic work rebalancing for fractions within a given range.</p>
+<p>Asserts that given a start position, a source can be split at every
+interesting fraction (halfway between two fractions that differ by at
+least one item) and the results are consistent if a split succeeds.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>source</strong> – source to perform dynamic splitting on.</li>
+<li><strong>expected_items</strong> – total set of items expected when reading the source.</li>
+<li><strong>num_items_to_read_before_split</strong> – number of items to read before splitting.</li>
+<li><strong>left_fraction</strong> – left fraction for binary splitting.</li>
+<li><strong>left_result</strong> – result received by splitting at left fraction.</li>
+<li><strong>right_fraction</strong> – right fraction for binary splitting.</li>
+<li><strong>right_result</strong> – result received by splitting at right fraction.</li>
+<li><strong>stats</strong> – a <code class="docutils literal"><span class="pre">SplitFractionStatistics</span></code> for storing results.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.io.source_test_utils.assert_split_at_fraction_exhaustive">
+<code class="descclassname">apache_beam.io.source_test_utils.</code><code class="descname">assert_split_at_fraction_exhaustive</code><span class="sig-paren">(</span><em>source</em>, <em>start_position=None</em>, <em>stop_position=None</em>, <em>perform_multi_threaded_test=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/source_test_utils.html#assert_split_at_fraction_exhaustive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.source_test_utils.assert_split_at_fraction_exhaustive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs and tests dynamic work rebalancing exhaustively.</p>
+<p>Asserts that for each possible start position, a source can be split at
+every interesting fraction (halfway between two fractions that differ by at
+least one item) and the results are consistent if a split succeeds.
+Verifies multi threaded splitting as well.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>source</strong> (<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><em>BoundedSource</em></a>) – the source to perform
+dynamic splitting on.</li>
+<li><strong>perform_multi_threaded_test</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – if <a class="reference external" href="https://docs.python.org/2/library/constants.html#True" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">True</span></code></a> performs a
+multi-threaded test, otherwise this test is skipped.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if the exhaustive splitting test fails.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.textio.html" class="btn btn-neutral float-right" title="apache_beam.io.textio module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.restriction_trackers.html" class="btn btn-neutral" title="apache_beam.io.restriction_trackers module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

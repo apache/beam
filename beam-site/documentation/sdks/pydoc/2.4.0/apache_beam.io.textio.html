@@ -1,0 +1,426 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.textio module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.tfrecordio module" href="apache_beam.io.tfrecordio.html"/>
+        <link rel="prev" title="apache_beam.io.source_test_utils module" href="apache_beam.io.source_test_utils.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystemio.html">apache_beam.io.filesystemio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.textio module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.textio.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.textio">
+<span id="apache-beam-io-textio-module"></span><h1>apache_beam.io.textio module<a class="headerlink" href="#module-apache_beam.io.textio" title="Permalink to this headline">¶</a></h1>
+<p>A source and a sink for reading from and writing to text files.</p>
+<dl class="class">
+<dt id="apache_beam.io.textio.ReadAllFromText">
+<em class="property">class </em><code class="descclassname">apache_beam.io.textio.</code><code class="descname">ReadAllFromText</code><span class="sig-paren">(</span><em>min_bundle_size=0</em>, <em>desired_bundle_size=67108864</em>, <em>compression_type='auto'</em>, <em>strip_trailing_newlines=True</em>, <em>coder=StrUtf8Coder</em>, <em>skip_header_lines=0</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/textio.html#ReadAllFromText"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.textio.ReadAllFromText" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <code class="docutils literal"><span class="pre">PTransform</span></code> for reading a <code class="docutils literal"><span class="pre">PCollection</span></code> of text files.</p>
+<blockquote>
+<div>Reads a <code class="docutils literal"><span class="pre">PCollection</span></code> of text files or file patterns and and produces a
+<code class="docutils literal"><span class="pre">PCollection</span></code> of strings.</div></blockquote>
+<p>Parses a text file as newline-delimited elements, by default assuming
+UTF-8 encoding. Supports newline delimiters ‘n’ and ‘rn’.</p>
+<p>This implementation only supports reading text encoded using UTF-8 or ASCII.
+This does not support other encodings such as UTF-16 or UTF-32.</p>
+<p>Initialize the <code class="docutils literal"><span class="pre">ReadAllFromText</span></code> transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>min_bundle_size</strong> – Minimum size of bundles that should be generated when
+splitting this source into bundles. See <code class="docutils literal"><span class="pre">FileBasedSource</span></code> for more
+details.</li>
+<li><strong>desired_bundle_size</strong> – Desired size of bundles that should be generated when
+splitting this source into bundles. See <code class="docutils literal"><span class="pre">FileBasedSource</span></code> for more
+details.</li>
+<li><strong>compression_type</strong> – Used to handle compressed input files. Typical value
+is <code class="docutils literal"><span class="pre">CompressionTypes.AUTO</span></code>, in which case the underlying file_path’s
+extension will be used to detect the compression.</li>
+<li><strong>strip_trailing_newlines</strong> – Indicates whether this source should remove
+the newline char in each line it reads before decoding that line.</li>
+<li><strong>validate</strong> – flag to verify that the files exist during the pipeline
+creation time.</li>
+<li><strong>skip_header_lines</strong> – Number of header lines to skip. Same number is skipped
+from each source file. Must be 0 or higher. Large number of skipped
+lines might impact performance.</li>
+<li><strong>coder</strong> – Coder used to decode each line.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.io.textio.ReadAllFromText.DEFAULT_DESIRED_BUNDLE_SIZE">
+<code class="descname">DEFAULT_DESIRED_BUNDLE_SIZE</code><em class="property"> = 67108864</em><a class="headerlink" href="#apache_beam.io.textio.ReadAllFromText.DEFAULT_DESIRED_BUNDLE_SIZE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.textio.ReadAllFromText.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pvalue</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/textio.html#ReadAllFromText.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.textio.ReadAllFromText.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.textio.ReadFromText">
+<em class="property">class </em><code class="descclassname">apache_beam.io.textio.</code><code class="descname">ReadFromText</code><span class="sig-paren">(</span><em>file_pattern=None</em>, <em>min_bundle_size=0</em>, <em>compression_type='auto'</em>, <em>strip_trailing_newlines=True</em>, <em>coder=StrUtf8Coder</em>, <em>validate=True</em>, <em>skip_header_lines=0</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/textio.html#ReadFromText"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.textio.ReadFromText" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> for reading text
+files.</p>
+<p>Parses a text file as newline-delimited elements, by default assuming
+<code class="docutils literal"><span class="pre">UTF-8</span></code> encoding. Supports newline delimiters <code class="docutils literal"><span class="pre">\n</span></code> and <code class="docutils literal"><span class="pre">\r\n</span></code>.</p>
+<p>This implementation only supports reading text encoded using <code class="docutils literal"><span class="pre">UTF-8</span></code> or
+<code class="docutils literal"><span class="pre">ASCII</span></code>.
+This does not support other encodings such as <code class="docutils literal"><span class="pre">UTF-16</span></code> or <code class="docutils literal"><span class="pre">UTF-32</span></code>.</p>
+<p>Initialize the <a class="reference internal" href="#apache_beam.io.textio.ReadFromText" title="apache_beam.io.textio.ReadFromText"><code class="xref py py-class docutils literal"><span class="pre">ReadFromText</span></code></a> transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>file_pattern</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – The file path to read from as a local file path or a
+GCS <code class="docutils literal"><span class="pre">gs://</span></code> path. The path can contain glob characters
+(<code class="docutils literal"><span class="pre">*</span></code>, <code class="docutils literal"><span class="pre">?</span></code>, and <code class="docutils literal"><span class="pre">[...]</span></code> sets).</li>
+<li><strong>min_bundle_size</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – Minimum size of bundles that should be generated
+when splitting this source into bundles. See
+<a class="reference internal" href="apache_beam.io.filebasedsource.html#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a> for more
+details.</li>
+<li><strong>compression_type</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Used to handle compressed input files.
+Typical value is <a class="reference internal" href="apache_beam.io.filesystem.html#apache_beam.io.filesystem.CompressionTypes.AUTO" title="apache_beam.io.filesystem.CompressionTypes.AUTO"><code class="xref py py-attr docutils literal"><span class="pre">CompressionTypes.AUTO</span></code></a>, in which case the
+underlying file_path’s extension will be used to detect the compression.</li>
+<li><strong>strip_trailing_newlines</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Indicates whether this source should
+remove the newline char in each line it reads before decoding that line.</li>
+<li><strong>validate</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – flag to verify that the files exist during the pipeline
+creation time.</li>
+<li><strong>skip_header_lines</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – Number of header lines to skip. Same number is
+skipped from each source file. Must be 0 or higher. Large number of
+skipped lines might impact performance.</li>
+<li><strong>coder</strong> (<a class="reference internal" href="apache_beam.coders.coders.html#apache_beam.coders.coders.Coder" title="apache_beam.coders.coders.Coder"><em>Coder</em></a>) – Coder used to decode each line.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.textio.ReadFromText.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pvalue</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/textio.html#ReadFromText.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.textio.ReadFromText.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.textio.WriteToText">
+<em class="property">class </em><code class="descclassname">apache_beam.io.textio.</code><code class="descname">WriteToText</code><span class="sig-paren">(</span><em>file_path_prefix</em>, <em>file_name_suffix=''</em>, <em>append_trailing_newlines=True</em>, <em>num_shards=0</em>, <em>shard_name_template=None</em>, <em>coder=ToStringCoder</em>, <em>compression_type='auto'</em>, <em>header=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/textio.html#WriteToText"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.textio.WriteToText" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> for writing to
+text files.</p>
+<p>Initialize a <a class="reference internal" href="#apache_beam.io.textio.WriteToText" title="apache_beam.io.textio.WriteToText"><code class="xref py py-class docutils literal"><span class="pre">WriteToText</span></code></a> transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>file_path_prefix</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – The file path to write to. The files written will
+begin with this prefix, followed by a shard identifier (see
+<strong>num_shards</strong>), and end in a common extension, if given by
+<strong>file_name_suffix</strong>. In most cases, only this argument is specified and
+<strong>num_shards</strong>, <strong>shard_name_template</strong>, and <strong>file_name_suffix</strong> use
+default values.</li>
+<li><strong>file_name_suffix</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Suffix for the files written.</li>
+<li><strong>append_trailing_newlines</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – indicate whether this sink should write
+an additional newline char after writing each element.</li>
+<li><strong>num_shards</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – The number of files (shards) used for output.
+If not set, the service will decide on the optimal number of shards.
+Constraining the number of shards is likely to reduce
+the performance of a pipeline.  Setting this value is not recommended
+unless you require a specific number of output files.</li>
+<li><strong>shard_name_template</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – A template string containing placeholders for
+the shard number and shard count. Currently only <code class="docutils literal"><span class="pre">''</span></code> and
+<code class="docutils literal"><span class="pre">'-SSSSS-of-NNNNN'</span></code> are patterns accepted by the service.
+When constructing a filename for a particular shard number, the
+upper-case letters <code class="docutils literal"><span class="pre">S</span></code> and <code class="docutils literal"><span class="pre">N</span></code> are replaced with the <code class="docutils literal"><span class="pre">0</span></code>-padded
+shard number and shard count respectively.  This argument can be <code class="docutils literal"><span class="pre">''</span></code>
+in which case it behaves as if num_shards was set to 1 and only one file
+will be generated. The default pattern used is <code class="docutils literal"><span class="pre">'-SSSSS-of-NNNNN'</span></code>.</li>
+<li><strong>coder</strong> (<a class="reference internal" href="apache_beam.coders.coders.html#apache_beam.coders.coders.Coder" title="apache_beam.coders.coders.Coder"><em>Coder</em></a>) – Coder used to encode each line.</li>
+<li><strong>compression_type</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Used to handle compressed output files.
+Typical value is <a class="reference internal" href="apache_beam.io.filesystem.html#apache_beam.io.filesystem.CompressionTypes.AUTO" title="apache_beam.io.filesystem.CompressionTypes.AUTO"><code class="xref py py-class docutils literal"><span class="pre">CompressionTypes.AUTO</span></code></a>, in which case the
+final file path’s extension (as determined by <strong>file_path_prefix</strong>,
+<strong>file_name_suffix</strong>, <strong>num_shards</strong> and <strong>shard_name_template</strong>) will
+be used to detect the compression.</li>
+<li><strong>header</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – String to write at beginning of file as a header.
+If not <a class="reference external" href="https://docs.python.org/2/library/constants.html#None" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">None</span></code></a> and <strong>append_trailing_newlines</strong> is set, <code class="docutils literal"><span class="pre">\n</span></code> will
+be added.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.textio.WriteToText.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/textio.html#WriteToText.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.textio.WriteToText.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.tfrecordio.html" class="btn btn-neutral float-right" title="apache_beam.io.tfrecordio module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.source_test_utils.html" class="btn btn-neutral" title="apache_beam.io.source_test_utils module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

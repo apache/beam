@@ -1,0 +1,7 @@
+apache\_beam\.runners\.dataflow\.ptransform\_overrides module
+=============================================================
+
+.. automodule:: apache_beam.runners.dataflow.ptransform_overrides
+    :members:
+    :undoc-members:
+    :show-inheritance:

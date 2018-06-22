@@ -1,0 +1,7 @@
+apache\_beam\.coders\.slow\_stream module
+=========================================
+
+.. automodule:: apache_beam.coders.slow_stream
+    :members:
+    :undoc-members:
+    :show-inheritance:

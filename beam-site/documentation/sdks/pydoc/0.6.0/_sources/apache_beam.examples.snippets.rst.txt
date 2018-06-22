@@ -1,0 +1,30 @@
+apache_beam.examples.snippets package
+=====================================
+
+Submodules
+----------
+
+apache_beam.examples.snippets.snippets module
+---------------------------------------------
+
+.. automodule:: apache_beam.examples.snippets.snippets
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.examples.snippets.snippets_test module
+--------------------------------------------------
+
+.. automodule:: apache_beam.examples.snippets.snippets_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.examples.snippets
+    :members:
+    :undoc-members:
+    :show-inheritance:

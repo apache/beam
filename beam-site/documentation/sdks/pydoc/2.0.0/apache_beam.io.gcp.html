@@ -1,0 +1,817 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.io.gcp.datastore package" href="apache_beam.io.gcp.datastore.html" />
+    <link rel="prev" title="apache_beam.io package" href="apache_beam.io.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.datastore.html" title="apache_beam.io.gcp.datastore package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.html" title="apache_beam.io package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.io.html" accesskey="U">apache_beam.io package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.io.gcp package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.bigquery">apache_beam.io.gcp.bigquery module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.gcsfilesystem">apache_beam.io.gcp.gcsfilesystem module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.gcsio">apache_beam.io.gcp.gcsio module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.pubsub">apache_beam.io.gcp.pubsub module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.io.html"
+                        title="previous chapter">apache_beam.io package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.io.gcp.datastore.html"
+                        title="next chapter">apache_beam.io.gcp.datastore package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.io.gcp.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-io-gcp-package">
+<h1>apache_beam.io.gcp package<a class="headerlink" href="#apache-beam-io-gcp-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.gcp.datastore.html">apache_beam.io.gcp.datastore package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html">apache_beam.io.gcp.datastore.v1 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.datastoreio">apache_beam.io.gcp.datastore.v1.datastoreio module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.fake_datastore">apache_beam.io.gcp.datastore.v1.fake_datastore module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.helper">apache_beam.io.gcp.datastore.v1.helper module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.query_splitter">apache_beam.io.gcp.datastore.v1.query_splitter module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#module-apache_beam.io.gcp.datastore">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.gcp.internal.html">apache_beam.io.gcp.internal package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.internal.html#module-apache_beam.io.gcp.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.gcp.tests.html">apache_beam.io.gcp.tests package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.tests.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests.bigquery_matcher">apache_beam.io.gcp.tests.bigquery_matcher module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.io.gcp.bigquery">
+<span id="apache-beam-io-gcp-bigquery-module"></span><h2>apache_beam.io.gcp.bigquery module<a class="headerlink" href="#module-apache_beam.io.gcp.bigquery" title="Permalink to this headline">¶</a></h2>
+<p>BigQuery sources and sinks.</p>
+<p>This module implements reading from and writing to BigQuery tables. It relies
+on several classes exposed by the BigQuery API: TableSchema, TableFieldSchema,
+TableRow, and TableCell. The default mode is to return table rows read from a
+BigQuery source as dictionaries. Similarly a Write transform to a BigQuerySink
+accepts PCollections of dictionaries. This is done for more convenient
+programming.  If desired, the native TableRow objects can be used throughout to
+represent rows (use an instance of TableRowJsonCoder as a coder argument when
+creating the sources or sinks respectively).</p>
+<p>Also, for programming convenience, instances of TableReference and TableSchema
+have a string representation that can be used for the corresponding arguments:</p>
+<blockquote>
+<div><ul class="simple">
+<li>TableReference can be a PROJECT:DATASET.TABLE or DATASET.TABLE string.</li>
+<li>TableSchema can be a NAME:TYPE{,NAME:TYPE}* string
+(e.g. &#8216;month:STRING,event_count:INTEGER&#8217;).</li>
+</ul>
+</div></blockquote>
+<p>The syntax supported is described here:
+<a class="reference external" href="https://cloud.google.com/bigquery/bq-command-line-tool-quickstart">https://cloud.google.com/bigquery/bq-command-line-tool-quickstart</a></p>
+<p>BigQuery sources can be used as main inputs or side inputs. A main input
+(common case) is expected to be massive and will be split into manageable chunks
+and processed in parallel. Side inputs are expected to be small and will be read
+completely every time a ParDo DoFn gets executed. In the example below the
+lambda function implementing the DoFn for the Map transform will get on each
+call <em>one</em> row of the main table and <em>all</em> rows of the side table. The runner
+may use some caching techniques to share the side inputs between calls in order
+to avoid excessive reading::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">main_table</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;VeryBig&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">()</span>
+<span class="n">side_table</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;NotBig&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">()</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">main_table</span>
+    <span class="o">|</span> <span class="s1">&#39;ProcessData&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">element</span><span class="p">,</span> <span class="n">side_input</span><span class="p">:</span> <span class="o">...</span><span class="p">,</span> <span class="n">AsList</span><span class="p">(</span><span class="n">side_table</span><span class="p">)))</span>
+</pre></div>
+</div>
+<p>There is no difference in how main and side inputs are read. What makes the
+side_table a &#8216;side input&#8217; is the AsList wrapper used when passing the table
+as a parameter to the Map transform. AsList signals to the execution framework
+that its input should be made available whole.</p>
+<p>The main and side inputs are implemented differently. Reading a BigQuery table
+as main input entails exporting the table to a set of GCS files (currently in
+JSON format) and then processing those files. Reading the same table as a side
+input entails querying the table for all its rows. The coder argument on
+BigQuerySource controls the reading of the lines in the export files (i.e.,
+transform a JSON object into a PCollection element). The coder is not involved
+when the same table is read as a side input since there is no intermediate
+format involved. We get the table rows directly from the BigQuery service with
+a query.</p>
+<p>Users may provide a query to read from rather than reading all of a BigQuery
+table. If specified, the result obtained by executing the specified query will
+be used as the data of the input transform.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">query_results</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
+    <span class="n">query</span><span class="o">=</span><span class="s1">&#39;SELECT year, mean_temp FROM samples.weather_stations&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>When creating a BigQuery input transform, users should provide either a query
+or a table. Pipeline construction will fail with a validation error if neither
+or both are specified.</p>
+<p><strong>* Short introduction to BigQuery concepts *</strong>
+Tables have rows (TableRow) and each row has cells (TableCell).
+A table has a schema (TableSchema), which in turn describes the schema of each
+cell (TableFieldSchema). The terms field and cell are used interchangeably.</p>
+<dl class="docutils">
+<dt>TableSchema: Describes the schema (types and order) for values in each row.</dt>
+<dd>Has one attribute, &#8216;field&#8217;, which is list of TableFieldSchema objects.</dd>
+<dt>TableFieldSchema: Describes the schema (type, name) for one field.</dt>
+<dd>Has several attributes, including &#8216;name&#8217; and &#8216;type&#8217;. Common values for
+the type attribute are: &#8216;STRING&#8217;, &#8216;INTEGER&#8217;, &#8216;FLOAT&#8217;, &#8216;BOOLEAN&#8217;. All possible
+values are described at:
+<a class="reference external" href="https://cloud.google.com/bigquery/preparing-data-for-bigquery#datatypes">https://cloud.google.com/bigquery/preparing-data-for-bigquery#datatypes</a></dd>
+<dt>TableRow: Holds all values in a table row. Has one attribute, &#8216;f&#8217;, which is a</dt>
+<dd>list of TableCell instances.</dd>
+<dt>TableCell: Holds the value for one cell (or field).  Has one attribute,</dt>
+<dd>&#8216;v&#8217;, which is a JsonValue instance. This class is defined in
+apitools.base.py.extra_types.py module.</dd>
+</dl>
+<dl class="class">
+<dt id="apache_beam.io.gcp.bigquery.TableRowJsonCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.bigquery.</code><code class="descname">TableRowJsonCoder</code><span class="sig-paren">(</span><em>table_schema=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#TableRowJsonCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.TableRowJsonCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.coders.html#apache_beam.coders.coders.Coder" title="apache_beam.coders.coders.Coder"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.Coder</span></code></a></p>
+<p>A coder for a TableRow instance to/from a JSON string.</p>
+<p>Note that the encoding operation (used when writing to sinks) requires the
+table schema in order to obtain the ordered list of field names. Reading from
+sources on the other hand does not need the table schema.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.TableRowJsonCoder.decode">
+<code class="descname">decode</code><span class="sig-paren">(</span><em>encoded_table_row</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#TableRowJsonCoder.decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.TableRowJsonCoder.decode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.TableRowJsonCoder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>table_row</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#TableRowJsonCoder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.TableRowJsonCoder.encode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.bigquery.</code><code class="descname">BigQueryDisposition</code><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQueryDisposition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Class holding standard strings used for create and write dispositions.</p>
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.CREATE_IF_NEEDED">
+<code class="descname">CREATE_IF_NEEDED</code><em class="property"> = 'CREATE_IF_NEEDED'</em><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.CREATE_IF_NEEDED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.CREATE_NEVER">
+<code class="descname">CREATE_NEVER</code><em class="property"> = 'CREATE_NEVER'</em><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.CREATE_NEVER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.WRITE_APPEND">
+<code class="descname">WRITE_APPEND</code><em class="property"> = 'WRITE_APPEND'</em><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.WRITE_APPEND" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.WRITE_EMPTY">
+<code class="descname">WRITE_EMPTY</code><em class="property"> = 'WRITE_EMPTY'</em><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.WRITE_EMPTY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.WRITE_TRUNCATE">
+<code class="descname">WRITE_TRUNCATE</code><em class="property"> = 'WRITE_TRUNCATE'</em><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.WRITE_TRUNCATE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.validate_create">
+<em class="property">static </em><code class="descname">validate_create</code><span class="sig-paren">(</span><em>disposition</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQueryDisposition.validate_create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.validate_create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.io.gcp.bigquery.BigQueryDisposition.validate_write">
+<em class="property">static </em><code class="descname">validate_write</code><span class="sig-paren">(</span><em>disposition</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQueryDisposition.validate_write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQueryDisposition.validate_write" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySource">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.bigquery.</code><code class="descname">BigQuerySource</code><span class="sig-paren">(</span><em>table=None</em>, <em>dataset=None</em>, <em>project=None</em>, <em>query=None</em>, <em>validate=False</em>, <em>coder=None</em>, <em>use_standard_sql=False</em>, <em>flatten_results=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache_beam.runners.dataflow.native_io.iobase.NativeSource" title="apache_beam.runners.dataflow.native_io.iobase.NativeSource"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.dataflow.native_io.iobase.NativeSource</span></code></a></p>
+<p>A source based on a BigQuery table.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySource.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySource.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySource.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySource.format">
+<code class="descname">format</code><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySource.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Source format name required for remote execution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySource.reader">
+<code class="descname">reader</code><span class="sig-paren">(</span><em>test_bigquery_client=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySource.reader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySource.reader" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySink">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.bigquery.</code><code class="descname">BigQuerySink</code><span class="sig-paren">(</span><em>table</em>, <em>dataset=None</em>, <em>project=None</em>, <em>schema=None</em>, <em>create_disposition='CREATE_IF_NEEDED'</em>, <em>write_disposition='WRITE_EMPTY'</em>, <em>validate=False</em>, <em>coder=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySink" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache_beam.runners.dataflow.native_io.iobase.NativeSink" title="apache_beam.runners.dataflow.native_io.iobase.NativeSink"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.dataflow.native_io.iobase.NativeSink</span></code></a></p>
+<p>A sink based on a BigQuery table.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySink.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySink.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySink.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySink.format">
+<code class="descname">format</code><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySink.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sink format name required for remote execution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySink.schema_as_json">
+<code class="descname">schema_as_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySink.schema_as_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySink.schema_as_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the TableSchema associated with the sink as a JSON string.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.bigquery.BigQuerySink.writer">
+<code class="descname">writer</code><span class="sig-paren">(</span><em>test_bigquery_client=None</em>, <em>buffer_size=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/bigquery.html#BigQuerySink.writer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.bigquery.BigQuerySink.writer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.gcsfilesystem">
+<span id="apache-beam-io-gcp-gcsfilesystem-module"></span><h2>apache_beam.io.gcp.gcsfilesystem module<a class="headerlink" href="#module-apache_beam.io.gcp.gcsfilesystem" title="Permalink to this headline">¶</a></h2>
+<p>GCS file system implementation for accessing files on GCS.</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.gcsfilesystem.</code><code class="descname">GCSFileSystem</code><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.io.html#apache_beam.io.filesystem.FileSystem" title="apache_beam.io.filesystem.FileSystem"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.filesystem.FileSystem</span></code></a></p>
+<p>A GCS <code class="docutils literal"><span class="pre">FileSystem</span></code> implementation for accessing files on GCS.</p>
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.CHUNK_SIZE">
+<code class="descname">CHUNK_SIZE</code><em class="property"> = 100</em><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.CHUNK_SIZE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.GCS_PREFIX">
+<code class="descname">GCS_PREFIX</code><em class="property"> = 'gs://'</em><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.GCS_PREFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><em>source_file_names</em>, <em>destination_file_names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively copy the file tree from the source to the destination</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>source_file_names</strong> &#8211; list of source file objects that needs to be copied</li>
+<li><strong>destination_file_names</strong> &#8211; list of destination of the new object</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the copy operations fail</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.create">
+<code class="descname">create</code><span class="sig-paren">(</span><em>path</em>, <em>mime_type='application/octet-stream'</em>, <em>compression_type='auto'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a write channel for the given file path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> &#8211; string path of the file object to be written to the system</li>
+<li><strong>mime_type</strong> &#8211; MIME type to specify the type of content in the file object</li>
+<li><strong>compression_type</strong> &#8211; Type of compression to be used for this object</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: file handle with a close function for the user to use</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.delete">
+<code class="descname">delete</code><span class="sig-paren">(</span><em>paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes files or directories at the provided paths.
+Directories will be deleted recursively.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>paths</strong> &#8211; list of paths that give the file objects to be deleted</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.exists">
+<code class="descname">exists</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.exists" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the provided path exists on the FileSystem.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>path</strong> &#8211; string path that needs to be checked.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: boolean flag indicating if path exists</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.join">
+<code class="descname">join</code><span class="sig-paren">(</span><em>basepath</em>, <em>*paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.join" title="Permalink to this definition">¶</a></dt>
+<dd><p>Join two or more pathname components for the filesystem</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>basepath</strong> &#8211; string path of the first component of the path</li>
+<li><strong>paths</strong> &#8211; path components to be added</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: full path after combining all the passed components</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.match">
+<code class="descname">match</code><span class="sig-paren">(</span><em>patterns</em>, <em>limits=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.match" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find all matching paths to the pattern provided.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pattern</strong> &#8211; string for the file path pattern to match against</li>
+<li><strong>limit</strong> &#8211; Maximum number of responses that need to be fetched</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: list of <code class="docutils literal"><span class="pre">MatchResult</span></code> objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the pattern match operations fail</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.mkdirs">
+<code class="descname">mkdirs</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.mkdirs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.mkdirs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively create directories for the provided path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>path</strong> &#8211; string path of the directory structure that should be created</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body">IOError if leaf directory already exists.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.open">
+<code class="descname">open</code><span class="sig-paren">(</span><em>path</em>, <em>mime_type='application/octet-stream'</em>, <em>compression_type='auto'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a read channel for the given file path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> &#8211; string path of the file object to be written to the system</li>
+<li><strong>mime_type</strong> &#8211; MIME type to specify the type of content in the file object</li>
+<li><strong>compression_type</strong> &#8211; Type of compression to be used for this object</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: file handle with a close function for the user to use</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.rename">
+<code class="descname">rename</code><span class="sig-paren">(</span><em>source_file_names</em>, <em>destination_file_names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.rename"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.rename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rename the files at the source list to the destination list.
+Source and destination lists should be of the same size.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>source_file_names</strong> &#8211; List of file paths that need to be moved</li>
+<li><strong>destination_file_names</strong> &#8211; List of destination_file_names for the files</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the rename operations fail</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.scheme">
+<em class="property">classmethod </em><code class="descname">scheme</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.scheme"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.scheme" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI scheme for the FileSystem</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.split">
+<code class="descname">split</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsfilesystem.html#GCSFileSystem.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits the given path into two parts.</p>
+<p>Splits the path into a pair (head, tail) such that tail contains the last
+component of the path and head contains everything up to that.</p>
+<p>Head will include the GCS prefix (&#8216;gs://&#8217;).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>path</strong> &#8211; path as a string</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a pair of path components as strings.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.gcsio">
+<span id="apache-beam-io-gcp-gcsio-module"></span><h2>apache_beam.io.gcp.gcsio module<a class="headerlink" href="#module-apache_beam.io.gcp.gcsio" title="Permalink to this headline">¶</a></h2>
+<p>Google Cloud Storage client.</p>
+<p>This library evolved from the Google App Engine GCS client available at
+<a class="reference external" href="https://github.com/GoogleCloudPlatform/appengine-gcs-client">https://github.com/GoogleCloudPlatform/appengine-gcs-client</a>.</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.gcsio.</code><code class="descname">GcsIO</code><span class="sig-paren">(</span><em>storage_client=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsio.html#GcsIO"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Google Cloud Storage I/O client.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.copy_batch">
+<code class="descname">copy_batch</code><span class="sig-paren">(</span><em>src_dest_pairs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsio.html#GcsIO.copy_batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.copy_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copies the given GCS object from src to dest.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>src_dest_pairs</strong> &#8211; list of (src, dest) tuples of gs://&lt;bucket&gt;/&lt;name&gt; files
+paths to copy from src to dest, not to exceed
+MAX_BATCH_OPERATION_SIZE in length.</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
+<dt>Returns: List of tuples of (src, dest, exception) in the same order as the</dt>
+<dd>src_dest_pairs argument, where exception is None if the operation
+succeeded or the relevant exception if the operation failed.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.copytree">
+<code class="descname">copytree</code><span class="sig-paren">(</span><em>src</em>, <em>dest</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsio.html#GcsIO.copytree"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.copytree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renames the given GCS &#8220;directory&#8221; recursively from src to dest.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>src</strong> &#8211; GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;/.</li>
+<li><strong>dest</strong> &#8211; GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;/.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.delete">
+<code class="descname">delete</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.delete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.delete_batch">
+<code class="descname">delete_batch</code><span class="sig-paren">(</span><em>paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsio.html#GcsIO.delete_batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.delete_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes the objects at the given GCS paths.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>paths</strong> &#8211; List of GCS file path patterns in the form gs://&lt;bucket&gt;/&lt;name&gt;,
+not to exceed MAX_BATCH_OPERATION_SIZE in length.</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
+<dt>Returns: List of tuples of (path, exception) in the same order as the paths</dt>
+<dd>argument, where exception is None if the operation succeeded or
+the relevant exception if the operation failed.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.exists">
+<code class="descname">exists</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.exists" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.glob">
+<code class="descname">glob</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.glob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.open">
+<code class="descname">open</code><span class="sig-paren">(</span><em>filename</em>, <em>mode='r'</em>, <em>read_buffer_size=16777216</em>, <em>mime_type='application/octet-stream'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsio.html#GcsIO.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Open a GCS file path for reading or writing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> &#8211; GCS file path in the form gs://&lt;bucket&gt;/&lt;object&gt;.</li>
+<li><strong>mode</strong> &#8211; &#8216;r&#8217; for reading or &#8216;w&#8217; for writing.</li>
+<li><strong>read_buffer_size</strong> &#8211; Buffer size to use during read operations.</li>
+<li><strong>mime_type</strong> &#8211; Mime type to set for write operations.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">file object.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code> &#8211; Invalid open file mode.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.rename">
+<code class="descname">rename</code><span class="sig-paren">(</span><em>src</em>, <em>dest</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/gcsio.html#GcsIO.rename"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.rename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renames the given GCS object from src to dest.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>src</strong> &#8211; GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</li>
+<li><strong>dest</strong> &#8211; GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.size">
+<code class="descname">size</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.gcsio.GcsIO.size_of_files_in_glob">
+<code class="descname">size_of_files_in_glob</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.gcp.gcsio.GcsIO.size_of_files_in_glob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.pubsub">
+<span id="apache-beam-io-gcp-pubsub-module"></span><h2>apache_beam.io.gcp.pubsub module<a class="headerlink" href="#module-apache_beam.io.gcp.pubsub" title="Permalink to this headline">¶</a></h2>
+<p>Google Cloud PubSub sources and sinks.</p>
+<p>Cloud Pub/Sub sources and sinks are currently supported only in streaming
+pipelines, during remote execution.</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSink">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.pubsub.</code><code class="descname">PubSubSink</code><span class="sig-paren">(</span><em>topic</em>, <em>coder=StrUtf8Coder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/pubsub.html#PubSubSink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSink" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache_beam.runners.dataflow.native_io.iobase.NativeSink" title="apache_beam.runners.dataflow.native_io.iobase.NativeSink"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.dataflow.native_io.iobase.NativeSink</span></code></a></p>
+<p>Sink for writing to a given Cloud Pub/Sub topic.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSink.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/pubsub.html#PubSubSink.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSink.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSink.format">
+<code class="descname">format</code><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSink.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sink format name required for remote execution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSink.writer">
+<code class="descname">writer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/pubsub.html#PubSubSink.writer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSink.writer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.pubsub.</code><code class="descname">PubSubSource</code><span class="sig-paren">(</span><em>topic</em>, <em>subscription=None</em>, <em>id_label=None</em>, <em>coder=StrUtf8Coder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/pubsub.html#PubSubSource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache_beam.runners.dataflow.native_io.iobase.NativeSource" title="apache_beam.runners.dataflow.native_io.iobase.NativeSource"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.dataflow.native_io.iobase.NativeSource</span></code></a></p>
+<p>Source for reading from a given Cloud Pub/Sub topic.</p>
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.topic">
+<code class="descname">topic</code><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.topic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cloud Pub/Sub topic in the form &#8220;/topics/&lt;project&gt;/&lt;topic&gt;&#8221;.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.subscription">
+<code class="descname">subscription</code><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.subscription" title="Permalink to this definition">¶</a></dt>
+<dd><p>Optional existing Cloud Pub/Sub subscription to use in the
+form &#8220;projects/&lt;project&gt;/subscriptions/&lt;subscription&gt;&#8221;.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.id_label">
+<code class="descname">id_label</code><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.id_label" title="Permalink to this definition">¶</a></dt>
+<dd><p>The attribute on incoming Pub/Sub messages to use as a unique
+record identifier.  When specified, the value of this attribute (which can
+be any string that uniquely identifies the record) will be used for
+deduplication of messages.  If not provided, Dataflow cannot guarantee
+that no duplicate data will be delivered on the Pub/Sub stream. In this
+case, deduplication of the stream will be strictly best effort.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.coder">
+<code class="descname">coder</code><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.coder" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Coder to use for decoding incoming Pub/Sub messages.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/pubsub.html#PubSubSource.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.format">
+<code class="descname">format</code><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Source format name required for remote execution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.pubsub.PubSubSource.reader">
+<code class="descname">reader</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/pubsub.html#PubSubSource.reader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.pubsub.PubSubSource.reader" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.io.gcp" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.datastore.html" title="apache_beam.io.gcp.datastore package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.html" title="apache_beam.io package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.io.html" >apache_beam.io package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
