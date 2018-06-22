@@ -65,158 +65,190 @@ class Simulator(object):
     return np.square(f) * np.log(self.quantities)
 
 
-class SplitOffRecords(beam.DoFn):
-  """
-  ParDo implementation which splits of 2 records and generated a sub grid.
-
-  This facilitates parallellization of the grid generation.
-  Emits both the PCollection representing the subgrid, as well as the list
-  of remaining records. Both serve as an input to GenerateMappings
-  """
-  def process(self, element):
-    records = list(element[1])
-    # Split of 2 crops and pre-generate all combinations to facilitate parallellism
-    # No point splitting of a crop which can only be created in 1 greenhouse,
-    # split of crops with highest number of options.
-    best_split = np.argsort([-len(rec['transport_costs']) for rec in records])[:2]
-    rec1 = records[best_split[0]]
-    rec2 = records[best_split[1]]
-
-    # Generate & emit all combinations
-    for a in rec1['transport_costs']:
-      if a[1]:
-        for b in rec2['transport_costs']:
-          if b[1]:
-            combination = [(rec1['crop'], a[0]), (rec2['crop'], b[0])]
-            yield pvalue.TaggedOutput('splitted', combination)
-
-    # Pass on remaining records
-    remaining = [rec for i, rec in enumerate(records) if i not in best_split]
-    yield pvalue.TaggedOutput('combine', remaining)
-
-
-class GenerateMappings(beam.DoFn):
-  """
-  ParDo implementation to generate all possible assignments of crops to greenhouses.
-
-  Input: dict with crop, quantity and transport_costs keys, e.g.,
-  {
-      'crop': 'OP009',
-      'quantity': 102,
-      'transport_costs': [('A', None), ('B', 3), ('C', 8)]
-  }
-
-  Output: tuple (mapping_identifier, dict) with the dict representing crop -> greenhouse associations
-  """
-
-  @staticmethod
-  def _coordinates_to_greenhouse(coordinates, greenhouses, crops):
-    # Map the grid coordinates back to greenhouse labels
-    arr = []
-    for coord in coordinates:
-      arr.append(greenhouses[coord])
-    return dict(zip(crops, np.array(arr)))
-
-  def process(self, element, records):
-    # Generate available greenhouses and grid coordinates for each crop.
-    grid_coordinates = []
-    for rec in records:
-      # Get indices for available greenhouses (w.r.t crops)
-      filtered = [i for i, available in enumerate(rec['transport_costs']) if available[1]]
-      grid_coordinates.append(filtered)
-
-    # Generate all mappings and .
-    grid = np.vstack(map(np.ravel, np.meshgrid(*grid_coordinates))).T
-    crops = [rec['crop'] for rec in records]
-    greenhouses = [rec[0] for rec in records[0]['transport_costs']]
-    mappings = []
-    for point in grid:
-      # translate back to greenhouse label
-      mapping = self._coordinates_to_greenhouse(point, greenhouses, crops)
-      assert all(rec[0] not in mapping for rec in element)
-      # include the incomplete mapping of 2 crops
-      mapping.update(element)
-      # include identifier
-      mappings.append((uuid.uuid4().hex, mapping))
-    return mappings
-
-
 class CreateGrid(beam.PTransform):
   """
   A transform for generating the mapping grid.
   """
+
+  class SplitOffRecords(beam.DoFn):
+    """
+    ParDo implementation which splits of 2 records and generated a sub grid.
+
+    This facilitates parallellization of the grid generation.
+    Emits both the PCollection representing the subgrid, as well as the list
+    of remaining records. Both serve as an input to GenerateMappings
+    """
+
+    def process(self, element):
+      records = list(element[1])
+      # Split of 2 crops and pre-generate all combinations to facilitate parallellism
+      # No point splitting of a crop which can only be created in 1 greenhouse,
+      # split of crops with highest number of options.
+      best_split = np.argsort([-len(rec['transport_costs']) for rec in records])[:2]
+      rec1 = records[best_split[0]]
+      rec2 = records[best_split[1]]
+
+      # Generate & emit all combinations
+      for a in rec1['transport_costs']:
+        if a[1]:
+          for b in rec2['transport_costs']:
+            if b[1]:
+              combination = [(rec1['crop'], a[0]), (rec2['crop'], b[0])]
+              yield pvalue.TaggedOutput('splitted', combination)
+
+      # Pass on remaining records
+      remaining = [rec for i, rec in enumerate(records) if i not in best_split]
+      yield pvalue.TaggedOutput('combine', remaining)
+
+  class GenerateMappings(beam.DoFn):
+    """
+    ParDo implementation to generate all possible assignments of crops to greenhouses.
+
+    Input: dict with crop, quantity and transport_costs keys, e.g.,
+    {
+        'crop': 'OP009',
+        'quantity': 102,
+        'transport_costs': [('A', None), ('B', 3), ('C', 8)]
+    }
+
+    Output: tuple (mapping_identifier, dict) with the dict representing crop -> greenhouse associations
+    """
+
+    @staticmethod
+    def _coordinates_to_greenhouse(coordinates, greenhouses, crops):
+      # Map the grid coordinates back to greenhouse labels
+      arr = []
+      for coord in coordinates:
+        arr.append(greenhouses[coord])
+      return dict(zip(crops, np.array(arr)))
+
+    def process(self, element, records):
+      # Generate available greenhouses and grid coordinates for each crop.
+      grid_coordinates = []
+      for rec in records:
+        # Get indices for available greenhouses (w.r.t crops)
+        filtered = [i for i, available in enumerate(rec['transport_costs']) if available[1]]
+        grid_coordinates.append(filtered)
+
+      # Generate all mappings and .
+      grid = np.vstack(map(np.ravel, np.meshgrid(*grid_coordinates))).T
+      crops = [rec['crop'] for rec in records]
+      greenhouses = [rec[0] for rec in records[0]['transport_costs']]
+      mappings = []
+      for point in grid:
+        # translate back to greenhouse label
+        mapping = self._coordinates_to_greenhouse(point, greenhouses, crops)
+        assert all(rec[0] not in mapping for rec in element)
+        # include the incomplete mapping of 2 crops
+        mapping.update(element)
+        # include identifier
+        mappings.append((uuid.uuid4().hex, mapping))
+      return mappings
+
   def expand(self, records):
     o = (
         records
         | 'pair one' >> beam.Map(lambda x: (1, x))
         | 'group all records' >> beam.GroupByKey()
-        | 'split one of' >> beam.ParDo(SplitOffRecords()).with_outputs('splitted', 'combine')
+        | 'split one of' >> beam.ParDo(self.SplitOffRecords()).with_outputs('splitted', 'combine')
     )
     mappings = (
         o.splitted
-        | 'create mappings' >> beam.ParDo(GenerateMappings(), pvalue.AsSingleton(o.combine))
+        | 'create mappings' >> beam.ParDo(self.GenerateMappings(), pvalue.AsSingleton(o.combine))
         | 'prevent fusion' >> beam.Reshuffle()
     )
     return mappings
 
 
-class CreateOptimizationTasks(beam.DoFn):
+class OptimizeGrid(beam.PTransform):
   """
-  Create tasks for optimization.
-
-  Task pvalues take the following form:
-  ((mapping_identifier, greenhouse), [(crop, quantity),...])
+  A transform for optimizing all greenhouses of the mapping grid.
   """
 
-  def process(self, element, quantities):
-    mapping_identifier, mapping = element
+  class CreateOptimizationTasks(beam.DoFn):
+    """
+    Create tasks for optimization.
 
-    # Create (crop, quantity) lists per greenhouse
-    greenhouses = defaultdict(list)
-    for crop, greenhouse in mapping.iteritems():
-      quantity = quantities[crop]
-      greenhouses[greenhouse].append((crop, quantity))
+    Input: (mapping_identifier, {crop -> greenhouse})
+    Output: ((mapping_identifier, greenhouse), [(crop, quantity),...])
+    """
 
-    # Create input for OptimizeProductParameters
-    for greenhouse, crops in greenhouses.iteritems():
-      key = (mapping_identifier, greenhouse)
-      yield (key, crops)
+    def process(self, element, quantities):
+      mapping_identifier, mapping = element
 
+      # Create (crop, quantity) lists per greenhouse
+      greenhouses = defaultdict(list)
+      for crop, greenhouse in mapping.iteritems():
+        quantity = quantities[crop]
+        greenhouses[greenhouse].append((crop, quantity))
 
-class OptimizeProductParameters(beam.DoFn):
-  """
-  Solve the optimization task to determine optimal production parameters.
-  Input: task pvalues
-  Two outputs:
-      - solution: (mapping_identifier, (greenhouse, [production parameters]))
-      - costs: (crop, greenhouse, mapping_identifier, cost)
-  """
+      # Create input for OptimizeProductParameters
+      for greenhouse, crops in greenhouses.iteritems():
+        key = (mapping_identifier, greenhouse)
+        yield (key, crops)
 
-  def _optimize_production_parameters(self, sim):
-    # setup initial starting point & bounds
-    x0 = 0.5 * np.ones(3)
-    bounds = zip(np.zeros(3), np.ones(3))
+  class OptimizeProductParameters(beam.DoFn):
+    """
+    Solve the optimization task to determine optimal production parameters.
+    Input: ((mapping_identifier, greenhouse), [(crop, quantity),...])
+    Two outputs:
+        - solution: (mapping_identifier, (greenhouse, [production parameters]))
+        - costs: (crop, greenhouse, mapping_identifier, cost)
+    """
 
-    # Run L-BFGS-B optimizer
-    result = minimize(lambda x: np.sum(sim.simulate(x)), x0, bounds=bounds)
-    return result.x.tolist(), sim.simulate(result.x)
+    def _optimize_production_parameters(self, sim):
+      # setup initial starting point & bounds
+      x0 = 0.5 * np.ones(3)
+      bounds = zip(np.zeros(3), np.ones(3))
 
-  def process(self, element):
-    mapping_identifier, greenhouse = element[0]
-    crops, quantities = zip(*element[1])
-    sim = Simulator(quantities)
-    optimum, costs = self._optimize_production_parameters(sim)
-    yield pvalue.TaggedOutput('solution', (mapping_identifier, (greenhouse, optimum)))
-    for crop, cost, quantity in zip(crops, costs, quantities):
-      yield pvalue.TaggedOutput('costs', (crop, greenhouse, mapping_identifier, cost * quantity))
+      # Run L-BFGS-B optimizer
+      result = minimize(lambda x: np.sum(sim.simulate(x)), x0, bounds=bounds)
+      return result.x.tolist(), sim.simulate(result.x)
+
+    def process(self, element):
+      mapping_identifier, greenhouse = element[0]
+      crops, quantities = zip(*element[1])
+      sim = Simulator(quantities)
+      optimum, costs = self._optimize_production_parameters(sim)
+      yield pvalue.TaggedOutput('solution', (mapping_identifier, (greenhouse, optimum)))
+      for crop, cost, quantity in zip(crops, costs, quantities):
+        yield pvalue.TaggedOutput('costs', (crop, greenhouse, mapping_identifier, cost * quantity))
+
+  def expand(self, inputs):
+    mappings, quantities = inputs
+    opt = (
+        mappings
+        | 'optimization tasks' >> beam.ParDo(self.CreateOptimizationTasks(), pvalue.AsDict(quantities))
+        | 'optimize' >> beam.ParDo(self.OptimizeProductParameters()).with_outputs('costs', 'solution')
+    )
+    return opt
 
 
 class CreateTransportData(beam.DoFn):
+  """
+  Transform records to pvalues ((crop, greenhouse), transport_cost)
+  """
 
   def process(self, record):
     crop = record['crop']
     for greenhouse, transport_cost in record['transport_costs']:
       yield ((crop, greenhouse), transport_cost)
+
+
+def add_transport_costs(element, transport, quantities):
+  """
+  Adds the transport cost for the crop to the production cost.
+
+  pvalues are of the form (crop, greenhouse, mapping, cost), the cost only
+  corresponds to the production cost. Return the same format, but including
+  the transport cost.
+  """
+  crop = element[0]
+  cost = element[3]
+  # lookup & compute cost
+  transport_key = element[:2]
+  transport_cost = transport[transport_key] * quantities[crop]
+  return element[:3] + (cost + transport_cost,)
 
 
 def parse_input(line):
@@ -236,24 +268,10 @@ def parse_input(line):
   }
 
 
-def add_transport_costs(element, transport, quantities):
-  """
-  Adds the transport cost for the crop to the production cost.
-
-  pvalues are of the form (crop, greenhouse, mapping, cost), the cost only corresponds to the production cost.
-  Return the same format, but including the transport cost.
-  """
-  crop = element[0]
-  cost = element[3]
-  # lookup & compute cost
-  transport_key = element[:2]
-  transport_cost = transport[transport_key] * quantities[crop]
-  return element[:3] + (cost + transport_cost,)
-
-
 def format_output(element):
   """
-  Transforms the datastructure (unpack lists) before writing the result to file.
+  Transforms the datastructure (unpack lists introduced by CoGroupByKey)
+  before writing the result to file.
   """
   result = element[1]
   result['cost'] = result['cost'][0]
@@ -284,17 +302,13 @@ def run(argv=None):
         | 'process input' >> beam.Map(parse_input)
     )
 
-    # Generate all mappings and two side inputs
-    mappings = records | CreateGrid()
+    # Create two pcollections, used as side inputs
     transport = records | 'create transport' >> beam.ParDo(CreateTransportData())
     quantities = records | 'create quantities' >> beam.Map(lambda r: (r['crop'], r['quantity']))
 
-    # Optimize production parameters for each greenhouse & mapping
-    opt = (
-        mappings
-        | 'optimization tasks' >> beam.ParDo(CreateOptimizationTasks(), pvalue.AsDict(quantities))
-        | 'optimize' >> beam.ParDo(OptimizeProductParameters()).with_outputs('costs', 'solution')
-    )
+    # Generate all mappings and optimize greenhouse production parameters for each
+    mappings = records | CreateGrid()
+    opt = (mappings, quantities) | OptimizeGrid()
 
     # Then add the transport costs and sum costs per crop.
     costs = (
@@ -303,7 +317,8 @@ def run(argv=None):
                                           pvalue.AsDict(transport),
                                           pvalue.AsDict(quantities))
         | 'drop crop and greenhouse' >> beam.Map(lambda x: (x[2], x[3]))
-        | 'aggregate crops' >> beam.CombinePerKey(sum))
+        | 'aggregate crops' >> beam.CombinePerKey(sum)
+    )
 
     # Join cost, mapping and production settings solution on mapping identifier. Then select best.
     join_operands = {
