@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.schemas.utils;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -46,129 +45,413 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.ClassUtils;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
 import org.joda.time.ReadableInstant;
 
 class ByteBuddyUtils {
-  static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
-  static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
+  private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
+  private static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
   private static ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
   private static ForLoadedType BYTE_BUFFER_TYPE = new ForLoadedType(ByteBuffer.class);
-  static final ForLoadedType BYTE_TYPE = new ForLoadedType(byte.class);
   private static ForLoadedType CHAR_SEQUENCE_TYPE = new ForLoadedType(CharSequence.class);
   private static ForLoadedType DATE_TIME_TYPE = new ForLoadedType(DateTime.class);
   private static ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static ForLoadedType READABLE_INSTANT_TYPE = new ForLoadedType(ReadableInstant.class);
 
-  public static <T> DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
-      ByteBuddy byteBuddy, Class<T> clazz) {
+  // Create a new FieldValueGetter subclass.
+  @SuppressWarnings("unchecked")
+  static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
+      ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic getterGenericType =
-        TypeDescription.Generic.Builder.parameterizedType(FieldValueGetter.class, clazz).build();
+        TypeDescription.Generic.Builder.parameterizedType(
+            FieldValueGetter.class, objectType, fieldType).build();
     return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
   }
 
-  public static <T> DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
-      ByteBuddy byteBuddy, Class<T> clazz) {
+  // Create a new FieldValueSetter subclass.
+  @SuppressWarnings("unchecked")
+  static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
+      ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic setterGenericType =
-        TypeDescription.Generic.Builder.parameterizedType(FieldValueSetter.class, clazz).build();
+        TypeDescription.Generic.Builder.parameterizedType(
+            FieldValueSetter.class, objectType, fieldType).build();
     return (DynamicType.Builder<FieldValueSetter>) byteBuddy.subclass(setterGenericType);
+  }
+
+  abstract static class TypeConversion<T> {
+    public T convert(TypeDescriptor typeDescriptor) {
+      if (typeDescriptor.isArray() &&
+          !typeDescriptor.getComponentType().getRawType().equals(byte.class)) {
+        // Byte arrays are special, so leave those alone.
+        return convertArray(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+        return convertCollection(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+        return convertMap(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
+        return convertDateTime(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
+        return convertByteBuffer(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
+        return convertCharSequence(typeDescriptor);
+      } else if (typeDescriptor.getRawType().isPrimitive()) {
+        return convertPrimitive(typeDescriptor);
+      } else {
+        return convertDefault(typeDescriptor);
+      }
+    }
+
+    abstract protected <I> T convertArray(TypeDescriptor<?> type);
+    abstract protected T convertCollection(TypeDescriptor<?> type);
+    abstract protected T convertMap(TypeDescriptor<?> type);
+    abstract protected T convertDateTime(TypeDescriptor<?> type);
+    abstract protected T convertByteBuffer(TypeDescriptor<?> type);
+    abstract protected T convertCharSequence(TypeDescriptor<?> type);
+    abstract protected T convertPrimitive(TypeDescriptor<?> type);
+    abstract protected T convertDefault(TypeDescriptor<?> type);
+  }
+
+  /**
+   * Give a Java type, returns the Java type expected for use with Row. For example, both
+   * {@link StringBuffer} and {@link String} are represented as a {@link String} in Row.
+   */
+  static class ConvertType extends TypeConversion<Type> {
+    @Override
+    @SuppressWarnings("unchecked")
+    protected <I> Type convertArray(TypeDescriptor<?> type) {
+      TypeDescriptor componentType =
+          TypeDescriptor.of(ClassUtils.primitiveToWrapper(type.getComponentType().getRawType()));
+      TypeDescriptor token = new TypeDescriptor<List<I>>() {}
+      .where(new TypeParameter<I>() {}, componentType);
+      return token.getType();
+    }
+
+    @Override
+    protected Type convertCollection(TypeDescriptor<?> type) {
+      return Collection.class;
+    }
+
+    @Override
+    protected Type convertMap(TypeDescriptor<?> type) {
+      return Map.class;
+    }
+
+    @Override
+    protected Type convertDateTime(TypeDescriptor<?> type) {
+      return ReadableInstant.class;
+    }
+
+    @Override
+    protected Type convertByteBuffer(TypeDescriptor<?> type) {
+      return byte[].class;
+    }
+
+    @Override
+    protected Type convertCharSequence(TypeDescriptor<?> type) {
+      return String.class;
+    }
+
+    @Override
+    protected Type convertPrimitive(TypeDescriptor<?> type) {
+      return ClassUtils.primitiveToWrapper(type.getRawType());
+    }
+
+    @Override
+    protected Type convertDefault(TypeDescriptor<?> type) {
+      return type.getType();
+    }
   }
 
   /**
    * Takes a {@link StackManipulation} that returns a value. Prepares this value to be returned
    * by a getter. {@link org.apache.beam.sdk.values.Row} needs getters to return specific types,
-   * but we allow user pojos to contain different but equivalent types. Therefore we must convert
-   * some of these types before returning.
+   * but we allow user objects to contain different but equivalent types. Therefore we must convert
+   * some of these types before returning. These conversions correspond to the ones defined in
+   * {@link ConvertType}. This class generates the code to do these conversion.
    */
-  public static StackManipulation getValueForRow(
-      StackManipulation readValue,  // Reads the value from the object.
-      Class<?> valueClass) {
-    ForLoadedType valueType = new ForLoadedType(valueClass);
+  static class ConvertValueForGetter extends TypeConversion<StackManipulation> {
+    private StackManipulation readValue;
 
-    if (valueType.isArray() && !valueType.getComponentType().equals(BYTE_TYPE)) {
-      // Byte arrays are special, so leave those alone.
-      return new Compound(captureArrayForGetter(readValue, valueType));
-    } else if (ReadableInstant.class.isAssignableFrom(valueClass) &&
-        !ReadableDateTime.class.isAssignableFrom(valueClass)) {
-      // If the POJO contains an Instant that is not a ReadableDateTime, we must make it a
-      // ReadableDateTime before returning it.
-      return captureDateTimeForGetter(readValue);
-    } else if (ByteBuffer.class.isAssignableFrom(valueClass)) {
-      return captureByteBufferForGetter(readValue);
-    } else if (CharSequence.class.isAssignableFrom(valueClass)
-        && !String.class.isAssignableFrom(valueClass)) {
-      return captureStringForGetter(readValue);
-    } else if (valueType.isPrimitive()) {
-      return capturePrimitiveForGetter(readValue, valueType);
-    } else {
+    ConvertValueForGetter(StackManipulation readValue) {
+      this.readValue = readValue;
+    }
+
+    @Override
+    protected <I> StackManipulation convertArray(TypeDescriptor<?> type) {
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+        // return isComponentTypePrimitive ? Arrays.asList(ArrayUtils.toObject(value))
+        //     : Arrays.asList(value);
+        StackManipulation stackManipulation = readValue;
+        // Row always expects to get an Iterable back for array types. Wrap this array into a
+        // List using Arrays.asList before returning.
+        if (loadedType.getComponentType().isPrimitive()) {
+          // Arrays.asList doesn't take primitive arrays, so convert first using ArrayUtils.toObject.
+          stackManipulation = new Compound(
+              stackManipulation,
+              MethodInvocation.invoke(ARRAY_UTILS_TYPE.getDeclaredMethods()
+                  .filter(ElementMatchers.isStatic()
+                      .and(ElementMatchers.named("toObject"))
+                      .and(ElementMatchers.takesArguments(loadedType)))
+                  .getOnly()));
+        }
+        return new Compound(
+            stackManipulation,
+            MethodInvocation.invoke(
+                ARRAYS_TYPE.getDeclaredMethods()
+                    .filter(ElementMatchers.isStatic().and(ElementMatchers.named("asList")))
+                    .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertCollection(TypeDescriptor<?> type) {
+      return readValue;
+    }
+
+    @Override
+    protected StackManipulation convertMap(TypeDescriptor<?> type) {
+      return readValue;
+    }
+
+    @Override
+    protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
+      if (ReadableDateTime.class.isAssignableFrom(type.getRawType())) {
+        return readValue;
+      }
+      // return new DateTime(value.getMillis());
+      return new StackManipulation.Compound(
+          // Create a new instance of the target type.
+          TypeCreation.of(DATE_TIME_TYPE),
+          Duplication.SINGLE,
+          readValue,
+          TypeCasting.to(READABLE_INSTANT_TYPE),
+          // Call ReadableInstant.getMillis to extract the millis since the epoch.
+          MethodInvocation.invoke(READABLE_INSTANT_TYPE
+              .getDeclaredMethods()
+              .filter(ElementMatchers.named("getMillis"))
+              .getOnly()),
+          // Construct a DateTime object contaiing
+          MethodInvocation.invoke(DATE_TIME_TYPE
+              .getDeclaredMethods()
+              .filter(ElementMatchers.isConstructor()
+                  .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
+              .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
+      // return value.array();
+      // We must extract the array from the ByteBuffer before returning.
+      // NOTE: we only support array-backed byte buffers in these POJOs. Others (e.g. mmaped
+      // files) are not supported.
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(BYTE_BUFFER_TYPE.getDeclaredMethods()
+              .filter(ElementMatchers.named("array")
+                  .and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+              .getOnly()));    }
+
+    @Override
+    protected StackManipulation convertCharSequence(TypeDescriptor<?> type) {
+        if (type.isSubtypeOf(TypeDescriptor.of(String.class))) {
+        return readValue;
+      }
+      // return value.toString();
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(CHAR_SEQUENCE_TYPE.getDeclaredMethods()
+              .filter(ElementMatchers.named("toString"))
+              .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertPrimitive(TypeDescriptor<?> type) {
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      // Box the primitive type.
+      return new Compound(
+          readValue,
+          Assigner.DEFAULT.assign(
+              loadedType.asGenericType(),
+              loadedType.asBoxed().asGenericType(),
+              Typing.STATIC));
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
       return readValue;
     }
   }
 
-  // Prepare a value read from a Row to be set to a value of type valueClass. Does any necessary
-  // conversions.
-  public static StackManipulation prepareSetValueFromRow(
-      StackManipulation readValue, Class<?> valueClass) {
-    ForLoadedType valueType = new ForLoadedType(valueClass);
-    StackManipulation stackManipulation;
-    if (ReadableInstant.class.isAssignableFrom(valueClass)) {
-      stackManipulation = captureDateTimeForSetter(readValue, valueType);
-    } else if (valueClass.equals(ByteBuffer.class)) {
-      stackManipulation = captureIntoByteBufferForSetter(readValue);
-    } else if (CharSequence.class.isAssignableFrom(valueClass)
-        && !valueClass.isAssignableFrom(String.class)) {
-      stackManipulation = captureIntoCharSequenceForSetter(valueType, readValue);
-    } else if (valueType.isArray() && !valueType.getComponentType().equals(BYTE_TYPE)) {
-      // Byte arrays are special, so leave them alone.
-      stackManipulation = captureIntoArrayForSetter(valueType, readValue);
-    } else {
-      // Otherwise cast to the matching field type.
-      stackManipulation = new StackManipulation.Compound(
-          readValue,
-          TypeCasting.to(valueType.asBoxed()));
+  /**
+   * Row is going to call the setter with its internal Java type, however the user object being
+   * set might have a different type internally. For example, Row will be calling set with a
+   * {@link String} type (for string fields), but the user type might have a {@link StringBuffer}
+   * member there. This class generates code to convert between these types.
+   */
+  static class ConvertValueForSetter extends TypeConversion<StackManipulation> {
+    StackManipulation readValue;
+
+    ConvertValueForSetter(StackManipulation readValue) {
+      this.readValue = readValue;
     }
 
-    if (valueType.isPrimitive()) {
-      // If the field type is primitive, then unbox the parameter before trying to assign it
-      // to the field.
-      stackManipulation = new StackManipulation.Compound(
-          stackManipulation,
+    @Override
+    protected <I> StackManipulation convertArray(TypeDescriptor<?> type) {
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      // T[] toArray = (T[]) value.toArray(new T[0]);
+      // return isPrimitive ? toArray : ArrayUtils.toPrimitive(toArray);
+      // The type of the array containing the (possibly) boxed values.
+      TypeDescription arrayType =
+          TypeDescription.Generic.Builder.rawType(
+              loadedType.getComponentType().asBoxed()).asArray().build().asErasure();
+
+      // Extract an array from the collection.
+      StackManipulation stackManipulation = new Compound(
+          readValue,
+          TypeCasting.to(LIST_TYPE),
+          // Call Collection.toArray(T[[]) to extract the array. Push new T[0] on the stack before
+          // calling toArray.
+          ArrayFactory.forType(loadedType.getComponentType().asBoxed().asGenericType())
+              .withValues(Collections.emptyList()),
+          MethodInvocation.invoke(LIST_TYPE
+              .getDeclaredMethods()
+              .filter(ElementMatchers.named("toArray")
+                  .and(ElementMatchers.takesArguments(1)))
+              .getOnly()),
+          // Cast the result to T[].
+          TypeCasting.to(arrayType));
+
+      if (loadedType.getComponentType().isPrimitive()) {
+        // The array we extract will be an array of objects. If the pojo field is an array of
+        // primitive types, we need to then convert to an array of unboxed objects.
+        stackManipulation = new StackManipulation.Compound(
+            stackManipulation,
+            MethodInvocation.invoke(ARRAY_UTILS_TYPE
+                .getDeclaredMethods()
+                .filter(ElementMatchers.named("toPrimitive")
+                    .and(ElementMatchers.takesArguments(arrayType)))
+                .getOnly()));
+      }
+      return stackManipulation;
+    }
+
+    @Override
+    protected StackManipulation convertCollection(TypeDescriptor<?> type) {
+      return readValue;
+    }
+
+    @Override
+    protected StackManipulation convertMap(TypeDescriptor<?> type) {
+      return readValue;
+    }
+
+
+    @Override
+    protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
+      // The setter might be called with a different subclass of ReadableInstant than the one stored
+      // in this POJO. We must extract the value passed into the setter and copy it into an instance
+      // that the POJO can accept.
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      // return new T(value.getMillis);
+      return new Compound(
+          // Create a new instance of the target type.
+          TypeCreation.of(loadedType),
+          Duplication.SINGLE,
+          // Load the parameter and cast it to a ReadableInstant.
+          readValue,
+          TypeCasting.to(READABLE_INSTANT_TYPE),
+          // Call ReadableInstant.getMillis to extract the millis since the epoch.
+          MethodInvocation.invoke(READABLE_INSTANT_TYPE
+              .getDeclaredMethods()
+              .filter(ElementMatchers.named("getMillis"))
+              .getOnly()),
+          // All subclasses of ReadableInstant contain a ()(long) constructor that takes in a millis
+          // argument. Call that constructor of the field to initialize it.
+          MethodInvocation.invoke(loadedType
+              .getDeclaredMethods()
+              .filter(ElementMatchers.isConstructor()
+                  .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
+              .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
+      // return ByteBuffer.wrap((byte[]) value);
+      // We currently assume that a byte[] setter will always accept a parameter of type byte[].
+      return new Compound(
+          readValue,   // Load the value.
+          TypeCasting.to(BYTE_ARRAY_TYPE),  // Cast to a byte[]
+          // Create a new ByteBuffer that wraps this byte[].
+          MethodInvocation.invoke(BYTE_BUFFER_TYPE
+              .getDeclaredMethods()
+              .filter(ElementMatchers.named("wrap")
+                  .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
+              .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertCharSequence(TypeDescriptor<?> type) {
+      if (type.getRawType().isAssignableFrom(String.class))  {
+        return readValue;
+      }
+
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      // return new T(value.toString()).
+      return new StackManipulation.Compound(
+          TypeCreation.of(loadedType),
+          Duplication.SINGLE,
+          // Load the parameter and cast it to a CharSequence.
+          readValue,
+          TypeCasting.to(CHAR_SEQUENCE_TYPE),
+          // Create an element of the field type that wraps this one.
+          MethodInvocation.invoke(loadedType
+              .getDeclaredMethods()
+              .filter(ElementMatchers.isConstructor()
+                  .and(ElementMatchers.takesArguments(CHAR_SEQUENCE_TYPE)))
+              .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertPrimitive(TypeDescriptor<?> type) {
+      ForLoadedType valueType = new ForLoadedType(type.getRawType());
+      return new StackManipulation.Compound(
+          readValue,
           Assigner.DEFAULT.assign(
               valueType.asBoxed().asGenericType(),
               valueType.asUnboxed().asGenericType(),
               Typing.STATIC));
     }
-    return stackManipulation;
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+       return readValue;
+    }
   }
 
+
   // If the Field is a container type, returns the element type. Otherwise returns a null reference.
-  static Implementation getArrayComponentType(Type valueType) {
-    if (valueType instanceof GenericArrayType) {
-      Type component = ((GenericArrayType) valueType).getGenericComponentType();
-      if (!component.equals(Byte.class) && !component.equals(byte.class)) {
+  @SuppressWarnings("unchecked")
+  static Implementation getArrayComponentType(TypeDescriptor valueType) {
+    if (valueType.isArray()) {
+      Type component = valueType.getComponentType().getType();
+      if (!component.equals(byte.class)) {
         return FixedValue.reference(component);
       }
-    } else if (valueType instanceof ParameterizedType) {
-      ParameterizedType ptype = (ParameterizedType) valueType;
-      Class raw = (Class) ptype.getRawType();
-      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-      if (Collection.class.isAssignableFrom(raw)) {
+    } else if (valueType.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+      TypeDescriptor<Collection<?>> collection = valueType.getSupertype(Collection.class);
+      if (collection.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) collection.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 1);
-        if (!params[0].equals(Byte.class) && !params[0].equals(byte.class)) {
-          return FixedValue.reference(params[0]);
-        }
-      }
-    } else if (valueType instanceof Class) {
-      Class clazz = (Class) valueType;
-      if (clazz.isArray()) {
-        Class componentType = clazz.getComponentType();
-        if (componentType != Byte.TYPE) {
-          return FixedValue.reference(componentType);
-        }
+        return FixedValue.reference(params[0]);
+      } else {
+        throw new RuntimeException("Collection parameter is not parameterized!");
       }
     }
     return FixedValue.nullValue();
@@ -176,208 +459,30 @@ class ByteBuddyUtils {
 
   // If the Field is a map type, returns the key type, otherwise returns a null reference.
   @Nullable
-  public static Implementation getMapKeyType(Type valueType) {
+  static Implementation getMapKeyType(TypeDescriptor valueType) {
     return getMapType(valueType, 0);
   }
 
   // If the Field is a map type, returns the value type, otherwise returns a null reference.
   @Nullable
-  public static Implementation getMapValueType(Type valueType) {
+  static Implementation getMapValueType(TypeDescriptor valueType) {
     return getMapType(valueType, 1);
   }
 
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
-  public static Implementation getMapType(Type valueType, int index) {
-    if (valueType instanceof ParameterizedType) {
-      ParameterizedType ptype = (ParameterizedType) valueType;
-      Class raw = (Class) ptype.getRawType();
-      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-      if (Map.class.isAssignableFrom(raw)) {
+  @SuppressWarnings("unchecked")
+  static Implementation getMapType(TypeDescriptor valueType, int index) {
+    if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+      TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);
+      if (map.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) map.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         return FixedValue.reference(params[index]);
+      } else {
+        throw new RuntimeException("Map type is not parameterized! " + map);
       }
     }
     return FixedValue.nullValue();
-  }
-
-  private static StackManipulation captureArrayForGetter(
-      StackManipulation readValue, ForLoadedType valueType) {
-    // return isComponentTypePrimitive ? Arrays.asList(ArrayUtils.toObject(value))
-    //     : Arrays.asList(value);
-    StackManipulation stackManipulation = readValue;
-    // Row always expects to get an Iterable back for array types. Wrap this array into a
-    // List using Arrays.asList before returning.
-    StackManipulation toObject = null;
-    if (valueType.getComponentType().isPrimitive()) {
-      // Arrays.asList doesn't take primitive arrays, so convert first using ArrayUtils.toObject.
-      stackManipulation = new Compound(
-          stackManipulation,
-          MethodInvocation.invoke(ARRAY_UTILS_TYPE.getDeclaredMethods()
-              .filter(ElementMatchers.isStatic()
-                  .and(ElementMatchers.named("toObject"))
-                  .and(ElementMatchers.takesArguments(valueType)))
-              .getOnly()));
-    }
-    return new Compound(
-        stackManipulation,
-        MethodInvocation.invoke(
-            ARRAYS_TYPE.getDeclaredMethods()
-                .filter(ElementMatchers.isStatic().and(ElementMatchers.named("asList")))
-                .getOnly()));
-  }
-
-  private static StackManipulation captureDateTimeForGetter(StackManipulation readValue) {
-    // return new DateTime(value.getMillis());
-    return new StackManipulation.Compound(
-        // Create a new instance of the target type.
-        TypeCreation.of(DATE_TIME_TYPE),
-        Duplication.SINGLE,
-        readValue,
-        TypeCasting.to(READABLE_INSTANT_TYPE),
-        // Call ReadableInstant.getMillis to extract the millis since the epoch.
-        MethodInvocation.invoke(READABLE_INSTANT_TYPE
-            .getDeclaredMethods()
-            .filter(ElementMatchers.named("getMillis"))
-            .getOnly()),
-        // Construct a DateTime object contaiing
-        MethodInvocation.invoke(DATE_TIME_TYPE
-            .getDeclaredMethods()
-            .filter(ElementMatchers.isConstructor()
-                .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
-            .getOnly()));
-  }
-
-  private static StackManipulation captureByteBufferForGetter(StackManipulation readValue) {
-    // return value.array();
-
-    // We must extract the array from the ByteBuffer before returning.
-    // NOTE: we only support array-backed byte buffers in these POJOs. Others (e.g. mmaped
-    // files) are not supported.
-    return new Compound(
-        readValue,
-        MethodInvocation.invoke(BYTE_BUFFER_TYPE.getDeclaredMethods()
-            .filter(ElementMatchers.named("array")
-                .and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
-            .getOnly()));
-  }
-
-  private static StackManipulation captureStringForGetter(StackManipulation readValue) {
-    // return value.toString();
-    return new Compound(
-        readValue,
-        MethodInvocation.invoke(CHAR_SEQUENCE_TYPE.getDeclaredMethods()
-            .filter(ElementMatchers.named("toString"))
-            .getOnly()));
-  }
-
-  private static StackManipulation capturePrimitiveForGetter(
-      StackManipulation readValue, ForLoadedType valueType) {
-    // Box the primitive type.
-    return new Compound(
-        readValue,
-        Assigner.DEFAULT.assign(
-            valueType.asGenericType(),
-            valueType.asBoxed().asGenericType(),
-            Typing.STATIC));
-  }
-
-  // The setter might be called with a different subclass of ReadableInstant than the one stored
-  // in this POJO. We must extract the value passed into the setter and copy it into an instance
-  // that the POJO can accept.
-  private static StackManipulation captureDateTimeForSetter(
-      StackManipulation readValue, ForLoadedType fieldType) {
-    // return new T(value.getMillis);
-    return new Compound(
-        // Create a new instance of the target type.
-        TypeCreation.of(fieldType),
-        Duplication.SINGLE,
-        // Load the parameter and cast it to a ReadableInstant.
-        readValue,
-        TypeCasting.to(READABLE_INSTANT_TYPE),
-        // Call ReadableInstant.getMillis to extract the millis since the epoch.
-        MethodInvocation.invoke(READABLE_INSTANT_TYPE
-            .getDeclaredMethods()
-            .filter(ElementMatchers.named("getMillis"))
-            .getOnly()),
-        // All subclasses of ReadableInstant contain a ()(long) constructor that takes in a millis
-        // argument. Call that constructor of the field to initialize it.
-        MethodInvocation.invoke(fieldType
-            .getDeclaredMethods()
-            .filter(ElementMatchers.isConstructor()
-                .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
-            .getOnly()));
-  }
-
-  private static StackManipulation captureIntoByteBufferForSetter(StackManipulation readValue) {
-    // return ByteBuffer.wrap((byte[]) value);
-
-    // We currently assume that a byte[] setter will always accept a parameter of type byte[].
-    return new Compound(
-        readValue,   // Load the value.
-        TypeCasting.to(BYTE_ARRAY_TYPE),  // Cast to a byte[]
-        // Create a new ByteBuffer that wraps this byte[].
-        MethodInvocation.invoke(BYTE_BUFFER_TYPE
-            .getDeclaredMethods()
-            .filter(ElementMatchers.named("wrap")
-                .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
-            .getOnly()));
-  }
-
-  private static StackManipulation captureIntoCharSequenceForSetter(
-      ForLoadedType fieldType, StackManipulation readValue) {
-    // return new T(value.toString()).
-
-    return new StackManipulation.Compound(
-        TypeCreation.of(fieldType),
-        Duplication.SINGLE,
-        // Load the parameter and cast it to a CharSequence.
-        readValue,
-        TypeCasting.to(CHAR_SEQUENCE_TYPE),
-        // Create an element of the field type that wraps this one.
-        MethodInvocation.invoke(fieldType
-            .getDeclaredMethods()
-            .filter(ElementMatchers.isConstructor()
-                .and(ElementMatchers.takesArguments(CHAR_SEQUENCE_TYPE)))
-            .getOnly()));
-  }
-
-  private static StackManipulation captureIntoArrayForSetter(
-      ForLoadedType fieldType, StackManipulation readValue) {
-    // T[] toArray = (T[]) value.toArray(new T[0]);
-    // return isPrimitive ? toArray : ArrayUtils.toPrimitive(toArray);
-
-    // The type of the array containing the (possibly) boxed values.
-    TypeDescription arrayType =
-        TypeDescription.Generic.Builder.rawType(
-            fieldType.getComponentType().asBoxed()).asArray().build().asErasure();
-
-    // Extract an array from the collection.
-    StackManipulation stackManipulation = new Compound(
-        readValue,
-        TypeCasting.to(LIST_TYPE),
-        // Call Collection.toArray(T[[]) to extract the array. Push new T[0] on the stack before
-        // calling toArray.
-        ArrayFactory.forType(fieldType.getComponentType().asBoxed().asGenericType())
-            .withValues(Collections.emptyList()),
-        MethodInvocation.invoke(LIST_TYPE
-            .getDeclaredMethods()
-            .filter(ElementMatchers.named("toArray")
-                .and(ElementMatchers.takesArguments(1)))
-            .getOnly()),
-        // Cast the result to T[].
-        TypeCasting.to(arrayType));
-
-    if (fieldType.getComponentType().isPrimitive()) {
-      // The array we extract will be an array of objects. If the pojo field is an array of
-      // primitive types, we need to then convert to an array of unboxed objects.
-      stackManipulation = new StackManipulation.Compound(
-          stackManipulation,
-          MethodInvocation.invoke(ARRAY_UTILS_TYPE
-              .getDeclaredMethods()
-              .filter(ElementMatchers.named("toPrimitive")
-                  .and(ElementMatchers.takesArguments(arrayType)))
-              .getOnly()));
-    }
-    return stackManipulation;
   }
 }

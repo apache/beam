@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -43,7 +42,6 @@ import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
-import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
@@ -51,7 +49,10 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 
@@ -59,13 +60,16 @@ import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 public class POJOUtils {
   public static Schema schemaFromPojoClass(Class<?> clazz) {
     // TODO: Add memoization here.
+    // TODO: We currently assume stable order from getFields, but this is not guaranteed.
+    // We should cache the field order.
     Function<Class, List<TypeInformation>> getTypesForClass =
         c -> getFields(c)
             .stream()
-            .map(f -> {
-              return new TypeInformation(
-                  f.getName(), f.getGenericType(), f.getAnnotation(Nullable.class) != null);
-            })
+            .map(f ->
+               new TypeInformation(
+                  f.getName(),
+                  TypeDescriptor.of(f.getGenericType()),
+                  f.getAnnotation(Nullable.class) != null))
             .collect(Collectors.toList());
     return StaticSchemaInference.schemaFromClass(clazz, getTypesForClass);
   }
@@ -103,9 +107,12 @@ public class POJOUtils {
         (c) -> getFields(c).stream().map(POJOUtils::createGetter).collect(Collectors.toList()));
   }
 
-  static <T> FieldValueGetter<T> createGetter(Field field) {
-    DynamicType.Builder<FieldValueGetter> builder =
-        ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, field.getDeclaringClass());
+  @SuppressWarnings("unchecked")
+  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(Field field) {
+    DynamicType.Builder<FieldValueGetter> builder = ByteBuddyUtils.subclassGetterInterface(
+        BYTE_BUDDY,
+        field.getDeclaringClass(),
+        new ConvertType().convert(TypeDescriptor.of(field.getType())));
     builder = implementGetterMethods(builder, field);
     try {
       return builder
@@ -122,24 +129,20 @@ public class POJOUtils {
     }
   }
 
-  static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
+  static private DynamicType.Builder<FieldValueGetter> implementGetterMethods(
       DynamicType.Builder<FieldValueGetter> builder,
       Field field) {
-    builder = builder
+    return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(field.getName()));
-    builder = builder
+        .intercept(FixedValue.reference(field.getName()))
         .method(ElementMatchers.named("type"))
-        .intercept(FixedValue.reference(field.getType()));
-    builder = builder
+        .intercept(FixedValue.reference(field.getType()))
         .method(ElementMatchers.named("get"))
         .intercept(new ReadFieldInstruction(field));
-
-    return builder;
   }
 
   // Implements a method to read a public field out of an object.
-  public static class ReadFieldInstruction implements Implementation {
+  static class ReadFieldInstruction implements Implementation {
     // Field that will be read.
     private Field field;
 
@@ -158,19 +161,15 @@ public class POJOUtils {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
-        // Type of the object containing the field.
-        ForLoadedType objectType = new ForLoadedType(field.getDeclaringClass());
         // StackManipulation that will read the value from the class field.
         StackManipulation readValue = new StackManipulation.Compound(
             // Method param is offset 1 (offset 0 is the this parameter).
             MethodVariableAccess.REFERENCE.loadFrom(1),
-            // Downcast the Object to the expected type of the POJO.
-            TypeCasting.to(objectType),
             // Read the field from the object.
             FieldAccess.forField(new ForLoadedField(field)).read());
 
         StackManipulation stackManipulation = new StackManipulation.Compound(
-            ByteBuddyUtils.getValueForRow(readValue, field.getType()),
+            new ConvertValueForGetter(readValue).convert(TypeDescriptor.of(field.getType())),
             MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
@@ -180,7 +179,7 @@ public class POJOUtils {
   }
 
   // Implements a method to set a public field in an object.
-  public static class SetFieldInstruction implements Implementation {
+  static class SetFieldInstruction implements Implementation {
     // Field that will be read.
     private Field field;
 
@@ -199,11 +198,6 @@ public class POJOUtils {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
-        // The type of the field being set.
-        ForLoadedType fieldType = new ForLoadedType(field.getType());
-        // The type of the object containing the field.
-        ForLoadedType objectType = new ForLoadedType(field.getDeclaringClass());
-
         // The instruction to read the field.
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
@@ -211,9 +205,9 @@ public class POJOUtils {
         StackManipulation stackManipulation = new StackManipulation.Compound(
             // Object param is offset 1.
             MethodVariableAccess.REFERENCE.loadFrom(1),
-            TypeCasting.to(objectType),
             // Do any conversions necessary.
-            ByteBuddyUtils.prepareSetValueFromRow(readField, field.getType()),
+            new ByteBuddyUtils.ConvertValueForSetter(readField)
+                .convert(TypeDescriptor.of(field.getType())),
             // Now update the field and return void.
             FieldAccess.forField(new ForLoadedField(field)).write(),
             MethodReturn.VOID);
@@ -226,16 +220,19 @@ public class POJOUtils {
 
   // The list of setters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  public static Map<Class, List<FieldValueSetter>> CACHED_SETTERS =
+  private static Map<Class, List<FieldValueSetter>> CACHED_SETTERS =
       Maps.newConcurrentMap();
   public static List<FieldValueSetter> getSetters(Class<?> clazz) {
     return CACHED_SETTERS.computeIfAbsent(clazz,
         c -> getFields(c).stream().map(POJOUtils::createSetter).collect(Collectors.toList()));
   }
 
-  static <T> FieldValueSetter createSetter(Field field) {
-    DynamicType.Builder<FieldValueSetter> builder =
-        ByteBuddyUtils.subclassSetterInterface(BYTE_BUDDY, field.getDeclaringClass());
+  @SuppressWarnings("unchecked")
+  static private <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(Field field) {
+    DynamicType.Builder<FieldValueSetter> builder = ByteBuddyUtils.subclassSetterInterface(
+        BYTE_BUDDY,
+        field.getDeclaringClass(),
+        new ConvertType().convert(TypeDescriptor.of(field.getType())));
     builder = implementSetterMethods(builder, field);
     try {
       return builder
@@ -252,28 +249,22 @@ public class POJOUtils {
     }
   }
 
-  static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
+  static private  DynamicType.Builder<FieldValueSetter> implementSetterMethods(
       DynamicType.Builder<FieldValueSetter> builder,
       Field field) {
-    builder = builder
+    return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(field.getName()));
-    builder = builder
+        .intercept(FixedValue.reference(field.getName()))
         .method(ElementMatchers.named("type"))
-        .intercept(FixedValue.reference(field.getType()));
-    builder = builder
+        .intercept(FixedValue.reference(field.getType()))
         .method(ElementMatchers.named("elementType"))
-        .intercept(ByteBuddyUtils.getArrayComponentType(field.getGenericType()));
-    builder = builder
+        .intercept(ByteBuddyUtils.getArrayComponentType(TypeDescriptor.of(field.getGenericType())))
         .method(ElementMatchers.named("mapKeyType"))
-        .intercept(ByteBuddyUtils.getMapKeyType(field.getGenericType()));
-    builder = builder
+        .intercept(ByteBuddyUtils.getMapKeyType(TypeDescriptor.of(field.getGenericType())))
         .method(ElementMatchers.named("mapValueType"))
-        .intercept(ByteBuddyUtils.getMapValueType(field.getGenericType()));
-    builder = builder
+        .intercept(ByteBuddyUtils.getMapValueType(TypeDescriptor.of(field.getGenericType())))
         .method(ElementMatchers.named("set"))
         .intercept(new SetFieldInstruction(field));
-    return builder;
   }
 
 }

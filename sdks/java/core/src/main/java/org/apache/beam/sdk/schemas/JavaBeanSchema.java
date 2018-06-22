@@ -20,31 +20,31 @@ package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.utils.POJOUtils;
+import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
-import org.apache.beam.sdk.values.reflect.PojoValueGetterFactory;
-import org.apache.beam.sdk.values.reflect.PojoValueSetterFactory;
+import org.apache.beam.sdk.values.reflect.JavaBeanGetterFactory;
+import org.apache.beam.sdk.values.reflect.JavaBeanSetterFactory;
 
 /**
- * A {@link SchemaProvider} for Java POJO objects. This provider finds all public fields
- * // (recursively) in a Java object, and creates schemas and rows that bind to those fields.
+ * A {@link SchemaProvider} for Java Bean objects. This provider finds (recursively) all public
+ * getters and setters in a Java object, and creates schemas and rows that bind to those fields.
  */
 @Experimental(Kind.SCHEMAS)
-public class JavaFieldSchema extends GetterBasedSchemaProvider {
+public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return POJOUtils.schemaFromPojoClass(typeDescriptor.getRawType());
+    return JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor.getRawType());
   }
 
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
-      return new PojoValueGetterFactory();
+    return new JavaBeanGetterFactory();
   }
 
   @Override
   public FieldValueSetterFactory fieldValueSetterFactory() {
-      return new PojoValueSetterFactory();
+    return new JavaBeanSetterFactory();
   }
 }

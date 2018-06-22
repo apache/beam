@@ -20,17 +20,17 @@ package org.apache.beam.sdk.schemas.utils;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
-import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.ReadableInstant;
 
 /**
@@ -61,10 +61,10 @@ public class StaticSchemaInference {
    */
   public static class TypeInformation {
     private String name;
-    private Type type;
+    private TypeDescriptor type;
     private boolean nullable;
 
-    public TypeInformation(String name, Type type, boolean nullable) {
+    public TypeInformation(String name, TypeDescriptor type, boolean nullable) {
       this.name = name;
       this.type = type;
       this.nullable = nullable;
@@ -74,12 +74,27 @@ public class StaticSchemaInference {
       return name;
     }
 
-    public Type getType() {
+    public TypeDescriptor getType() {
       return type;
     }
 
     public boolean isNullable() {
       return nullable;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      TypeInformation that = (TypeInformation) o;
+      return nullable == that.nullable &&
+          Objects.equals(name, that.name) &&
+          Objects.equals(type, that.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, type, nullable);
     }
   }
 
@@ -102,56 +117,49 @@ public class StaticSchemaInference {
 
   // Map a Java field type to a Beam Schema FieldType.
   private static Schema.FieldType fieldFromType(
-      Type type, Function<Class, List<TypeInformation>> getTypesForClass) {
-    FieldType primitiveType = PRIMITIVE_TYPES.get(type);
+      TypeDescriptor type, Function<Class, List<TypeInformation>> getTypesForClass) {
+    FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;
     }
 
-    if (type instanceof GenericArrayType) {
+    if (type.isArray()) {
       // If the type is T[] where T is byte, this is a BYTES type.
-      Type component = ((GenericArrayType)type).getGenericComponentType();
-      if (component.equals(byte.class)) {
+      TypeDescriptor component = type.getComponentType();
+      if (component.getRawType().equals(byte.class)) {
         return FieldType.BYTES;
       } else {
         // Otherwise this is an array type.
         return FieldType.array(fieldFromType(component, getTypesForClass));
       }
-    } else if (type instanceof ParameterizedType) {
-      ParameterizedType ptype = (ParameterizedType) type;
-      Class raw = (Class) ptype.getRawType();
-      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-      if (Collection.class.isAssignableFrom(raw)) {
+    } else if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+      TypeDescriptor<Collection<?>> collection = type.getSupertype(Collection.class);
+      if (collection.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) collection.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 1);
-        if (params[0].equals(byte.class)) {
-          return FieldType.BYTES;
-        } else {
-          return FieldType.array(fieldFromType(params[0], getTypesForClass));
-        }
-      } else if (Map.class.isAssignableFrom(raw)) {
-        FieldType keyType = fieldFromType(params[0], getTypesForClass);
-        FieldType valueType = fieldFromType(params[1], getTypesForClass);
+        return FieldType.array(fieldFromType(TypeDescriptor.of(params[0]), getTypesForClass));
+      }
+    } else if (type.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+      TypeDescriptor<Collection<?>> map = type.getSupertype(Map.class);
+      if (map.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) map.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+        checkArgument(params.length == 2);
+        FieldType keyType = fieldFromType(TypeDescriptor.of(params[0]), getTypesForClass);
+        FieldType valueType = fieldFromType(TypeDescriptor.of(params[1]), getTypesForClass);
         checkArgument(keyType.getTypeName().isPrimitiveType(),
             "Only primitive types can be map keys");
         return FieldType.map(keyType, valueType);
       }
-    } else if (type instanceof Class) {
-      Class clazz = (Class)type;
-      if (clazz.isArray()) {
-        Class componentType = clazz.getComponentType();
-        if (componentType == Byte.TYPE) {
-          return FieldType.BYTES;
-        }
-        return FieldType.array(fieldFromType(componentType, getTypesForClass));
-      }
-      if (CharSequence.class.isAssignableFrom(clazz)) {
-        return FieldType.STRING;
-      } else if (ReadableInstant.class.isAssignableFrom(clazz)) {
-        return FieldType.DATETIME;
-      } else if (ByteBuffer.class.isAssignableFrom(clazz)) {
-        return FieldType.BYTES;
-      }
-      return FieldType.row(schemaFromClass(clazz, getTypesForClass));
+    } else if (type.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
+      return FieldType.STRING;
+    } else if (type.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
+      return FieldType.DATETIME;
+    } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
+      return FieldType.BYTES;
+    } else {
+      return FieldType.row(schemaFromClass(type.getRawType(), getTypesForClass));
     }
     return null;
   }

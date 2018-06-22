@@ -26,6 +26,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
  * A {@link SchemaProvider} base class that vends schemas and rows based on
  * {@link org.apache.beam.sdk.values.reflect.FieldValueGetter}s.
  */
+@Experimental(Kind.SCHEMAS)
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /**
    * Implementing class should override to return a getter factory.
