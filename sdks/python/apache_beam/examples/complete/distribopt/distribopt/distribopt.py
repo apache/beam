@@ -70,7 +70,7 @@ class CreateGrid(beam.PTransform):
   A transform for generating the mapping grid.
   """
 
-  class SplitOffRecords(beam.DoFn):
+  class PreGenerateMappings(beam.DoFn):
     """
     ParDo implementation which splits of 2 records and generated a sub grid.
 
@@ -111,7 +111,7 @@ class CreateGrid(beam.PTransform):
         'transport_costs': [('A', None), ('B', 3), ('C', 8)]
     }
 
-    Output: tuple (mapping_identifier, dict) with the dict representing crop -> greenhouse associations
+    Output: tuple (mapping_identifier, {crop -> greenhouse})
     """
 
     @staticmethod
@@ -150,13 +150,18 @@ class CreateGrid(beam.PTransform):
         records
         | 'pair one' >> beam.Map(lambda x: (1, x))
         | 'group all records' >> beam.GroupByKey()
-        | 'split one of' >> beam.ParDo(self.SplitOffRecords()).with_outputs('splitted', 'combine')
+        | 'split one of' >> beam.ParDo(self.PreGenerateMappings())
+                              .with_outputs('splitted', 'combine')
     )
+
+    # Create mappings, and prevent fusion (this limits the parallelization
+    # in the optimization step)
     mappings = (
         o.splitted
         | 'create mappings' >> beam.ParDo(self.GenerateMappings(), pvalue.AsSingleton(o.combine))
         | 'prevent fusion' >> beam.Reshuffle()
     )
+
     return mappings
 
 
@@ -176,7 +181,7 @@ class OptimizeGrid(beam.PTransform):
     def process(self, element, quantities):
       mapping_identifier, mapping = element
 
-      # Create (crop, quantity) lists per greenhouse
+      # Create (crop, quantity) lists for each greenhouse
       greenhouses = defaultdict(list)
       for crop, greenhouse in mapping.iteritems():
         quantity = quantities[crop]
@@ -196,7 +201,8 @@ class OptimizeGrid(beam.PTransform):
         - costs: (crop, greenhouse, mapping_identifier, cost)
     """
 
-    def _optimize_production_parameters(self, sim):
+    @staticmethod
+    def _optimize_production_parameters(sim):
       # setup initial starting point & bounds
       x0 = 0.5 * np.ones(3)
       bounds = zip(np.zeros(3), np.ones(3))
@@ -210,9 +216,11 @@ class OptimizeGrid(beam.PTransform):
       crops, quantities = zip(*element[1])
       sim = Simulator(quantities)
       optimum, costs = self._optimize_production_parameters(sim)
-      yield pvalue.TaggedOutput('solution', (mapping_identifier, (greenhouse, optimum)))
+      solution = (mapping_identifier, (greenhouse, optimum))
+      yield pvalue.TaggedOutput('solution', solution)
       for crop, cost, quantity in zip(crops, costs, quantities):
-        yield pvalue.TaggedOutput('costs', (crop, greenhouse, mapping_identifier, cost * quantity))
+        costs = (crop, greenhouse, mapping_identifier, cost * quantity)
+        yield pvalue.TaggedOutput('costs', costs)
 
   def expand(self, inputs):
     mappings, quantities = inputs
@@ -252,7 +260,8 @@ def add_transport_costs(element, transport, quantities):
 
 
 def parse_input(line):
-  # Process each line of the input file to a dict representing each crop and the transport costs
+  # Process each line of the input file to a dict representing each crop
+  # and the transport costs
   columns = line.split(',')
 
   # Assign each greenhouse a character
@@ -320,7 +329,8 @@ def run(argv=None):
         | 'aggregate crops' >> beam.CombinePerKey(sum)
     )
 
-    # Join cost, mapping and production settings solution on mapping identifier. Then select best.
+    # Join cost, mapping and production settings solution on mapping identifier.
+    # Then select best.
     join_operands = {
       'cost': costs,
       'production': opt.solution,
