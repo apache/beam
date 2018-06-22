@@ -17,14 +17,13 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: AMQP"
 ext.summary = "IO to read and write using AMQP 1.0 protocol (http://www.amqp.org)."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
@@ -38,5 +37,4 @@ dependencies {
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_amqp
   testCompile library.java.activemq_junit
-  testCompileOnly library.java.findbugs_annotations
 }

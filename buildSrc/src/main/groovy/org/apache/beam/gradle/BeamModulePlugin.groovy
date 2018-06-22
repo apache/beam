@@ -60,7 +60,7 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean enableErrorProne = true
 
     /** Controls whether compiler warnings are treated as errors. */
-    boolean failOnWarning = false
+    boolean failOnWarning = true
 
     /**
      * List of additional lint warnings to disable.
@@ -351,7 +351,6 @@ class BeamModulePlugin implements Plugin<Project> {
         datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.4.0",
         datastore_v1_protos                         : "com.google.cloud.datastore:datastore-v1-protos:1.3.0",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
-        findbugs_annotations                        : "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1",
         findbugs_jsr305                             : "com.google.code.findbugs:jsr305:3.0.1",
         gax_grpc                                    : "com.google.api:gax-grpc:0.20.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -595,6 +594,14 @@ class BeamModulePlugin implements Plugin<Project> {
         apt auto_service
         testCompileOnly auto_service
         testApt auto_service
+
+        // These dependencies are needed to avoid error-prone warnings on package-info.java files,
+        // also to include the annotations to supress warnings.
+        def findbugs_annotations = "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1"
+        compileOnly findbugs_annotations
+        apt findbugs_annotations
+        testCompileOnly findbugs_annotations
+        testApt findbugs_annotations
       }
 
       // Add the optional and provided configurations for dependencies

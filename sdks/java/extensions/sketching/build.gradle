@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sketching"
 
@@ -26,12 +26,10 @@ def tdigest_version = "3.2"
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "com.clearspring.analytics:stream:$streamlib_version"
   shadow "com.tdunning:t-digest:$tdigest_version"
   shadow library.java.slf4j_api
-  testCompileOnly library.java.findbugs_annotations
   shadowTest library.java.avro
   shadowTest library.java.commons_lang3
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")

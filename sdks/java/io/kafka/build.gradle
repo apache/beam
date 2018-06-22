@@ -17,14 +17,13 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true, enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.kafka_clients
   shadow library.java.slf4j_api
@@ -39,5 +38,4 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
-  testCompileOnly library.java.findbugs_annotations
 }

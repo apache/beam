@@ -17,14 +17,13 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
 ext.summary = "IO to read and write XML files."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.stax2_api
   shadow library.java.findbugs_jsr305
@@ -36,5 +35,4 @@ dependencies {
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompileOnly library.java.findbugs_annotations
 }

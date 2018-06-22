@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 ext.summary = "Tika Input to parse files."
@@ -27,7 +27,6 @@ def bndlib_version = "1.43.0"
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   compileOnly "biz.aQute:bndlib:$bndlib_version"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
@@ -38,6 +37,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile "org.apache.tika:tika-parsers:$tika_version"
-  testCompileOnly library.java.findbugs_annotations
   testCompileOnly "biz.aQute:bndlib:$bndlib_version"
 }
