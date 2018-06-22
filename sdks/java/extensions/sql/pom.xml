@@ -55,7 +55,6 @@
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-direct-java</artifactId>
-          <scope>runtime</scope>
         </dependency>
       </dependencies>
     </profile>
