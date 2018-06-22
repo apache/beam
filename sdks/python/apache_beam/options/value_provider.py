@@ -75,7 +75,7 @@ class StaticValueProvider(ValueProvider):
 
 class RuntimeValueProvider(ValueProvider):
   runtime_options = None
-  experiments = None
+  experiments = set()
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name

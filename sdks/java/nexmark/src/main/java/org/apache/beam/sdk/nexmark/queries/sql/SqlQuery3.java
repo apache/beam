@@ -20,7 +20,7 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -103,7 +103,7 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
 
     PCollection<Row> queryResultsRows =
         inputStreams
-            .apply(BeamSql.query(QUERY_STRING))
+            .apply(SqlTransform.query(QUERY_STRING))
             .setCoder(RECORD_CODER);
 
     return queryResultsRows

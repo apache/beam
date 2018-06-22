@@ -30,7 +30,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 /** An {@link ExecutableStage} which is constructed with all of its initial state. */
 @AutoValue
 public abstract class ImmutableExecutableStage implements ExecutableStage {
-  static ImmutableExecutableStage ofFullComponents(
+  public static ImmutableExecutableStage ofFullComponents(
       Components components,
       Environment environment,
       PCollectionNode input,
@@ -49,7 +49,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
     return of(prunedComponents, environment, input, sideInputs, transforms, outputs);
   }
 
-  static ImmutableExecutableStage of(
+  public static ImmutableExecutableStage of(
       Components components,
       Environment environment,
       PCollectionNode input,

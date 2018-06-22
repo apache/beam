@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -70,9 +71,10 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
       StageBundleFactory<T> stageFactory = jobFactory.forStage(stage);
       bundle =
           stageFactory.getBundle(
-              BundleFactoryOutputRecieverFactory.create(
+              BundleFactoryOutputReceiverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
-              StateRequestHandler.unsupported());
+              StateRequestHandler.unsupported(),
+              BundleProgressHandler.unsupported());
     }
 
     @Override

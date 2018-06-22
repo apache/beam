@@ -72,7 +72,7 @@ public class ApexGroupByKeyOperatorTest {
     Assert.assertNotNull("Serialization", operator = KryoCloneUtils.cloneObject(operator));
 
     final List<Object> results = Lists.newArrayList();
-    Sink<Object> sink =  new Sink<Object>() {
+    Sink<Object> sink = new Sink<Object>() {
       @Override
       public void put(Object tuple) {
         results.add(tuple);

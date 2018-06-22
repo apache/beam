@@ -23,7 +23,11 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import threading
+from builtins import hex
+from builtins import object
 from collections import namedtuple
 
 from apache_beam.transforms import cy_combiners

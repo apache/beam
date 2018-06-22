@@ -230,8 +230,9 @@ class MutationGroupEncoder {
         break;
       case STRING: {
         String str = value.getString();
-        VarInt.encode(str.length(), bos);
-        bos.write(str.getBytes(StandardCharsets.UTF_8));
+        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+        VarInt.encode(bytes.length, bos);
+        bos.write(bytes);
         break;
       }
       case BYTES: {

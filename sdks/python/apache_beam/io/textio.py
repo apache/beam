@@ -77,7 +77,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       assert isinstance(value, integer_types)
       if value > len(self._data):
         raise ValueError('Cannot set position to %d since it\'s larger than '
-                         'size of data %d.', value, len(self._data))
+                         'size of data %d.' % (value, len(self._data)))
       self._position = value
 
     def reset(self):
@@ -121,8 +121,8 @@ class _TextSource(filebasedsource.FileBasedSource):
     self._coder = coder
     self._buffer_size = buffer_size
     if skip_header_lines < 0:
-      raise ValueError('Cannot skip negative number of header lines: %d',
-                       skip_header_lines)
+      raise ValueError('Cannot skip negative number of header lines: %d'
+                       % skip_header_lines)
     elif skip_header_lines > 10:
       logging.warning(
           'Skipping %d header lines. Skipping large number of header '

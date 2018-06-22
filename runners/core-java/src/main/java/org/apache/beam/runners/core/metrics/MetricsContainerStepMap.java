@@ -218,7 +218,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     @Override
-    public MetricQueryResults queryMetrics(MetricsFilter filter) {
+    public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
       return new QueryResults(filter);
     }
 

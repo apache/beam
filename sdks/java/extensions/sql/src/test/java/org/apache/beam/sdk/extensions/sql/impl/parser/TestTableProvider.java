@@ -17,38 +17,144 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import java.util.HashMap;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.Row;
 
-/** Test in-memory table provider for use in tests. */
+/**
+ * Test in-memory table provider for use in tests.
+ *
+ * <p>Keeps global state and tracks class instances. Works only in DirectRunner.
+ *
+ * <p>Similar to {@link MockedBoundedTable} with more concurrency support.
+ */
 public class TestTableProvider implements TableProvider {
-  private Map<String, Table> tables = new HashMap<>();
+  static final Map<Long, Map<String, TableWithRows>> GLOBAL_TABLES = new ConcurrentHashMap<>();
+
+  private static final AtomicLong INSTANCES = new AtomicLong(0);
+  private final long instanceId = INSTANCES.getAndIncrement();
+
+  public TestTableProvider() {
+    GLOBAL_TABLES.put(instanceId, new ConcurrentHashMap<>());
+  }
 
   @Override
   public String getTableType() {
     return "test";
   }
 
+  public Map<String, TableWithRows> tables() {
+    return GLOBAL_TABLES.get(instanceId);
+  }
+
   @Override
   public void createTable(Table table) {
-    tables.put(table.getName(), table);
+    tables().put(table.getName(), new TableWithRows(instanceId, table));
   }
 
   @Override
   public void dropTable(String tableName) {
-    tables.remove(tableName);
+    tables().remove(tableName);
   }
 
   @Override
   public Map<String, Table> getTables() {
-    return tables;
+    return tables()
+        .entrySet()
+        .stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().table));
   }
 
   @Override
-  public BeamSqlTable buildBeamSqlTable(Table table) {
-    throw new UnsupportedOperationException("Test table provider cannot build tables");
+  public synchronized BeamSqlTable buildBeamSqlTable(Table table) {
+    InMemoryTable inMemoryTable = new InMemoryTable(tables().get(table.getName()));
+    return inMemoryTable;
+  }
+
+  public void addRows(String tableName, Row... rows) {
+    tables().get(tableName).rows.addAll(Arrays.asList(rows));
+  }
+
+  public List<Row> tableRows(String tableName) {
+    return tables().get(tableName).rows;
+  }
+
+  private static class TableWithRows implements Serializable {
+    private Table table;
+    private List<Row> rows;
+    private long tableProviderInstanceId;
+
+    public TableWithRows(long tableProviderInstanceId, Table table) {
+      this.tableProviderInstanceId = tableProviderInstanceId;
+      this.table = table;
+      this.rows = new CopyOnWriteArrayList<>();
+    }
+  }
+
+  private static class InMemoryTable implements BeamSqlTable {
+    private TableWithRows tableWithRows;
+
+    public InMemoryTable(TableWithRows tableWithRows) {
+      this.tableWithRows = tableWithRows;
+    }
+
+    public Coder<Row> rowCoder() {
+      return tableWithRows.table.getSchema().getRowCoder();
+    }
+
+    @Override
+    public PCollection<Row> buildIOReader(PBegin begin) {
+      TableWithRows tableWithRows =
+          GLOBAL_TABLES
+              .get(this.tableWithRows.tableProviderInstanceId)
+              .get(this.tableWithRows.table.getName());
+      return begin.apply(Create.of(tableWithRows.rows).withCoder(rowCoder()));
+    }
+
+    @Override
+    public POutput buildIOWriter(PCollection<Row> input) {
+      input.apply(ParDo.of(new CollectorFn(tableWithRows)));
+      return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public Schema getSchema() {
+      return tableWithRows.table.getSchema();
+    }
+  }
+
+  private static final class CollectorFn extends DoFn<Row, Row> {
+    private TableWithRows tableWithRows;
+
+    CollectorFn(TableWithRows tableWithRows) {
+      this.tableWithRows = tableWithRows;
+    }
+
+    @ProcessElement
+    public void procesElement(ProcessContext context) {
+      long instanceId = tableWithRows.tableProviderInstanceId;
+      String tableName = tableWithRows.table.getName();
+      GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(context.element());
+      context.output(context.element());
+    }
   }
 }

@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Java Fn Execution"
 

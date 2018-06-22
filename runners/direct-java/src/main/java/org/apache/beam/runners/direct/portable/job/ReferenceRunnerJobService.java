@@ -111,6 +111,9 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
+              // ReferenceRunner uses LocalFileSystemArtifactStagerService which only need local
+              // artifact directory.
+              .setStagingSessionToken(tempDir.toFile().getAbsolutePath())
               .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -127,6 +130,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored") // Run API does not block on execution
   public void run(
       JobApi.RunJobRequest request, StreamObserver<JobApi.RunJobResponse> responseObserver) {
     try {

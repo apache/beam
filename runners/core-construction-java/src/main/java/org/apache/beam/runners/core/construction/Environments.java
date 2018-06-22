@@ -22,7 +22,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
@@ -37,7 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
  * Utilities for interacting with portability {@link Environment environments}.
  */
 public class Environments {
-  private static final Map<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
+  private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
           .put(PTransformTranslation.COMBINE_TRANSFORM_URN, Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
@@ -47,6 +46,13 @@ public class Environments {
 
   private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
 
+  /* For development, use the container build by the current user to ensure that the SDK harness and
+   * the SDK agree on how they should interact. This should be changed to a version-specific
+   * container during a release.
+   *
+   * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
+   * container.
+   */
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
       String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =

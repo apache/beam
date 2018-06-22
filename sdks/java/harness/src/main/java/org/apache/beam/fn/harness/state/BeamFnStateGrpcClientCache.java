@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -33,8 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,26 +46,16 @@ public class BeamFnStateGrpcClientCache {
 
   private final ConcurrentMap<ApiServiceDescriptor, BeamFnStateClient> cache;
   private final Function<ApiServiceDescriptor, ManagedChannel> channelFactory;
-  private final BiFunction<
-          StreamObserverClientFactory<StateResponse, StateRequest>, StreamObserver<StateResponse>,
-          StreamObserver<StateRequest>>
-      streamObserverFactory;
-  private final PipelineOptions options;
+  private final OutboundObserverFactory outboundObserverFactory;
   private final IdGenerator idGenerator;
 
   public BeamFnStateGrpcClientCache(
-      PipelineOptions options,
       IdGenerator idGenerator,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<
-              StreamObserverClientFactory<StateResponse, StateRequest>,
-              StreamObserver<StateResponse>,
-              StreamObserver<StateRequest>>
-          streamObserverFactory) {
-    this.options = options;
+      OutboundObserverFactory outboundObserverFactory) {
     this.idGenerator = idGenerator;
     this.channelFactory = channelFactory;
-    this.streamObserverFactory = streamObserverFactory;
+    this.outboundObserverFactory = outboundObserverFactory;
     this.cache = new ConcurrentHashMap<>();
   }
 
@@ -99,7 +87,7 @@ public class BeamFnStateGrpcClientCache {
       this.apiServiceDescriptor = apiServiceDescriptor;
       this.outstandingRequests = new ConcurrentHashMap<>();
       this.channel = channelFactory.apply(apiServiceDescriptor);
-      this.outboundObserver = streamObserverFactory.apply(
+      this.outboundObserver = outboundObserverFactory.outboundObserverFor(
           BeamFnStateGrpc.newStub(channel)::state, new InboundObserver());
     }
 

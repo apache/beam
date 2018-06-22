@@ -21,7 +21,7 @@
 // that can be applied to configure a project for certain common
 // tasks.
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 // Add performanceTest task to this build.gradle file
 // so that running Performance tests using PerfKitBenchmarker is possible.
@@ -112,6 +112,9 @@ rat {
 
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
+
+    // TODO: [BEAM-4568] Website sources need to have apache headers
+    "website/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -152,6 +155,17 @@ task javaPostCommit() {
 task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
+
+  // TODO: reenable when https://github.com/gogradle/gogradle/issues/225 is fixed
+  // dependsOn ":beam-sdks-go-examples:build"
+  // dependsOn ":beam-sdks-go-test:build"
+
+  // Ensure all container Go boot code builds as well.
+  // dependsOn ":beam-sdks-java-container:build"
+  // dependsOn ":beam-sdks-python-container:build"
+  // dependsOn ":beam-sdks-go-container:build"
+  // dependsOn ":beam-runners-gcp-gcemd:build"
+  // dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {

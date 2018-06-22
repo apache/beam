@@ -191,9 +191,10 @@ public class DirectTransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    Executors.newSingleThreadExecutor().submit(executor);
+    Future<?> future = Executors.newSingleThreadExecutor().submit(executor);
 
     evaluatorCompleted.await();
+    future.get();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
     assertThat(completionCallback.handledResult, equalTo(result));
@@ -201,6 +202,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void processElementThrowsExceptionCallsback() throws Exception {
     final TransformResult<String> result =
         StepTransformResult.<String>withoutHold(downstreamProducer).build();
@@ -241,6 +243,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void finishBundleThrowsExceptionCallsback() throws Exception {
     final Exception exception = new Exception();
     TransformEvaluator<String> evaluator =

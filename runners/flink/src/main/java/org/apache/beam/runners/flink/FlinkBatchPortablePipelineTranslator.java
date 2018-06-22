@@ -98,7 +98,7 @@ import org.apache.flink.api.java.operators.MapPartitionOperator;
  *   FlinkBatchPortablePipelineTranslator translator =
  *       FlinkBatchPortablePipelineTranslator.createTranslator();
  *   BatchTranslationContext context =
- *       FlinkBatchPortablePipelineTranslator.createTranslationContext(options);
+ *       FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo);
  *   translator.translate(context, pipeline);
  *   ExecutionEnvironment executionEnvironment = context.getExecutionEnvironment();
  *   // Do something with executionEnvironment...

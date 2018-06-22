@@ -263,7 +263,7 @@ class _TransformEvaluator(object):
 
   def process_element(self, element):
     """Processes a new element as part of the current bundle."""
-    raise NotImplementedError('%s do not process elements.', type(self))
+    raise NotImplementedError('%s do not process elements.' % type(self))
 
   def finish_bundle(self):
     """Finishes the bundle and produces output."""

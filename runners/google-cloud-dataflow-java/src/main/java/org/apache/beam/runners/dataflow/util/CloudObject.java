@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
  * additional properties to be presented during deserialization, representing
  * child objects by building additional {@code CloudObject}s.
  */
-public final class CloudObject extends GenericJson {
+public final class CloudObject extends GenericJson implements Cloneable {
   /**
    * Constructs a {@code CloudObject} by copying the supplied serialized object
    * spec, which must represent an SDK object serialized for transport via the

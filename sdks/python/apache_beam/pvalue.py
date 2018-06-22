@@ -28,8 +28,8 @@ from __future__ import absolute_import
 
 import collections
 import itertools
-
-from six import string_types
+from builtins import hex
+from builtins import object
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -37,6 +37,11 @@ from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 __all__ = [
     'PCollection',
@@ -261,9 +266,9 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
-    if not isinstance(tag, string_types):
+    if not isinstance(tag, (str, unicode)):
       raise TypeError(
-          'Attempting to create a TaggedOutput with non-string tag %s' % tag)
+          'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
     self.tag = tag
     self.value = value
 

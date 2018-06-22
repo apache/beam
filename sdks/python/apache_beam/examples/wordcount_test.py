@@ -17,6 +17,8 @@
 
 """Test for the wordcount example."""
 
+from __future__ import absolute_import
+
 import collections
 import logging
 import re
@@ -51,7 +53,7 @@ class WordCountTest(unittest.TestCase):
         match = re.search(r'([a-z]+): ([0-9]+)', line)
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
-    self.assertEqual(sorted(results), sorted(expected_words.iteritems()))
+    self.assertEqual(sorted(results), sorted(expected_words.items()))
 
 
 if __name__ == '__main__':

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(failOnWarning: true)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -74,6 +74,8 @@ dependencies {
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   shadow library.java.commons_io_2x
   testCompileOnly library.java.findbugs_annotations
 }

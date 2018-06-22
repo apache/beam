@@ -38,8 +38,6 @@ import argparse
 import logging
 import re
 
-import six
-
 import apache_beam as beam
 import apache_beam.transforms.window as window
 from apache_beam.examples.wordcount import WordExtractingDoFn
@@ -49,6 +47,11 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to_per_window
 from apache_beam.transforms.core import ParDo
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 
 class PrintFn(beam.DoFn):
@@ -119,7 +122,7 @@ def run(argv=None):
             | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
             | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
             | 'Split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
             | beam.WindowInto(window.FixedWindows(5, 0))
             | 'GroupByKey' >> beam.GroupByKey()

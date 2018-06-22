@@ -17,6 +17,7 @@
 
 package org.apache.beam.runners.direct.portable.job;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertThat;
 
@@ -96,9 +97,11 @@ public class ReferenceRunnerJobServiceTest {
     ArtifactServiceStager stager =
         ArtifactServiceStager.overChannel(
             InProcessChannelBuilder.forName(stagingEndpoint.getUrl()).build());
-    File foo = writeTempFile("foo", "foo, bar, baz".getBytes());
-    File bar = writeTempFile("spam", "spam, ham, eggs".getBytes());
+    String stagingSessionToken = "token";
+    File foo = writeTempFile("foo", "foo, bar, baz".getBytes(UTF_8));
+    File bar = writeTempFile("spam", "spam, ham, eggs".getBytes(UTF_8));
     stager.stage(
+        stagingSessionToken,
         ImmutableList.of(StagedFile.of(foo, foo.getName()), StagedFile.of(bar, bar.getName())));
     List<byte[]> tempDirFiles = readFlattenedFiles(runnerTemp.getRoot());
     assertThat(

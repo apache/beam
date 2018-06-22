@@ -23,15 +23,12 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMess
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -140,14 +137,9 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
   public abstract Schema getSchema();
 
   @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.UNBOUNDED;
-  }
-
-  @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(PBegin begin) {
     PCollectionTuple rowsWithDlq =
-        PBegin.in(pipeline)
+        begin
             .apply("readFromPubsub", readMessagesWithAttributes())
             .apply("parseMessageToRow", createParserParDo());
 
@@ -184,7 +176,7 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+  public POutput buildIOWriter(PCollection<Row> input) {
     throw new UnsupportedOperationException("Writing to a Pubsub topic is not supported");
   }
 

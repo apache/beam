@@ -58,7 +58,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     if len(sources_info) < 2:
       raise ValueError('Test is too trivial since splitting only generated %d'
                        'bundles. Please adjust the test so that at least '
-                       'two splits get generated.', len(sources_info))
+                       'two splits get generated.' % len(sources_info))
 
     source_test_utils.assert_sources_equal_reference_source(
         (reference_source, None, None), sources_info)

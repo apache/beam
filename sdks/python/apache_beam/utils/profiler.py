@@ -20,20 +20,18 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-import cProfile
+from __future__ import absolute_import
+
+import cProfile  # pylint: disable=bad-python3-import
+import io
 import logging
 import os
 import pstats
-import sys
 import tempfile
 import time
 import warnings
+from builtins import object
 from threading import Timer
-
-if sys.version_info[0] < 3:
-  import StringIO
-else:
-  from io import StringIO
 
 
 class Profile(object):
@@ -71,7 +69,7 @@ class Profile(object):
       os.remove(filename)
 
     if self.log_results:
-      s = StringIO()
+      s = io.StringIO()
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()

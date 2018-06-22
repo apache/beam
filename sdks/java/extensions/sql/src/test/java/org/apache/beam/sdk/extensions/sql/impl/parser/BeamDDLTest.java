@@ -130,6 +130,25 @@ public class BeamDDLTest {
   }
 
   @Test
+  public void testParseCreateTable_minimal() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+
+    env.executeDdl("CREATE TABLE person (id INT) TYPE text");
+
+    assertEquals(
+        Table.builder()
+            .name("person")
+            .type("text")
+            .schema(
+                Stream.of(Schema.Field.of("id", CalciteUtils.INTEGER).withNullable(true))
+                    .collect(toSchema()))
+            .properties(new JSONObject())
+            .build(),
+        tableProvider.getTables().get("person"));
+  }
+
+  @Test
   public void testParseDropTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);

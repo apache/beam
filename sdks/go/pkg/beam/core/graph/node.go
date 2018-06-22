@@ -83,3 +83,13 @@ func NodeTypes(list []*Node) []typex.FullType {
 	}
 	return ret
 }
+
+// Bounded returns true iff all nodes are bounded.
+func Bounded(ns []*Node) bool {
+	for _, n := range ns {
+		if !n.Bounded() {
+			return false
+		}
+	}
+	return true
+}

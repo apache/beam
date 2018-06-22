@@ -63,7 +63,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * import MyProtoFile.MyMessage;
  *
  * Coder<MyMessage> coder = ProtoCoder.of(MyMessage.class).withExtensionsFrom(MyProtoFile.class);
- * PCollection<MyMessage> records =  input.apply(...).setCoder(coder);
+ * PCollection<MyMessage> records = input.apply(...).setCoder(coder);
  * }</pre>
  *
  * <h3>Versioning</h3>

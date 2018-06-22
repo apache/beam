@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
@@ -27,6 +27,7 @@ the Beam Portability Framework."""
 dependencies {
   compile library.java.guava
   compile library.java.findbugs_jsr305
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
@@ -36,9 +37,11 @@ dependencies {
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.netty_transport_native_epoll
+  provided library.java.junit
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
+  testCompileOnly library.java.findbugs_annotations
 }

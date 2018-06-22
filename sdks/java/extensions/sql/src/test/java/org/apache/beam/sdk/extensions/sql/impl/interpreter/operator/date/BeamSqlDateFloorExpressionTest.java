@@ -20,9 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.avatica.util.TimeUnitRange;
@@ -39,11 +39,15 @@ public class BeamSqlDateFloorExpressionTest extends BeamSqlDateExpressionTestBas
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));
     assertEquals(
         str2DateTime("2017-01-01 00:00:00"),
-        new BeamSqlDateFloorExpression(operands).evaluate(row, null, ImmutableMap.of()).getDate());
+        new BeamSqlDateFloorExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getDate());
     // MONTH
     operands.set(1, BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
     assertEquals(
         str2DateTime("2017-05-01 00:00:00"),
-        new BeamSqlDateFloorExpression(operands).evaluate(row, null, ImmutableMap.of()).getDate());
+        new BeamSqlDateFloorExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getDate());
   }
 }

@@ -61,7 +61,7 @@ public class MonitoringUtilTest {
 
     ListJobMessagesResponse firstResponse = new ListJobMessagesResponse();
     firstResponse.setJobMessages(new ArrayList<>());
-    for (int i = 0; i < 100; ++i) {
+    for (long i = 0; i < 100; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
       message.setTime(TimeUtil.toCloudTime(new Instant(i)));
@@ -72,7 +72,7 @@ public class MonitoringUtilTest {
 
     ListJobMessagesResponse secondResponse = new ListJobMessagesResponse();
     secondResponse.setJobMessages(new ArrayList<>());
-    for (int i = 100; i < 150; ++i) {
+    for (long i = 100; i < 150; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
       message.setTime(TimeUtil.toCloudTime(new Instant(i)));

@@ -28,6 +28,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -416,7 +417,9 @@ public class FileIO {
 
     /** Returns the full contents of the file as bytes. */
     public byte[] readFullyAsBytes() throws IOException {
-      return StreamUtils.getBytes(Channels.newInputStream(open()));
+      try (InputStream stream = Channels.newInputStream(open())) {
+        return StreamUtils.getBytesWithoutClosing(stream);
+      }
     }
 
     /** Returns the full contents of the file as a {@link String} decoded as UTF-8. */

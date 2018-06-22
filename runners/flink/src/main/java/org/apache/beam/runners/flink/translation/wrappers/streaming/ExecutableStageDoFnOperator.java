@@ -28,9 +28,8 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -61,8 +60,6 @@ import org.joda.time.Instant;
  * which will be even more expensive with SDK harness container.
  * Refactor for above should be looked into once streaming side inputs (and push back) take
  * shape.
- * @param <InputT>
- * @param <OutputT>
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
@@ -74,9 +71,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private final FlinkExecutableStageContext.Factory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
 
+  private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
+  private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
-  private transient AutoCloseable distributedCacheCloser;
 
   public ExecutableStageDoFnOperator(String stepName,
                                      Coder<WindowedValue<InputT>> inputCoder,
@@ -93,7 +91,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     super(new NoOpDoFn(),
             stepName, inputCoder, mainOutputTag, additionalOutputTags,
             outputManagerFactory, WindowingStrategy.globalDefault() /* unused */,
-            sideInputTagMapping, sideInputs, options, null /*keyCoder*/);
+            sideInputTagMapping, sideInputs, options, null /*keyCoder*/, null /* key selector */);
       this.payload = payload;
       this.jobInfo = jobInfo;
       this.contextFactory = contextFactory;
@@ -118,20 +116,17 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     ExecutableStage executableStage = ExecutableStage.fromPayload(payload);
     // TODO: Wire this into the distributed cache and make it pluggable.
-    ArtifactSource artifactSource = null;
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
-    FlinkExecutableStageContext stageContext = contextFactory.get(jobInfo);
-    ArtifactSourcePool cachePool = stageContext.getArtifactSourcePool();
-    distributedCacheCloser = cachePool.addToPool(artifactSource);
+    stageContext = contextFactory.get(jobInfo);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
-
+    progressHandler = BundleProgressHandler.unsupported();
   }
 
   // TODO: currently assumes that every element is a separate bundle,
@@ -143,18 +138,18 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             StateRequestHandler.class.getName());
 
     try (RemoteBundle<InputT> bundle =
-                 stageBundleFactory.getBundle(
-                         new ReceiverFactory(outputManager, outputMap), stateRequestHandler)) {
+        stageBundleFactory.getBundle(
+            new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
       logger.finer(String.format("Sending value: %s", element));
       bundle.getInputReceiver().accept(element);
     }
-
   }
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable cacheCloser = distributedCacheCloser;
-         AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
+    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
+    // Remove the reference to stageContext and make stageContext available for garbage collection.
+    stageContext = null;
     super.close();
   }
 

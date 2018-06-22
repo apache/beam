@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexNode;
@@ -50,9 +50,9 @@ public abstract class BeamSqlExpression implements Serializable {
     return op(idx).getOutputType();
   }
 
-  public <T> T opValueEvaluated(
-      int idx, Row row, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    return (T) op(idx).evaluate(row, window, correlateEnv).getValue();
+  public Object opValueEvaluated(
+      int idx, Row row, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    return op(idx).evaluate(row, window, env).getValue();
   }
 
   /** assertion to make sure the input and output are supported in this expression. */
@@ -63,7 +63,7 @@ public abstract class BeamSqlExpression implements Serializable {
    * is wrapped with {@link BeamSqlPrimitive}.
    */
   public abstract BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env);
 
   public List<BeamSqlExpression> getOperands() {
     return operands;

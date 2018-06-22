@@ -33,7 +33,7 @@ import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
@@ -81,6 +81,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
   public RemoteEnvironment createEnvironment(Environment container) throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
@@ -88,11 +89,12 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
             () -> {
               try {
                 FnHarness.main(
+                    "id",
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
                     InProcessManagedChannelFactory.create(),
-                    StreamObserverFactory.direct());
+                    OutboundObserverFactory.clientDirect());
               } catch (NoClassDefFoundError e) {
                 // TODO: https://issues.apache.org/jira/browse/BEAM-4384 load the FnHarness in a
                 // Restricted classpath that we control for any user.
@@ -106,6 +108,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
                     e);
                 throw e;
               }
+              return (Object) null;
             });
     executor.submit(
         () -> {

@@ -42,7 +42,7 @@ public class Checkpoint {
 
   public static void write(FileSystem fileSystem, Path checkpointFilePath, byte[] value)
       throws IOException {
-    Path  tmpPath = checkpointFilePath.suffix(TEMP_FILE_SUFFIX);
+    Path tmpPath = checkpointFilePath.suffix(TEMP_FILE_SUFFIX);
     Path backupPath = checkpointFilePath.suffix(BACKUP_FILE_SUFFIX);
     if (fileSystem.exists(checkpointFilePath)) {
       if (fileSystem.exists(backupPath)) {
@@ -77,7 +77,7 @@ public class Checkpoint {
     return is != null ? IOUtils.toByteArray(is) : null;
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public static <T> T readObject(FileSystem fileSystem, Path checkpointfilePath)
       throws IOException, ClassNotFoundException {
     byte[] bytes = read(fileSystem, checkpointfilePath);

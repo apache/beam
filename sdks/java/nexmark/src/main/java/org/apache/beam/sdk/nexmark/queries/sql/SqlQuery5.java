@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -83,7 +83,7 @@ public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Auctio
     String queryString = String.format(QUERY_TEMPLATE,
         configuration.windowPeriodSec,
         configuration.windowSizeSec);
-    query = BeamSql.query(queryString);
+    query = SqlTransform.query(queryString);
   }
 
   @Override

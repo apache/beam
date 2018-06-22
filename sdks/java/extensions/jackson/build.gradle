@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
@@ -29,6 +29,7 @@ dependencies {
   shadow library.java.jackson_databind
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompileOnly library.java.findbugs_annotations
 }

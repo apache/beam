@@ -44,11 +44,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A test that verifies that metrics push system works in spark runner.
  */
 public class SparkMetricsPusherTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
 
   @Rule
   public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
@@ -108,7 +112,7 @@ public class SparkMetricsPusherTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        e.printStackTrace();
+        LOG.warn("Exception caught" + e);
       }
     }
   }

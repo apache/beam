@@ -207,6 +207,7 @@ public class Schema implements Serializable {
    *       arguments to form a valid {@link FieldType}.
    * </ul>
    */
+  @SuppressWarnings("MutableConstantField")
   public enum TypeName {
     BYTE,    // One-byte signed integer.
     INT16,   // two-byte signed integer.

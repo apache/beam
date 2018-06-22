@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -42,9 +42,9 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Row dynamicRow = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String fieldName = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Row dynamicRow = (Row) opValueEvaluated(0, inputRow, window, env);
+    String fieldName = (String) opValueEvaluated(1, inputRow, window, env);
     SqlTypeName fieldType = getFieldType(dynamicRow, fieldName);
 
     return BeamSqlPrimitive.of(fieldType, dynamicRow.getValue(fieldName));

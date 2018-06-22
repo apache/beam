@@ -36,11 +36,11 @@ import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -79,7 +79,6 @@ public class ExecutableStageDoFnOperatorTest {
   @Mock private DistributedCache distributedCache;
   @Mock private FlinkExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
-  @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
@@ -92,13 +91,13 @@ public class ExecutableStageDoFnOperatorTest {
                   .putPcollections("input", PCollection.getDefaultInstance())
                   .build())
           .build();
-  private final JobInfo jobInfo = JobInfo.create("job-id", "job-name", Struct.getDefaultInstance());
+  private final JobInfo jobInfo =
+      JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
 
   @Before
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getArtifactSourcePool()).thenReturn(artifactSourcePool);
     when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }
@@ -120,7 +119,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -146,7 +145,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -214,7 +213,8 @@ public class ExecutableStageDoFnOperatorTest {
         new StageBundleFactory<Void>() {
           @Override
           public RemoteBundle<Void> getBundle(
-              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler) {
+              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler,
+              BundleProgressHandler progressHandler) {
             return new RemoteBundle<Void>() {
               @Override
               public String getId() {
@@ -240,7 +240,7 @@ public class ExecutableStageDoFnOperatorTest {
           public void close() {}
         };
     // Wire the stage bundle factory into our context.
-    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    when(stageContext.<Void>getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     ExecutableStageDoFnOperator<Integer, Integer> operator = getOperator(mainOutput,
             ImmutableList.of(additionalOutput1, additionalOutput2),

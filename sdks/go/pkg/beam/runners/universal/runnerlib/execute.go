@@ -39,12 +39,12 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 	defer cc.Close()
 	client := jobpb.NewJobServiceClient(cc)
 
-	prepID, artifactEndpoint, err := Prepare(ctx, client, p, opt)
+	prepID, artifactEndpoint, st, err := Prepare(ctx, client, p, opt)
 	if err != nil {
 		return "", err
 	}
 
-	log.Infof(ctx, "Prepared job with id: %v", prepID)
+	log.Infof(ctx, "Prepared job with id: %v and staging token: %v", prepID, st)
 
 	// (2) Stage artifacts.
 
@@ -61,7 +61,7 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
 
-	token, err := Stage(ctx, prepID, artifactEndpoint, bin)
+	token, err := Stage(ctx, prepID, artifactEndpoint, st, bin)
 	if err != nil {
 		return "", err
 	}

@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.values.Row.toRow;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
@@ -28,15 +31,50 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Test for {@link JdbcDriver}. */
 public class JdbcDriverTest {
+  public static final DateTime FIRST_DATE = new DateTime(1);
+
+  private static final Schema BASIC_SCHEMA =
+      Schema.builder()
+          .addNullableField("id", Schema.FieldType.INT64)
+          .addNullableField("name", Schema.FieldType.STRING)
+          .build();
+
+  private static final Schema COMPLEX_SCHEMA =
+      Schema.builder()
+          .addNullableField("description", Schema.FieldType.STRING)
+          .addNullableField("nestedRow", Schema.FieldType.row(BASIC_SCHEMA))
+          .build();
+
+  private static final ReadOnlyTableProvider BOUNDED_TABLE =
+      new ReadOnlyTableProvider(
+          "test",
+          ImmutableMap.of(
+              "test",
+              MockedBoundedTable.of(
+                      Schema.FieldType.INT32, "id",
+                      Schema.FieldType.STRING, "name")
+                  .addRows(1, "first")));
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void before() throws Exception {
@@ -92,7 +130,104 @@ public class JdbcDriverTest {
   }
 
   @Test
+  public void testSelectsFromExistingTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+
+    tableProvider.addRows("person", row(1L, "aaa"), row(2L, "bbb"));
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery("SELECT id, name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  public void testSelectsFromExistingComplexTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate(
+            "CREATE TABLE person ( \n"
+                + "description VARCHAR, \n"
+                + "nestedRow ROW< \n"
+                + "              id BIGINT, \n"
+                + "              name VARCHAR> \n"
+                + ") \n"
+                + "TYPE 'test'");
+
+    tableProvider.addRows(
+        "person",
+        row(COMPLEX_SCHEMA, "description1", row(1L, "aaa")),
+        row(COMPLEX_SCHEMA, "description2", row(2L, "bbb")));
+
+    ResultSet selectResult =
+        connection
+            .createStatement()
+            .executeQuery("SELECT person.nestedRow.id, person.nestedRow.name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  public void testInsertIntoCreatedTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+
+    connection
+        .createStatement()
+        .executeUpdate("CREATE TABLE person_src (id BIGINT, name VARCHAR) TYPE 'test'");
+    tableProvider.addRows("person_src", row(1L, "aaa"), row(2L, "bbb"));
+
+    connection.createStatement().execute("INSERT INTO person SELECT id, name FROM person_src");
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery("SELECT id, name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(resultValues -> resultValues.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
   public void testInternalConnect_boundedTable() throws Exception {
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    ResultSet resultSet = statement.executeQuery("SELECT * FROM test");
+    assertTrue(resultSet.next());
+    assertEquals(1, resultSet.getInt("id"));
+    assertEquals("first", resultSet.getString("name"));
+    assertFalse(resultSet.next());
+  }
+
+  @Test
+  public void testInternalConnect_bounded_limit() throws Exception {
     ReadOnlyTableProvider tableProvider =
         new ReadOnlyTableProvider(
             "test",
@@ -101,13 +236,110 @@ public class JdbcDriverTest {
                 MockedBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
-                    .addRows(1, "first")));
+                    .addRows(1, "first")
+                    .addRows(1, "second first")
+                    .addRows(2, "second")));
+
     CalciteConnection connection = JdbcDriver.connect(tableProvider);
     Statement statement = connection.createStatement();
-    ResultSet resultSet = statement.executeQuery("SELECT * FROM test");
-    assertTrue(resultSet.next());
-    assertEquals(1, resultSet.getInt("id"));
-    assertEquals("first", resultSet.getString("name"));
-    assertFalse(resultSet.next());
+    ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 5");
+    assertTrue(resultSet1.next());
+    assertTrue(resultSet1.next());
+    assertTrue(resultSet1.next());
+    assertFalse(resultSet1.next());
+    assertFalse(resultSet1.next());
+
+    ResultSet resultSet2 = statement.executeQuery("SELECT * FROM test LIMIT 1");
+    assertTrue(resultSet2.next());
+    assertFalse(resultSet2.next());
+
+    ResultSet resultSet3 = statement.executeQuery("SELECT * FROM test LIMIT 2");
+    assertTrue(resultSet3.next());
+    assertTrue(resultSet3.next());
+    assertFalse(resultSet3.next());
+
+    ResultSet resultSet4 = statement.executeQuery("SELECT * FROM test LIMIT 3");
+    assertTrue(resultSet4.next());
+    assertTrue(resultSet4.next());
+    assertTrue(resultSet4.next());
+    assertFalse(resultSet4.next());
+  }
+
+  @Test
+  public void testInternalConnect_unbounded_limit() throws Exception {
+    ReadOnlyTableProvider tableProvider =
+        new ReadOnlyTableProvider(
+            "test",
+            ImmutableMap.of(
+                "test",
+                MockedUnboundedTable.of(
+                        Schema.FieldType.INT32, "order_id",
+                        Schema.FieldType.INT32, "site_id",
+                        Schema.FieldType.INT32, "price",
+                        Schema.FieldType.DATETIME, "order_time")
+                    .timestampColumnIndex(3)
+                    .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 6, FIRST_DATE)));
+
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    Statement statement = connection.createStatement();
+
+    ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 1");
+    assertTrue(resultSet1.next());
+    assertFalse(resultSet1.next());
+
+    ResultSet resultSet2 = statement.executeQuery("SELECT * FROM test LIMIT 2");
+    assertTrue(resultSet2.next());
+    assertTrue(resultSet2.next());
+    assertFalse(resultSet2.next());
+  }
+
+  private List<List<Object>> readResultSet(ResultSet result) throws Exception {
+    List<List<Object>> results = new ArrayList<>();
+
+    while (result.next()) {
+      List<Object> rowValues = new ArrayList<>();
+      for (int i = 0; i < result.getMetaData().getColumnCount(); i++) {
+        rowValues.add(result.getObject(i + 1));
+      }
+
+      results.add(rowValues);
+    }
+
+    return results;
+  }
+
+  private Row row(Object... values) {
+    return row(BASIC_SCHEMA, values);
+  }
+
+  private Row row(Schema schema, Object... values) {
+    return Row.withSchema(schema).addValues(values).build();
+  }
+
+  @Test
+  public void testInternalConnect_setDirectRunner() throws Exception {
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("SET runner = direct"));
+    assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_setBogusRunner() throws Exception {
+    thrown.expectMessage("Unknown 'runner' specified 'bogus'");
+
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("SET runner = bogus"));
+    assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_resetAll() throws Exception {
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("SET runner = bogus"));
+    assertEquals(0, statement.executeUpdate("RESET ALL"));
+    assertTrue(statement.execute("SELECT * FROM test"));
   }
 }

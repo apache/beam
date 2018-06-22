@@ -18,7 +18,12 @@
 
 package org.apache.beam.runners.direct.portable;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
@@ -32,6 +37,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -59,13 +65,14 @@ public class ReferenceRunnerTest implements Serializable {
                 ParDo.of(
                         new DoFn<Integer, KV<String, Integer>>() {
                           @ProcessElement
-                          public void process(ProcessContext ctxt) {
-                            for (int i = 0; i < ctxt.element(); i++) {
-                              ctxt.outputWithTimestamp(
-                                  KV.of("foo", ctxt.element()),
+                          public void process(@Element Integer e,
+                                              MultiOutputReceiver r) {
+                            for (int i = 0; i < e; i++) {
+                              r.get(food).outputWithTimestamp(
+                                  KV.of("foo", e),
                                   new Instant(0).plus(Duration.standardHours(i)));
                             }
-                            ctxt.output(originals, ctxt.element());
+                            r.get(originals).output(e);
                           }
                         })
                     .withOutputTags(food, TupleTagList.of(originals)));
@@ -79,11 +86,10 @@ public class ReferenceRunnerTest implements Serializable {
                 ParDo.of(
                     new DoFn<KV<String, Iterable<Integer>>, KV<String, Set<Integer>>>() {
                       @ProcessElement
-                      public void process(ProcessContext ctxt) {
-                        ctxt.output(
-                            KV.of(
-                                ctxt.element().getKey(),
-                                ImmutableSet.copyOf(ctxt.element().getValue())));
+                      public void process(@Element KV<String, Iterable<Integer>> e,
+                                          OutputReceiver<KV<String, Set<Integer>>> r) {
+                        r.output(
+                            KV.of(e.getKey(), ImmutableSet.copyOf(e.getValue())));
                       }
                     }));
 
@@ -92,6 +98,35 @@ public class ReferenceRunnerTest implements Serializable {
             KV.of("foo", ImmutableSet.of(1, 2, 3)),
             KV.of("foo", ImmutableSet.of(2, 3)),
             KV.of("foo", ImmutableSet.of(3)));
+
+    p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
+
+    ReferenceRunner runner =
+        ReferenceRunner.forInProcessPipeline(
+            PipelineTranslation.toProto(p),
+            PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
+    runner.execute();
+  }
+
+  @Test
+  public void testGBK() throws Exception {
+    Pipeline p = Pipeline.create();
+
+    PAssert.that(
+            p.apply(Create.of(KV.of(42, 0), KV.of(42, 1), KV.of(42, 2)))
+                // Will create one bundle for each value, since direct runner uses 1 bundle per key
+                .apply(Reshuffle.viaRandomKey())
+                // Multiple bundles will emit values onto the same key 42.
+                // They must be processed sequentially rather than in parallel, since
+                // the trigger firing code expects to receive values sequentially for a key.
+                .apply(GroupByKey.create()))
+        .satisfies(
+            input -> {
+              KV<Integer, Iterable<Integer>> kv = Iterables.getOnlyElement(input);
+              assertEquals(42, kv.getKey().intValue());
+              assertThat(kv.getValue(), containsInAnyOrder(0, 1, 2));
+              return null;
+            });
 
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 

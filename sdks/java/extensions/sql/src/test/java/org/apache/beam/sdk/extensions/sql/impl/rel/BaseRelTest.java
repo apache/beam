@@ -24,17 +24,15 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 
 /** Base class for rel test. */
-abstract class BaseRelTest {
+public abstract class BaseRelTest {
   private static Map<String, BeamSqlTable> tables = new HashMap<>();
   private static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
 
-  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline)
-      throws Exception {
-    return PCollectionTuple.empty(pipeline).apply(env.parseQuery(sql));
+  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline) {
+    return BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(sql));
   }
 
   protected static void registerTable(String tableName, BeamSqlTable table) {

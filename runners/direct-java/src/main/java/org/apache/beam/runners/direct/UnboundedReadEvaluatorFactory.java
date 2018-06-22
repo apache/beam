@@ -119,6 +119,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    @SuppressWarnings("Finally") // Cannot use try-with-resources in order to ensure we don't
+                                 // double-close the reader.
     public void processElement(
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
       UncommittedBundle<OutputT> output =
@@ -177,10 +179,31 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                         watermark)));
           } else {
             // End of input. Close the reader after finalizing old checkpoint.
-            shard.getCheckpoint().finalizeCheckpoint();
-            UnboundedReader<?> toClose = reader;
-            reader = null; // Avoid double close below in case of an exception.
-            toClose.close();
+            // note: can be null for empty datasets so ensure to null check the checkpoint
+            final CheckpointMarkT checkpoint = shard.getCheckpoint();
+            IOException ioe = null;
+            try {
+              if (checkpoint != null) {
+                checkpoint.finalizeCheckpoint();
+              }
+            } catch (final IOException finalizeCheckpointException) {
+              ioe = finalizeCheckpointException;
+            } finally {
+              try {
+                UnboundedReader<?> toClose = reader;
+                reader = null; // Avoid double close below in case of an exception.
+                toClose.close();
+              } catch (final IOException closeEx) {
+                if (ioe != null) {
+                  ioe.addSuppressed(closeEx);
+                } else {
+                  throw closeEx;
+                }
+              }
+            }
+            if (ioe != null) {
+              throw ioe;
+            }
           }
         }
       } catch (IOException e) {

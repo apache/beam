@@ -78,6 +78,17 @@ def testsConfigurations = [
                         numberOfRecords: '100000',
                         charset: 'UTF-8'
                 ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_ParquetIOIT_HDFS',
+                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_ParquetIOIT on HDFS',
+                itClass           : 'org.apache.beam.sdk.io.parquet.ParquetIOIT',
+                bqTable           : 'beam_performance.parquetioit_hdfs_pkb_results',
+                prCommitStatusName: 'Java ParquetIOPerformance Test on HDFS',
+                prTriggerPhase    : 'Run Java ParquetIO Performance Test HDFS',
+                extraPipelineArgs: [
+                        numberOfRecords: '1000000'
+                ]
         ]
 ]
 
@@ -124,7 +135,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
-        String namespace = common_job_properties.getKubernetesNamespace('filebasedioithdfs')
+        String namespace = common_job_properties.getKubernetesNamespace(testConfiguration.jobName)
         String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
         def argMap = [

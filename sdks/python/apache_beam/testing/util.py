@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import collections
 import glob
 import tempfile
+from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -68,6 +69,9 @@ def contains_in_any_order(iterable):
 
     def __eq__(self, other):
       return self._counter == collections.Counter(other)
+
+    def __hash__(self):
+      return hash(self._counter)
 
     def __repr__(self):
       return "InAnyOrder(%s)" % self._counter
@@ -125,8 +129,8 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, use_global_window=True,
-                label='assert_that', reify_windows=False):
+def assert_that(actual, matcher, label='assert_that',
+                reify_windows=False, use_global_window=True):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -139,9 +143,9 @@ def assert_that(actual, matcher, use_global_window=True,
       expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
-    use_global_windows: If False, matcher is passed a dictionary of
-      (k, v) = (window, elements in the window).
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
+    use_global_window: If False, matcher is passed a dictionary of
+      (k, v) = (window, elements in the window).
 
   Returns:
     Ignored.
