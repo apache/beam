@@ -120,8 +120,9 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
     @SuppressWarnings("unchecked") final ReduceFunctor<InputT, InputT> combiner =
         (ReduceFunctor<InputT, InputT>) reducer;
-    final SingleValueCollector<InputT> collector = new SingleValueCollector<>();
+
     return (Iterable<InputT> input) -> {
+      SingleValueCollector<InputT> collector = new SingleValueCollector<>();
       combiner.apply(StreamSupport.stream(input.spliterator(), false), collector);
       return collector.get();
     };
@@ -153,8 +154,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   }
 
   /**
-   * Translation of {@link Collector} collect to Beam's context output. OperatorName serve
-   * as namespace for Beam's metrics.
+   * Translation of {@link Collector} collect to Beam's context output. OperatorName serve as
+   * namespace for Beam's metrics.
    */
   private static class Collector<K, V, OutT>
       implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> {
