@@ -15,27 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.options;
+package org.apache.beam.runners.reference;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
-/**
- * A {@link PipelineOptionsRegistrar} containing the {@link PipelineOptions} subclasses available by
- * default.
- */
-@AutoService(PipelineOptionsRegistrar.class)
-public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
+/** Registrar for the poratble runner. */
+@AutoService(PipelineRunnerRegistrar.class)
+public class PortableRunnerRegistrar implements PipelineRunnerRegistrar {
+
   @Override
-  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(PipelineOptions.class)
-        .add(ApplicationNameOptions.class)
-        .add(StreamingOptions.class)
-        .add(ExperimentalOptions.class)
-        .add(SdkHarnessOptions.class)
-        .add(PortablePipelineOptions.class)
-        .build();
+  public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
+    return ImmutableList.of(PortableRunner.class);
   }
 }
