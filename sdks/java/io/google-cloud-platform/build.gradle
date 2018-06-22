@@ -18,7 +18,6 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
-  failOnWarning: true,
   enableFindbugs: false,
   // Override the default shading configuration to exclude everything since
   // Bigtable needs to expose Guava types.
@@ -32,7 +31,6 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
@@ -70,7 +68,6 @@ dependencies {
   shadow library.java.proto_google_common_protos
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
-  testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")

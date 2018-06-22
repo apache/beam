@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
@@ -26,7 +26,6 @@ def aws_java_sdk_version = "1.11.319"
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version"
   shadow "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version"
@@ -38,7 +37,6 @@ dependencies {
   runtime 'commons-codec:commons-codec:1.9'
   runtime "org.apache.httpcomponents:httpclient:4.5.2"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompileOnly library.java.findbugs_annotations
   shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
