@@ -69,8 +69,9 @@ class SplitOffRecords(beam.DoFn):
   """
   ParDo implementation which splits of 2 records and generated a sub grid.
 
-  This facilitates parallellization of the grid generation. Emits both the PCollection representing the subgrid,
-  as well as the list of remaining records. Both serve as an input to GenerateMappings
+  This facilitates parallellization of the grid generation.
+  Emits both the PCollection representing the subgrid, as well as the list
+  of remaining records. Both serve as an input to GenerateMappings
   """
   def process(self, element):
     records = list(element[1])
@@ -133,7 +134,7 @@ class GenerateMappings(beam.DoFn):
       # translate back to greenhouse label
       mapping = self._coordinates_to_greenhouse(point, greenhouses, crops)
       assert all(rec[0] not in mapping for rec in element)
-      # also add the incomplete mapping of 2 crops
+      # include the incomplete mapping of 2 crops
       mapping.update(element)
       # include identifier
       mappings.append((uuid.uuid4().hex, mapping))
