@@ -48,6 +48,10 @@ include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
 project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
+// These 2 projects will not be published to Maven so they don't get a special
+// dashed name.
+include ":runners:google-cloud-dataflow-java:examples"
+include ":runners:google-cloud-dataflow-java:examples-streaming"
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
 include "beam-runners-local-java-core"
