@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
 /** {@code InputDataset} that is input of a {@code Flow}. */
 @Audience(Audience.Type.EXECUTOR)

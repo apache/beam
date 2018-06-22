@@ -30,7 +30,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A transformation of a dataset from one type into another allowing user code to generate zero,
@@ -181,6 +185,11 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
         UnaryFunctor<InputT, OutputT> functor) {
       return new EventTimeBuilder<>(this, functor);
     }
+
+    public <OutputT> EventTimeBuilder<InputT, OutputT> using(
+        UnaryFunctor<InputT, OutputT> functor, TypeDescriptor<OutputT> outputTypeDescriptor) {
+      return using(TypeAwareUnaryFunctor.of(functor, outputTypeDescriptor));
+    }
   }
 
   /** TODO: complete javadoc. */
@@ -212,7 +221,10 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
+   */
   public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
     private final Dataset<InputT> input;

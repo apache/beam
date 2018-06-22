@@ -30,21 +30,26 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.Consumer;
 
-/** A data sink that stores data in list. */
+/**
+ * A data sink that stores data in list.
+ */
 @Audience({Audience.Type.CLIENT, Audience.Type.TESTS})
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
+  // storage per one ListDataSink instance is partitioned
   private static final Map<ListDataSink<?>, Map<Integer, List<?>>> storage =
       Collections.synchronizedMap(new WeakHashMap<>());
+
   private final int sinkId = System.identityHashCode(this);
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
-  @Nullable private Consumer<Dataset<T>> prepareDataset = null;
+  @Nullable
+  private Consumer<Dataset<T>> prepareDataset = null;
 
   @SuppressWarnings("unchecked")
   protected ListDataSink() {
     // save outputs to static storage
-    storage.put((ListDataSink) this, Collections.synchronizedMap(new HashMap<>()));
+    storage.put(this, Collections.synchronizedMap(new HashMap<>()));
   }
 
   public static <T> ListDataSink<T> get() {
@@ -54,10 +59,11 @@ public class ListDataSink<T> implements DataSink<T> {
   @Override
   @SuppressWarnings("unchecked")
   public Writer<T> openWriter(int partitionId) {
-    ArrayList tmp = new ArrayList<>();
     Map<Integer, List<?>> sinkData = storage.get(this);
-    List partitionData = (List) sinkData.putIfAbsent(partitionId, tmp);
-    ListWriter w = new ListWriter(partitionId, partitionData == null ? tmp : partitionData);
+    List partitionData = sinkData.computeIfAbsent(partitionId,
+        (key) -> Collections.synchronizedList(new ArrayList()));
+
+    ListWriter w = new ListWriter(partitionId, partitionData);
     writers.add(w);
     return w;
   }
@@ -125,6 +131,7 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
   class ListWriter implements Writer<T> {
+
     final List<T> output = new ArrayList<>();
     final List<T> commitOutputs;
     final int partitionId;

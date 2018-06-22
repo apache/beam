@@ -20,17 +20,21 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test behavior of operator {@code SumByKey}. */
+/**
+ * Test behavior of operator {@code SumByKey}.
+ */
 public class SumByKeyTest {
+
   @Test
   public void testBuild() {
     Flow flow = Flow.create("TEST");
@@ -45,7 +49,7 @@ public class SumByKeyTest {
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertEquals(flow, sum.getFlow());
     assertEquals("SumByKey1", sum.getName());
-    assertNotNull(sum.keyExtractor);
+    assertNotNull(sum.getKeyExtractor());
     assertEquals(counted, sum.output());
     assertNull(sum.getWindowing());
   }
@@ -69,11 +73,18 @@ public class SumByKeyTest {
     SumByKey.of(dataset)
         .keyBy(s -> s)
         .valueBy(s -> 1L)
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(DefaultTrigger.of())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
         .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertTrue(sum.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = sum.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
   @Test
@@ -84,10 +95,18 @@ public class SumByKeyTest {
     SumByKey.of(dataset)
         .keyBy(s -> s)
         .valueBy(s -> 1L)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertTrue(sum.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = sum.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 }

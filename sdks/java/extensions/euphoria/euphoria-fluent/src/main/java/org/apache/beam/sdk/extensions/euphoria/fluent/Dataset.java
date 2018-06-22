@@ -22,14 +22,15 @@ import static java.util.Objects.requireNonNull;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Builders.Output;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders.Output;
 
-/** TODO: complete javadoc. */
+/**
+ * TODO: complete javadoc.
+ */
 public class Dataset<T> {
 
   private final org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T> wrap;
@@ -68,9 +69,5 @@ public class Dataset<T> {
   public <OutputT extends DataSink<T>> Dataset<T> persist(OutputT dst) {
     this.wrap.persist(dst);
     return this;
-  }
-
-  public void execute(Executor exec) throws Exception {
-    exec.submit(this.wrap.getFlow()).get();
   }
 }

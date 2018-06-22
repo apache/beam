@@ -77,3 +77,18 @@ dependencies {
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
 }
+
+configurations {
+  testArtifact
+}
+
+task testJar(type: Jar) {
+  from sourceSets.test.output
+  classifier = 'test'
+}
+
+artifacts {
+  testArtifact testJar
+}
+
+

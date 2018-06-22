@@ -31,6 +31,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 
 /**
@@ -177,7 +179,10 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
+   */
   public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
     private final String name;
     private final List<Dataset<InputT>> dataSets;
