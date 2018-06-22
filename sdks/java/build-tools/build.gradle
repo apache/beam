@@ -17,6 +17,6 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Build Tools"

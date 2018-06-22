@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -41,7 +41,6 @@ configurations.testRuntimeClasspath {
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
@@ -77,7 +76,6 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   shadow library.java.commons_io_2x
-  testCompileOnly library.java.findbugs_annotations
 }
 
 // The cassandra.yaml file currently assumes "target/..." exists.

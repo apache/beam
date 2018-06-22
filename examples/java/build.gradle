@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: Examples :: Java"
 ext.summary = """Apache Beam SDK provides a simple, Java-based

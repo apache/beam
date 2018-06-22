@@ -26,7 +26,7 @@ def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":be
                         ":beam-runners-core-java", ":beam-runners-core-construction-java"]
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true, shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
@@ -49,7 +49,6 @@ dependencies {
   dependOnProjects.each {
     compile project(path: it, configuration: "shadow")
   }
-  compileOnly library.java.findbugs_annotations
   compile library.java.jackson_databind
   compile library.java.findbugs_jsr305
   compile library.java.guava
@@ -61,7 +60,6 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   provided library.java.error_prone_annotations
-  testCompileOnly library.java.findbugs_annotations
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

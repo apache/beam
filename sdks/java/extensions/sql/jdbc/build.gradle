@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true, enableSpotless: true, testShadowJar: true, shadowClosure: {})
+applyJavaNature(enableSpotless: true, testShadowJar: true, shadowClosure: {})
 
 configurations {
   integrationTest
@@ -28,8 +28,6 @@ dependencies {
   compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.3.0"
   compile library.java.slf4j_jdk14
-  compileOnly library.java.findbugs_annotations
-  testCompileOnly library.java.findbugs_annotations
   testCompile library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.

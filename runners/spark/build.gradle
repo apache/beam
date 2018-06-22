@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Spark"
 
@@ -53,7 +53,6 @@ test {
 }
 
 dependencies {
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
@@ -78,7 +77,6 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.11"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
