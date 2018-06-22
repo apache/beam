@@ -31,11 +31,11 @@ import org.apache.beam.sdk.annotations.Internal;
  * objet fields.
  */
 @Internal
-public interface FieldValueSetter {
+public interface FieldValueSetter<ObjectT> {
   /**
    * Sets the specified field on object to value.
    */
-  void set(Object object, Object value);
+  void set(ObjectT object, Object value);
 
   /**
    * Returns the name of the field.

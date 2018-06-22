@@ -29,8 +29,8 @@ import org.apache.beam.sdk.annotations.Internal;
  * Row fields.
  */
 @Internal
-public interface FieldValueGetter {
-  Object get(Object object);
+public interface FieldValueGetter<ObjectT> {
+  Object get(ObjectT object);
   String name();
 
   Class type();
