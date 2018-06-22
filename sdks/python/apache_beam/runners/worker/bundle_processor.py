@@ -359,6 +359,8 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
+    if coder_id not in self.descriptor.coders:
+      raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
     if coder_proto.spec.spec.urn:
       return self.context.coders.get_by_id(coder_id)
@@ -418,7 +420,9 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_only_output_coder(transform_proto),
+      factory.get_coder(grpc_port.coder_id)
+      if grpc_port.coder_id
+      else factory.get_only_output_coder(transform_proto),
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -435,8 +439,9 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      # TODO(robertwb): Perhaps this could be distinct from the input coder?
-      factory.get_only_input_coder(transform_proto),
+      factory.get_coder(grpc_port.coder_id)
+      if grpc_port.coder_id
+      else factory.get_only_input_coder(transform_proto),
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
