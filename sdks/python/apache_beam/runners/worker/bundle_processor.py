@@ -420,7 +420,9 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id),
+      factory.get_coder(grpc_port.coder_id)
+      if grpc_port.coder_id
+      else factory.get_only_output_coder(transform_proto),
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -437,7 +439,9 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id),
+      factory.get_coder(grpc_port.coder_id)
+      if grpc_port.coder_id
+      else factory.get_only_input_coder(transform_proto),
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
