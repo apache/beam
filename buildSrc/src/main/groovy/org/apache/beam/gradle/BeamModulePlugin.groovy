@@ -1211,14 +1211,14 @@ artifactId=${project.name}
 
       if (configuration.root == null) {
         if (project.rootProject.hasProperty(["docker-repository-root"])) {
-          configuration.root = rootProject["docker-repository-root"]
+          configuration.root = project.rootProject["docker-repository-root"]
         } else {
           configuration.root = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
         }
       }
       if (configuration.tag == null) {
         if (project.rootProject.hasProperty(["docker-tag"])) {
-          configuration.tag = rootProject["docker-tag"]
+          configuration.tag = project.rootProject["docker-tag"]
         } else {
           configuration.tag = 'latest'
         }
