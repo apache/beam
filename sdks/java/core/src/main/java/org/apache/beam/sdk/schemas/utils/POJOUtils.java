@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -102,8 +103,9 @@ public class POJOUtils {
         (c) -> getFields(c).stream().map(POJOUtils::createGetter).collect(Collectors.toList()));
   }
 
-  static <T> FieldValueGetter createGetter(Field field) {
-    DynamicType.Builder<FieldValueGetter> builder = subclassGetterInterface(BYTE_BUDDY);
+  static <T> FieldValueGetter<T> createGetter(Field field) {
+    DynamicType.Builder<FieldValueGetter> builder =
+        ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, field.getDeclaringClass());
     builder = implementGetterMethods(builder, field);
     try {
       return builder
@@ -118,10 +120,6 @@ public class POJOUtils {
       throw new RuntimeException(
           "Unable to generate a getter for field '" + field + "'.", e);
     }
-  }
-
-  static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(ByteBuddy byteBuddy) {
-    return byteBuddy.subclass(FieldValueGetter.class);
   }
 
   static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
@@ -236,7 +234,8 @@ public class POJOUtils {
   }
 
   static <T> FieldValueSetter createSetter(Field field) {
-    DynamicType.Builder<FieldValueSetter> builder = subclassSetterInterface(BYTE_BUDDY);
+    DynamicType.Builder<FieldValueSetter> builder =
+        ByteBuddyUtils.subclassSetterInterface(BYTE_BUDDY, field.getDeclaringClass());
     builder = implementSetterMethods(builder, field);
     try {
       return builder
@@ -251,10 +250,6 @@ public class POJOUtils {
       throw new RuntimeException(
           "Unable to generate a getter for field '" + field + "'.", e);
     }
-  }
-
-  static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(ByteBuddy byteBuddy) {
-    return byteBuddy.subclass(FieldValueSetter.class);
   }
 
   static DynamicType.Builder<FieldValueSetter> implementSetterMethods(

@@ -30,8 +30,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.Duplication;
@@ -44,12 +46,14 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.values.reflect.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
 import org.joda.time.ReadableInstant;
 
-public class ByteBuddyUtils {
+class ByteBuddyUtils {
   static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
   static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
   private static ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
@@ -59,6 +63,20 @@ public class ByteBuddyUtils {
   private static ForLoadedType DATE_TIME_TYPE = new ForLoadedType(DateTime.class);
   private static ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static ForLoadedType READABLE_INSTANT_TYPE = new ForLoadedType(ReadableInstant.class);
+
+  public static <T> DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
+      ByteBuddy byteBuddy, Class<T> clazz) {
+    TypeDescription.Generic getterGenericType =
+        TypeDescription.Generic.Builder.parameterizedType(FieldValueGetter.class, clazz).build();
+    return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
+  }
+
+  public static <T> DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
+      ByteBuddy byteBuddy, Class<T> clazz) {
+    TypeDescription.Generic setterGenericType =
+        TypeDescription.Generic.Builder.parameterizedType(FieldValueSetter.class, clazz).build();
+    return (DynamicType.Builder<FieldValueSetter>) byteBuddy.subclass(setterGenericType);
+  }
 
   /**
    * Takes a {@link StackManipulation} that returns a value. Prepares this value to be returned
