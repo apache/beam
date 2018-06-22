@@ -1084,22 +1084,22 @@ artifactId=${project.name}
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testCompile project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
         }
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
-          shadowTest library.java.hadoop_client
+          testCompile it.project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
+          shadowTest project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
+          testCompile it.project.project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
         }
       }
 
