@@ -54,6 +54,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 
 /**
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to
@@ -91,7 +92,10 @@ public abstract class GeneratedRowCoder {
   public static Coder<Row> of(Schema schema, UUID coderId) {
     return generatedCoders.computeIfAbsent(coderId,
         h -> {
-          DynamicType.Builder<Coder> builder = BYTE_BUDDY.subclass(Coder.class);
+          TypeDescription.Generic coderType =
+              TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
+          DynamicType.Builder<Coder> builder =
+              (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
           builder = createComponentCoders(schema, builder);
           builder = implementMethods(builder, schema);
           try {
@@ -134,7 +138,6 @@ public abstract class GeneratedRowCoder {
                 .getOnly()).read(),
             // Element to encode.
             MethodVariableAccess.REFERENCE.loadFrom(1),
-            TypeCasting.to(new TypeDescription.ForLoadedType(Row.class)),
             // OutputStream.
             MethodVariableAccess.REFERENCE.loadFrom(2),
             // Call EncodeInstruction.encodeDelegate
