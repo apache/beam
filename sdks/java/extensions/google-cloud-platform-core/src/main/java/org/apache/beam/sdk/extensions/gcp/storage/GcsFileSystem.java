@@ -33,9 +33,9 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -184,7 +184,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         prefix, p.toString());
 
     String pageToken = null;
-    List<Metadata> results = new LinkedList<>();
+    List<Metadata> results = new ArrayList<>();
     do {
       Objects objects = options.getGcsUtil().listObjects(gcsPattern.getBucket(), prefix, pageToken);
       if (objects.getItems() == null) {

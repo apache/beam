@@ -58,8 +58,6 @@ dependencies {
   compile library.java.commons_compress
   compile library.java.commons_lang3
   compile library.java.guava_testlib
-  compileOnly library.java.findbugs_annotations
-  testCompileOnly library.java.findbugs_annotations
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind

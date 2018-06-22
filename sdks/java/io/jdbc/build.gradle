@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true, enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -26,7 +26,6 @@ ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow "org.apache.commons:commons-dbcp2:2.1.1"
@@ -43,5 +42,4 @@ dependencies {
   testCompile group: "org.apache.derby", name: "derby", version:"10.12.1.1"
   testCompile group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
   testCompile group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
-  testCompileOnly library.java.findbugs_annotations
 }

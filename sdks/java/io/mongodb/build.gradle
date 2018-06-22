@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -26,7 +26,6 @@ ext.summary = "IO to read and write on MongoDB."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
@@ -41,5 +40,4 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
-  testCompileOnly library.java.findbugs_annotations
 }
