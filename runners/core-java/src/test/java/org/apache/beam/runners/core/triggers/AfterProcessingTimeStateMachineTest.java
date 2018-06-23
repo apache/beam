@@ -72,7 +72,7 @@ public class AfterProcessingTimeStateMachineTest {
     tester.injectElements(2, 3);
 
     // Advance past the first timer and fire, finishing the first window
-    tester.advanceProcessingTime(new Instant(16));
+    tester.advanceProcessingTime(new Instant(15));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
