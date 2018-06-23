@@ -229,7 +229,7 @@ class CalculateSpammyUsers(beam.PTransform):
 class UserSessionActivity(beam.DoFn):
   """Calculate and output an element's session duration, in seconds."""
   def process(self, elem, window=beam.DoFn.WindowParam):
-    yield (window.end.micros - window.start.micros) // 1000000
+    yield (window.end.micros - window.start.micros)//1000000
 
 
 def run(argv=None):
