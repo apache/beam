@@ -87,12 +87,12 @@ func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []str
 		a := stage(ctx, scl, t, key, size+7*i, 97+i, st)
 		artifacts = append(artifacts, a)
 	}
-	if token, err := Commit(ctx, scl, artifacts, st); err != nil {
+	token, err := Commit(ctx, scl, artifacts, st); 
+	if err != nil {
 		t.Fatalf("failed to commit manifest: %v", err)
 		return "", nil
-	} else {
-		return token, artifacts
 	}
+	return token, artifacts
 }
 
 // stage stages an artifact with the given key, size and chuck size. The content is
