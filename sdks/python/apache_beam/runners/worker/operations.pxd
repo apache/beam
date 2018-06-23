@@ -69,6 +69,7 @@ cdef class Operation(object):
 
 cdef class ReadOperation(Operation):
   @cython.locals(windowed_value=WindowedValue)
+  cpdef start(self)
 
 
 cdef class DoOperation(Operation):
