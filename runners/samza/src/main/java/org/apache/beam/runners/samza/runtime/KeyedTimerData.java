@@ -40,6 +40,10 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
     return key;
   }
 
+  public byte[] getKeyBytes() {
+    return keyBytes;
+  }
+
   public TimerInternals.TimerData getTimerData() {
     return timerData;
   }

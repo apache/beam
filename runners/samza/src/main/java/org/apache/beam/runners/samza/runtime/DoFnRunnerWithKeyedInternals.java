@@ -26,11 +26,9 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,8 +59,8 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       DoFnRunners.OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
-      StateInternalsFactory<?> stateInternalsFactory,
-      TimerInternalsFactory<?> timerInternalsFactory,
+      SamzaStoreStateInternals.Factory<?> stateInternalsFactory,
+      SamzaTimerInternalsFactory<?> timerInternalsFactory,
       WindowingStrategy<?, ?> windowingStrategy,
       SamzaMetricsContainer metricsContainer,
       String stepName) {

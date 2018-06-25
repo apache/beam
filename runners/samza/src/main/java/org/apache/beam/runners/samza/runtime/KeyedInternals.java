@@ -51,7 +51,7 @@ class KeyedInternals<K> {
     }
   }
 
-  private final ThreadLocal<KeyedStates<K>> threadLocalKeyedStates = new ThreadLocal<>();
+  private static final ThreadLocal<KeyedStates> threadLocalKeyedStates = new ThreadLocal<>();
   private final StateInternalsFactory<K> stateFactory;
   private final TimerInternalsFactory<K> timerFactory;
 
@@ -111,7 +111,7 @@ class KeyedInternals<K> {
     }
   }
 
-  private class KeyedTimerInternals<K> implements TimerInternals {
+  private class KeyedTimerInternals implements TimerInternals {
 
     private TimerInternals getInternals() {
       return timerFactory.timerInternalsForKey(getKey());

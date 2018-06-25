@@ -286,7 +286,7 @@ public class SamzaStoreStateInternalsTest {
 
     // The test code creates 7 underlying iterators, and 1 more is created during state.clear()
     // Verify all of them are closed
-    assertEquals(TestStore.iterators.size(), 8);
+    assertEquals(8, TestStore.iterators.size());
     TestStore.iterators.forEach(iter ->
         assertTrue(iter.closed)
     );
