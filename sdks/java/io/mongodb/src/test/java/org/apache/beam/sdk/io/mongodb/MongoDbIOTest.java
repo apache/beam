@@ -268,7 +268,7 @@ public class MongoDbIOTest implements Serializable {
       cursor.next();
     }
 
-    Assert.assertEquals(10000, count);
+    assertEquals(10000, count);
 
   }
 

@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
@@ -30,28 +28,21 @@ import org.apache.beam.sdk.values.Row;
  * downstream query can query directly.
  */
 public class BeamPCollectionTable extends BaseBeamTable {
-  private BeamIOType ioType;
   private transient PCollection<Row> upstream;
 
   public BeamPCollectionTable(PCollection<Row> upstream) {
     super(((RowCoder) upstream.getCoder()).getSchema());
-    ioType =
-        upstream.isBounded().equals(IsBounded.BOUNDED) ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
     this.upstream = upstream;
   }
 
   @Override
-  public BeamIOType getSourceType() {
-    return ioType;
-  }
-
-  @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    assert begin.getPipeline() == upstream.getPipeline();
     return upstream;
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+  public POutput buildIOWriter(PCollection<Row> input) {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
 }

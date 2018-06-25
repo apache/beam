@@ -68,13 +68,13 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final BundleFactory bundleFactory;
   private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
   private final Components components;
-  private final StateAndTimerProvider stp;
+  private final StepStateAndTimers.Provider stp;
 
   GroupAlsoByWindowEvaluatorFactory(
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
       Components components,
       BundleFactory bundleFactory,
-      StateAndTimerProvider stp) {
+      StepStateAndTimers.Provider stp) {
     this.bundleFactory = bundleFactory;
     this.graph = graph;
     this.components = components;
@@ -98,7 +98,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     @SuppressWarnings("unchecked")
     StructuralKey<K> key = (StructuralKey<K>) inputBundle.getKey();
     return new GroupAlsoByWindowEvaluator<>(
-        bundleFactory, key, application, graph, components, stp);
+        bundleFactory, key, application, graph, components, stp.forStepAndKey(application, key));
   }
 
   /**
@@ -132,14 +132,14 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         PTransformNode application,
         ExecutableGraph<PTransformNode, PCollectionNode> graph,
         Components components,
-        StateAndTimerProvider stp) {
+        StepStateAndTimers<K> stp) {
       this.bundleFactory = bundleFactory;
       this.application = application;
       this.outputCollection = getOnlyElement(graph.getProduced(application));
       this.key = key;
 
-      this.stateInternals = stp.stateInternals(application, key);
-      this.timerInternals = stp.timerInternals(application, key);
+      this.stateInternals = stp.stateInternals();
+      this.timerInternals = stp.timerInternals();
 
       PCollectionNode inputCollection = getOnlyElement(graph.getPerElementInputs(application));
       try {

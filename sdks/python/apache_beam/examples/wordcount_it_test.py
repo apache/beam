@@ -17,6 +17,8 @@
 
 """End-to-end test for the wordcount example."""
 
+from __future__ import absolute_import
+
 import logging
 import time
 import unittest

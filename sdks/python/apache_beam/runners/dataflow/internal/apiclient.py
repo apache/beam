@@ -57,7 +57,7 @@ from apache_beam.utils import retry
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '1'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
 
 
 class Step(object):
@@ -704,8 +704,8 @@ class DataflowApplicationClient(object):
             .JOB_MESSAGE_ERROR)
       else:
         raise RuntimeError(
-            'Unexpected value for minimum_importance argument: %r',
-            minimum_importance)
+            'Unexpected value for minimum_importance argument: %r'
+            % minimum_importance)
     response = self._client.projects_locations_jobs_messages.List(request)
     return response.jobMessages, response.nextPageToken
 

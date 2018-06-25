@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -35,16 +35,16 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
 
   public static final MockedBoundedTable ORDER_DETAILS1 =
       MockedBoundedTable.of(
-              TypeName.INT32, "order_id",
-              TypeName.INT32, "site_id",
-              TypeName.INT32, "price")
+              Schema.FieldType.INT32, "order_id",
+              Schema.FieldType.INT32, "site_id",
+              Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
   public static final MockedBoundedTable ORDER_DETAILS2 =
       MockedBoundedTable.of(
-              TypeName.INT32, "order_id",
-              TypeName.INT32, "site_id",
-              TypeName.INT32, "price")
+              Schema.FieldType.INT32, "order_id",
+              Schema.FieldType.INT32, "site_id",
+              Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
   @BeforeClass
@@ -66,12 +66,12 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.INT32, "price",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "site_id0",
-                    TypeName.INT32, "price0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.INT32, "price",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "site_id0",
+                    Schema.FieldType.INT32, "price0")
                 .addRows(2, 3, 3, 1, 2, 3)
                 .getRows());
     pipeline.run();
@@ -91,12 +91,12 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.INT32, "price",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "site_id0",
-                    TypeName.INT32, "price0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.INT32, "price",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "site_id0",
+                    Schema.FieldType.INT32, "price0")
                 .addRows(1, 2, 3, null, null, null, 2, 3, 3, 1, 2, 3, 3, 4, 5, null, null, null)
                 .getRows());
     pipeline.run();
@@ -115,12 +115,12 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.INT32, "price",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "site_id0",
-                    TypeName.INT32, "price0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.INT32, "price",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "site_id0",
+                    Schema.FieldType.INT32, "price0")
                 .addRows(2, 3, 3, 1, 2, 3, null, null, null, 2, 3, 3, null, null, null, 3, 4, 5)
                 .getRows());
     pipeline.run();
@@ -139,12 +139,12 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.INT32, "price",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "site_id0",
-                    TypeName.INT32, "price0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.INT32, "price",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "site_id0",
+                    Schema.FieldType.INT32, "price0")
                 .addRows(
                     2, 3, 3, 1, 2, 3, 1, 2, 3, null, null, null, 3, 4, 5, null, null, null, null,
                     null, null, 2, 3, 3, null, null, null, 3, 4, 5)

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -63,7 +64,13 @@ public class Person implements KnownSize, Serializable {
       String extra = STRING_CODER.decode(inStream);
       return new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
     }
+
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(Person v) {
+      return v;
+    }
   };
 
   /** Id of person. */
@@ -159,5 +166,29 @@ public class Person implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Person person = (Person) o;
+    return id == person.id
+        && dateTime == person.dateTime
+        && Objects.equal(name, person.name)
+        && Objects.equal(emailAddress, person.emailAddress)
+        && Objects.equal(creditCard, person.creditCard)
+        && Objects.equal(city, person.city)
+        && Objects.equal(state, person.state)
+        && Objects.equal(extra, person.extra);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id, name, emailAddress, creditCard, city, state, dateTime, extra);
   }
 }

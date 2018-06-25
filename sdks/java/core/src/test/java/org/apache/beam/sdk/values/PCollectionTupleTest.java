@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -158,7 +157,7 @@ public final class PCollectionTupleTest implements Serializable {
       TupleTag<?> tag = taggedValue.getKey();
       PValue value = taggedValue.getValue();
       assertThat("The tag should map back to the value", tuple.get(tag), equalTo(value));
-      assertThat(value, Matchers.equalTo(pcsByTag.get(tag)));
+      assertThat(value, equalTo(pcsByTag.get(tag)));
       reconstructed = reconstructed.and(tag, (PCollection) value);
     }
 

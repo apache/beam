@@ -86,7 +86,7 @@ public class RetryHttpRequestInitializerTest {
 
     @Override
     public long nanoTime() {
-      return timesMs[i++ / 2] * 1000000;
+      return timesMs[i++ / 2] * 1000000L;
     }
   }
 
@@ -255,6 +255,7 @@ public class RetryHttpRequestInitializerTest {
    * is invoked.
    */
   @Test
+  @SuppressWarnings("AssertionFailureIgnored")
   public void testIOExceptionHandlerIsInvokedOnTimeout() throws Exception {
     FastNanoClockAndSleeper fakeClockAndSleeper = new FastNanoClockAndSleeper();
     // Counts the number of calls to execute the HTTP request.
@@ -288,13 +289,15 @@ public class RetryHttpRequestInitializerTest {
 
     Get getRequest = storage.objects().get("gs://fake", "file");
 
+    Throwable thrown = null;
     try {
       getRequest.execute();
-      fail();
     } catch (Throwable e) {
-      assertThat(e, Matchers.instanceOf(SocketTimeoutException.class));
-      assertEquals(1 + defaultNumberOfRetries, executeCount.get());
-      expectedLogs.verifyWarn("performed 10 retries due to IOExceptions");
+      thrown = e;
     }
+    assertNotNull("Expected execute to throw an exception", thrown);
+    assertThat(thrown, Matchers.instanceOf(SocketTimeoutException.class));
+    assertEquals(1 + defaultNumberOfRetries, executeCount.get());
+    expectedLogs.verifyWarn("performed 10 retries due to IOExceptions");
   }
 }

@@ -22,13 +22,9 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
-/**
- * Factory to create a {@link JobInvocation} instances.
- */
+/** Factory to create a {@link JobInvocation} instances. */
 public interface JobInvoker {
-  /**
-   * Start running a job, abstracting its state as a {@link JobInvocation} instance.
-   */
-  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, @Nullable String artifactToken)
+  /** Start running a job, abstracting its state as a {@link JobInvocation} instance. */
+  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
       throws IOException;
 }

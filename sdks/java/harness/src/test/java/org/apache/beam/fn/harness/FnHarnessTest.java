@@ -57,7 +57,8 @@ public class FnHarnessTest {
       .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
       .build();
 
-  @Test
+  @Test(timeout = 10 * 1000)
+  @SuppressWarnings("FutureReturnValueIgnored") // failure will cause test to timeout.
   public void testLaunchFnHarnessAndTeardownCleanly() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -118,7 +119,7 @@ public class FnHarnessTest {
             .setUrl("localhost:" + controlServer.getPort())
             .build();
 
-        FnHarness.main(options, loggingDescriptor, controlDescriptor);
+        FnHarness.main("id", options, loggingDescriptor, controlDescriptor);
         assertThat(instructionResponses, contains(INSTRUCTION_RESPONSE));
       } finally {
         controlServer.shutdownNow();

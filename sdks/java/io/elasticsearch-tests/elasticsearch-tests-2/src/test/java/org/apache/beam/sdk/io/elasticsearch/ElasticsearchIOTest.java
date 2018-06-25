@@ -212,4 +212,10 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithFullAddressing();
   }
+
+  @Test
+  public void testWritePartialUpdate() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
 }

@@ -615,7 +615,7 @@ public class TestDataflowRunnerTest {
 
   static class TestSuccessMatcher extends BaseMatcher<PipelineResult> implements
       SerializableMatcher<PipelineResult> {
-    private final DataflowPipelineJob mockJob;
+    private final transient DataflowPipelineJob mockJob;
     private final int called;
 
     public TestSuccessMatcher(DataflowPipelineJob job, int times) {

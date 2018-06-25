@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRow;
 
@@ -73,7 +74,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
               new DoFn<KV<byte[], byte[]>, Row>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
-                  String rowInString = new String(c.element().getValue());
+                  String rowInString = new String(c.element().getValue(), UTF_8);
                   c.output(csvLine2BeamRow(format, rowInString, schema));
                 }
               }));
@@ -100,7 +101,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Row in = c.element();
-                  c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes()));
+                  c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes(UTF_8)));
                 }
               }));
     }

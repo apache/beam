@@ -24,10 +24,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.junit.Test;
 
 /** UnitTest for {@link BigQueryTableProvider}. */
@@ -58,8 +56,8 @@ public class BigQueryTableProviderTest {
         .location("project:dataset.table")
         .schema(
             Stream.of(
-                    Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
-                    Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
+                    Schema.Field.nullable("id", Schema.FieldType.INT32),
+                    Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type("bigquery")
         .build();

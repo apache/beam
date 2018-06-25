@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% include head.html %}
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    {% include header.html %}
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            {% include {{ page.section_menu }} %}
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        {% include page-toc.html html=content h_min=2 h_max=3 class="nav" %}
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        {{ content }}
+      </div>
+    </div>
+    {% include footer.html %}
+  </body>
+</html>

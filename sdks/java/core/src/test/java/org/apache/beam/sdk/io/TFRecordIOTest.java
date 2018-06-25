@@ -71,7 +71,7 @@ public class TFRecordIOTest {
   >>> writer.write('foo')
   >>> writer.close()
   >>> with open('/tmp/python_foo.tfrecord', 'rb') as f:
-  ...   data =  base64.b64encode(f.read())
+  ...   data = base64.b64encode(f.read())
   ...   print data
   */
   private static final String FOO_RECORD_BASE64 = "AwAAAAAAAACwmUkOZm9vYYq+/g==";

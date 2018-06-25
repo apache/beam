@@ -78,6 +78,17 @@ def testsConfigurations = [
                         numberOfRecords: '100000',
                         charset: 'UTF-8'
                 ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_ParquetIOIT_HDFS',
+                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_ParquetIOIT on HDFS',
+                itClass           : 'org.apache.beam.sdk.io.parquet.ParquetIOIT',
+                bqTable           : 'beam_performance.parquetioit_hdfs_pkb_results',
+                prCommitStatusName: 'Java ParquetIOPerformance Test on HDFS',
+                prTriggerPhase    : 'Run Java ParquetIO Performance Test HDFS',
+                extraPipelineArgs: [
+                        numberOfRecords: '1000000'
+                ]
         ]
 ]
 
@@ -105,7 +116,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         // don't email individual committers.
         common_job_properties.setPostCommit(
                 delegate,
-                '0 */6 * * *',
+                'H */6 * * *',
                 false,
                 'commits@beam.apache.org',
                 false)
@@ -124,7 +135,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
-        String namespace = common_job_properties.getKubernetesNamespace('filebasedioithdfs')
+        String namespace = common_job_properties.getKubernetesNamespace(testConfiguration.jobName)
         String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
         def argMap = [
@@ -140,7 +151,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_extra_mvn_properties: '["filesystem=hdfs"]',
                 bigquery_table           : testConfiguration.bqTable,
                 beam_options_config_file : makePathAbsolute('pkb-config.yml'),
-                beam_kubernetes_scripts  : makePathAbsolute('hdfs-single-datanode-cluster.yml') + ',' + makePathAbsolute('hdfs-single-datanode-cluster-for-local-dev.yml')
+                beam_kubernetes_scripts  : makePathAbsolute('hdfs-multi-datanode-cluster.yml')
         ]
         common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
         common_job_properties.buildPerformanceTest(delegate, argMap)
@@ -149,5 +160,5 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
 }
 
 static def makePathAbsolute(String path) {
-    return '"$WORKSPACE/src/.test-infra/kubernetes/hadoop/SmallITCluster/' + path + '"'
+    return '"$WORKSPACE/src/.test-infra/kubernetes/hadoop/LargeITCluster/' + path + '"'
 }

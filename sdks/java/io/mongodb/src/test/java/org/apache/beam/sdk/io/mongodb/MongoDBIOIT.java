@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import com.google.common.collect.ImmutableMap;
@@ -26,6 +27,8 @@ import java.util.Map;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,19 +37,19 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.bson.Document;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
 /**
  * A test of {@link org.apache.beam.sdk.io.mongodb.MongoDbIO} on an independent Mongo instance.
  *
  * <p>This test requires a running instance of MongoDB. Pass in connection information using
  * PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/mongodb -DintegrationTestPipelineOptions='[
  *  "--mongoDBHostName=1.2.3.4",
@@ -57,75 +60,91 @@ import org.junit.runners.JUnit4;
  *  -DintegrationTestRunner=direct
  * </pre>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class MongoDBIOIT {
 
-  private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
-    1000, "75a0d5803418444e76ae5b421662764c",
-    100_000, "3bc762dc1c291904e3c7f577774c6276",
-    10_000_000, "e5e0503902018c83e8c8977ef437feba"
-  );
+  /** MongoDBIOIT options. */
+  public interface MongoDBPipelineOptions extends IOTestPipelineOptions {
+    @Description("MongoDB host (host name/ip address)")
+    @Default.String("mongodb-host")
+    String getMongoDBHostName();
 
-  private static int numberOfRecords;
+    void setMongoDBHostName(String host);
 
-  private static String host;
+    @Description("Port for MongoDB")
+    @Default.Integer(27017)
+    Integer getMongoDBPort();
 
-  private static Integer port;
+    void setMongoDBPort(Integer port);
 
-  private static String database;
+    @Description("Mongo database name")
+    @Default.String("beam")
+    String getMongoDBDatabaseName();
 
+    void setMongoDBDatabaseName(String name);
+  }
+
+  private static final Map<Integer, String> EXPECTED_HASHES =
+      ImmutableMap.of(
+          1000, "75a0d5803418444e76ae5b421662764c",
+          100_000, "3bc762dc1c291904e3c7f577774c6276",
+          10_000_000, "e5e0503902018c83e8c8977ef437feba");
+
+  private static MongoDBPipelineOptions options;
   private static String collection;
 
-  @Rule
-  public final TestPipeline writePipeline = TestPipeline.create();
-
-  @Rule
-  public final TestPipeline readPipeline = TestPipeline.create();
+  @Rule public final TestPipeline writePipeline = TestPipeline.create();
+  @Rule public final TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
-      .as(IOTestPipelineOptions.class);
-
-    numberOfRecords = options.getNumberOfRecords();
-    host = options.getMongoDBHostName();
-    port = options.getMongoDBPort();
-    database = options.getMongoDBDatabaseName();
+    PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
     collection = String.format("test_%s", new Date().getTime());
   }
 
-  @After
-  public void tearDown() {
-    new MongoClient(host).getDatabase(database).drop();
+  @AfterClass
+  public static void tearDown() throws Exception {
+    executeWithRetry(MongoDBIOIT::dropDatabase);
+  }
+
+  public static void dropDatabase() throws Exception {
+    new MongoClient(options.getMongoDBHostName())
+        .getDatabase(options.getMongoDBDatabaseName())
+        .drop();
   }
 
   @Test
   public void testWriteAndRead() {
-    String mongoUrl = String.format("mongodb://%s:%s", host, port);
+    final String mongoUrl =
+        String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
 
     writePipeline
-      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
-      .apply("Produce documents", MapElements.via(new LongToDocumentFn()))
-      .apply("Write documents to MongoDB", MongoDbIO.write()
-        .withUri(mongoUrl)
-        .withDatabase(database)
-        .withCollection(collection));
-
+        .apply("Generate sequence", GenerateSequence.from(0).to(options.getNumberOfRecords()))
+        .apply("Produce documents", MapElements.via(new LongToDocumentFn()))
+        .apply(
+            "Write documents to MongoDB",
+            MongoDbIO.write()
+                .withUri(mongoUrl)
+                .withDatabase(options.getMongoDBDatabaseName())
+                .withCollection(collection));
     writePipeline.run().waitUntilFinish();
 
-    PCollection<String> consolidatedHashcode  = readPipeline
-      .apply("Read all documents", MongoDbIO.read()
-        .withUri(mongoUrl)
-        .withDatabase(database)
-        .withCollection(collection))
-      .apply("Map documents to Strings", MapElements.via(new DocumentToStringFn()))
-      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode =
+        readPipeline
+            .apply(
+                "Read all documents",
+                MongoDbIO.read()
+                    .withUri(mongoUrl)
+                    .withDatabase(options.getMongoDBDatabaseName())
+                    .withCollection(collection))
+            .apply("Map documents to Strings", MapElements.via(new DocumentToStringFn()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
+    String expectedHash = getHashForRecordCount(options.getNumberOfRecords(), EXPECTED_HASHES);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline.run().waitUntilFinish();

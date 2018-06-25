@@ -73,7 +73,8 @@ public class PipelineOptionsTest {
         new HashMap<>(),
         Collections.emptyList(),
         null,
-        null);
+        null, /* key coder */
+        null /* key selector */);
   }
 
   /**
@@ -97,7 +98,8 @@ public class PipelineOptionsTest {
             new HashMap<>(),
             Collections.emptyList(),
             options,
-            null);
+            null, /* key coder */
+            null /* key selector */);
 
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 

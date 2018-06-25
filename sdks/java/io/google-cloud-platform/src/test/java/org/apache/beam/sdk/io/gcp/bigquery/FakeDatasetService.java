@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -46,7 +47,8 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
-class FakeDatasetService implements DatasetService, Serializable {
+@Experimental(Experimental.Kind.SOURCE_SINK)
+public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
   static com.google.common.collect.Table<String, String, Map<String, TableContainer>>
@@ -76,7 +78,7 @@ class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
-  List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
+  public List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
     synchronized (tables) {
       return getTableContainer(projectId, datasetId, tableId).getRows();

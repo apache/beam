@@ -61,6 +61,12 @@ public interface NexmarkOptions
 
   void setSinkType(NexmarkUtils.SinkType sinkType);
 
+  @Description("Shall we export the summary to BigQuery.")
+  @Default.Boolean(false)
+  Boolean getExportSummaryToBigQuery();
+
+  void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
+
   @Description("Which mode to run in when source is PUBSUB.")
   @Nullable
   NexmarkUtils.PubSubMode getPubSubMode();
@@ -99,6 +105,12 @@ public interface NexmarkOptions
   String getBigQueryTable();
 
   void setBigQueryTable(String bigQueryTable);
+
+  @Description("BigQuery dataset")
+  @Default.String("nexmark")
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(String bigQueryDataset);
 
   @Description("Approximate number of events to generate. "
                + "Zero for effectively unlimited in streaming mode.")
@@ -172,19 +184,16 @@ public interface NexmarkOptions
   void setUseWallclockEventTime(Boolean useWallclockEventTime);
 
   @Description("Assert pipeline results match model results.")
-  @Nullable
   boolean getAssertCorrectness();
 
   void setAssertCorrectness(boolean assertCorrectness);
 
   @Description("Log all input events.")
-  @Nullable
   boolean getLogEvents();
 
   void setLogEvents(boolean logEvents);
 
   @Description("Log all query results.")
-  @Nullable
   boolean getLogResults();
 
   void setLogResults(boolean logResults);
@@ -282,7 +291,6 @@ public interface NexmarkOptions
 
   @Description("If true, don't run the actual query. Instead, calculate the distribution "
                + "of number of query results per (event time) minute according to the query model.")
-  @Nullable
   boolean getJustModelResultRate();
 
   void setJustModelResultRate(boolean justModelResultRate);

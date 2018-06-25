@@ -321,7 +321,7 @@ public class MqttIO {
 
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
-        throws java.io.IOException, ClassNotFoundException {
+        throws IOException, ClassNotFoundException {
       messages = new ArrayList<>();
     }
 

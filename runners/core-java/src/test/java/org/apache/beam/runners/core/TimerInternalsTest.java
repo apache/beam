@@ -102,7 +102,7 @@ public class TimerInternalsTest {
   public void testCompareByNamespace() {
     Instant timestamp = new Instant(100);
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), timestamp);
-    IntervalWindow secondWindow =  new IntervalWindow(timestamp, new Instant(200));
+    IntervalWindow secondWindow = new IntervalWindow(timestamp, new Instant(200));
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
 
     StateNamespace firstWindowNs = StateNamespaces.window(windowCoder, firstWindow);

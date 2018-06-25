@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
@@ -56,13 +56,16 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
-  shadow library.java.junit
-  shadow library.java.hamcrest_core
   shadow library.java.commons_lang3
   shadow library.java.kafka_clients
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
+  provided library.java.junit
+  provided library.java.hamcrest_core
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
 
   gradleRun project(path: project.path, configuration: "shadow")
   gradleRun project(path: nexmarkRunnerDependency, configuration: "shadow")

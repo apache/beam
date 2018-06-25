@@ -41,7 +41,7 @@ class TableContainer {
   long addRow(TableRow row, String id) {
     rows.add(row);
     ids.add(id);
-    long rowSize =  row.toString().length();
+    long rowSize = row.toString().length();
     Long tableSize = table.getNumBytes();
     if (tableSize == null) {
       table.setNumBytes(rowSize);

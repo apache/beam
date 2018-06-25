@@ -96,6 +96,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   @Override
+  @SuppressWarnings("Finally")
   public SparkPipelineResult run(Pipeline pipeline) {
     // Default options suffice to set it up as a test runner
     TestSparkPipelineOptions testSparkOptions =

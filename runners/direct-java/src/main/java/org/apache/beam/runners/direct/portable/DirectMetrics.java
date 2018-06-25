@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
@@ -109,9 +110,11 @@ class DirectMetrics extends MetricResults {
      * @param bundle The bundle being committed.
      * @param finalCumulative The final cumulative value for the given bundle.
      */
+    @SuppressWarnings("FutureReturnValueIgnored") // direct runner metrics are best-effort;
+                                                  // we choose not to block on async commit
     public void commitPhysical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
       // To prevent a query from blocking the commit, we perform the commit in two steps.
-      // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
+      // 1. We perform a non-blocking write to the uncommitted table to make the new value
       //    available immediately.
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
@@ -246,9 +249,13 @@ class DirectMetrics extends MetricResults {
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
+    @Override
     public abstract MetricName getName();
+    @Override
     public abstract String getStep();
+    @Override
     public abstract T getCommitted();
+    @Override
     public abstract T getAttempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
@@ -258,7 +265,7 @@ class DirectMetrics extends MetricResults {
   }
 
   @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
+  public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
     for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {
       maybeExtractResult(filter, counterResults, counter);

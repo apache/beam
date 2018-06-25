@@ -132,7 +132,7 @@ public class DirectTransformExecutorTest {
     executor.run();
 
     assertThat(finishCalled.get(), is(true));
-    assertThat(completionCallback.handledResult, Matchers.equalTo(result));
+    assertThat(completionCallback.handledResult, equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
@@ -191,16 +191,18 @@ public class DirectTransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    Executors.newSingleThreadExecutor().submit(executor);
+    Future<?> future = Executors.newSingleThreadExecutor().submit(executor);
 
     evaluatorCompleted.await();
+    future.get();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
-    assertThat(completionCallback.handledResult, Matchers.equalTo(result));
+    assertThat(completionCallback.handledResult, equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void processElementThrowsExceptionCallsback() throws Exception {
     final TransformResult<String> result =
         StepTransformResult.<String>withoutHold(downstreamProducer).build();
@@ -241,6 +243,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void finishBundleThrowsExceptionCallsback() throws Exception {
     final Exception exception = new Exception();
     TransformEvaluator<String> evaluator =
@@ -309,8 +312,8 @@ public class DirectTransformExecutorTest {
 
     executor.run();
     TestEnforcement<?> testEnforcement = enforcement.instance;
-    assertThat(testEnforcement.beforeElements, Matchers.containsInAnyOrder(barElem, fooElem));
-    assertThat(testEnforcement.afterElements, Matchers.containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.beforeElements, containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.afterElements, containsInAnyOrder(barElem, fooElem));
     assertThat(testEnforcement.finishedBundles, Matchers.contains(result));
   }
 

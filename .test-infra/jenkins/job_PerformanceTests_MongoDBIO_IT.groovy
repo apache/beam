@@ -18,7 +18,9 @@
 
 import common_job_properties
 
-job('beam_PerformanceTests_MongoDBIO_IT') {
+String jobName = "beam_PerformanceTests_MongoDBIO_IT"
+
+job(jobName) {
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
@@ -26,7 +28,7 @@ job('beam_PerformanceTests_MongoDBIO_IT') {
     // don't email individual committers.
     common_job_properties.setPostCommit(
             delegate,
-            '0 */6 * * *',
+            'H */6 * * *',
             false,
             'commits@beam.apache.org',
             false)
@@ -42,7 +44,7 @@ job('beam_PerformanceTests_MongoDBIO_IT') {
             numberOfRecords: '10000000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace('mongodbioit')
+    String namespace = common_job_properties.getKubernetesNamespace(jobName)
     String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [

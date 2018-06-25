@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.FAMOUS_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.NUM_SCIENTISTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.countByMatch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.countByScientistName;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -344,11 +346,11 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticSearchIOTestUtils.createDocuments(
             adjustedNumDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
-            .apply(Create.of(data))
-            .apply(
-                    ElasticsearchIO.write()
-                            .withConnectionConfiguration(connectionConfiguration)
-                            .withIndexFn(new ExtractValueFn("scientist")));
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIndexFn(new ExtractValueFn("scientist")));
     pipeline.run();
 
     // verify counts on each index
@@ -433,5 +435,52 @@ class ElasticsearchIOTestCommon implements Serializable {
       }
 
     }
+  }
+
+  /**
+   * Tests partial updates by adding a group field to each document in the standard test set. The
+   * group field is populated as the modulo 2 of the document id allowing for a test to ensure the
+   * documents are split into 2 groups.
+   */
+  void testWritePartialUpdate() throws Exception {
+    if (!useAsITests) {
+      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    // defensive coding to ensure our initial state is as expected
+
+    long currentNumDocs =
+        refreshIndexAndGetCurrentNumDocs(
+            connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    // partial documents containing the ID and group only
+    List<String> data = new ArrayList<>();
+    for (int i = 0; i < numDocs; i++) {
+      data.add(String.format("{\"id\" : %s, \"group\" : %s}", i, i % 2));
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractValueFn("id"))
+                .withUsePartialUpdate(true));
+    pipeline.run();
+
+    currentNumDocs =
+        refreshIndexAndGetCurrentNumDocs(
+            connectionConfiguration, restClient);
+
+    // check we have not unwittingly modified existing behaviour
+    assertEquals(numDocs, currentNumDocs);
+    assertEquals(
+        numDocs / NUM_SCIENTISTS,
+        countByScientistName(connectionConfiguration, restClient, "Einstein"));
+
+    // Partial update assertions
+    assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "0"));
+    assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
   }
 }

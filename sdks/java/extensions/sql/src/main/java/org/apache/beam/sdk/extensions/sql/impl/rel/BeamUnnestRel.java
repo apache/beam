@@ -20,8 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
@@ -32,7 +35,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -61,11 +64,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
-    return new Transform();
-  }
-
-  @Override
   public Correlate copy(
       RelTraitSet relTraitSet,
       RelNode left,
@@ -77,14 +75,21 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
         getCluster(), relTraitSet, left, right, correlationId, requiredColumns, joinType);
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamUnnestRel.this);
+  @Override
+  public List<RelNode> getPCollectionInputs() {
+    return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
+  }
 
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
       // The set of rows where we run the correlated unnest for each row
-      PCollection<Row> outer =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(left).toPTransform());
+      PCollection<Row> outer = pinput.get(0);
 
       // The correlated subquery
       BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
@@ -93,13 +98,13 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
           innerSchema.getFieldCount() == 1, "Can only UNNEST a single column", getClass());
 
       BeamSqlExpressionExecutor expr =
-          new BeamSqlFnExecutor(BeamSqlRelUtils.getBeamRelInput(uncollect.getInput()));
+          new BeamSqlFnExecutor(
+              ((BeamCalcRel) BeamSqlRelUtils.getBeamRelInput(uncollect.getInput())).getProgram());
 
       Schema joinedSchema = CalciteUtils.toBeamSchema(rowType);
 
       return outer
           .apply(
-              stageName,
               ParDo.of(
                   new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
           .setCoder(joinedSchema.getRowCoder());
@@ -129,7 +134,16 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
     @ProcessElement
     public void process(@Element Row row, BoundedWindow window, OutputReceiver<Row> out) {
 
-      List<Object> rawValues = expr.execute(row, window, ImmutableMap.of(correlationId, row));
+      checkState(correlationId == 0, "Only one level of correlation nesting is supported");
+      BeamSqlExpressionEnvironment env =
+          BeamSqlExpressionEnvironments.forRowAndCorrelVariables(
+              row, window, ImmutableList.of(row));
+
+      @Nullable List<Object> rawValues = expr.execute(row, window, env);
+
+      if (rawValues == null) {
+        return;
+      }
 
       checkState(
           rawValues.size() == 1,

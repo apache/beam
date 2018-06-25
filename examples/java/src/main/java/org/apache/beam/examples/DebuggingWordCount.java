@@ -138,7 +138,7 @@ public class DebuggingWordCount {
          .apply(new WordCount.CountWords())
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
-    /**
+    /*
      * Concept #3: PAssert is a set of convenient PTransforms in the style of
      * Hamcrest's collection matchers that can be used when writing Pipeline level tests
      * to validate the contents of PCollections. PAssert is best used in unit tests

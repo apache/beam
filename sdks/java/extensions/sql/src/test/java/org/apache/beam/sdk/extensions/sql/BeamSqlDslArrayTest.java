@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,10 +34,10 @@ import org.junit.rules.ExpectedException;
 /** Tests for SQL arrays. */
 public class BeamSqlDslArrayTest {
 
-  private static final Schema INPUT_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("f_int")
-          .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
+  private static final Schema INPUT_SCHEMA =
+      Schema.builder()
+          .addInt32Field("f_int")
+          .addArrayField("f_stringArr", Schema.FieldType.STRING)
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -49,14 +48,15 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arr", SqlTypeName.VARCHAR)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arr", Schema.FieldType.STRING)
             .build();
 
     PCollection<Row> result =
         input.apply(
-            "sqlQuery", BeamSql.query("SELECT 42, ARRAY ['aa', 'bb'] as `f_arr` FROM PCOLLECTION"));
+            "sqlQuery",
+            SqlTransform.query("SELECT 42, ARRAY ['aa', 'bb'] as `f_arr` FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -71,13 +71,13 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_stringArr", Schema.FieldType.STRING)
             .build();
 
     PCollection<Row> result =
-        input.apply("sqlQuery", BeamSql.query("SELECT f_int, f_stringArr FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT f_int, f_stringArr FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -94,10 +94,10 @@ public class BeamSqlDslArrayTest {
   public void testAccessArrayElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_arrElem").build();
+    Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
-        input.apply("sqlQuery", BeamSql.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -109,17 +109,16 @@ public class BeamSqlDslArrayTest {
 
   @Test
   public void testSingleElement() throws Exception {
-    Row inputRow =
-        Row.withSchema(INPUT_ROW_TYPE).addValues(1).addArray(Arrays.asList("111")).build();
+    Row inputRow = Row.withSchema(INPUT_SCHEMA).addValues(1).addArray(Arrays.asList("111")).build();
 
     PCollection<Row> input =
         PBegin.in(pipeline)
-            .apply("boundedInput1", Create.of(inputRow).withCoder(INPUT_ROW_TYPE.getRowCoder()));
+            .apply("boundedInput1", Create.of(inputRow).withCoder(INPUT_SCHEMA.getRowCoder()));
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_arrElem").build();
+    Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
-        input.apply("sqlQuery", BeamSql.query("SELECT ELEMENT(f_stringArr) FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT ELEMENT(f_stringArr) FROM PCOLLECTION"));
 
     PAssert.that(result).containsInAnyOrder(Row.withSchema(resultType).addValues("111").build());
 
@@ -130,10 +129,11 @@ public class BeamSqlDslArrayTest {
   public void testCardinality() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_size").build();
+    Schema resultType = Schema.builder().addInt32Field("f_size").build();
 
     PCollection<Row> result =
-        input.apply("sqlQuery", BeamSql.query("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
+        input.apply(
+            "sqlQuery", SqlTransform.query("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -146,16 +146,17 @@ public class BeamSqlDslArrayTest {
   @Test
   public void testUnnestLiteral() {
     PCollection<Row> input =
-        PBegin.in(pipeline).apply("boundedInput1", Create.empty(INPUT_ROW_TYPE.getRowCoder()));
+        PBegin.in(pipeline).apply("boundedInput1", Create.empty(INPUT_SCHEMA.getRowCoder()));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
     PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_string").build();
+    Schema resultType = Schema.builder().addStringField("f_string").build();
 
     PCollection<Row> result =
-        inputTuple.apply("sqlQuery", BeamSql.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c'])"));
+        inputTuple.apply(
+            "sqlQuery", SqlTransform.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c'])"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -169,18 +170,18 @@ public class BeamSqlDslArrayTest {
   @Test
   public void testUnnestNamedLiteral() {
     PCollection<Row> input =
-        PBegin.in(pipeline).apply("boundedInput1", Create.empty(INPUT_ROW_TYPE.getRowCoder()));
+        PBegin.in(pipeline).apply("boundedInput1", Create.empty(INPUT_SCHEMA.getRowCoder()));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
     PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_string").build();
+    Schema resultType = Schema.builder().addStringField("f_string").build();
 
     PCollection<Row> result =
         inputTuple.apply(
             "sqlQuery",
-            BeamSql.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c']) AS t(f_string)"));
+            SqlTransform.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c']) AS t(f_string)"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -194,29 +195,28 @@ public class BeamSqlDslArrayTest {
   @Test
   public void testUnnestCrossJoin() {
     Row row1 =
-        Row.withSchema(INPUT_ROW_TYPE)
+        Row.withSchema(INPUT_SCHEMA)
             .addValues(42)
             .addArray(Arrays.asList("111", "222", "333"))
             .build();
 
     Row row2 =
-        Row.withSchema(INPUT_ROW_TYPE).addValues(13).addArray(Arrays.asList("444", "555")).build();
+        Row.withSchema(INPUT_SCHEMA).addValues(13).addArray(Arrays.asList("444", "555")).build();
 
     PCollection<Row> input =
         PBegin.in(pipeline)
-            .apply("boundedInput1", Create.of(row1, row2).withCoder(INPUT_ROW_TYPE.getRowCoder()));
+            .apply("boundedInput1", Create.of(row1, row2).withCoder(INPUT_SCHEMA.getRowCoder()));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
     PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
 
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int").withVarcharField("f_string").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int").addStringField("f_string").build();
 
     PCollection<Row> result =
         inputTuple.apply(
             "sqlQuery",
-            BeamSql.query(
+            SqlTransform.query(
                 "SELECT f_int, arrElems.f_string FROM main "
                     + " CROSS JOIN UNNEST (main.f_stringArr) AS arrElems(f_string)"));
 
@@ -233,16 +233,18 @@ public class BeamSqlDslArrayTest {
 
   @Test
   public void testSelectRowsFromArrayOfRows() {
-    Schema elementRowType =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+    Schema elementSchema =
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultRowType =
-        RowSqlTypes.builder().withArrayField("f_resultArray", elementRowType).build();
+    Schema resultSchema =
+        Schema.builder()
+            .addArrayField("f_resultArray", Schema.FieldType.row(elementSchema))
+            .build();
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementRowType)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementSchema))
             .build();
 
     PCollection<Row> input =
@@ -253,36 +255,36 @@ public class BeamSqlDslArrayTest {
                             .addValues(
                                 1,
                                 Arrays.asList(
-                                    Row.withSchema(elementRowType).addValues("AA", 11).build(),
-                                    Row.withSchema(elementRowType).addValues("BB", 22).build()))
+                                    Row.withSchema(elementSchema).addValues("AA", 11).build(),
+                                    Row.withSchema(elementSchema).addValues("BB", 22).build()))
                             .build(),
                         Row.withSchema(inputType)
                             .addValues(
                                 2,
                                 Arrays.asList(
-                                    Row.withSchema(elementRowType).addValues("CC", 33).build(),
-                                    Row.withSchema(elementRowType).addValues("DD", 44).build()))
+                                    Row.withSchema(elementSchema).addValues("CC", 33).build(),
+                                    Row.withSchema(elementSchema).addValues("DD", 44).build()))
                             .build())
                     .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
-            .apply(BeamSql.query("SELECT f_arrayOfRows FROM PCOLLECTION"))
-            .setCoder(resultRowType.getRowCoder());
+            .apply(SqlTransform.query("SELECT f_arrayOfRows FROM PCOLLECTION"))
+            .setCoder(resultSchema.getRowCoder());
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultRowType)
+            Row.withSchema(resultSchema)
                 .addArray(
                     Arrays.asList(
-                        Row.withSchema(elementRowType).addValues("AA", 11).build(),
-                        Row.withSchema(elementRowType).addValues("BB", 22).build()))
+                        Row.withSchema(elementSchema).addValues("AA", 11).build(),
+                        Row.withSchema(elementSchema).addValues("BB", 22).build()))
                 .build(),
-            Row.withSchema(resultRowType)
+            Row.withSchema(resultSchema)
                 .addArray(
                     Arrays.asList(
-                        Row.withSchema(elementRowType).addValues("CC", 33).build(),
-                        Row.withSchema(elementRowType).addValues("DD", 44).build()))
+                        Row.withSchema(elementSchema).addValues("CC", 33).build(),
+                        Row.withSchema(elementSchema).addValues("DD", 44).build()))
                 .build());
 
     pipeline.run();
@@ -290,15 +292,15 @@ public class BeamSqlDslArrayTest {
 
   @Test
   public void testSelectSingleRowFromArrayOfRows() {
-    Schema elementRowType =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+    Schema elementSchema =
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultRowType = elementRowType;
+    Schema resultSchema = elementSchema;
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementRowType)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementSchema))
             .build();
 
     PCollection<Row> input =
@@ -309,42 +311,42 @@ public class BeamSqlDslArrayTest {
                             .addValues(
                                 1,
                                 Arrays.asList(
-                                    Row.withSchema(elementRowType).addValues("AA", 11).build(),
-                                    Row.withSchema(elementRowType).addValues("BB", 22).build()))
+                                    Row.withSchema(elementSchema).addValues("AA", 11).build(),
+                                    Row.withSchema(elementSchema).addValues("BB", 22).build()))
                             .build(),
                         Row.withSchema(inputType)
                             .addValues(
                                 2,
                                 Arrays.asList(
-                                    Row.withSchema(elementRowType).addValues("CC", 33).build(),
-                                    Row.withSchema(elementRowType).addValues("DD", 44).build()))
+                                    Row.withSchema(elementSchema).addValues("CC", 33).build(),
+                                    Row.withSchema(elementSchema).addValues("DD", 44).build()))
                             .build())
                     .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
-            .apply(BeamSql.query("SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
-            .setCoder(resultRowType.getRowCoder());
+            .apply(SqlTransform.query("SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
+            .setCoder(resultSchema.getRowCoder());
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(elementRowType).addValues("BB", 22).build(),
-            Row.withSchema(elementRowType).addValues("DD", 44).build());
+            Row.withSchema(elementSchema).addValues("BB", 22).build(),
+            Row.withSchema(elementSchema).addValues("DD", 44).build());
 
     pipeline.run();
   }
 
   @Test
   public void testSelectRowFieldFromArrayOfRows() {
-    Schema elementRowType =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+    Schema elementSchema =
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultRowType = RowSqlTypes.builder().withVarcharField("f_stringField").build();
+    Schema resultSchema = Schema.builder().addStringField("f_stringField").build();
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementRowType)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementSchema))
             .build();
 
     PCollection<Row> input =
@@ -355,27 +357,27 @@ public class BeamSqlDslArrayTest {
                             .addValues(
                                 1,
                                 Arrays.asList(
-                                    Row.withSchema(elementRowType).addValues("AA", 11).build(),
-                                    Row.withSchema(elementRowType).addValues("BB", 22).build()))
+                                    Row.withSchema(elementSchema).addValues("AA", 11).build(),
+                                    Row.withSchema(elementSchema).addValues("BB", 22).build()))
                             .build(),
                         Row.withSchema(inputType)
                             .addValues(
                                 2,
                                 Arrays.asList(
-                                    Row.withSchema(elementRowType).addValues("CC", 33).build(),
-                                    Row.withSchema(elementRowType).addValues("DD", 44).build()))
+                                    Row.withSchema(elementSchema).addValues("CC", 33).build(),
+                                    Row.withSchema(elementSchema).addValues("DD", 44).build()))
                             .build())
                     .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
-            .apply(BeamSql.query("SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
-            .setCoder(resultRowType.getRowCoder());
+            .apply(SqlTransform.query("SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
+            .setCoder(resultSchema.getRowCoder());
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultRowType).addValues("BB").build(),
-            Row.withSchema(resultRowType).addValues("DD").build());
+            Row.withSchema(resultSchema).addValues("BB").build(),
+            Row.withSchema(resultSchema).addValues("DD").build());
 
     pipeline.run();
   }
@@ -385,14 +387,14 @@ public class BeamSqlDslArrayTest {
         .apply(
             "boundedInput1",
             Create.of(
-                    Row.withSchema(INPUT_ROW_TYPE)
+                    Row.withSchema(INPUT_SCHEMA)
                         .addValues(1)
                         .addArray(Arrays.asList("111", "222"))
                         .build(),
-                    Row.withSchema(INPUT_ROW_TYPE)
+                    Row.withSchema(INPUT_SCHEMA)
                         .addValues(2)
                         .addArray(Arrays.asList("33", "44", "55"))
                         .build())
-                .withCoder(INPUT_ROW_TYPE.getRowCoder()));
+                .withCoder(INPUT_SCHEMA.getRowCoder()));
   }
 }

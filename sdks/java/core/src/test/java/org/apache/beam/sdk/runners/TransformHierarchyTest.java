@@ -238,7 +238,7 @@ public class TransformHierarchyTest implements Serializable {
     assertThat(replacement.getInputs(), equalTo(original.getInputs()));
     assertThat(replacement.getEnclosingNode(), equalTo(original.getEnclosingNode()));
     assertThat(replacement.getEnclosingNode(), equalTo(enclosing));
-    assertThat(replacement.getTransform(), Matchers.equalTo(replacementTransform));
+    assertThat(replacement.getTransform(), equalTo(replacementTransform));
     // THe tags of the replacement transform are matched to the appropriate PValues of the original
     assertThat(replacement.getOutputs().keySet(), Matchers.contains(taggedReplacement.getTag()));
     assertThat(replacement.getOutputs().values(), Matchers.contains(originalOutput));
@@ -344,7 +344,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.finishSpecifyingInput();
     assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
     assertThat(compositeNode.getInputs().entrySet(), Matchers.empty());
-    assertThat(compositeNode.getTransform(), Matchers.equalTo(create));
+    assertThat(compositeNode.getTransform(), equalTo(create));
     // Not yet set
     assertThat(compositeNode.getOutputs().entrySet(), Matchers.emptyIterable());
     assertThat(compositeNode.getEnclosingNode().isRootNode(), is(true));
@@ -354,14 +354,14 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.finishSpecifyingInput();
     hierarchy.setOutput(created);
     hierarchy.popNode();
-    assertThat(primitiveNode.getOutputs().values(), Matchers.containsInAnyOrder(created));
+    assertThat(primitiveNode.getOutputs().values(), containsInAnyOrder(created));
     assertThat(primitiveNode.getInputs().entrySet(), Matchers.emptyIterable());
-    assertThat(primitiveNode.getTransform(), Matchers.equalTo(read));
+    assertThat(primitiveNode.getTransform(), equalTo(read));
     assertThat(primitiveNode.getEnclosingNode(), equalTo(compositeNode));
 
     hierarchy.setOutput(created);
     // The composite is listed as outputting a PValue created by the contained primitive
-    assertThat(compositeNode.getOutputs().values(), Matchers.containsInAnyOrder(created));
+    assertThat(compositeNode.getOutputs().values(), containsInAnyOrder(created));
     // The producer of that PValue is still the primitive in which it is first output
     assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();
@@ -397,7 +397,7 @@ public class TransformHierarchyTest implements Serializable {
 
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(primitiveNode, otherPrimitive));
-    assertThat(visitedValuesInVisitor, Matchers.containsInAnyOrder(created, mapped));
+    assertThat(visitedValuesInVisitor, containsInAnyOrder(created, mapped));
     assertThat(visitedValuesInVisitor, equalTo(visitedValues));
   }
 
@@ -491,7 +491,7 @@ public class TransformHierarchyTest implements Serializable {
      */
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(upstreamNode, replacementParNode));
-    assertThat(visitedValues, Matchers.containsInAnyOrder(upstream, output));
+    assertThat(visitedValues, containsInAnyOrder(upstream, output));
   }
 
   @Test

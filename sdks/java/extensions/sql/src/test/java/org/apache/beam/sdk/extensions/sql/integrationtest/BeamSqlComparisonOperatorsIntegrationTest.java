@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
@@ -249,36 +248,81 @@ public class BeamSqlComparisonOperatorsIntegrationTest
     checker.buildRunAndCheck();
   }
 
+  @Test
+  public void testLike() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("s_string_1 LIKE 'string_true_test'", true)
+            .addExpr("s_string_1 LIKE 'string_false_test'", false)
+            .addExpr("s_string_2 LIKE 'string_false_test'", true)
+            .addExpr("s_string_2 LIKE 'string_true_test'", false)
+            .addExpr("s_string_1 LIKE 'string_true_test%'", true)
+            .addExpr("s_string_1 LIKE 'string_false_test%'", false)
+            .addExpr("s_string_1 LIKE 'string_true%'", true)
+            .addExpr("s_string_1 LIKE 'string_false%'", false)
+            .addExpr("s_string_1 LIKE 'string%test'", true)
+            .addExpr("s_string_1 LIKE '%test'", true)
+            .addExpr("s_string_1 LIKE '%string_true_test'", true)
+            .addExpr("s_string_1 LIKE '%string_false_test'", false)
+            .addExpr("s_string_1 LIKE '%false_test'", false)
+            .addExpr("s_string_2 LIKE '%false_test'", true)
+            .addExpr("s_string_1 LIKE 'string_tr_e_test'", true)
+            .addExpr("s_string_1 LIKE 'string______test'", true)
+            .addExpr("s_string_2 LIKE 'string______test'", false)
+            .addExpr("s_string_2 LIKE 'string_______test'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te___'", false)
+            .addExpr("s_string_2 LIKE 'string_false_te_'", false)
+            .addExpr("s_string_1 LIKE 'string_true_te__'", true)
+            .addExpr("s_string_1 LIKE '_ring_true_te__'", false)
+            .addExpr("s_string_2 LIKE '__ring_false_te__'", true)
+            .addExpr("s_string_1 LIKE '_%ring_true_te__'", true)
+            .addExpr("s_string_1 LIKE '_%tring_true_te__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te%__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te__%'", true)
+            .addExpr("s_string_2 LIKE 'string_false_t%__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_t__%'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te_%'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te%_'", true)
+            .addExpr("s_string_1 LIKE 'string_%test'", true)
+            .addExpr("s_string_1 LIKE 'string%_test'", true)
+            .addExpr("s_string_1 LIKE 'string_%_test'", true);
+
+    checker.buildRunAndCheck();
+  }
+
   @Override
   protected PCollection<Row> getTestPCollection() {
     Schema type =
-        RowSqlTypes.builder()
-            .withTinyIntField("c_tinyint_0")
-            .withTinyIntField("c_tinyint_1")
-            .withTinyIntField("c_tinyint_2")
-            .withSmallIntField("c_smallint_0")
-            .withSmallIntField("c_smallint_1")
-            .withSmallIntField("c_smallint_2")
-            .withIntegerField("c_integer_0")
-            .withIntegerField("c_integer_1")
-            .withIntegerField("c_integer_2")
-            .withBigIntField("c_bigint_0")
-            .withBigIntField("c_bigint_1")
-            .withBigIntField("c_bigint_2")
-            .withFloatField("c_float_0")
-            .withFloatField("c_float_1")
-            .withFloatField("c_float_2")
-            .withDoubleField("c_double_0")
-            .withDoubleField("c_double_1")
-            .withDoubleField("c_double_2")
-            .withDecimalField("c_decimal_0")
-            .withDecimalField("c_decimal_1")
-            .withDecimalField("c_decimal_2")
-            .withVarcharField("c_varchar_0")
-            .withVarcharField("c_varchar_1")
-            .withVarcharField("c_varchar_2")
-            .withBooleanField("c_boolean_false")
-            .withBooleanField("c_boolean_true")
+        Schema.builder()
+            .addByteField("c_tinyint_0")
+            .addByteField("c_tinyint_1")
+            .addByteField("c_tinyint_2")
+            .addInt16Field("c_smallint_0")
+            .addInt16Field("c_smallint_1")
+            .addInt16Field("c_smallint_2")
+            .addInt32Field("c_integer_0")
+            .addInt32Field("c_integer_1")
+            .addInt32Field("c_integer_2")
+            .addInt64Field("c_bigint_0")
+            .addInt64Field("c_bigint_1")
+            .addInt64Field("c_bigint_2")
+            .addFloatField("c_float_0")
+            .addFloatField("c_float_1")
+            .addFloatField("c_float_2")
+            .addDoubleField("c_double_0")
+            .addDoubleField("c_double_1")
+            .addDoubleField("c_double_2")
+            .addDecimalField("c_decimal_0")
+            .addDecimalField("c_decimal_1")
+            .addDecimalField("c_decimal_2")
+            .addStringField("c_varchar_0")
+            .addStringField("c_varchar_1")
+            .addStringField("c_varchar_2")
+            .addBooleanField("c_boolean_false")
+            .addBooleanField("c_boolean_true")
+            .addStringField("s_string_1")
+            .addStringField("s_string_2")
             .build();
 
     try {
@@ -309,8 +353,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               "b",
               "c",
               false,
-              true)
-          .buildIOReader(pipeline)
+              true,
+              "string_true_test",
+              "string_false_test")
+          .buildIOReader(pipeline.begin())
           .setCoder(type.getRowCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);

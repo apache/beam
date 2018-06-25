@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -45,8 +42,8 @@ public class ProvidedSparkContextTest {
     private static final String[] WORDS_ARRAY = {
             "hi there", "hi", "hi sue bob",
             "hi sue", "", "bob hi"};
-    private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
-    private static final Set<String> EXPECTED_COUNT_SET =
+    private static final ImmutableList<String> WORDS = ImmutableList.copyOf(WORDS_ARRAY);
+    private static final ImmutableSet<String> EXPECTED_COUNT_SET =
             ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
     private static final String PROVIDED_CONTEXT_EXCEPTION =
             "The provided Spark context was not created or was stopped";

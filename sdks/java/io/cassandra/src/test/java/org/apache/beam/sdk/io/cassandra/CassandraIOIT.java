@@ -17,40 +17,36 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
-import static org.junit.Assert.assertEquals;
-
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A test of {@link CassandraIO} on a concrete and independent Cassandra instance.
@@ -62,7 +58,9 @@ import org.junit.runners.JUnit4;
  * <pre>{@code
  * ./gradlew integrationTest -p sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
  * "--cassandraHost=1.2.3.4",
- * "--cassandraPort=9042"]'
+ * "--cassandraPort=9042"
+ * "--numberOfRecords=1000"
+ * ]'
  * --tests org.apache.beam.sdk.io.cassandra.CassandraIOIT
  * -DintegrationTestRunner=direct
  * }</pre>
@@ -70,159 +68,162 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CassandraIOIT implements Serializable {
 
-  private static IOTestPipelineOptions options;
+  /** CassandraIOIT options. */
+  public interface CassandraIOITOptions extends IOTestPipelineOptions {
+    @Description("Host for Cassandra server (host name/ip address)")
+    @Validation.Required
+    List<String> getCassandraHost();
 
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+    void setCassandraHost(List<String> host);
+
+    @Description("Port for Cassandra server")
+    @Default.Integer(9042)
+    Integer getCassandraPort();
+
+    void setCassandraPort(Integer port);
+  }
+
+  private static final Logger LOG = LoggerFactory.getLogger(CassandraIOIT.class);
+
+  private static CassandraIOITOptions options;
+  private static final String KEYSPACE = "BEAM";
+  private static final String TABLE = "BEAM_TEST";
+
+  @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
+  @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+    options = IOITHelper.readIOTestPipelineOptions(CassandraIOITOptions.class);
+
+    dropTable(options, KEYSPACE, TABLE);
+    createTable(options, KEYSPACE, TABLE);
   }
 
   @AfterClass
   public static void tearDown() {
-    // cleanup the write table
-    CassandraTestDataSet.cleanUpDataTable(options);
+    dropTable(options, KEYSPACE, TABLE);
   }
 
+  /** Tests writing then reading data for a HBase database. */
   @Test
-  public void testRead() {
-    PCollection<Scientist> output = pipeline.apply(CassandraIO.<Scientist>read()
-        .withHosts(Collections.singletonList(options.getCassandraHost()))
+  public void testWriteThenRead() {
+    runWrite();
+    runRead();
+  }
+
+  private void runWrite() {
+    pipelineWrite
+        .apply("GenSequence", GenerateSequence.from(0).to((long) options.getNumberOfRecords()))
+        .apply("PrepareTestRows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+        .apply("MapToEntity", ParDo.of(new CreateScientistFn()))
+        .apply(
+            "WriteToCassandra",
+            CassandraIO.<Scientist>write()
+                .withHosts(options.getCassandraHost())
+                .withPort(options.getCassandraPort())
+                .withKeyspace(KEYSPACE)
+                .withEntity(Scientist.class));
+
+    pipelineWrite.run().waitUntilFinish();
+  }
+
+  private void runRead() {
+    PCollection<Scientist> output =
+        pipelineRead.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(options.getCassandraHost())
+                .withPort(options.getCassandraPort())
+                .withMinNumberOfSplits(20)
+                .withKeyspace(KEYSPACE)
+                .withTable(TABLE)
+                .withEntity(Scientist.class)
+                .withCoder(SerializableCoder.of(Scientist.class)));
+
+    PCollection<String> consolidatedHashcode =
+        output
+            .apply(ParDo.of(new SelectNameFn()))
+            .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
+
+    PAssert.thatSingleton(consolidatedHashcode)
+        .isEqualTo(TestRow.getExpectedHashForRowCount(options.getNumberOfRecords()));
+
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  private static Cluster getCluster(CassandraIOITOptions options) {
+    return Cluster.builder()
+        .addContactPoints(options.getCassandraHost().toArray(new String[0]))
         .withPort(options.getCassandraPort())
-        .withMinNumberOfSplits(20)
-        .withKeyspace(CassandraTestDataSet.KEYSPACE)
-        .withTable(CassandraTestDataSet.TABLE_READ_NAME)
-        .withEntity(Scientist.class)
-        .withCoder(SerializableCoder.of(Scientist.class)));
-
-    PAssert.thatSingleton(output.apply("Count scientist", Count.globally())).isEqualTo(1000L);
-
-    PCollection<KV<String, Integer>> mapped =
-        output.apply(
-            MapElements.via(
-                new SimpleFunction<Scientist, KV<String, Integer>>() {
-                  @Override
-                  public KV<String, Integer> apply(Scientist scientist) {
-                    return KV.of(scientist.name, scientist.id);
-                  }
-                }
-            )
-        );
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
-        .satisfies(
-            input -> {
-              for (KV<String, Long> element : input) {
-                assertEquals(element.getKey(), 1000 / 10, element.getValue().longValue());
-              }
-              return null;
-            });
-
-    pipeline.run().waitUntilFinish();
+        .build();
   }
 
-  @Test
-  public void testWrite() {
-    IOTestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
+  private static void createTable(CassandraIOITOptions options, String keyspace, String tableName) {
+    try (Cluster cluster = getCluster(options);
+        Session session = cluster.connect()) {
+      LOG.info("Create {} keyspace if not exists", keyspace);
+      session.execute(
+          "CREATE KEYSPACE IF NOT EXISTS "
+              + KEYSPACE
+              + " WITH REPLICATION = "
+              + "{'class':'SimpleStrategy', 'replication_factor':3};");
 
-    options.setOnSuccessMatcher(
-        new CassandraMatcher(
-            CassandraTestDataSet.getCluster(options),
-            CassandraTestDataSet.TABLE_WRITE_NAME));
+      session.execute("USE " + keyspace);
 
-    ArrayList<ScientistForWrite> data = new ArrayList<>();
-    for (int i = 0; i < 1000; i++) {
-      ScientistForWrite scientist = new ScientistForWrite();
-      scientist.id = i;
-      scientist.name = "Name " + i;
-      data.add(scientist);
-    }
-
-    pipeline
-        .apply(Create.of(data))
-        .apply(CassandraIO.<ScientistForWrite>write()
-            .withHosts(Collections.singletonList(options.getCassandraHost()))
-            .withPort(options.getCassandraPort())
-            .withKeyspace(CassandraTestDataSet.KEYSPACE)
-            .withEntity(ScientistForWrite.class));
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  /**
-   * Simple matcher.
-   */
-  static class CassandraMatcher extends TypeSafeMatcher<PipelineResult>
-      implements SerializableMatcher<PipelineResult> {
-
-    private final String tableName;
-    private final Cluster cluster;
-
-    CassandraMatcher(Cluster cluster, String tableName) {
-      this.cluster = cluster;
-      this.tableName = tableName;
-    }
-
-    @Override
-    protected boolean matchesSafely(PipelineResult pipelineResult) {
-      pipelineResult.waitUntilFinish();
-      Session session = cluster.connect();
-      ResultSet result = session.execute("select id,name from " + CassandraTestDataSet.KEYSPACE
-          + "." + tableName);
-      List<Row> rows = result.all();
-      if (rows.size() != 1000) {
-        return false;
-      }
-      for (Row row : rows) {
-        if (!row.getString("name").matches("Name.*")) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public void describeTo(Description description) {
-      description.appendText("Expected Cassandra record pattern is (Name.*)");
+      LOG.info("Create {} table if not exists", tableName);
+      session.execute(
+          "CREATE TABLE IF NOT EXISTS "
+              + tableName
+              + "(id bigint, name text, PRIMARY "
+              + "KEY(id))");
     }
   }
 
-  /**
-   * Simple Cassandra entity representing a scientist. Used for read test.
-   */
-  @Table(name = CassandraTestDataSet.TABLE_READ_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
-  static class Scientist implements Serializable {
+  private static void dropTable(CassandraIOITOptions options, String keyspace, String table) {
+    try (Cluster cluster = getCluster(options);
+        Session session = cluster.connect()) {
+      session.execute("DROP KEYSPACE IF EXISTS " + keyspace);
+      session.execute("DROP TABLE IF EXISTS " + keyspace + "." + table);
+    }
+  }
+
+  /** Simple Cassandra entity representing a scientist. Used for read test. */
+  @Table(name = TABLE, keyspace = KEYSPACE)
+  private static final class Scientist implements Serializable {
     @PartitionKey
     @Column(name = "id")
-    final int id;
+    final long id;
 
     @Column(name = "name")
     final String name;
 
-    Scientist(int id, String name) {
+    Scientist() {
+      // Empty constructor needed for deserialization from Cassandra
+      this(0, null);
+    }
+
+    Scientist(long id, String name) {
       this.id = id;
       this.name = name;
     }
-  }
-
-  /**
-   * Simple Cassandra entity representing a scientist, used for write test.
-   */
-  @Table(name = CassandraTestDataSet.TABLE_WRITE_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
-  static class ScientistForWrite implements Serializable {
-    @PartitionKey
-    @Column(name = "id")
-    Integer id;
-
-    @Column(name = "name")
-    String name;
 
     @Override
     public String toString() {
-      return id + ":" + name;
+      return id + ": " + name;
+    }
+  }
+
+  private static class CreateScientistFn extends DoFn<TestRow, Scientist> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(new Scientist(c.element().id(), c.element().name()));
+    }
+  }
+
+  private static class SelectNameFn extends DoFn<Scientist, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element().name);
     }
   }
 }

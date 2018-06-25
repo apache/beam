@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows.MonthsWindows;
-import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeZone;
@@ -305,7 +304,7 @@ public class CalendarWindowsTest {
                 return new Instant(100L);
               }
             }),
-        Matchers.equalTo(windowFn.assignWindow(new Instant(100L))));
+        equalTo(windowFn.assignWindow(new Instant(100L))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
   }
 

@@ -71,7 +71,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -301,7 +300,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
-    options.setFilesToStage(new LinkedList<>());
+    options.setFilesToStage(new ArrayList<>());
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
@@ -1091,7 +1090,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(new TestTransform());
 
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(Matchers.containsString("no translator registered"));
+    thrown.expectMessage(containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
         .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
 

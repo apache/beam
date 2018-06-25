@@ -881,18 +881,20 @@ class FnApiRunner(runner.PipelineRunner):
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
             target = transform.unique_name, only_element(transform.outputs)
             data_input[target] = pcoll_buffers[pcoll_id]
+            coder_id = pipeline_components.pcollections[
+                only_element(transform.outputs.values())].coder_id
           elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
             target = transform.unique_name, only_element(transform.inputs)
             data_output[target] = pcoll_id
+            coder_id = pipeline_components.pcollections[
+                only_element(transform.inputs.values())].coder_id
           else:
             raise NotImplementedError
+          data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
           if data_api_service_descriptor:
-            data_spec = beam_fn_api_pb2.RemoteGrpcPort()
             data_spec.api_service_descriptor.url = (
                 data_api_service_descriptor.url)
-            transform.spec.payload = data_spec.SerializeToString()
-          else:
-            transform.spec.payload = ""
+          transform.spec.payload = data_spec.SerializeToString()
         elif transform.spec.urn == common_urns.primitives.PAR_DO.urn:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)

@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.TIMESTAMP;
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TIMESTAMP;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
 import com.alibaba.fastjson.JSONObject;
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -41,6 +41,7 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 @Internal
 @Experimental
+@AutoService(TableProvider.class)
 public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   @Override
@@ -70,7 +71,7 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
     if (schema.getFieldCount() != 3
         || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)
-        || !fieldPresent(schema, ATTRIBUTES_FIELD, MAP.type().withMapType(VARCHAR, VARCHAR))
+        || !fieldPresent(schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR, VARCHAR))
         || !(schema.hasField(PAYLOAD_FIELD)
             && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
 

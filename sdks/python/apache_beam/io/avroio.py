@@ -195,8 +195,8 @@ class _AvroUtils(object):
                                             datafile.META_SCHEMA, decoder)
     if header.get('magic') != datafile.MAGIC:
       raise ValueError('Not an Avro file. File header should start with %s but'
-                       'started with %s instead.', datafile.MAGIC,
-                       header.get('magic'))
+                       'started with %s instead.'
+                       % (datafile.MAGIC, header.get('magic')))
 
     meta = header['meta']
 
@@ -236,8 +236,8 @@ class _AvroUtils(object):
     sync_marker = decoder.read(len(expected_sync_marker))
     if sync_marker != expected_sync_marker:
       raise ValueError('Unexpected sync marker (actual "%s" vs expected "%s"). '
-                       'Maybe the underlying avro file is corrupted?',
-                       sync_marker, expected_sync_marker)
+                       'Maybe the underlying avro file is corrupted?'
+                       % (sync_marker, expected_sync_marker))
     size = f.tell() - offset
     return _AvroBlock(block_bytes, num_records, codec, schema, offset, size)
 
@@ -314,7 +314,7 @@ class _AvroBlock(object):
       avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
       return result
     else:
-      raise ValueError('Unknown codec: %r', codec)
+      raise ValueError('Unknown codec: %r' % codec)
 
   def num_records(self):
     return self._num_records

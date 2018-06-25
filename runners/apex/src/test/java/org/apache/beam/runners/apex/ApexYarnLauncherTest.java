@@ -95,7 +95,7 @@ public class ApexYarnLauncherTest {
         @Override
         public AppHandle launchApp(StreamingApplication application,
             Configuration configuration, AttributeMap launchParameters)
-            throws org.apache.apex.api.Launcher.LauncherException {
+            throws Launcher.LauncherException {
           EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
           DAG dag = embeddedLauncher.getDAG();
           application.populateDAG(dag, new Configuration(false));
@@ -107,7 +107,7 @@ public class ApexYarnLauncherTest {
               return true;
             }
             @Override
-            public void shutdown(org.apache.apex.api.Launcher.ShutdownMode arg0) {
+            public void shutdown(Launcher.ShutdownMode arg0) {
             }
           };
         }

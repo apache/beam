@@ -362,7 +362,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
         });
   }
 
-  public  W mergeResult(W window) {
+  public W mergeResult(W window) {
     W result = windowToMergeResult.get(window);
     return result == null ? window : result;
   }

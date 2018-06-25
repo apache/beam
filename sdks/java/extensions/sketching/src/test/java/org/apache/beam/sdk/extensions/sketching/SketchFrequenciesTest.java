@@ -53,7 +53,7 @@ public class SketchFrequenciesTest implements Serializable {
 
   @Rule public final transient TestPipeline tp = TestPipeline.create();
 
-  private List<Long> smallStream = Arrays.asList(
+  private final List<Long> smallStream = Arrays.asList(
           1L,
           2L, 2L,
           3L, 3L, 3L,
@@ -64,16 +64,16 @@ public class SketchFrequenciesTest implements Serializable {
           8L, 8L, 8L, 8L, 8L, 8L, 8L, 8L,
           9L, 9L, 9L, 9L, 9L, 9L, 9L, 9L, 9L);
 
-  private Long[] distinctElems = {1L, 2L, 3L, 4L, 5L, 6L, 8L, 9L};
-  private Long[] frequencies = distinctElems.clone();
+  private final Long[] distinctElems = {1L, 2L, 3L, 4L, 5L, 6L, 8L, 9L};
+  private final Long[] frequencies = distinctElems.clone();
 
   @Test
   public void perKeyDefault() {
     PCollection<Long> stream = tp.apply(Create.of(smallStream));
     PCollection<Sketch<Long>> sketch = stream
-            .apply(WithKeys.<Integer, Long>of(1))
-            .apply(SketchFrequencies.<Integer, Long>perKey())
-            .apply(Values.<Sketch<Long>>create());
+            .apply(WithKeys.of(1))
+            .apply(SketchFrequencies.perKey())
+            .apply(Values.create());
 
     Coder<Long> coder = stream.getCoder();
 
@@ -114,7 +114,7 @@ public class SketchFrequenciesTest implements Serializable {
 
     // n sketches each containing [0, 1, 2]
     for (int i = 0; i < nOccurrences; i++) {
-      Sketch<Integer> sketch = Sketch.<Integer>create(eps, conf);
+      Sketch<Integer> sketch = Sketch.create(eps, conf);
       for (int j = 0; j < size; j++) {
         sketch.add(j, coder);
       }
@@ -134,7 +134,7 @@ public class SketchFrequenciesTest implements Serializable {
     long occurrences = 2L; // occurrence of each user in the stream
     double eps = 0.01;
     double conf = 0.8;
-    Sketch<GenericRecord> sketch = Sketch.<GenericRecord>create(eps, conf);
+    Sketch<GenericRecord> sketch = Sketch.create(eps, conf);
     Schema schema =
             SchemaBuilder.record("User")
                     .fields()
@@ -154,14 +154,13 @@ public class SketchFrequenciesTest implements Serializable {
 
   @Test
   public void testCoder() throws Exception {
-    Sketch<Integer> cMSketch = Sketch.<Integer>create(0.01, 0.8);
+    Sketch<Integer> cMSketch = Sketch.create(0.01, 0.8);
     Coder<Integer> coder = VarIntCoder.of();
     for (int i = 0; i < 3; i++) {
       cMSketch.add(i, coder);
     }
 
-    CoderProperties.<Sketch<Integer>>coderDecodeEncodeEqual(
-            new SketchFrequencies.CountMinSketchCoder<>(), cMSketch);
+    CoderProperties.coderDecodeEncodeEqual(new SketchFrequencies.CountMinSketchCoder<>(), cMSketch);
   }
 
   @Test
@@ -181,10 +180,9 @@ public class SketchFrequenciesTest implements Serializable {
   }
 
   static class VerifyStreamFrequencies<T> implements SerializableFunction<Sketch<T>, Void> {
-
-    Coder<T> coder;
-    Long[] expectedHits;
-    T[] elements;
+    final Coder<T> coder;
+    final Long[] expectedHits;
+    final T[] elements;
 
     VerifyStreamFrequencies(Coder<T> coder, T[] elements, Long[] expectedHits) {
       this.coder = coder;

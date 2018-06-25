@@ -46,6 +46,8 @@ class BeamBuiltinAggregations {
   /** {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createMax(SqlTypeName fieldType) {
     switch (fieldType) {
+      case BOOLEAN:
+        return new CustMax<Boolean>();
       case INTEGER:
         return Max.ofIntegers();
       case SMALLINT:
@@ -68,9 +70,11 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /** {@link CombineFn} for MAX based on {@link Min} and {@link Combine.BinaryCombineFn}. */
+  /** {@link CombineFn} for MIN based on {@link Min} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createMin(SqlTypeName fieldType) {
     switch (fieldType) {
+      case BOOLEAN:
+        return new CustMin<Boolean>();
       case INTEGER:
         return Min.ofIntegers();
       case SMALLINT:
@@ -93,7 +97,7 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /** {@link CombineFn} for MAX based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
+  /** {@link CombineFn} for Sum based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createSum(SqlTypeName fieldType) {
     switch (fieldType) {
       case INTEGER:
@@ -140,36 +144,42 @@ class BeamBuiltinAggregations {
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
+    @Override
     public T apply(T left, T right) {
       return (right == null || right.compareTo(left) < 0) ? left : right;
     }
   }
 
   static class CustMin<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
+    @Override
     public T apply(T left, T right) {
       return (left == null || left.compareTo(right) < 0) ? left : right;
     }
   }
 
   static class ShortSum extends Combine.BinaryCombineFn<Short> {
+    @Override
     public Short apply(Short left, Short right) {
       return (short) (left + right);
     }
   }
 
   static class ByteSum extends Combine.BinaryCombineFn<Byte> {
+    @Override
     public Byte apply(Byte left, Byte right) {
       return (byte) (left + right);
     }
   }
 
   static class FloatSum extends Combine.BinaryCombineFn<Float> {
+    @Override
     public Float apply(Float left, Float right) {
       return left + right;
     }
   }
 
   static class BigDecimalSum extends Combine.BinaryCombineFn<BigDecimal> {
+    @Override
     public BigDecimal apply(BigDecimal left, BigDecimal right) {
       return left.add(right);
     }
@@ -209,83 +219,98 @@ class BeamBuiltinAggregations {
       return accumulator.getValue().divide(new BigDecimal(accumulator.getKey()), mc);
     }
 
+    @Override
     public abstract T extractOutput(KV<Integer, BigDecimal> accumulator);
 
     public abstract BigDecimal toBigDecimal(T record);
   }
 
   static class IntegerAvg extends Avg<Integer> {
+    @Override
     @Nullable
     public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).intValue();
     }
 
+    @Override
     public BigDecimal toBigDecimal(Integer record) {
       return new BigDecimal(record);
     }
   }
 
   static class LongAvg extends Avg<Long> {
+    @Override
     @Nullable
     public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).longValue();
     }
 
+    @Override
     public BigDecimal toBigDecimal(Long record) {
       return new BigDecimal(record);
     }
   }
 
   static class ShortAvg extends Avg<Short> {
+    @Override
     @Nullable
     public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).shortValue();
     }
 
+    @Override
     public BigDecimal toBigDecimal(Short record) {
       return new BigDecimal(record);
     }
   }
 
   static class ByteAvg extends Avg<Byte> {
+    @Override
     @Nullable
     public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).byteValue();
     }
 
+    @Override
     public BigDecimal toBigDecimal(Byte record) {
       return new BigDecimal(record);
     }
   }
 
   static class FloatAvg extends Avg<Float> {
+    @Override
     @Nullable
     public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).floatValue();
     }
 
+    @Override
     public BigDecimal toBigDecimal(Float record) {
       return new BigDecimal(record);
     }
   }
 
   static class DoubleAvg extends Avg<Double> {
+    @Override
     @Nullable
     public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).doubleValue();
     }
 
+    @Override
     public BigDecimal toBigDecimal(Double record) {
       return new BigDecimal(record);
     }
   }
 
   static class BigDecimalAvg extends Avg<BigDecimal> {
+    @Override
     @Nullable
     public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator);
     }
 
+    @Override
     public BigDecimal toBigDecimal(BigDecimal record) {
       return record;
     }

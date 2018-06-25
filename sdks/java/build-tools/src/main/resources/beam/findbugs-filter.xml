@@ -140,6 +140,33 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.runners.dataflow.util.MonitoringUtilTest" />
+    <Field name="thrown" />
+    <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD" />
+    <!-- TestRule used automatically by JUnit framework -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.runners.dataflow.util.OutputReference" />
+    <Field name="type" />
+    <Bug pattern="SS_SHOULD_BE_STATIC" />
+    <!-- Field read via reflection -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.dataflow.options.DataflowPipelineOptionsTest" />
+    <Field name="restoreSystemProperties" />
+    <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD" />
+    <!-- TestRule used automatically by JUnit framework -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.dataflow.TestDataflowRunner" />
+    <Method name="waitForStreamingJobTermination" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+    <!-- waitForStreamingJobTermination checks status via job.waitUntilFinish() -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$QueueMessageReceiver" />
     <Or>
       <Method name="failed" />
@@ -161,6 +188,13 @@
     <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
     <!-- updates is a non-capacity-limited LinkedBlockingQueue, which
       can never refuse an offered update -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobService" />
+    <Method name="run" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+    <!-- the success of future methods aren't based on the returned value of the future -->
   </Match>
 
   <Match>

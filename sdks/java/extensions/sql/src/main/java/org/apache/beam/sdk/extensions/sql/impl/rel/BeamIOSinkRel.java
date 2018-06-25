@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -98,27 +100,24 @@ public class BeamIOSinkRel extends TableModify
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-    /**
-     * Note that {@code BeamIOSinkRel} returns the input PCollection, which is the persisted
-     * PCollection.
-     */
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      String stageName = BeamSqlRelUtils.getStageName(BeamIOSinkRel.this);
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamIOSinkRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> input = pinput.get(0);
 
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+      sqlTable.buildIOWriter(input);
 
-      upstream.apply(stageName, sqlTable.buildIOWriter());
-
-      return upstream;
+      return input;
     }
   }
 }

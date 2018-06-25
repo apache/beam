@@ -667,7 +667,7 @@ public class BigQueryIOWriteTest implements Serializable {
       targetTables.put(i, destination);
       // Make sure each target table has its own custom table.
       schemas.put(destination.getTableSpec(),
-          BigQueryHelpers.toJsonString(new TableSchema().setFields(
+          toJsonString(new TableSchema().setFields(
               ImmutableList.of(
                   new TableFieldSchema().setName("name").setType("STRING"),
                   new TableFieldSchema().setName("number").setType("INTEGER"),
@@ -709,7 +709,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
       // Verify that table was created with the correct schema.
       assertThat(
-          BigQueryHelpers.toJsonString(
+          toJsonString(
               fakeDatasetService
                   .getTable(
                       new TableReference()
@@ -1091,7 +1091,7 @@ public class BigQueryIOWriteTest implements Serializable {
       List<String> singletonFiles = filesPerTableResult.values().iterator().next();
       assertTrue(Files.exists(Paths.get(singletonFiles.get(0))));
       assertThat(Files.readAllBytes(Paths.get(singletonFiles.get(0))).length,
-          Matchers.equalTo(0));
+          equalTo(0));
     } else {
       assertEquals(filenamesPerTable, filesPerTableResult);
     }
@@ -1235,7 +1235,7 @@ public class BigQueryIOWriteTest implements Serializable {
         }
         fakeDatasetService.insertAll(tempTable, rows, null);
         expectedRowsPerTable.putAll(tableDestination, rows);
-        String tableJson = BigQueryHelpers.toJsonString(tempTable);
+        String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
         tempTablesElement.add(KV.of(tableDestination, tableJson));
       }

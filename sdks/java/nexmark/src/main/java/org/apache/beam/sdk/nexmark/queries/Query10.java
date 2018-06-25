@@ -143,6 +143,8 @@ public class Query10 extends NexmarkQuery {
         return "O";
       case LATE:
         return "L";
+      case UNKNOWN:
+        return "U";
     }
     throw new RuntimeException(); // cases are exhaustive
   }

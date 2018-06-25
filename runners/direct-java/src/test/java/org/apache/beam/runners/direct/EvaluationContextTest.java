@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -66,7 +67,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -263,7 +263,7 @@ public class EvaluationContextTest {
 
   @Test
   public void handleResultStoresState() {
-    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
+    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(UTF_8), ByteArrayCoder.of());
     DirectExecutionContext fooContext =
         context.getExecutionContext(downstreamProducer, myKey);
 
@@ -366,7 +366,7 @@ public class EvaluationContextTest {
     context.handleResult(null, ImmutableList.of(), advanceResult);
 
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> fired = context.extractFiredTimers();
-    assertThat(Iterables.getOnlyElement(fired).getKey(), Matchers.equalTo(key));
+    assertThat(Iterables.getOnlyElement(fired).getKey(), equalTo(key));
 
     FiredTimers<AppliedPTransform<?, ?, ?>> firedForKey = Iterables.getOnlyElement(fired);
     // Contains exclusively the fired timer
@@ -383,7 +383,7 @@ public class EvaluationContextTest {
         context.createKeyedBundle(
             key,
             downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey(), Matchers.equalTo(key));
+    assertThat(keyedBundle.getKey(), equalTo(key));
   }
 
   @Test

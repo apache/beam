@@ -871,7 +871,7 @@ public class PipelineOptionsFactoryTest {
     String[] emptyArgs = new String[] { "--stringValue="};
     Objects options = PipelineOptionsFactory.fromArgs(args).as(Objects.class);
     assertEquals("beam", options.getStringValue().get());
-    options =  PipelineOptionsFactory.fromArgs(emptyArgs).as(Objects.class);
+    options = PipelineOptionsFactory.fromArgs(emptyArgs).as(Objects.class);
     assertEquals("", options.getStringValue().get());
   }
 

@@ -22,7 +22,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -43,10 +43,10 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
     registerTable(
         "ORDER_DETAILS",
         MockedBoundedTable.of(
-                TypeName.INT64, "order_id",
-                TypeName.INT32, "site_id",
-                TypeName.DOUBLE, "price",
-                TypeName.DATETIME, "order_time")
+                Schema.FieldType.INT64, "order_id",
+                Schema.FieldType.INT32, "site_id",
+                Schema.FieldType.DOUBLE, "price",
+                Schema.FieldType.DATETIME, "order_time")
             .addRows(1L, 1, 1.0, THE_DATE, 2L, 2, 2.0, THE_DATE));
   }
 
@@ -67,9 +67,9 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT64, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.INT64, "cnt")
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.INT64, "cnt")
                 .addRows(1L, 1, 1L, 2L, 2, 1L)
                 .getStringRows());
     pipeline.run();

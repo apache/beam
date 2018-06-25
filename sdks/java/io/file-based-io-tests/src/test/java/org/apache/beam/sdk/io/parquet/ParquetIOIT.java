@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import org.apache.avro.Schema;
@@ -29,8 +29,8 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -85,7 +85,7 @@ public class ParquetIOIT {
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfRecords = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -93,12 +93,12 @@ public class ParquetIOIT {
 
   @Test
   public void writeThenReadAll() {
-    PCollection<String> testFiles =
-      pipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
+    PCollection<String> testFiles = pipeline
+      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
       .apply("Produce text lines",
         ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
       .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
-        .setCoder(AvroCoder.of(SCHEMA))
+      .setCoder(AvroCoder.of(SCHEMA))
       .apply("Write Parquet files",
         FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
       .getPerDestinationOutputFilenames()
@@ -107,9 +107,10 @@ public class ParquetIOIT {
     PCollection<String> consolidatedHashcode = testFiles.apply("Find files", FileIO.matchAll())
       .apply("Read matched files", FileIO.readMatches())
       .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
-      .apply("Map records to strings", MapElements.into(strings())
-        .via((SerializableFunction<GenericRecord, String>) record -> String
-          .valueOf(record.get("row"))))
+      .apply("Map records to strings",
+        MapElements.into(strings()).via(
+          (SerializableFunction<GenericRecord, String>) record -> String
+            .valueOf(record.get("row"))))
       .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfRecords);
