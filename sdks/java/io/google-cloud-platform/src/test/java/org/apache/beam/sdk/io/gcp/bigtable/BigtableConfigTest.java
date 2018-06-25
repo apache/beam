@@ -66,7 +66,7 @@ public class BigtableConfigTest {
   static final ValueProvider<String> INSTANCE_ID =
     ValueProvider.StaticValueProvider.of("instance_id");
 
-  static final ValueProvider<String> TABLE_ID =  ValueProvider.StaticValueProvider.of("table");
+  static final ValueProvider<String> TABLE_ID = ValueProvider.StaticValueProvider.of("table");
 
   static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> CONFIGURATOR =
       (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>) input -> input;

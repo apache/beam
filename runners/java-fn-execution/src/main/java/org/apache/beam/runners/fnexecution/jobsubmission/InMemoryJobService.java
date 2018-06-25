@@ -41,6 +41,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.slf4j.Logger;
@@ -58,19 +59,33 @@ import org.slf4j.LoggerFactory;
 public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);
 
+  /**
+   * Creates an InMemoryJobService.
+   *
+   * @param stagingServiceDescriptor Endpoint for the staging service.
+   * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
+   * @param invoker A JobInvoker that will actually create the jobs.
+   * @return A new InMemoryJobService.
+   */
   public static InMemoryJobService create(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
-    return new InMemoryJobService(stagingServiceDescriptor, invoker);
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      Function<String, String> stagingServiceTokenProvider,
+      JobInvoker invoker) {
+    return new InMemoryJobService(stagingServiceDescriptor, stagingServiceTokenProvider, invoker);
   }
 
   private final ConcurrentMap<String, JobPreparation> preparations;
   private final ConcurrentMap<String, JobInvocation> invocations;
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
+  private final Function<String, String> stagingServiceTokenProvider;
   private final JobInvoker invoker;
 
   private InMemoryJobService(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      Function<String, String> stagingServiceTokenProvider,
+      JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
+    this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.invoker = invoker;
 
     this.preparations = new ConcurrentHashMap<>();
@@ -114,6 +129,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               .newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
+              .setStagingSessionToken(stagingServiceTokenProvider.apply(preparationId))
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -138,10 +154,18 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
         responseObserver.onError(exception);
         return;
       }
+      try {
+        PipelineValidator.validate(preparation.pipeline());
+      } catch (Exception e) {
+        responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withCause(e)));
+      }
 
       // create new invocation
       JobInvocation invocation =
-          invoker.invoke(preparation.pipeline(), preparation.options(), request.getStagingToken());
+          invoker.invoke(
+              preparation.pipeline(),
+              preparation.options(),
+              request.getRetrievalToken());
       String invocationId = invocation.getId();
       invocation.start();
       invocations.put(invocationId, invocation);

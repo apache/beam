@@ -106,9 +106,9 @@ func validate(t typex.FullType, n int, less interface{}) {
 	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t.Type()))
 }
 
-// TODO(herohde) 5/25/2017: the accumulator should be serializable with a Coder.
-// We need a coder here, because the elements are generally code-able only. Until
-// then, we do not support combiner lifting.
+// TODO(herohde) 5/25/2017: BEAM-4472 the accumulator should be serializable
+// with a Coder. We need a coder here, because the elements are generally
+// code-able only. Until then, it does not support combiner lifting.
 
 // TODO(herohde) 5/25/2017: use a heap instead of a sorted slice.
 

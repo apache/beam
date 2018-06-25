@@ -220,11 +220,10 @@ class Coder(object):
   def __eq__(self, other):
     return (self.__class__ == other.__class__
             and self._dict_without_impl() == other._dict_without_impl())
+  # pylint: enable=protected-access
 
   def __hash__(self):
-    return hash((self.__class__,) +
-                tuple(sorted(self._dict_without_impl().items())))
-  # pylint: enable=protected-access
+    return hash(type(self))
 
   _known_urns = {}
 
@@ -390,6 +389,11 @@ class VarIntCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:varint',
+    }
 
   def __eq__(self, other):
     return type(self) == type(other)

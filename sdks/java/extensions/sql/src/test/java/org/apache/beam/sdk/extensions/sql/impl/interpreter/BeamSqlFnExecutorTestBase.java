@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -62,17 +61,17 @@ public class BeamSqlFnExecutorTestBase {
             .add("site_id", SqlTypeName.INTEGER)
             .add("price", SqlTypeName.DOUBLE)
             .add("order_time", SqlTypeName.BIGINT)
+            .add("order_info", SqlTypeName.VARCHAR)
             .build();
 
     row =
         Row.withSchema(CalciteUtils.toBeamSchema(relDataType))
-            .addValues(1234567L, 0, 8.9, 1234567L)
+            .addValues(1234567L, 0, 8.9, 1234567L, "This is an order.")
             .build();
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
-    final List<RelTraitDef> traitDefs = new ArrayList<>();
-    traitDefs.add(ConventionTraitDef.INSTANCE);
-    traitDefs.add(RelCollationTraitDef.INSTANCE);
+    final ImmutableList<RelTraitDef> traitDefs =
+        ImmutableList.of(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
     FrameworkConfig config =
         Frameworks.newConfigBuilder()
             .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())

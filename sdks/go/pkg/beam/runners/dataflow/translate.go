@@ -290,18 +290,13 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	return steps, nil
 }
 
-// TODO(herohde) 5/16/2017: we might need to robustly encode the index into the
-// name, so that we can infer the ordering from the names in the harness.
-
 // translateNodes builds a map from nodeID to the Dataflow representation.
 func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 	nodes := make(map[int]*outputReference)
 	for _, edge := range edges {
 		for i, out := range edge.Output {
-			name := "out"
-			if i > 0 {
-				name = fmt.Sprintf("side%v", i)
-			}
+			// Encode the ordering to match the scheme in exec/translate/unmarshalKeyedValues()
+			name := fmt.Sprintf("i%v", i)
 			nodes[out.To.ID()] = newOutputReference(stepID(edge.ID()), name)
 		}
 	}

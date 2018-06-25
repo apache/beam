@@ -50,8 +50,13 @@ import abc
 import collections
 import logging
 import os
+import re
 import shutil
 import tempfile
+from builtins import object
+from builtins import zip
+
+from future.utils import with_metaclass
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -116,13 +121,14 @@ class Pipeline(object):
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
-            'Received : %r', options)
+            'Received : %r' % options)
     elif argv is not None:
       if isinstance(argv, list):
         self._options = PipelineOptions(argv)
       else:
         raise ValueError(
-            'Parameter argv, if specified, must be a list. Received : %r', argv)
+            'Parameter argv, if specified, must be a list. Received : %r'
+            % argv)
     else:
       self._options = PipelineOptions([])
 
@@ -228,8 +234,8 @@ class Pipeline(object):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single input. Tried to replace input of '
-                'AppliedPTransform %r that has %d inputs',
-                original_transform_node, len(inputs))
+                'AppliedPTransform %r that has %d inputs'
+                % original_transform_node, len(inputs))
           elif len(inputs) == 1:
             input_node = inputs[0]
           elif len(inputs) == 0:
@@ -267,7 +273,7 @@ class Pipeline(object):
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single output. Tried to replace output of '
                 'AppliedPTransform %r with %r.'
-                , original_transform_node, new_output)
+                % (original_transform_node, new_output))
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
@@ -351,8 +357,8 @@ class Pipeline(object):
     class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
         if override.matches(transform_node):
-          raise RuntimeError('Transform node %r was not replaced as expected.',
-                             transform_node)
+          raise RuntimeError('Transform node %r was not replaced as expected.'
+                             % transform_node)
 
     self.visit(ReplacementValidator())
 
@@ -845,7 +851,8 @@ class AppliedPTransform(object):
                    for tag, id in proto.inputs.items()
                    if not is_side_input(tag)]
     # Ordering is important here.
-    indexed_side_inputs = [(int(tag[4:]), context.pcollections.get_by_id(id))
+    indexed_side_inputs = [(int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+                            context.pcollections.get_by_id(id))
                            for tag, id in proto.inputs.items()
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
@@ -880,7 +887,7 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(object):
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.
@@ -888,7 +895,6 @@ class PTransformOverride(object):
   TODO: Update this to support cases where input and/our output types are
   different.
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def matches(self, applied_ptransform):

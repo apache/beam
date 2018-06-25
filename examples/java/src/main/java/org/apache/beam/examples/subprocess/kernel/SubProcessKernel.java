@@ -117,10 +117,8 @@ public class SubProcessKernel {
     builder.command().add(1, outPutFiles.resultFile.toString());
 
     // Shift commands by 2 ordinal positions and load into the builder
-    if (commands != null) {
-      for (SubProcessCommandLineArgs.Command s : commands.getParameters()) {
-        builder.command().add(s.ordinalPosition + 2, s.value);
-      }
+    for (SubProcessCommandLineArgs.Command s : commands.getParameters()) {
+      builder.command().add(s.ordinalPosition + 2, s.value);
     }
 
     builder.redirectError(Redirect.appendTo(outPutFiles.errFile.toFile()));

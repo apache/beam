@@ -43,13 +43,13 @@ public class BeamSqlDslAggregationCovarianceTest {
   @Before
   public void setUp() {
     Schema schema =
-        RowSqlTypes.builder()
-            .withDoubleField("f_double1")
-            .withDoubleField("f_double2")
-            .withDoubleField("f_double3")
-            .withIntegerField("f_int1")
-            .withIntegerField("f_int2")
-            .withIntegerField("f_int3")
+        Schema.builder()
+            .addDoubleField("f_double1")
+            .addDoubleField("f_double2")
+            .addDoubleField("f_double3")
+            .addInt32Field("f_int1")
+            .addInt32Field("f_int2")
+            .addInt32Field("f_int3")
             .build();
 
     List<Row> rowsInTableB =
@@ -67,7 +67,8 @@ public class BeamSqlDslAggregationCovarianceTest {
   public void testPopulationVarianceDouble() {
     String sql = "SELECT COVAR_POP(f_double1, f_double2) FROM PCOLLECTION GROUP BY f_int3";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(1.84, PRECISION));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
+        .satisfies(matchesScalar(1.84, PRECISION));
 
     pipeline.run().waitUntilFinish();
   }
@@ -76,7 +77,7 @@ public class BeamSqlDslAggregationCovarianceTest {
   public void testPopulationVarianceInt() {
     String sql = "SELECT COVAR_POP(f_int1, f_int2) FROM PCOLLECTION GROUP BY f_int3";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(1));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(1));
 
     pipeline.run().waitUntilFinish();
   }
@@ -85,7 +86,8 @@ public class BeamSqlDslAggregationCovarianceTest {
   public void testSampleVarianceDouble() {
     String sql = "SELECT COVAR_SAMP(f_double1, f_double2) FROM PCOLLECTION GROUP BY f_int3";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(2.3, PRECISION));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
+        .satisfies(matchesScalar(2.3, PRECISION));
 
     pipeline.run().waitUntilFinish();
   }
@@ -94,7 +96,7 @@ public class BeamSqlDslAggregationCovarianceTest {
   public void testSampleVarianceInt() {
     String sql = "SELECT COVAR_SAMP(f_int1, f_int2) FROM PCOLLECTION GROUP BY f_int3";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(2));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(2));
 
     pipeline.run().waitUntilFinish();
   }

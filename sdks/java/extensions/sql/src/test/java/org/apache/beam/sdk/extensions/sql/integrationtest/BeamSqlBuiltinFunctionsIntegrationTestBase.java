@@ -18,17 +18,15 @@
 
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -38,14 +36,14 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.util.Pair;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, TypeName> JAVA_CLASS_TO_FIELDTYPE =
+
+  private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
       ImmutableMap.<Class, TypeName>builder()
           .put(Byte.class, TypeName.BYTE)
           .put(Short.class, TypeName.INT16)
@@ -60,19 +58,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .build();
 
   private static final Schema ROW_TYPE =
-      RowSqlTypes.builder()
-          .withDateField("ts")
-          .withTinyIntField("c_tinyint")
-          .withSmallIntField("c_smallint")
-          .withIntegerField("c_integer")
-          .withBigIntField("c_bigint")
-          .withFloatField("c_float")
-          .withDoubleField("c_double")
-          .withDecimalField("c_decimal")
-          .withTinyIntField("c_tinyint_max")
-          .withSmallIntField("c_smallint_max")
-          .withIntegerField("c_integer_max")
-          .withBigIntField("c_bigint_max")
+      Schema.builder()
+          .addDateTimeField("ts")
+          .addByteField("c_tinyint")
+          .addInt16Field("c_smallint")
+          .addInt32Field("c_integer")
+          .addInt64Field("c_bigint")
+          .addFloatField("c_float")
+          .addDoubleField("c_double")
+          .addDecimalField("c_decimal")
+          .addByteField("c_tinyint_max")
+          .addInt16Field("c_smallint_max")
+          .addInt32Field("c_integer_max")
+          .addInt64Field("c_bigint_max")
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -93,7 +91,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               (short) 32767,
               2147483647,
               9223372036854775807L)
-          .buildIOReader(pipeline)
+          .buildIOReader(pipeline.begin())
           .setCoder(ROW_TYPE.getRowCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -102,6 +100,22 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected static DateTime parseDate(String str) {
     return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
+  }
+
+  @AutoValue
+  abstract static class ExpressionTestCase {
+
+    private static ExpressionTestCase of(
+        String sqlExpr, Object expectedResult, FieldType resultFieldType) {
+      return new AutoValue_BeamSqlBuiltinFunctionsIntegrationTestBase_ExpressionTestCase(
+          sqlExpr, expectedResult, resultFieldType);
+    }
+
+    abstract String sqlExpr();
+
+    abstract Object expectedResult();
+
+    abstract FieldType resultFieldType();
   }
 
   /**
@@ -120,44 +134,43 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
    * }</pre>
    */
   public class ExpressionChecker {
-    private transient List<Pair<String, Object>> exps = new ArrayList<>();
+    private transient List<ExpressionTestCase> exps = new ArrayList<>();
 
     public ExpressionChecker addExpr(String expression, Object expectedValue) {
-      exps.add(Pair.of(expression, expectedValue));
+      // Because of erasure, we can only automatically infer non-parameterized types
+      TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
+      checkArgument(
+          resultTypeName != null,
+          "Could not infer a Beam type for %s."
+              + " Parameterized types must be provided explicitly.");
+      addExpr(expression, expectedValue, FieldType.of(resultTypeName));
       return this;
     }
 
-    private String getSql() {
-      List<String> expStrs = new ArrayList<>();
-      for (Pair<String, Object> pair : exps) {
-        expStrs.add(pair.getKey());
-      }
-      return "SELECT " + Joiner.on(",\n  ").join(expStrs) + " FROM PCOLLECTION";
+    public ExpressionChecker addExpr(
+        String expression, Object expectedValue, FieldType resultFieldType) {
+      exps.add(ExpressionTestCase.of(expression, expectedValue, resultFieldType));
+      return this;
     }
 
     /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
     public void buildRunAndCheck() {
       PCollection<Row> inputCollection = getTestPCollection();
-      System.out.println("SQL:>\n" + getSql());
-      try {
-        Schema schema =
-            exps.stream()
-                .map(
-                    exp ->
-                        Schema.Field.of(
-                            exp.getKey(),
-                            FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
-                .collect(toSchema());
 
-        List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
+      for (ExpressionTestCase testCase : exps) {
+        String expression = testCase.sqlExpr();
+        Object expectedValue = testCase.expectedResult();
+        String sql = String.format("SELECT %s FROM PCOLLECTION", expression);
+        Schema schema = Schema.builder().addField(expression, testCase.resultFieldType()).build();
 
-        PCollection<Row> rows = inputCollection.apply(BeamSql.query(getSql()));
-        PAssert.that(rows)
-            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(values).getRows());
-        inputCollection.getPipeline().run();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
+        PCollection<Row> output =
+            inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
+
+        PAssert.that(output)
+            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
       }
+
+      inputCollection.getPipeline().run();
     }
   }
 }

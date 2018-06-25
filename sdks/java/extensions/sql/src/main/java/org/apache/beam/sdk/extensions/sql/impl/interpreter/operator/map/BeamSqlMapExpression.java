@@ -18,10 +18,10 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -41,12 +41,12 @@ public class BeamSqlMapExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     Map<Object, Object> elements = new HashMap<>();
     for (int idx = 0; idx < operands.size() / 2; ++idx) {
       elements.put(
-          operands.get(idx * 2).evaluate(inputRow, window, correlateEnv).getValue(),
-          operands.get(idx * 2 + 1).evaluate(inputRow, window, correlateEnv).getValue());
+          operands.get(idx * 2).evaluate(inputRow, window, env).getValue(),
+          operands.get(idx * 2 + 1).evaluate(inputRow, window, env).getValue());
     }
     return BeamSqlPrimitive.of(outputType, elements);
   }

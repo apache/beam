@@ -37,6 +37,7 @@ public class BeamJoinRule extends ConverterRule {
   @Override
   public RelNode convert(RelNode rel) {
     Join join = (Join) rel;
+
     return new BeamJoinRel(
         join.getCluster(),
         join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),

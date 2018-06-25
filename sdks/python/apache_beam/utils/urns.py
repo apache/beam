@@ -17,8 +17,11 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+from __future__ import absolute_import
+
 import abc
 import inspect
+from builtins import object
 
 from google.protobuf import message
 from google.protobuf import wrappers_pb2

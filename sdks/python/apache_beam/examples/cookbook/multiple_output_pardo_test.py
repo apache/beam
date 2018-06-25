@@ -17,6 +17,8 @@
 
 """Test for the multiple_output_pardo example."""
 
+from __future__ import absolute_import
+
 import logging
 import re
 import tempfile

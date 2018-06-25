@@ -72,7 +72,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -203,11 +202,11 @@ public class PipelineTest {
       fail("Should have thrown an exception.");
     } catch (RuntimeException exn) {
       // Make sure the exception isn't a UserCodeException.
-      Assert.assertThat(exn, not(instanceOf(UserCodeException.class)));
+      assertThat(exn, not(instanceOf(UserCodeException.class)));
       // Assert that the message is correct.
-      Assert.assertThat(exn.getMessage(), containsString("SDK exception"));
+      assertThat(exn.getMessage(), containsString("SDK exception"));
       // RuntimeException should be IllegalStateException.
-      Assert.assertThat(exn, instanceOf(IllegalStateException.class));
+      assertThat(exn, instanceOf(IllegalStateException.class));
     }
   }
 
@@ -495,7 +494,7 @@ public class PipelineTest {
 
     assertThat(nameToTransformClass.keySet(), hasItem("original_application/custom_name"));
     assertThat(nameToTransformClass.keySet(), not(hasItem("original_application/custom_name2")));
-    Assert.assertEquals(nameToTransformClass.get("original_application/custom_name"),
+    assertEquals(nameToTransformClass.get("original_application/custom_name"),
         Max.integersGlobally().getClass());
   }
 

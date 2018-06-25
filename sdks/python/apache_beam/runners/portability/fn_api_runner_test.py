@@ -25,7 +25,9 @@ import traceback
 import unittest
 
 import apache_beam as beam
+from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler

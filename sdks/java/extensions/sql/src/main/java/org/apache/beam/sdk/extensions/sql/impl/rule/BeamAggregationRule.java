@@ -49,9 +49,7 @@ public class BeamAggregationRule extends RelOptRule {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
     RelNode x = updateWindow(call, aggregate, project);
-    if (x != null) {
-      call.transformTo(x);
-    }
+    call.transformTo(x);
   }
 
   private static RelNode updateWindow(RelOptRuleCall call, Aggregate aggregate, Project project) {
@@ -69,18 +67,16 @@ public class BeamAggregationRule extends RelOptRule {
       windowField = AggregateWindowFactory.getWindowFieldAt((RexCall) projNode, groupFieldIndex);
     }
 
-    BeamAggregationRel newAggregator =
-        new BeamAggregationRel(
-            aggregate.getCluster(),
-            aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            convert(
-                aggregate.getInput(),
-                aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-            aggregate.indicator,
-            aggregate.getGroupSet(),
-            aggregate.getGroupSets(),
-            aggregate.getAggCallList(),
-            windowField);
-    return newAggregator;
+    return new BeamAggregationRel(
+        aggregate.getCluster(),
+        aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        convert(
+            aggregate.getInput(),
+            aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        aggregate.indicator,
+        aggregate.getGroupSet(),
+        aggregate.getGroupSets(),
+        aggregate.getAggCallList(),
+        windowField);
   }
 }

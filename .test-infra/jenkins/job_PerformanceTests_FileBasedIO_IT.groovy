@@ -85,8 +85,7 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ParquetIOPerformance Test',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test',
                 extraPipelineArgs: [
-                        numberOfRecords: '100000000',
-                        charset: 'UTF-8'
+                        numberOfRecords: '100000000'
                 ]
         ]
 ]
@@ -115,7 +114,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         // don't email individual committers.
         common_job_properties.setPostCommit(
                 delegate,
-                '0 */6 * * *',
+                'H */6 * * *',
                 false,
                 'commits@beam.apache.org',
                 false)

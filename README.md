@@ -23,6 +23,8 @@
 
 ## Status
 
+[![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
+[![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
 [![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_GradleBuild)](https://builds.apache.org/job/beam_PostCommit_Java_GradleBuild)
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
 
@@ -78,7 +80,8 @@ in your system. In a Debian-based distribution:
 sudo apt-get install \
     openjdk-8-jdk \
     python-setuptools \
-    python-pip
+    python-pip \
+    virtualenv
 ```
 
 Then please use the standard `./gradlew build` command.

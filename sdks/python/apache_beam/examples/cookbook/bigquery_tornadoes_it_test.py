@@ -17,9 +17,12 @@
 
 """End-to-end test for Bigquery tornadoes example."""
 
+from __future__ import absolute_import
+
 import logging
 import time
 import unittest
+from builtins import round
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr

@@ -29,7 +29,7 @@ job('beam_SeedJob_Standalone') {
   label('beam')
 
   logRotator {
-    daysToKeep(14)
+    daysToKeep(30)
   }
 
   scm {

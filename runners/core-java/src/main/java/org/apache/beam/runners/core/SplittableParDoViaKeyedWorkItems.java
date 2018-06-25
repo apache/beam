@@ -397,13 +397,6 @@ public class SplittableParDoViaKeyedWorkItems {
         public PipelineOptions getPipelineOptions() {
           return baseContext.getPipelineOptions();
         }
-
-        private void throwUnsupportedOutput() {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Splittable DoFn can only output from @%s",
-                  ProcessElement.class.getSimpleName()));
-        }
       };
     }
 

@@ -18,7 +18,9 @@
 
 import common_job_properties
 
-job('beam_PerformanceTests_JDBC') {
+String jobName = "beam_PerformanceTests_JDBC"
+
+job(jobName) {
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
@@ -26,7 +28,7 @@ job('beam_PerformanceTests_JDBC') {
     // don't email individual committers.
     common_job_properties.setPostCommit(
             delegate,
-            '0 */6 * * *',
+            'H */6 * * *',
             false,
             'commits@beam.apache.org',
             false)
@@ -43,7 +45,7 @@ job('beam_PerformanceTests_JDBC') {
             numberOfRecords: '5000000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace('jdbcioit')
+    String namespace = common_job_properties.getKubernetesNamespace(jobName)
     String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [

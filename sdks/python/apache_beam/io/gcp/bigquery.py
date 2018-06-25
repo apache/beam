@@ -715,7 +715,7 @@ class BigQueryWriter(dataflow_io.NativeSinkWriter):
       self.rows_buffer = []
       if not passed:
         raise RuntimeError('Could not successfully insert rows to BigQuery'
-                           ' table [%s:%s.%s]. Errors: %s'%
+                           ' table [%s:%s.%s]. Errors: %s' %
                            (self.project_id, self.dataset_id,
                             self.table_id, errors))
 
@@ -1177,7 +1177,7 @@ class BigQueryWrapper(object):
       elif value is None:
         if not field.mode == 'NULLABLE':
           raise ValueError('Received \'None\' as the value for the field %s '
-                           'but the field is not NULLABLE.', field.name)
+                           'but the field is not NULLABLE.' % field.name)
         result[field.name] = None
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)

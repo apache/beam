@@ -79,12 +79,12 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
     return node == null
-        || !transforms
+        || (!transforms
                 .stream()
                 .anyMatch(
                     debugTransform ->
                         debugTransform.getNode().equals(node) && debugTransform.isComposite())
-            && shouldDebug(node.getEnclosingNode());
+            && shouldDebug(node.getEnclosingNode()));
   }
 
   @Override

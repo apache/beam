@@ -23,14 +23,17 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import six
-
 import apache_beam as beam
 import apache_beam.transforms.window as window
 from apache_beam.examples.wordcount import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 
 def run(argv=None):
@@ -72,7 +75,7 @@ def run(argv=None):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | beam.WindowInto(window.FixedWindows(15, 0))
             | 'group' >> beam.GroupByKey()

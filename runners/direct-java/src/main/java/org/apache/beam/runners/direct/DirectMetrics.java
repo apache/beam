@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
@@ -238,9 +239,13 @@ class DirectMetrics extends MetricResults {
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
+    @Override
     public abstract MetricName getName();
+    @Override
     public abstract String getStep();
+    @Override
     public abstract T getCommitted();
+    @Override
     public abstract T getAttempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
@@ -257,7 +262,7 @@ class DirectMetrics extends MetricResults {
   }
 
   @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
+  public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
     for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {
       maybeExtractResult(filter, counterResults, counter);

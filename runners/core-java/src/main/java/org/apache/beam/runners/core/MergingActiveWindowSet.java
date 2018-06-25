@@ -255,12 +255,10 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
       checkState(otherStateAddressWindows != null,
                                "Window %s is not ACTIVE or NEW", other);
 
-      if (otherStateAddressWindows != null) {
-        for (W otherStateAddressWindow : otherStateAddressWindows) {
-          // Since otherTarget equiv other AND other equiv mergeResult
-          // THEN otherTarget equiv mergeResult.
-          newStateAddressWindows.add(otherStateAddressWindow);
-        }
+      for (W otherStateAddressWindow : otherStateAddressWindows) {
+        // Since otherTarget equiv other AND other equiv mergeResult
+        // THEN otherTarget equiv mergeResult.
+        newStateAddressWindows.add(otherStateAddressWindow);
       }
       activeWindowToStateAddressWindows.remove(other);
 

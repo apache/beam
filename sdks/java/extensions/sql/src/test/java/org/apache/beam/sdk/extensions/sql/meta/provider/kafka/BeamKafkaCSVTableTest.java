@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -41,9 +43,9 @@ import org.junit.Test;
 public class BeamKafkaCSVTableTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  private static final Row ROW1 = Row.withSchema(genRowType()).addValues(1L, 1, 1.0).build();
+  private static final Row ROW1 = Row.withSchema(genSchema()).addValues(1L, 1, 1.0).build();
 
-  private static final Row ROW2 = Row.withSchema(genRowType()).addValues(2L, 2, 2.0).build();
+  private static final Row ROW2 = Row.withSchema(genSchema()).addValues(2L, 2, 2.0).build();
 
   @Test
   public void testCsvRecorderDecoder() throws Exception {
@@ -51,7 +53,7 @@ public class BeamKafkaCSVTableTest {
         pipeline
             .apply(Create.of("1,\"1\",1.0", "2,2,2.0"))
             .apply(ParDo.of(new String2KvBytes()))
-            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genRowType(), CSVFormat.DEFAULT));
+            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genSchema(), CSVFormat.DEFAULT));
 
     PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
@@ -63,15 +65,15 @@ public class BeamKafkaCSVTableTest {
     PCollection<Row> result =
         pipeline
             .apply(Create.of(ROW1, ROW2))
-            .apply(new BeamKafkaCSVTable.CsvRecorderEncoder(genRowType(), CSVFormat.DEFAULT))
-            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genRowType(), CSVFormat.DEFAULT));
+            .apply(new BeamKafkaCSVTable.CsvRecorderEncoder(genSchema(), CSVFormat.DEFAULT))
+            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genSchema(), CSVFormat.DEFAULT));
 
     PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
     pipeline.run();
   }
 
-  private static Schema genRowType() {
+  private static Schema genSchema() {
     JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
     return CalciteUtils.toBeamSchema(
         typeFactory
@@ -86,7 +88,7 @@ public class BeamKafkaCSVTableTest {
       implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
-      ctx.output(KV.of(new byte[] {}, ctx.element().getBytes()));
+      ctx.output(KV.of(new byte[] {}, ctx.element().getBytes(UTF_8)));
     }
   }
 }

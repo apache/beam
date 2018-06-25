@@ -591,7 +591,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-      return  timestamp();
+      return timestamp();
     }
 
     @Override

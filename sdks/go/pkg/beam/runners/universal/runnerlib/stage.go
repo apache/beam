@@ -26,8 +26,8 @@ import (
 )
 
 // Stage stages the worker binary and any additional files to the given
-// artifact staging endpoint. It returns the commit token if successful.
-func Stage(ctx context.Context, id, endpoint, binary string, files ...artifact.KeyedFile) (string, error) {
+// artifact staging endpoint. It returns the retrieval token if successful.
+func Stage(ctx context.Context, id, endpoint, binary, st string, files ...artifact.KeyedFile) (retrievalToken string, err error) {
 	ctx = grpcx.WriteWorkerID(ctx, id)
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
@@ -39,11 +39,11 @@ func Stage(ctx context.Context, id, endpoint, binary string, files ...artifact.K
 
 	files = append(files, artifact.KeyedFile{Key: "worker", Filename: binary})
 
-	md, err := artifact.MultiStage(ctx, client, 10, files)
+	md, err := artifact.MultiStage(ctx, client, 10, files, st)
 	if err != nil {
 		return "", fmt.Errorf("failed to stage artifacts: %v", err)
 	}
-	token, err := artifact.Commit(ctx, client, md)
+	token, err := artifact.Commit(ctx, client, md, st)
 	if err != nil {
 		return "", fmt.Errorf("failed to commit artifacts: %v", err)
 	}

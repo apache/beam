@@ -17,6 +17,10 @@
 
 """ Accessors for URNs of common Beam entities. """
 
+from __future__ import absolute_import
+
+from builtins import object
+
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
 

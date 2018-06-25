@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -41,7 +45,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   private void runSingleFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
-    PCollection<Row> result = input.apply("testSingleFilter", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("testSingleFilter", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -67,7 +71,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testCompositeFilter", BeamSql.query(sql));
+            .apply("testCompositeFilter", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(1), rowsInTableA.get(2));
 
@@ -91,7 +95,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testNoReturnFilter", BeamSql.query(sql));
+            .apply("testNoReturnFilter", SqlTransform.query(sql));
 
     PAssert.that(result).empty();
 
@@ -100,27 +104,27 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
   @Test
   public void testFromInvalidTableName1() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Object 'TABLE_B' not found");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Object 'TABLE_B' not found")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
 
     PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-        .apply("testFromInvalidTableName1", BeamSql.query(sql));
+        .apply("testFromInvalidTableName1", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testInvalidFilter() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Column 'f_int_na' not found in any table");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Column 'f_int_na' not found in any table")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    boundedInput1.apply(BeamSql.query(sql));
+    boundedInput1.apply(SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

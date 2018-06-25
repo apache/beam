@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -152,7 +153,9 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
       this.socket = new Socket();
       this.socket.connect(new InetSocketAddress(this.source.getHostname(), this.source.getPort()),
           CONNECTION_TIMEOUT_TIME);
-      this.reader = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+      this.reader =
+          new BufferedReader(
+              new InputStreamReader(this.socket.getInputStream(), StandardCharsets.UTF_8));
       this.isRunning = true;
     }
 
@@ -175,7 +178,7 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
             try {
               Thread.sleep(this.source.getDelayBetweenRetries());
             } catch (InterruptedException e1) {
-              e1.printStackTrace();
+              LOG.error("Interrupted during retry delay", e1);
             }
           } else {
             this.isRunning = false;

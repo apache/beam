@@ -24,16 +24,14 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
@@ -60,7 +58,7 @@ public class BeamEnumerableConverterTest {
 
   @Test
   public void testToEnumerable_collectSingle() {
-    Schema schema = Schema.builder().addInt64Field("id", false).build();
+    Schema schema = Schema.builder().addInt64Field("id").build();
     RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)));
@@ -77,8 +75,7 @@ public class BeamEnumerableConverterTest {
 
   @Test
   public void testToEnumerable_collectMultiple() {
-    Schema schema =
-        Schema.builder().addInt64Field("id", false).addInt64Field("otherid", false).build();
+    Schema schema = Schema.builder().addInt64Field("id").addInt64Field("otherid").build();
     RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(
@@ -99,27 +96,18 @@ public class BeamEnumerableConverterTest {
     enumerator.close();
   }
 
-  private static class FakeTable implements BeamSqlTable {
-    public BeamIOType getSourceType() {
-      return null;
+  private static class FakeTable extends BaseBeamTable {
+    public FakeTable() {
+      super(null);
     }
 
-    public PCollection<Row> buildIOReader(Pipeline pipeline) {
-      return null;
-    }
-
-    public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-      return new FakeIOWriter();
-    }
-
-    public Schema getSchema() {
-      return null;
-    }
-  }
-
-  private static class FakeIOWriter extends PTransform<PCollection<Row>, POutput> {
     @Override
-    public POutput expand(PCollection<Row> input) {
+    public PCollection<Row> buildIOReader(PBegin begin) {
+      return null;
+    }
+
+    @Override
+    public POutput buildIOWriter(PCollection<Row> input) {
       input.apply(
           ParDo.of(
               new DoFn<Row, Void>() {
@@ -132,7 +120,7 @@ public class BeamEnumerableConverterTest {
 
   @Test
   public void testToEnumerable_count() {
-    Schema schema = Schema.builder().addInt64Field("id", false).build();
+    Schema schema = Schema.builder().addInt64Field("id").build();
     RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(

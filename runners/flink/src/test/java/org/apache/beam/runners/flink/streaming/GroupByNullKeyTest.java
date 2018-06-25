@@ -82,6 +82,8 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     }
   }
 
+  // suppress since toString() of Void is called and key is deliberately null
+  @SuppressWarnings("ObjectToString")
   @Override
   protected void testProgram() throws Exception {
 

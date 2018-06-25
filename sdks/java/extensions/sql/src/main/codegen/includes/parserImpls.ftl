@@ -112,7 +112,7 @@ Schema.Field Field() :
     name = Identifier()
     type = FieldType()
     {
-        field = Schema.Field.of(name.toLowerCase(), type);
+        field = Schema.Field.of(name, type);
     }
     (
         <NULL> { field = field.withNullable(true); }
@@ -151,7 +151,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
-    SqlNode type = null;
+    final SqlNode type;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tblProperties = null;
@@ -160,7 +160,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     <TABLE> ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
     fieldList = FieldListParens()
-    <TYPE> type = StringLiteral()
+    <TYPE>
+    (
+        type = StringLiteral()
+    |
+        type = SimpleIdentifier()
+    )
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
@@ -218,8 +223,7 @@ Schema.FieldType Array() :
 {
     <ARRAY> <LT> arrayElementType = FieldType() <GT>
     {
-        return Schema.TypeName.ARRAY.type()
-            .withCollectionElementType(arrayElementType);
+        return Schema.FieldType.array(arrayElementType);
     }
 
 }
@@ -237,8 +241,7 @@ Schema.FieldType Map() :
             mapValueType = FieldType()
         <GT>
     {
-        return Schema.TypeName.MAP.type()
-            .withMapType(mapKeyType, mapValueType);
+        return Schema.FieldType.map(mapKeyType, mapValueType);
     }
 }
 
@@ -250,8 +253,7 @@ Schema.FieldType Row() :
     <ROW> fields = RowFields()
     {
         Schema rowSchema = Schema.builder().addFields(fields).build();
-        return Schema.TypeName.ROW.type()
-            .withRowSchema(rowSchema);
+        return Schema.FieldType.row(rowSchema);
     }
 }
 
@@ -281,6 +283,50 @@ Schema.FieldType SimpleType() :
         s.end(this);
         return CalciteUtils.toFieldType(simpleTypeName);
     }
+}
+
+SqlSetOptionBeam SqlSetOptionBeam(Span s, String scope) :
+{
+    SqlIdentifier name;
+    final SqlNode val;
+}
+{
+    (
+        <SET> {
+            s.add(this);
+        }
+        name = CompoundIdentifier()
+        <EQ>
+        (
+            val = Literal()
+        |
+            val = SimpleIdentifier()
+        |
+            <ON> {
+                // OFF is handled by SimpleIdentifier, ON handled here.
+                val = new SqlIdentifier(token.image.toUpperCase(Locale.ROOT),
+                    getPos());
+            }
+        )
+        {
+            return new SqlSetOptionBeam(s.end(val), scope, name, val);
+        }
+    |
+        <RESET> {
+            s.add(this);
+        }
+        (
+            name = CompoundIdentifier()
+        |
+            <ALL> {
+                name = new SqlIdentifier(token.image.toUpperCase(Locale.ROOT),
+                    getPos());
+            }
+        )
+        {
+            return new SqlSetOptionBeam(s.end(name), scope, name, null);
+        }
+    )
 }
 
 // End parserImpls.ftl

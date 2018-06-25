@@ -23,6 +23,7 @@ import static org.junit.rules.RuleChain.outerRule;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +57,7 @@ public class ExecutorServiceParallelExecutorTest {
 
   @Test
   @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
-  public void ensureMetricsThreadDoesntLeak() {
+  public void ensureMetricsThreadDoesntLeak() throws ExecutionException, InterruptedException {
     final DirectGraph graph =
         DirectGraph.create(
             emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap());
@@ -68,7 +69,7 @@ public class ExecutorServiceParallelExecutorTest {
                 .build());
 
     // fake a metrics usage
-    metricsExecutorService.submit(() -> {});
+    metricsExecutorService.submit(() -> {}).get();
 
     final EvaluationContext context =
         EvaluationContext.create(

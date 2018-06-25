@@ -36,8 +36,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JsonToRowTest implements Serializable {
 
-  private static final boolean NOT_NULLABLE = false;
-
   @Rule
   public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -47,9 +45,9 @@ public class JsonToRowTest implements Serializable {
     Schema personSchema =
         Schema
             .builder()
-            .addStringField("name", NOT_NULLABLE)
-            .addInt32Field("height", NOT_NULLABLE)
-            .addBooleanField("knowsJavascript", NOT_NULLABLE)
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
             .build();
 
     PCollection<String> jsonPersons = pipeline

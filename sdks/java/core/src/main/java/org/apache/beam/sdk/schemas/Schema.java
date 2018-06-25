@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -73,65 +71,80 @@ public class Schema implements Serializable {
       return this;
     }
 
-    public Builder addByteField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.BYTE.type()).withNullable(nullable));
+    public Builder addField(String name, FieldType type) {
+      fields.add(Field.of(name, type));
       return this;
     }
 
-    public Builder addInt16Field(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.INT16.type()).withNullable(nullable));
+    public Builder addNullableField(String name, FieldType type) {
+      fields.add(Field.nullable(name, type));
       return this;
     }
 
-    public Builder addInt32Field(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.INT32.type()).withNullable(nullable));
+    public Builder addByteField(String name) {
+      fields.add(Field.of(name, FieldType.BYTE));
       return this;
     }
 
-    public Builder addInt64Field(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.INT64.type()).withNullable(nullable));
+    public Builder addInt16Field(String name) {
+      fields.add(Field.of(name, FieldType.INT16));
       return this;
     }
 
-    public Builder addDecimalField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.DECIMAL.type()).withNullable(nullable));
+    public Builder addInt32Field(String name) {
+      fields.add(Field.of(name, FieldType.INT32));
       return this;
     }
 
-    public Builder addFloatField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.FLOAT.type()).withNullable(nullable));
+    public Builder addInt64Field(String name) {
+      fields.add(Field.of(name, FieldType.INT64));
       return this;
     }
 
-    public Builder addDoubleField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.DOUBLE.type()).withNullable(nullable));
+    public Builder addDecimalField(String name) {
+      fields.add(Field.of(name, FieldType.DECIMAL));
       return this;
     }
 
-    public Builder addStringField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.STRING.type()).withNullable(nullable));
+    public Builder addFloatField(String name) {
+      fields.add(Field.of(name, FieldType.FLOAT));
       return this;
     }
 
-    public Builder addDateTimeField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.DATETIME.type()).withNullable(nullable));
+    public Builder addDoubleField(String name) {
+      fields.add(Field.of(name, FieldType.DOUBLE));
       return this;
     }
 
-    public Builder addBooleanField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.BOOLEAN.type()).withNullable(nullable));
+    public Builder addStringField(String name) {
+      fields.add(Field.of(name, FieldType.STRING));
+      return this;
+    }
+
+    public Builder addDateTimeField(String name) {
+      fields.add(Field.of(name, FieldType.DATETIME));
+      return this;
+    }
+
+    public Builder addBooleanField(String name) {
+      fields.add(Field.of(name, FieldType.BOOLEAN));
       return this;
     }
 
     public Builder addArrayField(String name, FieldType collectionElementType) {
       fields.add(
-          Field.of(name, TypeName.ARRAY.type().withCollectionElementType(collectionElementType)));
+          Field.of(name, FieldType.array(collectionElementType)));
       return this;
     }
 
-    public Builder addRowField(String name, Schema fieldSchema, boolean nullable) {
-      fields.add(Field.of(name, TypeName.ROW.type().withRowSchema(fieldSchema))
-          .withNullable(nullable));
+    public Builder addRowField(String name, Schema fieldSchema) {
+      fields.add(Field.of(name, FieldType.row(fieldSchema)));
+      return this;
+    }
+
+    public Builder addMapField(
+        String name, FieldType keyType, FieldType valueType) {
+      fields.add(Field.of(name, FieldType.map(keyType, valueType)));
       return this;
     }
 
@@ -186,9 +199,15 @@ public class Schema implements Serializable {
     return fields;
   }
 
-  /**
-   * An enumerated list of supported types.
+  /** An enumerated list of type constructors.
+   *
+   * <ul>
+   *   <li>Atomic types are built from type constructors that take no arguments
+   *   <li>Arrays, rows, and maps are type constructors that take additional
+   *       arguments to form a valid {@link FieldType}.
+   * </ul>
    */
+  @SuppressWarnings("MutableConstantField")
   public enum TypeName {
     BYTE,    // One-byte signed integer.
     INT16,   // two-byte signed integer.
@@ -203,8 +222,6 @@ public class Schema implements Serializable {
     ARRAY,
     MAP,
     ROW;    // The field is itself a nested row.
-
-    private final FieldType fieldType = FieldType.of(this);
 
     public static final Set<TypeName> NUMERIC_TYPES = ImmutableSet.of(
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
@@ -235,11 +252,6 @@ public class Schema implements Serializable {
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
     }
-
-    /** Returns a {@link FieldType} representing this primitive type. */
-    public FieldType type() {
-      return fieldType;
-    }
   }
 
   /**
@@ -251,20 +263,31 @@ public class Schema implements Serializable {
   public abstract static class FieldType implements Serializable {
     // Returns the type of this field.
     public abstract TypeName getTypeName();
+
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable public abstract FieldType getCollectionElementType();
+
     // For MAP type, returns the type of the key element, it must be a primitive type;
     @Nullable public abstract FieldType getMapKeyType();
+
     // For MAP type, returns the type of the value element, it can be a nested type;
     @Nullable public abstract FieldType getMapValueType();
+
     // For ROW types, returns the schema for the row.
     @Nullable public abstract Schema getRowSchema();
+
     /**
      * Returns optional extra metadata.
      */
     @SuppressWarnings("mutable")
     @Nullable public abstract byte[] getMetadata();
+
     abstract FieldType.Builder toBuilder();
+
+    public static FieldType.Builder forTypeName(TypeName typeName) {
+      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName);
+    }
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
@@ -280,42 +303,55 @@ public class Schema implements Serializable {
      * Create a {@link FieldType} for the given type.
      */
     public static FieldType of(TypeName typeName) {
-      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).build();
+      return forTypeName(typeName).build();
     }
 
-    /**
-     * For container types, adds the type of the component element.
-     */
-    public FieldType withCollectionElementType(@Nullable FieldType collectionElementType) {
-      if (collectionElementType != null) {
-        checkArgument(getTypeName().isCollectionType());
-      }
-      return toBuilder().setCollectionElementType(collectionElementType).build();
+    /** The type of string fields. */
+    public static final FieldType STRING = FieldType.of(TypeName.STRING);
+
+    /** The type of byte fields. */
+    public static final FieldType BYTE = FieldType.of(TypeName.BYTE);
+
+    /** The type of int16 fields. */
+    public static final FieldType INT16 = FieldType.of(TypeName.INT16);
+
+    /** The type of int32 fields. */
+    public static final FieldType INT32 = FieldType.of(TypeName.INT32);
+
+    /** The type of int64 fields. */
+    public static final FieldType INT64 = FieldType.of(TypeName.INT64);
+
+    /** The type of float fields. */
+    public static final FieldType FLOAT = FieldType.of(TypeName.FLOAT);
+
+    /** The type of double fields. */
+    public static final FieldType DOUBLE = FieldType.of(TypeName.DOUBLE);
+
+    /** The type of decimal fields. */
+    public static final FieldType DECIMAL = FieldType.of(TypeName.DECIMAL);
+
+    /** The type of boolean fields. */
+    public static final FieldType BOOLEAN = FieldType.of(TypeName.BOOLEAN);
+
+    /** The type of datetime fields. */
+    public static final FieldType DATETIME = FieldType.of(TypeName.DATETIME);
+
+    /** Create an array type for the given field type. */
+    public static final FieldType array(FieldType elementType) {
+      return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
     }
 
-    /**
-     * For MAP type, adds the type of the component key/value element.
-     */
-    public FieldType withMapType(
-        @Nullable FieldType mapKeyType,
-        @Nullable FieldType mapValueType) {
-      if (mapKeyType != null && mapValueType != null) {
-        checkArgument(getTypeName().isMapType());
-        checkArgument(mapKeyType.getTypeName().isPrimitiveType());
-      }
-      return toBuilder()
-          .setMapKeyType(mapKeyType)
-          .setMapValueType(mapValueType).build();
+    /** Create a map type for the given key and value types. */
+    public static final FieldType map(FieldType keyType, FieldType valueType) {
+      return FieldType.forTypeName(TypeName.MAP)
+          .setMapKeyType(keyType)
+          .setMapValueType(valueType)
+          .build();
     }
 
-    /**
-     * For ROW types, sets the schema of the row.
-     */
-    public FieldType withRowSchema(@Nullable Schema rowSchema) {
-      if (rowSchema != null) {
-        checkArgument(getTypeName().isCompositeType());
-      }
-      return toBuilder().setRowSchema(rowSchema).build();
+    /** Create a map type for the given key and value types. */
+    public static final FieldType row(Schema schema) {
+      return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
     }
 
     /**
@@ -393,7 +429,7 @@ public class Schema implements Serializable {
     }
 
     /**
-     * Return's a field with the give name.
+     * Return's a field with the give name and type.
      */
     public static Field of(String name, FieldType fieldType) {
       return new AutoValue_Schema_Field.Builder()
@@ -401,6 +437,18 @@ public class Schema implements Serializable {
           .setDescription("")
           .setType(fieldType)
           .setNullable(false)  // By default fields are not nullable.
+          .build();
+    }
+
+    /**
+     * Return's a nullable field with the give name and type.
+     */
+    public static Field nullable(String name, FieldType fieldType) {
+      return new AutoValue_Schema_Field.Builder()
+          .setName(name)
+          .setDescription("")
+          .setType(fieldType)
+          .setNullable(true)
           .build();
     }
 

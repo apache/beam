@@ -17,10 +17,14 @@
 
 """Unit tests for the Pipeline class."""
 
+from __future__ import absolute_import
+
 import copy
 import logging
 import platform
 import unittest
+from builtins import object
+from builtins import range
 from collections import defaultdict
 
 import mock
@@ -330,7 +334,7 @@ class PipelineTest(unittest.TestCase):
       def get_replacement_transform(self, ptransform):
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
-        raise ValueError('Unsupported type of transform: %r', ptransform)
+        raise ValueError('Unsupported type of transform: %r' % ptransform)
 
     def get_overrides(unused_pipeline_options):
       return [MyParDoOverride()]

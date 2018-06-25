@@ -25,6 +25,7 @@ import base64
 import collections
 import json
 import logging
+import re
 
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
@@ -358,6 +359,8 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
+    if coder_id not in self.descriptor.coders:
+      raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
     if coder_proto.spec.spec.urn:
       return self.context.coders.get_by_id(coder_id)
@@ -417,7 +420,9 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_only_output_coder(transform_proto),
+      factory.get_coder(grpc_port.coder_id)
+      if grpc_port.coder_id
+      else factory.get_only_output_coder(transform_proto),
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -434,8 +439,9 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      # TODO(robertwb): Perhaps this could be distinct from the input coder?
-      factory.get_only_input_coder(transform_proto),
+      factory.get_coder(grpc_port.coder_id)
+      if grpc_port.coder_id
+      else factory.get_only_input_coder(transform_proto),
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -499,7 +505,9 @@ def _create_pardo_operation(
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
         for tag, si in side_inputs_proto.items()]
-    tagged_side_inputs.sort(key=lambda tag_si: int(tag_si[0][4:]))
+    tagged_side_inputs.sort(
+        key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
+                                        tag_si[0]).group(1)))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,

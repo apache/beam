@@ -34,7 +34,6 @@ import org.junit.Test;
 /** Tests for automatic inferring schema from the input {@link PCollection} of pojos. */
 public class InferredRowCoderSqlTest {
 
-  private static final boolean NOT_NULLABLE = false;
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   /** Person POJO. */
@@ -86,15 +85,12 @@ public class InferredRowCoderSqlTest {
 
     String sql = "SELECT name, ageYears FROM PCOLLECTION";
 
-    PCollection<Row> result = input.apply("sql", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.rowsBuilderOf(
-                    Schema.builder()
-                        .addStringField("name", NOT_NULLABLE)
-                        .addInt32Field("ageYears", NOT_NULLABLE)
-                        .build())
+                    Schema.builder().addStringField("name").addInt32Field("ageYears").build())
                 .addRows(
                     "Foo", 5,
                     "Bar", 53)
@@ -114,11 +110,11 @@ public class InferredRowCoderSqlTest {
 
     String sql = "SELECT name FROM PCOLLECTION";
 
-    PCollection<Row> result = input.apply("sql", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
-            TestUtils.rowsBuilderOf(Schema.builder().addStringField("name", NOT_NULLABLE).build())
+            TestUtils.rowsBuilderOf(Schema.builder().addStringField("name").build())
                 .addRows("Foo", "Bar")
                 .getRows());
 
@@ -157,15 +153,12 @@ public class InferredRowCoderSqlTest {
         tuple(
                 "buyers", people,
                 "orders", orders)
-            .apply("sql", BeamSql.query(sql));
+            .apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.rowsBuilderOf(
-                    Schema.builder()
-                        .addStringField("name", NOT_NULLABLE)
-                        .addInt32Field("amount", NOT_NULLABLE)
-                        .build())
+                    Schema.builder().addStringField("name").addInt32Field("amount").build())
                 .addRows(
                     "Foo", 15,
                     "Foo", 10,
@@ -207,15 +200,12 @@ public class InferredRowCoderSqlTest {
         tuple(
                 "buyers", people,
                 "orders", orders)
-            .apply("sql", BeamSql.query(sql));
+            .apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.rowsBuilderOf(
-                    Schema.builder()
-                        .addStringField("name", NOT_NULLABLE)
-                        .addInt32Field("total", NOT_NULLABLE)
-                        .build())
+                    Schema.builder().addStringField("name").addInt32Field("total").build())
                 .addRows(
                     "Foo", 30,
                     "Bar", 162)

@@ -22,8 +22,14 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,7 +63,7 @@ public class UnboundedReadDeduplicatorTest {
   }
 
   @Test
-  public void cachedIdDeduplicatorMultithreaded() throws InterruptedException {
+  public void cachedIdDeduplicatorMultithreaded() throws InterruptedException, ExecutionException {
     byte[] id = new byte[] {-1, 2, 4, 22};
     UnboundedReadDeduplicator dedupper = CachedIdDeduplicator.create();
     final CountDownLatch startSignal = new CountDownLatch(1);
@@ -65,22 +71,25 @@ public class UnboundedReadDeduplicatorTest {
     final CountDownLatch readyLatch = new CountDownLatch(numThreads);
     final CountDownLatch finishLine = new CountDownLatch(numThreads);
 
-    ExecutorService executor = Executors.newCachedThreadPool();
+    ListeningExecutorService executor = MoreExecutors.listeningDecorator(
+        Executors.newCachedThreadPool());
     AtomicInteger successCount = new AtomicInteger();
     AtomicInteger noOutputCount = new AtomicInteger();
+    List<ListenableFuture<?>> futures = new ArrayList<>();
     for (int i = 0; i < numThreads; i++) {
-      executor.submit(new TryOutputIdRunnable(dedupper,
+      futures.add(executor.submit(new TryOutputIdRunnable(dedupper,
           id,
           successCount,
           noOutputCount,
           readyLatch,
           startSignal,
-          finishLine));
+          finishLine)));
     }
 
     readyLatch.await();
     startSignal.countDown();
     finishLine.await(10L, TimeUnit.SECONDS);
+    Futures.allAsList(futures).get();
     executor.shutdownNow();
 
     // The first thread to run will succeed, and no others will

@@ -27,7 +27,7 @@ job('beam_PerformanceTests_Dataflow'){
     // don't email individual committers.
     common_job_properties.setPostCommit(
         delegate,
-        '0 */6 * * *',
+        'H */6 * * *',
         false,
         'commits@beam.apache.org',
         false)

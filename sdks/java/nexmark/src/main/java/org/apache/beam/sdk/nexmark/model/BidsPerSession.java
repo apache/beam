@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -51,7 +52,13 @@ public class BidsPerSession implements KnownSize, Serializable {
       long bidsPerSession = LONG_CODER.decode(inStream);
       return new BidsPerSession(personId, bidsPerSession);
     }
+
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(BidsPerSession v) {
+      return v;
+    }
   };
 
   @JsonProperty
@@ -83,5 +90,22 @@ public class BidsPerSession implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    BidsPerSession that = (BidsPerSession) o;
+    return personId == that.personId && bidsPerSession == that.bidsPerSession;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(personId, bidsPerSession);
   }
 }

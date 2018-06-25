@@ -19,10 +19,9 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -49,16 +48,19 @@ public class BeamSqlFieldAccessExpressionTest {
         new BeamSqlFieldAccessExpression(targetArray, 1, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "bbb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+        "bbb",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
   public void testAccessesFieldOfRow() {
     Schema schema =
-        RowSqlTypes.builder()
-            .withVarcharField("f_string1")
-            .withVarcharField("f_string2")
-            .withVarcharField("f_string3")
+        Schema.builder()
+            .addStringField("f_string1")
+            .addStringField("f_string2")
+            .addStringField("f_string3")
             .build();
 
     BeamSqlPrimitive<Row> targetRow =
@@ -69,7 +71,10 @@ public class BeamSqlFieldAccessExpressionTest {
         new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "bb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+        "bb",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -80,7 +85,7 @@ public class BeamSqlFieldAccessExpressionTest {
     thrown.expectMessage("unsupported type");
 
     new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of())
+        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
         .getValue();
   }
 }

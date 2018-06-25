@@ -85,13 +85,14 @@ func main() {
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 
-	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, dir)
+	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
 	if err != nil {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
 
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
+	os.Setenv("HARNESS_ID", *id)
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))

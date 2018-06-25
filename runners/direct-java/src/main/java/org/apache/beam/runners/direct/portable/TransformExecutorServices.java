@@ -69,6 +69,8 @@ final class TransformExecutorServices {
     }
 
     @Override
+    // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void schedule(TransformExecutor work) {
       if (active.get()) {
         try {
@@ -152,6 +154,8 @@ final class TransformExecutorServices {
       workQueue.clear();
     }
 
+    // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void updateCurrentlyEvaluating() {
       if (currentlyEvaluating.get() == null) {
         // Only synchronize if we need to update what's currently evaluating

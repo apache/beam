@@ -18,10 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -35,7 +33,7 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class BeamTextCSVTable extends BeamTextTable {
 
-  private String filePattern;
+  private String csvFilePattern;
   private CSVFormat csvFormat;
 
   /** CSV table with {@link CSVFormat#DEFAULT DEFAULT} format. */
@@ -43,29 +41,29 @@ public class BeamTextCSVTable extends BeamTextTable {
     this(beamSchema, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(Schema schema, String filePattern, CSVFormat csvFormat) {
-    super(schema, filePattern);
-    this.filePattern = filePattern;
+  public BeamTextCSVTable(Schema schema, String csvFilePattern, CSVFormat csvFormat) {
+    super(schema, csvFilePattern);
+    this.csvFilePattern = csvFilePattern;
     this.csvFormat = csvFormat;
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline)
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    return begin
         .apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine", new BeamTextCSVTableIOReader(schema, filePattern, csvFormat));
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(schema, filePattern, csvFormat);
+  public POutput buildIOWriter(PCollection<Row> input) {
+    return input.apply(new BeamTextCSVTableIOWriter(schema, filePattern, csvFormat));
   }
 
   public CSVFormat getCsvFormat() {
     return csvFormat;
   }
 
-  public String getFilePattern() {
-    return filePattern;
+  public String getCsvFilePattern() {
+    return csvFilePattern;
   }
 }

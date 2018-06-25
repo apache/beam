@@ -270,9 +270,10 @@ public class DirectRunnerTest implements Serializable {
         };
 
     ExecutorService executor = Executors.newCachedThreadPool();
-    executor.submit(cancelRunnable);
+    Future<?> cancelResult = executor.submit(cancelRunnable);
     Future<PipelineResult> result = executor.submit(runPipelineRunnable);
 
+    cancelResult.get();
     // If cancel doesn't work, this will hang forever
     result.get().waitUntilFinish();
   }
@@ -320,7 +321,7 @@ public class DirectRunnerTest implements Serializable {
           try {
             Thread.sleep(1000);
           } catch (final InterruptedException e) {
-            fail();
+            throw new AssertionError(e);
           }
           TEARDOWN_CALL.set(System.nanoTime());
         }

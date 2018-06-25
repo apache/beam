@@ -45,6 +45,7 @@ abstract class SqlDropObject extends SqlDrop implements SqlExecutableStatement {
     this.name = name;
   }
 
+  @Override
   public List<SqlNode> getOperandList() {
     return ImmutableList.<SqlNode>of(name);
   }
@@ -58,6 +59,7 @@ abstract class SqlDropObject extends SqlDrop implements SqlExecutableStatement {
     name.unparse(writer, leftPrec, rightPrec);
   }
 
+  @Override
   public void execute(CalcitePrepare.Context context) {
     final List<String> path = context.getDefaultSchemaPath();
     CalciteSchema schema = context.getRootSchema();

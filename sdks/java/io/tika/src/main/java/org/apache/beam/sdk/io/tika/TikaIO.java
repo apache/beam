@@ -261,7 +261,7 @@ public class TikaIO {
           Metadata tikaMetadata =
               spec.getInputMetadata() != null
                   ? spec.getInputMetadata()
-                  : new org.apache.tika.metadata.Metadata();
+                  : new Metadata();
           if (spec.getContentTypeHint() != null) {
             tikaMetadata.set(Metadata.CONTENT_TYPE, spec.getContentTypeHint());
           }

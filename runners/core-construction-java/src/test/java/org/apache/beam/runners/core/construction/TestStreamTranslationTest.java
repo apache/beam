@@ -33,7 +33,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -103,7 +102,7 @@ public class TestStreamTranslationTest {
     // This reverse direction is only valid for Java-based coders
     assertThat(
         protoComponents.getCoder(payload.getCoderId()),
-        Matchers.equalTo(testStream.getValueCoder()));
+        equalTo(testStream.getValueCoder()));
 
     assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
 

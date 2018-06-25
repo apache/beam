@@ -100,7 +100,7 @@ REQUIRED_PACKAGES = [
     'dill==0.2.6',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.10',
+    'httplib2>=0.8,<=0.11.3',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.

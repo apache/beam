@@ -370,7 +370,7 @@ public class TriggerExample {
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      String[] values = c.element().getValue().split(",");
+      String[] values = c.element().getValue().split(",", -1);
       TableRow row = new TableRow()
           .set("trigger_type", triggerType)
           .set("freeway", c.element().getKey())
@@ -391,14 +391,16 @@ public class TriggerExample {
    * Freeway is used as key since we are calculating the total flow for each freeway.
    */
   static class ExtractFlowInfo extends DoFn<String, KV<String, Integer>> {
+    private static final int VALID_NUM_FIELDS = 50;
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      String[] laneInfo = c.element().split(",");
+      String[] laneInfo = c.element().split(",", -1);
       if ("timestamp".equals(laneInfo[0])) {
         // Header row
         return;
       }
-      if (laneInfo.length < 48) {
+      if (laneInfo.length < VALID_NUM_FIELDS) {
         //Skip the invalid input.
         return;
       }

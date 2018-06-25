@@ -33,7 +33,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -110,7 +109,7 @@ public class PCollectionListTest {
 
     PCollectionList<Long> list = PCollectionList.of(createOne).and(createOne).and(createOne);
     assertThat(
-        list.expand().values(), Matchers.containsInAnyOrder(createOne, createOne, createOne));
+        list.expand().values(), containsInAnyOrder(createOne, createOne, createOne));
   }
 
   @Test

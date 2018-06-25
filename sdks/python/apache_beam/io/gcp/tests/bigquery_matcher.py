@@ -52,6 +52,13 @@ class BigqueryMatcher(BaseMatcher):
   """
 
   def __init__(self, project, query, checksum):
+    """Initialize BigQueryMatcher object.
+    Args:
+      project: The name (string) of the project.
+      query: The query (string) to perform.
+      checksum: SHA-1 hash generated from a sorted list of lines
+        read from expected output.
+    """
     if bigquery is None:
       raise ImportError(
           'Bigquery dependencies are not installed.')

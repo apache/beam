@@ -40,10 +40,8 @@ public interface RemoteBundle<InputT> extends AutoCloseable {
   FnDataReceiver<WindowedValue<InputT>> getInputReceiver();
 
   /**
-   * {@inheritDoc}.
-   *
-   * <p>Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls
-   * to that {@link FnDataReceiver} will throw an exception), and causes the {@link RemoteBundle} to
+   * Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls to
+   * that {@link FnDataReceiver} will throw an exception), and causes the {@link RemoteBundle} to
    * produce any buffered outputs. The call to {@link #close()} will block until all of the outputs
    * produced by this bundle have been received.
    */

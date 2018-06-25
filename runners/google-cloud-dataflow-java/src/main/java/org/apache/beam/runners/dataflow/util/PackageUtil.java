@@ -38,6 +38,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -118,7 +119,7 @@ class PackageUtil implements Closeable {
 
 
   /** Utility comparator used in uploading packages efficiently. */
-  private static class PackageUploadOrder implements Comparator<PackageAttributes> {
+  private static class PackageUploadOrder implements Comparator<PackageAttributes>, Serializable {
     @Override
     public int compare(PackageAttributes o1, PackageAttributes o2) {
       // Smaller size compares high so that bigger packages are uploaded first.
@@ -224,7 +225,8 @@ class PackageUtil implements Closeable {
               "Upload failed, will NOT retry staging of package: {}",
               sourceDescription,
               ioException);
-          throw new RuntimeException("Could not stage %s to %s", ioException);
+          throw new RuntimeException(
+              String.format("Could not stage %s to %s", sourceDescription, target), ioException);
         } else {
           LOG.warn(
               "Upload attempt failed, sleeping before retrying staging of package: {}",
@@ -507,6 +509,7 @@ class PackageUtil implements Closeable {
     public abstract File getSource();
 
     /** @return the bytes to be uploaded, if any */
+    @SuppressWarnings("mutable")
     @Nullable
     public abstract byte[] getBytes();
 

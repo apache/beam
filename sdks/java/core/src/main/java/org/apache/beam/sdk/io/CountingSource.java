@@ -479,7 +479,8 @@ public class CountingSource {
     @Override
     public long getSplitBacklogBytes() {
       long expected = expectedValue();
-      return Math.max(0L, 8 * (expected - current) / source.stride);
+      long backlogElements = (expected - current) / source.stride;
+      return Math.max(0L, 8 * backlogElements);
     }
   }
 

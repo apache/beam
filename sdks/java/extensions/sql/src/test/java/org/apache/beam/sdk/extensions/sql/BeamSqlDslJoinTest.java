@@ -49,22 +49,22 @@ public class BeamSqlDslJoinTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private static final Schema SOURCE_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("order_id")
-          .withIntegerField("site_id")
-          .withIntegerField("price")
+      Schema.builder()
+          .addNullableField("order_id", Schema.FieldType.INT32)
+          .addNullableField("site_id", Schema.FieldType.INT32)
+          .addNullableField("price", Schema.FieldType.INT32)
           .build();
 
   private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
 
   private static final Schema RESULT_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("order_id")
-          .withIntegerField("site_id")
-          .withIntegerField("price")
-          .withIntegerField("order_id0")
-          .withIntegerField("site_id0")
-          .withIntegerField("price0")
+      Schema.builder()
+          .addNullableField("order_id", Schema.FieldType.INT32)
+          .addNullableField("site_id", Schema.FieldType.INT32)
+          .addNullableField("price", Schema.FieldType.INT32)
+          .addNullableField("order_id0", Schema.FieldType.INT32)
+          .addNullableField("site_id0", Schema.FieldType.INT32)
+          .addNullableField("price0", Schema.FieldType.INT32)
           .build();
 
   private static final RowCoder RESULT_CODER = RESULT_ROW_TYPE.getRowCoder();
@@ -175,7 +175,7 @@ public class BeamSqlDslJoinTest {
             .apply("window", Window.into(FixedWindows.of(Duration.standardSeconds(50))));
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    PAssert.that(inputs.apply("sql", BeamSql.query(sql)))
+    PAssert.that(inputs.apply("sql", SqlTransform.query(sql)))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
                 .addRows(1, 2, 2, 2, 2, 1, 1, 4, 3, 3, 3, 1)
@@ -208,7 +208,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -230,7 +230,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -259,7 +259,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -288,7 +288,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -297,11 +297,11 @@ public class BeamSqlDslJoinTest {
     DateTime ts = new DateTime(2017, 1, 1, 1, 0, 0);
 
     return TestUtils.rowsBuilderOf(
-            RowSqlTypes.builder()
-                .withIntegerField("order_id")
-                .withIntegerField("price")
-                .withIntegerField("site_id")
-                .withTimestampField("timestamp")
+            Schema.builder()
+                .addInt32Field("order_id")
+                .addInt32Field("price")
+                .addInt32Field("site_id")
+                .addDateTimeField("timestamp")
                 .build())
         .addRows(
             1,
@@ -332,9 +332,9 @@ public class BeamSqlDslJoinTest {
 
   private PCollection<Row> queryFromOrderTables(String sql) {
     return tuple(
-            "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
-            "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .apply("join", BeamSql.query(sql))
+            "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline.begin()).setCoder(SOURCE_CODER),
+            "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline.begin()).setCoder(SOURCE_CODER))
+        .apply("join", SqlTransform.query(sql))
         .setCoder(RESULT_CODER);
   }
 }

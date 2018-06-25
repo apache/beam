@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.values.KV.of;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -495,7 +494,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(of(c.element(), v));
+                      c.output(KV.of(c.element(), v));
                     }
                   }
                 }).withSideInputs(view));
@@ -589,7 +588,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(of(c.element(), v));
+                      c.output(KV.of(c.element(), v));
                     }
                   }
                 }).withSideInputs(view));
@@ -631,7 +630,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                              c.output(of(c.element(), v));
+                              c.output(KV.of(c.element(), v));
                             }
                           }
                         })
@@ -722,7 +721,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                              c.output(of(c.element(), v));
+                              c.output(KV.of(c.element(), v));
                             }
                           }
                         })
@@ -859,7 +858,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }).withSideInputs(view));
 
@@ -919,7 +918,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }).withSideInputs(view));
 
@@ -1050,7 +1049,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             c.output(
-                                of(
+                                KV.of(
                                     c.element(),
                                     c.sideInput(view).get(c.element().substring(0, 1))));
                           }

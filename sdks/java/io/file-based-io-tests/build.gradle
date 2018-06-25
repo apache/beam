@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -25,15 +25,12 @@ description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
 
 dependencies {
-  compileOnly library.java.findbugs_annotations
-  shadowTest project(":beam-sdks-java-core")
-  shadowTest project(":beam-sdks-java-io-common")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  shadowTest project(":beam-sdks-java-io-xml")
-  shadowTest project(":beam-sdks-java-io-parquet")
+  shadowTest project(path: ":beam-sdks-java-io-xml", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-io-parquet", configuration: "shadowTest")
   shadowTest library.java.guava
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
   shadowTest library.java.jaxb_api
-  testCompileOnly library.java.findbugs_annotations
 }

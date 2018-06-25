@@ -99,7 +99,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   public String decode(InputStream inStream, Context context)
       throws IOException {
     if (context.isWholeStream) {
-      byte[] bytes = StreamUtils.getBytes(inStream);
+      byte[] bytes = StreamUtils.getBytesWithoutClosing(inStream);
       return new String(bytes, StandardCharsets.UTF_8);
     } else {
       try {

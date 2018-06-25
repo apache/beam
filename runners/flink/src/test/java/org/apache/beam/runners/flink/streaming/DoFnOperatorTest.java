@@ -70,8 +70,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -127,6 +127,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -184,6 +185,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -277,7 +279,8 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            VarIntCoder.of() /* key coder */);
+            VarIntCoder.of(), /* key coder */
+            WindowedValue::getValue);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -358,7 +361,8 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            VarIntCoder.of() /* key coder */);
+            VarIntCoder.of(), /* key coder */
+            WindowedValue::getValue);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -464,7 +468,8 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            StringUtf8Coder.of() /* key coder */);
+            StringUtf8Coder.of(), /* key coder */
+            kvWindowedValue -> kvWindowedValue.getValue().getKey());
 
     KeyedOneInputStreamOperatorTestHarness<
             String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
@@ -565,7 +570,8 @@ public class DoFnOperatorTest {
             sideInputMapping, /* side-input mapping */
             ImmutableList.of(view1, view2), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            keyCoder);
+            keyCoder,
+            keyed ? WindowedValue::getValue : null);
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
         testHarness = new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -574,8 +580,8 @@ public class DoFnOperatorTest {
       // we use a dummy key for the second input since it is considered to be broadcast
       testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
           doFnOperator,
-          new StringKeySelector(),
-          new DummyKeySelector(),
+          WindowedValue::getValue,
+          null,
           BasicTypeInfo.STRING_TYPE_INFO);
     }
 
@@ -668,7 +674,7 @@ public class DoFnOperatorTest {
     testHarness
         .processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(KV.of("a", 100L))));
 
-    final OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
     testHarness.close();
 
     testHarness = createTestHarness(windowingStrategy, filterElementsEqualToCountFn, kvCoder,
@@ -721,6 +727,7 @@ public class DoFnOperatorTest {
           sideInputMapping, /* side-input mapping */
           ImmutableList.of(view1, view2), /* side inputs */
           PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+          null,
           null);
 
       return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -753,13 +760,14 @@ public class DoFnOperatorTest {
           sideInputMapping, /* side-input mapping */
           ImmutableList.of(view1, view2), /* side inputs */
           PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-          keyCoder);
+          keyCoder,
+          WindowedValue::getValue);
 
       return new KeyedTwoInputStreamOperatorTestHarness<>(
           doFnOperator,
-          new StringKeySelector(),
+          WindowedValue::getValue,
           // we use a dummy key for the second input since it is considered to be broadcast
-          new DummyKeySelector(),
+          null,
           BasicTypeInfo.STRING_TYPE_INFO);
     });
   }
@@ -799,7 +807,7 @@ public class DoFnOperatorTest {
 
     // snapshot state, throw away the operator, then restore and verify that we still match
     // main-input elements to the side-inputs that we sent earlier
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     testHarness = harnessFactory.create();
 
@@ -844,6 +852,7 @@ public class DoFnOperatorTest {
           sideInputMapping, /* side-input mapping */
           ImmutableList.of(view1, view2), /* side inputs */
           PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+          null,
           null);
 
       return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -877,13 +886,14 @@ public class DoFnOperatorTest {
           sideInputMapping, /* side-input mapping */
           ImmutableList.of(view1, view2), /* side inputs */
           PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-          keyCoder);
+          keyCoder,
+          WindowedValue::getValue);
 
       return new KeyedTwoInputStreamOperatorTestHarness<>(
           doFnOperator,
-          new StringKeySelector(),
+          WindowedValue::getValue,
           // we use a dummy key for the second input since it is considered to be broadcast
-          new DummyKeySelector(),
+          null,
           BasicTypeInfo.STRING_TYPE_INFO);
     });
   }
@@ -911,7 +921,7 @@ public class DoFnOperatorTest {
 
     // snapshot state, throw away the operator, then restore and verify that we still match
     // main-input elements to the side-inputs that we sent earlier
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     testHarness = harnessFactory.create();
 
@@ -1009,7 +1019,7 @@ public class DoFnOperatorTest {
         emptyIterable());
 
     // snapshot and restore
-    final OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    final OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
     testHarness.close();
 
     testHarness = createTestHarness(windowingStrategy, fn, inputCoder, outputCoder, outputTag,
@@ -1046,7 +1056,8 @@ public class DoFnOperatorTest {
         new HashMap<>(), /* side-input mapping */
         Collections.emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        VarIntCoder.of() /* key coder */);
+        VarIntCoder.of() /* key coder */,
+        keySelector);
 
     return new KeyedOneInputStreamOperatorTestHarness<>(doFnOperator, keySelector, keyCoderInfo);
   }
@@ -1088,6 +1099,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             options,
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -1100,7 +1112,7 @@ public class DoFnOperatorTest {
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("c")));
 
     // draw a snapshot
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     // There is a finishBundle in snapshot()
     // Elements will be buffered as part of finishing a bundle in snapshot()
@@ -1126,6 +1138,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             options,
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> newHarness =
@@ -1209,21 +1222,6 @@ public class DoFnOperatorTest {
   private <T> WindowedValue<T> valueInWindow(
       T value, Instant timestamp, BoundedWindow window) {
     return WindowedValue.of(value, timestamp, window, PaneInfo.NO_FIRING);
-  }
-
-
-  private static class DummyKeySelector implements KeySelector<RawUnionValue, String> {
-    @Override
-    public String getKey(RawUnionValue stringWindowedValue) throws Exception {
-      return "dummy_key";
-    }
-  }
-
-  private static class StringKeySelector implements KeySelector<WindowedValue<String>, String> {
-    @Override
-    public String getKey(WindowedValue<String> stringWindowedValue) throws Exception {
-      return stringWindowedValue.getValue();
-    }
   }
 
   private interface TestHarnessFactory<T> {
