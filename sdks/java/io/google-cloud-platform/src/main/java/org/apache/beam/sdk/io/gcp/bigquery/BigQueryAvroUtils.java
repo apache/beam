@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,7 @@ class BigQueryAvroUtils {
           .put("BYTES", Type.BYTES)
           .put("INTEGER", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
+          .put("NUMERIC", Type.STRING)
           .put("BOOLEAN", Type.BOOLEAN)
           .put("TIMESTAMP", Type.LONG)
           .put("RECORD", Type.RECORD)
@@ -60,6 +62,7 @@ class BigQueryAvroUtils {
           .put("DATETIME", Type.STRING)
           .put("TIME", Type.STRING)
           .build();
+
   /**
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
    * immutable.
@@ -194,6 +197,12 @@ class BigQueryAvroUtils {
       case "FLOAT":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
+      case "NUMERIC":
+        verify(
+            v instanceof CharSequence || v instanceof BigDecimal,
+            "Expected CharSequence (String) or BigDecimal, got %s",
+            v.getClass());
+        return v.toString();
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
