@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -31,7 +31,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <samza.version>0.15.0-SNAPSHOT</samza.version>
+    <samza.version>0.14.1</samza.version>
   </properties>
 
   <profiles>
@@ -184,6 +184,7 @@
     <dependency>
       <groupId>org.apache.samza</groupId>
       <artifactId>samza-kv_2.11</artifactId>
+      <version>${samza.version}</version>
       <version>${samza.version}</version>
       <scope>runtime</scope>
     </dependency>

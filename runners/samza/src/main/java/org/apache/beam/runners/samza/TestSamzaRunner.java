@@ -50,7 +50,9 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
           System.getProperty("java.io.tmpdir"), "beam-samza-test").toFile();
       //  Re-create the folder for test stores
       FileUtils.deleteDirectory(storeDir);
-      storeDir.mkdir();
+      if (!storeDir.mkdir()) {
+        // ignore
+      }
 
       config.put(JobConfig.JOB_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
       config.put(JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());

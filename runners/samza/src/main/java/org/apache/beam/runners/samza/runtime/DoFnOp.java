@@ -28,7 +28,6 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
@@ -83,6 +82,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   // This is derivable from pushbackValues which is persisted to a store.
   // TODO: eagerly initialize the hold in init
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+      justification = "No bug",
+      value = "SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient Instant pushbackWatermarkHold;
 
   // TODO: add this to checkpointable state
@@ -116,7 +118,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void open(Config config,
                    TaskContext context,
-                   TimerRegistry<KeyedTimerData<Void>> timerRegistry,
+                   TimerRegistry<TimerKey<Void>> timerRegistry,
                    OpEmitter<OutT> emitter) {
     this.pipelineOptions = Base64Serializer.deserializeUnchecked(
         config.get("beamPipelineOptions"),
@@ -129,12 +131,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.signature = DoFnSignatures.getSignature(doFn.getClass());
 
     // use non-keyed StateInternals for side input
-    final StateInternalsFactory<?> nonKeyedStateInternalsFactory = createStateInternalFactory(null);
+    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+        createStateInternalFactory(null);
     this.sideInputHandler = new SideInputHandler(sideInputs,
         nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
     final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
-    final StateInternalsFactory<?> stateInternalsFactory = createStateInternalFactory(keyCoder);
+    final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
+        createStateInternalFactory(keyCoder);
 
     this.fnRunner = DoFnRunnerWithKeyedInternals.of(
         pipelineOptions,
@@ -223,7 +227,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
     pushbackValues.clear();
 
-    previousPushbackValues.forEach(element -> processElement(element, emitter));
+    for (final WindowedValue<InT> value : previousPushbackValues) {
+      processElement(value, emitter);
+    }
 
     // We may be able to advance the output watermark since we may have played some pushed back
     // events.
@@ -253,7 +259,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @SuppressWarnings("unchecked")
-  private StateInternalsFactory createStateInternalFactory(Coder<?> keyCoder) {
+  private SamzaStoreStateInternals.Factory createStateInternalFactory(Coder<?> keyCoder) {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<byte[], byte[]>> stores = new HashMap<>(
         SamzaStoreStateInternals.getBeamStore(context)
@@ -303,7 +309,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       final List<WindowedValue<InT>> previousPushbackValues = new ArrayList<>(pushbackValues);
       pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
       pushbackValues.clear();
-      previousPushbackValues.forEach(fnRunner::processElement);
+
+      for (final WindowedValue<InT> value : previousPushbackValues) {
+        fnRunner.processElement(value);
+      }
 
       pushbackFnRunner.finishBundle();
     }

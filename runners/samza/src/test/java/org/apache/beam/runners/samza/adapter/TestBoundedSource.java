@@ -29,7 +29,6 @@ import org.apache.beam.runners.samza.adapter.TestSourceHelpers.Event;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.ExceptionEvent;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.LatchEvent;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.SourceBuilder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
@@ -75,11 +74,6 @@ public class TestBoundedSource<T> extends BoundedSource<T> {
 
   @Override
   public void validate() {}
-
-  @Override
-  public Coder<T> getDefaultOutputCoder() {
-    throw new UnsupportedOperationException();
-  }
 
   /**
    * A builder used to populate the events emitted by {@link TestBoundedSource}.

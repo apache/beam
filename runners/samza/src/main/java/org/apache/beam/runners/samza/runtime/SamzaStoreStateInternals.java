@@ -83,8 +83,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private final int batchGetSize;
 
   private SamzaStoreStateInternals(Map<String, KeyValueStore<byte[], byte[]>> stores,
-                                   K key,
-                                   byte[] keyBytes,
+                                   @Nullable K key,
+                                   @Nullable byte[] keyBytes,
                                    int batchGetSize) {
     this.stores = stores;
     this.key = key;
@@ -202,13 +202,15 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public StateInternals stateInternalsForKey(K key) {
+    public StateInternals stateInternalsForKey(@Nullable K key) {
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();
       final DataOutputStream dos = new DataOutputStream(baos);
 
       try {
         dos.writeUTF(stageId);
-        keyCoder.encode(key, baos);
+        if (key != null) {
+          keyCoder.encode(key, baos);
+        }
         final byte[] keyBytes = baos.toByteArray();
         baos.reset();
 
@@ -245,8 +247,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       this.store = userStore != null ? userStore : stores.get(BEAM_STORE);
 
       final ByteArrayOutputStream baos = getThreadLocalBaos();
-      final DataOutputStream dos = new DataOutputStream(baos);
-      try {
+      try (DataOutputStream dos = new DataOutputStream(baos)) {
         dos.write(keyBytes);
         dos.writeUTF(namespace.stringKey());
 
@@ -443,9 +444,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     private byte[] encodeKey(int size) {
-      try {
-        final ByteArrayOutputStream baos = getThreadLocalBaos();
-        final DataOutputStream dos = new DataOutputStream(baos);
+      final ByteArrayOutputStream baos = getThreadLocalBaos();
+      try (DataOutputStream dos = new DataOutputStream(baos)) {
         dos.write(getEncodedStoreKey());
         dos.writeInt(size);
         return baos.toByteArray();
@@ -470,6 +470,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
+    @Nullable
     public ReadableState<Boolean> addIfAbsent(T t) {
       return mapState.putIfAbsent(t, true);
     }
@@ -567,7 +568,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
       final byte[] encodedKey = getEncodedStoreKey();
       checkState(encodedKey.length < MAX_KEY_SIZE,
-          "Encoded key size %d is longer than the max key size (100 KB) supported",
+          "Encoded key size %s is longer than the max key size (100 KB) supported",
           encodedKey.length);
 
       Arrays.fill(maxKey, (byte) 0xff);
@@ -578,13 +579,14 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     public void put(KeyT key, ValueT value) {
       final byte[] encodedKey = encodeKey(key);
       checkState(encodedKey.length < MAX_KEY_SIZE,
-          "Encoded key size %d is longer than the max key size (100 KB) supported",
+          "Encoded key size %s is longer than the max key size (100 KB) supported",
           encodedKey.length);
 
       store.put(encodedKey, encodeValue(value));
     }
 
     @Override
+    @Nullable
     public ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
       final byte[] encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
