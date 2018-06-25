@@ -94,10 +94,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
 
   public static final String SPLITTABLE_PROCESS_URN =
-      "urn:beam:runners_core:transforms:splittable_process:v1";
+      "beam:runners_core:transforms:splittable_process:v1";
 
   public static final String SPLITTABLE_GBKIKWI_URN =
-      "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
+      "beam:runners_core:transforms:splittable_gbkikwi:v1";
 
   private SplittableParDo(
       DoFn<InputT, OutputT> doFn,

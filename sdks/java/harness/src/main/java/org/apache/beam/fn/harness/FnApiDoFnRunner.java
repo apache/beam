@@ -93,6 +93,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
   /** Only valid during {@link #processElement}, null otherwise. */
   private WindowedValue<InputT> currentElement;
 
+  /** Only valid during {@link #processElement}, null otherwise. */
   private BoundedWindow currentWindow;
 
   FnApiDoFnRunner(Context<InputT, OutputT> context) {

@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
@@ -36,9 +37,12 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
@@ -70,6 +74,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -267,7 +272,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   @Test
-  public void testUsingSideInput() throws Exception {
+  public void testBasicWithSideInputsAndOutputs() throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
     PCollectionView<String> defaultSingletonSideInputView = valuePCollection.apply(
@@ -499,5 +504,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
       StringUtf8Coder.of().encode(value, out);
     }
     return out.toByteString();
+  }
+
+  @Test
+  public void testRegistration() {
+    for (PTransformRunnerFactory.Registrar registrar :
+        ServiceLoader.load(PTransformRunnerFactory.Registrar.class)) {
+      if (registrar instanceof FnApiDoFnRunner.Registrar) {
+        assertThat(registrar.getPTransformRunnerFactories(),
+            IsMapContaining.hasKey(PTransformTranslation.PAR_DO_TRANSFORM_URN));
+        return;
+      }
+    }
+    fail("Expected registrar not found.");
   }
 }
