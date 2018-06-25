@@ -41,15 +41,20 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * DSL compliance tests for the row-level operators of {@link
  * org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   /** Calcite operators are identified by name and kind. */
   @AutoValue
@@ -71,14 +76,24 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     return sqlOperatorId(annotation.name(), SqlKind.valueOf(annotation.kind()));
   }
 
+  private static SqlOperatorId sqlOperatorId(SqlOperator sqlOperator) {
+    return sqlOperatorId(sqlOperator.getName(), sqlOperator.getKind());
+  }
+
   private static final List<SqlOperatorId> NON_ROW_OPERATORS =
       ImmutableList.of(
-          sqlOperatorId("UNION"),
-          sqlOperatorId("UNION ALL", SqlKind.UNION),
-          sqlOperatorId("EXCEPT"),
-          sqlOperatorId("EXCEPT ALL", SqlKind.EXCEPT),
-          sqlOperatorId("INTERSECT"),
-          sqlOperatorId("INTERSECT ALL", SqlKind.INTERSECT));
+              SqlStdOperatorTable.ELEMENT_SLICE, // internal
+              SqlStdOperatorTable.EXCEPT,
+              SqlStdOperatorTable.EXCEPT_ALL,
+              SqlStdOperatorTable.INTERSECT,
+              SqlStdOperatorTable.INTERSECT_ALL,
+              SqlStdOperatorTable.LITERAL_CHAIN, // internal
+              SqlStdOperatorTable.PATTERN_CONCAT, // "," PATTERN_CONCAT
+              SqlStdOperatorTable.UNION,
+              SqlStdOperatorTable.UNION_ALL)
+          .stream()
+          .map(op -> sqlOperatorId(op))
+          .collect(Collectors.toList());
 
   /**
    * LEGACY ADAPTER - DO NOT USE DIRECTLY. Use {@code getAnnotationsByType(SqlOperatorTest.class)},
@@ -171,7 +186,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
       // Sorting is just to make failures more readable until we have 100% coverage
       List<SqlOperatorId> untestedList = Lists.newArrayList(untestedOperators);
       untestedList.sort(orderByNameThenKind);
-      fail("No tests declared for operators:\n\t" + Joiner.on("\n\t").join(untestedList));
+      fail(
+          String.format(
+              "No tests declared for %s operators:\n\t%s",
+              untestedList.size(), Joiner.on("\n\t").join(untestedList)));
     }
   }
 
@@ -298,6 +316,223 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("CARDINALITY(ARRAY ['a', 'b', 'c'])", 3)
             .addExpr("ELEMENT(ARRAY [1])", 1);
 
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  @SqlOperatorTest(name = "DAYOFMONTH", kind = "OTHER")
+  @SqlOperatorTest(name = "DAYOFWEEK", kind = "OTHER")
+  @SqlOperatorTest(name = "DAYOFYEAR", kind = "OTHER")
+  @SqlOperatorTest(name = "EXTRACT", kind = "EXTRACT")
+  @SqlOperatorTest(name = "YEAR", kind = "OTHER")
+  @SqlOperatorTest(name = "QUARTER", kind = "OTHER")
+  @SqlOperatorTest(name = "MONTH", kind = "OTHER")
+  @SqlOperatorTest(name = "WEEK", kind = "OTHER")
+  @SqlOperatorTest(name = "HOUR", kind = "OTHER")
+  @SqlOperatorTest(name = "MINUTE", kind = "OTHER")
+  @SqlOperatorTest(name = "SECOND", kind = "OTHER")
+  public void testBasicDateTimeFunctions() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("EXTRACT(YEAR FROM ts)", 1986L)
+            .addExpr("YEAR(ts)", 1986L)
+            .addExpr("QUARTER(ts)", 1L)
+            .addExpr("MONTH(ts)", 2L)
+            .addExpr("WEEK(ts)", 7L)
+            .addExpr("DAYOFMONTH(ts)", 15L)
+            .addExpr("DAYOFYEAR(ts)", 46L)
+            .addExpr("DAYOFWEEK(ts)", 7L)
+            .addExpr("HOUR(ts)", 11L)
+            .addExpr("MINUTE(ts)", 35L)
+            .addExpr("SECOND(ts)", 26L);
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  // More needed @SqlOperatorTest(name = "FLOOR", kind = "FLOOR")
+  // More needed @SqlOperatorTest(name = "CEIL", kind = "CEIL")
+  public void testFloorAndCeil() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("FLOOR(ts TO MONTH)", parseDate("1986-02-01 00:00:00"))
+            .addExpr("FLOOR(ts TO YEAR)", parseDate("1986-01-01 00:00:00"))
+            .addExpr("CEIL(ts TO MONTH)", parseDate("1986-03-01 00:00:00"))
+            .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"));
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4622")
+  public void testFloorAndCeilResolutionLimit() {
+    thrown.expect(IllegalArgumentException.class);
+    ExpressionChecker checker =
+        new ExpressionChecker().addExpr("FLOOR(ts TO DAY)", parseDate("1986-02-01 00:00:00"));
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  @SqlOperatorTest(name = "TIMESTAMPADD", kind = "TIMESTAMP_ADD")
+  public void testDatetimePlusFunction() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr(
+                "TIMESTAMPADD(SECOND, 3, TIMESTAMP '1984-04-19 01:02:03')",
+                parseDate("1984-04-19 01:02:06"))
+            .addExpr(
+                "TIMESTAMPADD(MINUTE, 3, TIMESTAMP '1984-04-19 01:02:03')",
+                parseDate("1984-04-19 01:05:03"))
+            .addExpr(
+                "TIMESTAMPADD(HOUR, 3, TIMESTAMP '1984-04-19 01:02:03')",
+                parseDate("1984-04-19 04:02:03"))
+            .addExpr(
+                "TIMESTAMPADD(DAY, 3, TIMESTAMP '1984-04-19 01:02:03')",
+                parseDate("1984-04-22 01:02:03"))
+            .addExpr(
+                "TIMESTAMPADD(MONTH, 2, TIMESTAMP '1984-01-19 01:02:03')",
+                parseDate("1984-03-19 01:02:03"))
+            .addExpr(
+                "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1985-01-19 01:02:03')",
+                parseDate("1987-01-19 01:02:03"));
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  @SqlOperatorTest(name = "DATETIME_PLUS", kind = "PLUS")
+  public void testDatetimeInfixPlus() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '3' SECOND",
+                parseDate("1984-01-19 01:02:06"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MINUTE",
+                parseDate("1984-01-19 01:04:03"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' HOUR",
+                parseDate("1984-01-19 03:02:03"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' DAY",
+                parseDate("1984-01-21 01:02:03"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MONTH",
+                parseDate("1984-03-19 01:02:03"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' YEAR",
+                parseDate("1986-01-19 01:02:03"));
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  @SqlOperatorTest(name = "TIMESTAMPDIFF", kind = "TIMESTAMP_DIFF")
+  public void testTimestampDiff() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr(
+                "TIMESTAMPDIFF(SECOND, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 01:01:58')",
+                0)
+            .addExpr(
+                "TIMESTAMPDIFF(SECOND, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 01:01:59')",
+                1)
+            .addExpr(
+                "TIMESTAMPDIFF(SECOND, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 01:02:00')",
+                2)
+            .addExpr(
+                "TIMESTAMPDIFF(MINUTE, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 01:02:57')",
+                0)
+            .addExpr(
+                "TIMESTAMPDIFF(MINUTE, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 01:02:58')",
+                1)
+            .addExpr(
+                "TIMESTAMPDIFF(MINUTE, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 01:03:58')",
+                2)
+            .addExpr(
+                "TIMESTAMPDIFF(HOUR, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 02:01:57')",
+                0)
+            .addExpr(
+                "TIMESTAMPDIFF(HOUR, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 02:01:58')",
+                1)
+            .addExpr(
+                "TIMESTAMPDIFF(HOUR, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-19 03:01:58')",
+                2)
+            .addExpr(
+                "TIMESTAMPDIFF(DAY, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-20 01:01:57')",
+                0)
+            .addExpr(
+                "TIMESTAMPDIFF(DAY, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-20 01:01:58')",
+                1)
+            .addExpr(
+                "TIMESTAMPDIFF(DAY, TIMESTAMP '1984-04-19 01:01:58', "
+                    + "TIMESTAMP '1984-04-21 01:01:58')",
+                2)
+            .addExpr(
+                "TIMESTAMPDIFF(MONTH, TIMESTAMP '1984-01-19 01:01:58', "
+                    + "TIMESTAMP '1984-02-19 01:01:57')",
+                0)
+            .addExpr(
+                "TIMESTAMPDIFF(MONTH, TIMESTAMP '1984-01-19 01:01:58', "
+                    + "TIMESTAMP '1984-02-19 01:01:58')",
+                1)
+            .addExpr(
+                "TIMESTAMPDIFF(MONTH, TIMESTAMP '1984-01-19 01:01:58', "
+                    + "TIMESTAMP '1984-03-19 01:01:58')",
+                2)
+            .addExpr(
+                "TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+                    + "TIMESTAMP '1982-01-19 01:01:57')",
+                0)
+            .addExpr(
+                "TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+                    + "TIMESTAMP '1982-01-19 01:01:58')",
+                1)
+            .addExpr(
+                "TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+                    + "TIMESTAMP '1983-01-19 01:01:58')",
+                2)
+            .addExpr(
+                "TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+                    + "TIMESTAMP '1980-01-19 01:01:58')",
+                -1)
+            .addExpr(
+                "TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+                    + "TIMESTAMP '1979-01-19 01:01:58')",
+                -2);
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  // More needed @SqlOperatorTest(name = "-", kind = "MINUS")
+  public void testTimestampMinusInterval() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr(
+                "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '2' SECOND",
+                parseDate("1984-04-19 01:01:56"))
+            .addExpr(
+                "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '1' MINUTE",
+                parseDate("1984-04-19 01:00:58"))
+            .addExpr(
+                "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '4' HOUR",
+                parseDate("1984-04-18 21:01:58"))
+            .addExpr(
+                "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '5' DAY",
+                parseDate("1984-04-14 01:01:58"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '2' MONTH",
+                parseDate("1983-11-19 01:01:58"))
+            .addExpr(
+                "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '1' YEAR",
+                parseDate("1983-01-19 01:01:58"));
     checker.buildRunAndCheck();
   }
 }
