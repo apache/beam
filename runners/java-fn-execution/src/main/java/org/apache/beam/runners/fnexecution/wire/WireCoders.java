@@ -36,6 +36,8 @@ public class WireCoders {
    * unknown to the runner are wrapped with length-prefix coders. The inner element coders are kept
    * intact so that SDK harnesses can reconstruct the original elements.
    *
+   * <p>Adds all necessary coders to the components builder.
+   *
    * @return id of a windowed value coder containing the PCollection's element coder
    */
   public static String addSdkWireCoder(
@@ -47,7 +49,9 @@ public class WireCoders {
    * Creates a runner-side wire coder for a port read/write for the given PCollection. Unknown
    * coders are replaced with length-prefixed byte arrays.
    *
-   * @return a windowed value coder containing the PCollection's element coder
+   * <p>Adds all necessary coders to the components builder.
+   *
+   * @return id of a windowed value coder containing the PCollection's element coder
    */
   public static String addRunnerWireCoder(
       PCollectionNode pCollectionNode, RunnerApi.Components.Builder components) {

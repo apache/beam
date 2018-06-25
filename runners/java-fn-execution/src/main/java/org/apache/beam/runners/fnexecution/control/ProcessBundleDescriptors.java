@@ -208,6 +208,11 @@ public class ProcessBundleDescriptors {
         wireCoder);
   }
 
+  public static Map<String, Map<String, MultimapSideInputSpec>> getMultimapSideInputs(
+      ExecutableStage stage) throws IOException {
+    return addMultimapSideInputs(stage, stage.getComponents().toBuilder());
+  }
+
   private static Map<String, Map<String, MultimapSideInputSpec>> addMultimapSideInputs(
       ExecutableStage stage,
       Components.Builder components) throws IOException {

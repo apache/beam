@@ -84,7 +84,8 @@ public class BundleFactoryOutputReceiverFactoryTest {
 
     outputBundles = new ArrayList<>();
     factory =
-        BundleFactoryOutputReceiverFactory.create(bundleFactory, baseComponents, outputBundles::add);
+        BundleFactoryOutputReceiverFactory.create(
+            bundleFactory, baseComponents, outputBundles::add);
   }
 
   @Test
