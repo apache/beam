@@ -37,13 +37,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FilterFunction;
 import org.apache.samza.operators.functions.FlatMapFunction;
@@ -74,11 +72,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
       throw new UnsupportedOperationException("Splittable DoFn is not currently supported");
     }
 
-    // TODO: verify windowing strategy is bounded window!
-    @SuppressWarnings("unchecked")
-    final WindowingStrategy<? extends InT, BoundedWindow> windowingStrategy =
-        (WindowingStrategy<? extends InT, BoundedWindow>) input.getWindowingStrategy();
-
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
         transform.getSideInputs().stream()
@@ -86,7 +79,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
             .collect(Collectors.toList());
     final Map<TupleTag<?>, Integer> tagToIdMap = new HashMap<>();
     final Map<Integer, PCollection<?>> idToPCollectionMap = new HashMap<>();
-    final List<Coder<?>> unionCoderElements = new ArrayList<>();
     final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
         new ArrayList<>(node.getOutputs().entrySet());
     for (int id = 0; id < outputs.size(); ++id) {
@@ -98,7 +90,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
             + taggedOutput.getValue());
       }
       final PCollection<?> sideOutputCollection = (PCollection<?>) taggedOutput.getValue();
-      unionCoderElements.add(sideOutputCollection.getCoder());
 
       idToPCollectionMap.put(id, sideOutputCollection);
     }
@@ -177,7 +168,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
   }
 
-  private class FilterByUnionId implements FilterFunction<OpMessage<RawUnionValue>> {
+  private static class FilterByUnionId implements FilterFunction<OpMessage<RawUnionValue>> {
     private final int id;
 
     public FilterByUnionId(int id) {
@@ -191,7 +182,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
   }
 
-  private class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
+  private static class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
 
     @Override
     public void processElement(WindowedValue<RawUnionValue> inputElement,

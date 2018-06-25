@@ -26,8 +26,11 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
@@ -35,7 +38,6 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -65,7 +67,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
 
-  private transient StateInternalsFactory<Void> stateInternalsFactory;
+  private transient StateInternalsFactory<K> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
   private transient DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> fnRunner;
   private transient SamzaPipelineOptions pipelineOptions;
@@ -95,7 +97,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   @Override
   public void open(Config config,
                    TaskContext context,
-                   TimerRegistry<KeyedTimerData<K>> timerRegistry,
+                   TimerRegistry<TimerKey<K>> timerRegistry,
                    OpEmitter<KV<K, OutputT>> emitter) {
     this.pipelineOptions = Base64Serializer
         .deserializeUnchecked(config.get("beamPipelineOptions"),
@@ -107,7 +109,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
         new SamzaStoreStateInternals.Factory<>(
             mainOutputTag.getId(),
             SamzaStoreStateInternals.getBeamStore(context),
-            VoidCoder.of(),
+            keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 
     this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(
@@ -116,16 +118,27 @@ public class GroupByKeyOp<K, InputT, OutputT>
     final DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
             windowingStrategy,
-            new SamzaStoreStateInternals.Factory<>(
-                mainOutputTag.getId(),
-                SamzaStoreStateInternals.getBeamStore(context),
-                keyCoder,
-                pipelineOptions.getStoreBatchGetSize()),
+            stateInternalsFactory,
             timerInternalsFactory,
             NullSideInputReader.of(Collections.emptyList()),
             reduceFn,
             outputManager,
             mainOutputTag);
+
+    final KeyedInternals<K> keyedInternals =
+        new KeyedInternals<>(stateInternalsFactory, timerInternalsFactory);
+
+    final StepContext stepContext = new StepContext() {
+      @Override
+      public StateInternals stateInternals() {
+        return keyedInternals.stateInternals();
+      }
+
+      @Override
+      public TimerInternals timerInternals() {
+        return keyedInternals.timerInternals();
+      }
+    };
 
     final DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnRunner =
         DoFnRunners.simpleRunner(
@@ -135,7 +148,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
             outputManager,
             mainOutputTag,
             Collections.emptyList(),
-            null,
+            stepContext,
             windowingStrategy);
 
     final SamzaExecutionContext executionContext =
