@@ -470,14 +470,14 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     if (doFn instanceof ProcessFn) {
 
       @SuppressWarnings("unchecked")
-      StateInternalsFactory<String> stateInternalsFactory =
-          (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
+      StateInternalsFactory<byte[]> stateInternalsFactory =
+          (StateInternalsFactory<byte[]>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
       ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object, Object>>
         splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
-      TimerInternalsFactory<String> timerInternalsFactory = key -> currentKeyTimerInternals;
+      TimerInternalsFactory<byte[]> timerInternalsFactory = key -> currentKeyTimerInternals;
       splittableDoFn.setTimerInternalsFactory(timerInternalsFactory);
       splittableDoFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(

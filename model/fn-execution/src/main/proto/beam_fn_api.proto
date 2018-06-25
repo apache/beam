@@ -216,13 +216,22 @@ message BundleSplit {
     google.protobuf.DoubleValue fraction_of_work = 5;
   }
 
+  // An an Application should be scheduled after a delay.
+  message DelayedApplication {
+    // The delay in seconds (lower bound).
+    double delay_sec = 1;
+
+    // (Required) The application that should be scheduled.
+    Application application = 2;
+  }
+
   // Root applications that should replace the current bundle.
   repeated Application primary_roots = 1;
 
   // Root applications that have been removed from the current bundle and
   // have to be executed in a separate bundle (e.g. in parallel on a different
   // worker, or after the current bundle completes, etc.)
-  repeated Application residual_roots = 2;
+  repeated DelayedApplication residual_roots = 2;
 }
 
 // A request to process a given bundle.
