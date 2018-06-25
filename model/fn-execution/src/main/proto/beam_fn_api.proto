@@ -218,7 +218,7 @@ message BundleSplit {
 
   // An an Application should be scheduled after a delay.
   message DelayedApplication {
-    // (Required) The delay in seconds.
+    // The delay in seconds (lower bound).
     double delay_sec = 1;
 
     // (Required) The application that should be scheduled.

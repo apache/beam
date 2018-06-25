@@ -135,7 +135,7 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
 
     ByteString encodedResidual = residual.getApplication().getElement();
     WindowedValue<KV<InputT, RestrictionT>> decodedResidual =
-        CoderUtils.decodeFromByteArray(elementRestrictionWireCoder, encodedResidual.toByteArray());
+        elementRestrictionWireCoder.decode(encodedResidual.newInput());
 
     restrictionState.write(decodedResidual.getValue().getValue());
 

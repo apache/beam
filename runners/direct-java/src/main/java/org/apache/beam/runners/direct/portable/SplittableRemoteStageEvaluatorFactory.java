@@ -47,11 +47,11 @@ import org.apache.beam.sdk.values.KV;
  * ExecutableStage} whose first instruction is an SDF.
  */
 class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
-  public static final String URN = "urn:beam:directrunner:transforms:splittable_remote_stage:v1";
+  public static final String URN = "beam:directrunner:transforms:splittable_remote_stage:v1";
 
   // A fictional transform that transforms from KWI<unique key, KV<element, restriction>>
   // to simply KV<element, restriction> taken by the SDF inside the ExecutableStage.
-  public static final String FEED_SDF_URN = "urn:beam:directrunner:transforms:feed_sdf:v1";
+  public static final String FEED_SDF_URN = "beam:directrunner:transforms:feed_sdf:v1";
 
   private final BundleFactory bundleFactory;
   private final JobBundleFactory jobBundleFactory;
@@ -107,6 +107,21 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
           ExecutableStage.fromPayload(
               ExecutableStagePayload.parseFrom(transform.getTransform().getSpec().getPayload()));
       this.outputs = new ArrayList<>();
+
+      FullWindowedValueCoder<KV<InputT, RestrictionT>> windowedValueCoder =
+          (FullWindowedValueCoder<KV<InputT, RestrictionT>>)
+              WireCoders.<KV<InputT, RestrictionT>>instantiateRunnerWireCoder(
+                  stage.getInputPCollection(), stage.getComponents());
+      KvCoder<InputT, RestrictionT> kvCoder =
+          ((KvCoder<InputT, RestrictionT>) windowedValueCoder.getValueCoder());
+      this.feeder =
+          new SDFFeederViaStateAndTimers<>(
+              stateInternals,
+              timerInternals,
+              kvCoder.getKeyCoder(),
+              kvCoder.getValueCoder(),
+              (Coder<BoundedWindow>) windowedValueCoder.getWindowCoder());
+
       this.bundle =
           jobBundleFactory
               .<KV<InputT, RestrictionT>>forStage(stage)
@@ -129,21 +144,6 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
                       }
                     }
                   });
-
-      FullWindowedValueCoder<KV<InputT, RestrictionT>> windowedValueCoder =
-          (FullWindowedValueCoder<KV<InputT, RestrictionT>>)
-              WireCoders.<KV<InputT, RestrictionT>>instantiateRunnerWireCoder(
-                  stage.getInputPCollection(), stage.getComponents());
-      KvCoder<InputT, RestrictionT> kvCoder =
-          ((KvCoder<InputT, RestrictionT>) windowedValueCoder.getValueCoder());
-
-      this.feeder =
-          new SDFFeederViaStateAndTimers<>(
-              stateInternals,
-              timerInternals,
-              kvCoder.getKeyCoder(),
-              kvCoder.getValueCoder(),
-              (Coder<BoundedWindow>) windowedValueCoder.getWindowCoder());
     }
 
     @Override
