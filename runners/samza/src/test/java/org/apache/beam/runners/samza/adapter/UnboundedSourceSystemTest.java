@@ -57,7 +57,7 @@ import org.junit.Test;
 public class UnboundedSourceSystemTest {
 
   // A reasonable time to wait to get all messages from the source assuming no blocking.
-  private static final long DEFAULT_TIMEOUT_MILLIS = 100;
+  private static final long DEFAULT_TIMEOUT_MILLIS = 1000;
   private static final long DEFAULT_WATERMARK_TIMEOUT_MILLIS = 1000;
 
   private static final SystemStreamPartition DEFAULT_SSP =

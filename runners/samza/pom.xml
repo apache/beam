@@ -185,7 +185,6 @@
       <groupId>org.apache.samza</groupId>
       <artifactId>samza-kv_2.11</artifactId>
       <version>${samza.version}</version>
-      <version>${samza.version}</version>
       <scope>runtime</scope>
     </dependency>
 
@@ -273,6 +272,11 @@
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.stephenc.findbugs</groupId>
+      <artifactId>findbugs-annotations</artifactId>
     </dependency>
 
     <dependency>
