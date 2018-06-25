@@ -116,7 +116,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         // don't email individual committers.
         common_job_properties.setPostCommit(
                 delegate,
-                '0 */6 * * *',
+                'H */6 * * *',
                 false,
                 'commits@beam.apache.org',
                 false)
