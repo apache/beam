@@ -36,6 +36,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlUdfEx
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowStartExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.DateOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.StringOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
@@ -58,11 +59,8 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.B
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
@@ -397,17 +395,20 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
             return new BeamSqlCeilExpression(subExps);
           } else {
-            return new BeamSqlDateCeilExpression(subExps);
+            return new BeamSqlOperatorExpression(DateOperators.DATETIME_CEIL, subExps);
           }
+
         case "FLOOR":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
-            return new BeamSqlFloorExpression(subExps);
+            ret = new BeamSqlFloorExpression(subExps);
           } else {
-            return new BeamSqlDateFloorExpression(subExps);
+            ret = new BeamSqlOperatorExpression(DateOperators.DATETIME_FLOOR, subExps);
           }
+          break;
+
         case "EXTRACT_DATE":
         case "EXTRACT":
-          return new BeamSqlExtractExpression(subExps);
+          return new BeamSqlOperatorExpression(DateOperators.EXTRACT, subExps);
 
         case "LOCALTIME":
         case "CURRENT_TIME":
@@ -502,6 +503,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           String.format("%s is not supported yet", rexNode.getClass().toString()));
     }
 
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4622
+    // Many paths above do not reach this validation
     if (!ret.accept()) {
       throw new IllegalStateException(
           ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");

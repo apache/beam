@@ -35,17 +35,13 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.B
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexLiteral;
@@ -152,33 +148,6 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     Calendar calendar = Calendar.getInstance();
     calendar.setTimeZone(TimeZone.getTimeZone("GMT"));
     calendar.setTime(new Date());
-
-    // CEIL
-    rexNode =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.CEIL,
-            Arrays.asList(
-                rexBuilder.makeDateLiteral(calendar), rexBuilder.makeFlag(TimeUnitRange.MONTH)));
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlDateCeilExpression);
-
-    // FLOOR
-    rexNode =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.FLOOR,
-            Arrays.asList(
-                rexBuilder.makeDateLiteral(calendar), rexBuilder.makeFlag(TimeUnitRange.MONTH)));
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlDateFloorExpression);
-
-    // EXTRACT == EXTRACT_DATE?
-    rexNode =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.EXTRACT,
-            Arrays.asList(
-                rexBuilder.makeFlag(TimeUnitRange.MONTH), rexBuilder.makeDateLiteral(calendar)));
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlExtractExpression);
 
     // CURRENT_DATE
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CURRENT_DATE, Arrays.asList());
