@@ -51,7 +51,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -60,7 +59,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-/** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
+/**
+ * Provides access to side inputs and state via a {@link BeamFnStateClient}.
+ */
 public class FnApiStateAccessor implements SideInputReader, StateBinder {
   private final PipelineOptions pipelineOptions;
   private final Map<StateKey, Object> stateKeyObjectCache;
@@ -70,13 +71,10 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
   private final Supplier<String> processBundleInstructionId;
   private final Collection<ThrowingRunnable> stateFinalizers;
 
-  private final Coder<?> keyCoder;
-  private final Coder<BoundedWindow> windowCoder;
+  private final Supplier<BoundedWindow> currentWindowSupplier;
 
-  private WindowedValue<?> currentElement;
-  private BoundedWindow currentWindow;
-  private ByteString encodedCurrentKey;
-  private ByteString encodedCurrentWindow;
+  private final Supplier<ByteString> encodedCurrentKeySupplier;
+  private final Supplier<ByteString> encodedCurrentWindowSupplier;
 
   public FnApiStateAccessor(
       PipelineOptions pipelineOptions,
@@ -85,7 +83,9 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
       Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
       BeamFnStateClient beamFnStateClient,
       Coder<?> keyCoder,
-      Coder<BoundedWindow> windowCoder) {
+      Coder<BoundedWindow> windowCoder,
+      Supplier<WindowedValue<?>> currentElementSupplier,
+      Supplier<BoundedWindow> currentWindowSupplier) {
     this.pipelineOptions = pipelineOptions;
     this.stateKeyObjectCache = Maps.newHashMap();
     this.sideInputSpecMap = sideInputSpecMap;
@@ -93,19 +93,54 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
     this.ptransformId = ptransformId;
     this.processBundleInstructionId = processBundleInstructionId;
     this.stateFinalizers = new ArrayList<>();
+    this.currentWindowSupplier = currentWindowSupplier;
+    this.encodedCurrentKeySupplier = memoizeFunction(currentElementSupplier,
+        element -> {
+          checkState(
+              element.getValue() instanceof KV,
+              "Accessing state in unkeyed context. Current element is not a KV: %s.",
+              element);
+          checkState(
+              keyCoder != null,
+              "Accessing state in unkeyed context, no key coder available");
 
-    this.keyCoder = keyCoder;
-    this.windowCoder = windowCoder;
+          ByteString.Output encodedKeyOut = ByteString.newOutput();
+          try {
+            ((Coder) keyCoder).encode(((KV<?, ?>) element.getValue()).getKey(), encodedKeyOut);
+          } catch (IOException e) {
+            throw new IllegalStateException(e);
+          }
+          return encodedKeyOut.toByteString();
+        });
+
+    this.encodedCurrentWindowSupplier = memoizeFunction(
+        currentWindowSupplier,
+        window -> {
+          ByteString.Output encodedWindowOut = ByteString.newOutput();
+          try {
+            windowCoder.encode(window, encodedWindowOut);
+          } catch (IOException e) {
+            throw new IllegalStateException(e);
+          }
+          return encodedWindowOut.toByteString();
+        });
   }
 
-  public void setCurrentElement(WindowedValue<?> currentElement) {
-    this.currentElement = currentElement;
-    this.encodedCurrentKey = null;
-  }
+  private static <ArgT, ResultT> Supplier<ResultT> memoizeFunction(
+      Supplier<ArgT> arg, Function<ArgT, ResultT> f) {
+    return new Supplier<ResultT>() {
+      private ArgT memoizedArg;
+      private ResultT memoizedResult;
 
-  public void setCurrentWindow(BoundedWindow currentWindow) {
-    this.currentWindow = currentWindow;
-    this.encodedCurrentWindow = null;
+      @Override
+      public ResultT get() {
+        ArgT currentArg = arg.get();
+        if (currentArg != memoizedArg) {
+          memoizedResult = f.apply(this.memoizedArg = currentArg);
+        }
+        return memoizedResult;
+      }
+    };
   }
 
   @Override
@@ -339,11 +374,11 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
 
   @Override
   public <ElementT, AccumT, ResultT>
-      CombiningState<ElementT, AccumT, ResultT> bindCombiningWithContext(
-          String id,
-          StateSpec<CombiningState<ElementT, AccumT, ResultT>> spec,
-          Coder<AccumT> accumCoder,
-          CombineFnWithContext<ElementT, AccumT, ResultT> combineFn) {
+  CombiningState<ElementT, AccumT, ResultT> bindCombiningWithContext(
+      String id,
+      StateSpec<CombiningState<ElementT, AccumT, ResultT>> spec,
+      Coder<AccumT> accumCoder,
+      CombineFnWithContext<ElementT, AccumT, ResultT> combineFn) {
     return (CombiningState<ElementT, AccumT, ResultT>)
         stateKeyObjectCache.computeIfAbsent(
             createBagUserStateKey(id),
@@ -362,19 +397,19 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
 
                           @Override
                           public <T> T sideInput(PCollectionView<T> view) {
-                            return get(view, currentWindow);
+                            return get(view, currentWindowSupplier.get());
                           }
 
                           @Override
                           public BoundedWindow window() {
-                            return currentWindow;
+                            return currentWindowSupplier.get();
                           }
                         })));
   }
 
   /**
    * @deprecated The Fn API has no plans to implement WatermarkHoldState as of this writing and is
-   *     waiting on resolution of BEAM-2535.
+   * waiting on resolution of BEAM-2535.
    */
   @Override
   @Deprecated
@@ -390,58 +425,22 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
             processBundleInstructionId.get(),
             ptransformId,
             stateId,
-            encodedCurrentWindow,
-            encodedCurrentKey,
+            encodedCurrentWindowSupplier.get(),
+            encodedCurrentKeySupplier.get(),
             valueCoder);
     stateFinalizers.add(rval::asyncClose);
     return rval;
   }
 
   private StateKey createBagUserStateKey(String stateId) {
-    cacheEncodedKeyAndWindowForKeyedContext();
     StateKey.Builder builder = StateKey.newBuilder();
     builder
         .getBagUserStateBuilder()
-        .setWindow(encodedCurrentWindow)
-        .setKey(encodedCurrentKey)
+        .setWindow(encodedCurrentWindowSupplier.get())
+        .setKey(encodedCurrentKeySupplier.get())
         .setPtransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();
-  }
-
-  /**
-   * Memoizes an encoded key and window for the current element being processed saving on the
-   * encoding cost of the key and window across multiple state cells for the lifetime of {@link
-   * DoFn.ProcessElement}
-   *
-   * <p>This should only be called during {@link DoFn.ProcessElement}.
-   */
-  private <K> void cacheEncodedKeyAndWindowForKeyedContext() {
-    if (encodedCurrentKey == null) {
-      checkState(
-          currentElement.getValue() instanceof KV,
-          "Accessing state in unkeyed context. Current element is not a KV: %s.",
-          currentElement);
-      checkState(keyCoder != null, "Accessing state in unkeyed context, no key coder available");
-
-      ByteString.Output encodedKeyOut = ByteString.newOutput();
-      try {
-        ((Coder) keyCoder).encode(((KV<?, ?>) currentElement.getValue()).getKey(), encodedKeyOut);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-      encodedCurrentKey = encodedKeyOut.toByteString();
-    }
-
-    if (encodedCurrentWindow == null) {
-      ByteString.Output encodedWindowOut = ByteString.newOutput();
-      try {
-        windowCoder.encode(currentWindow, encodedWindowOut);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-      encodedCurrentWindow = encodedWindowOut.toByteString();
-    }
   }
 
   public void finalizeState() {

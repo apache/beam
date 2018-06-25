@@ -150,7 +150,9 @@ public class FnApiDoFnRunner<InputT, OutputT>
             context.tagToSideInputSpecMap,
             context.beamFnStateClient,
             context.keyCoder,
-            (Coder<BoundedWindow>) context.windowCoder);
+            (Coder<BoundedWindow>) context.windowCoder,
+            () -> currentElement,
+            () -> currentWindow);
 
     doFnInvoker.invokeStartBundle(startBundleContext);
   }
@@ -158,20 +160,16 @@ public class FnApiDoFnRunner<InputT, OutputT>
   @Override
   public void processElement(WindowedValue<InputT> elem) {
     currentElement = elem;
-    stateAccessor.setCurrentElement(elem);
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        stateAccessor.setCurrentWindow(currentWindow);
         doFnInvoker.invokeProcessElement(processContext);
       }
     } finally {
       currentElement = null;
       currentWindow = null;
-      stateAccessor.setCurrentElement(null);
-      stateAccessor.setCurrentWindow(null);
     }
   }
 
