@@ -66,6 +66,7 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
       case BOOLEAN:
         return BeamSqlPrimitive.of(
             SqlTypeName.BOOLEAN, compare((Boolean) leftValue, (Boolean) rightValue));
+      case CHAR:
       case VARCHAR:
         return BeamSqlPrimitive.of(
             SqlTypeName.BOOLEAN, compare((CharSequence) leftValue, (CharSequence) rightValue));
