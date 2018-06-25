@@ -130,6 +130,18 @@ public class TypeDescriptors {
   }
 
   /**
+   * The {@link TypeDescriptor} for {@link Row}.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Row&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for Row
+   */
+  public static TypeDescriptor<Row> rows() {
+    return new TypeDescriptor<Row>() {};
+  }
+
+  /**
    * The {@link TypeDescriptor} for String.
    * This is the equivalent of:
    * <pre>

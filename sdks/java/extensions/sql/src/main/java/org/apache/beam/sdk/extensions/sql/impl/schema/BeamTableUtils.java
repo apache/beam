@@ -21,10 +21,12 @@ package org.apache.beam.sdk.extensions.sql.impl.schema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
@@ -40,24 +42,38 @@ import org.apache.commons.csv.CSVRecord;
  * <p>TODO: Does not yet support nested types.
  */
 public final class BeamTableUtils {
-  public static Row csvLine2BeamRow(CSVFormat csvFormat, String line, Schema schema) {
 
-    try (StringReader reader = new StringReader(line)) {
-      CSVParser parser = csvFormat.parse(reader);
-      CSVRecord rawRecord = parser.getRecords().get(0);
-
-      if (rawRecord.size() != schema.getFieldCount()) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Expect %d fields, but actually %d", schema.getFieldCount(), rawRecord.size()));
+  /**
+   * Decode zero or more CSV records from the given string, according to the specified {@link
+   * CSVFormat}, and converts them to {@link Row Rows} with the specified {@link Schema}.
+   *
+   * <p>A single "line" read from e.g. {@link TextIO} can have zero or more records, depending on
+   * whether the line was split on the same characters that delimite CSV records, and whether the
+   * {@link CSVFormat} ignores blank lines.
+   */
+  public static Iterable<Row> csvLines2BeamRows(CSVFormat csvFormat, String line, Schema schema) {
+    // Empty lines can result in empty strings after Beam splits the file,
+    // which are not empty records to CSVParser unless they have a record terminator.
+    if (!line.endsWith(csvFormat.getRecordSeparator())) {
+      line += csvFormat.getRecordSeparator();
+    }
+    try (CSVParser parser = CSVParser.parse(line, csvFormat)) {
+      List<Row> rows = new ArrayList<>();
+      for (CSVRecord rawRecord : parser.getRecords()) {
+        if (rawRecord.size() != schema.getFieldCount()) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Expect %d fields, but actually %d", schema.getFieldCount(), rawRecord.size()));
+        }
+        rows.add(
+            IntStream.range(0, schema.getFieldCount())
+                .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
+                .collect(toRow(schema)));
       }
-
-      return IntStream.range(0, schema.getFieldCount())
-          .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
-          .collect(toRow(schema));
-
+      return rows;
     } catch (IOException e) {
-      throw new IllegalArgumentException("decodeRecord failed!", e);
+      throw new IllegalArgumentException(
+          String.format("Could not parse CSV records from %s with format %s", line, csvFormat), e);
     }
   }
 

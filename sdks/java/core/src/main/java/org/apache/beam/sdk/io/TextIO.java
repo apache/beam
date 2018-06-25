@@ -249,6 +249,7 @@ public class TextIO {
         .setFilenameSuffix(null)
         .setFilenamePolicy(null)
         .setDynamicDestinations(null)
+        .setDelimiter(new char[] {'\n'})
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
@@ -569,6 +570,7 @@ public class TextIO {
   @AutoValue
   public abstract static class TypedWrite<UserT, DestinationT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
+
     /** The prefix of each file written, combined with suffix and shardTemplate. */
     @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
 
@@ -578,6 +580,9 @@ public class TextIO {
     /** The base directory used for generating temporary files. */
     @Nullable
     abstract ValueProvider<ResourceId> getTempDirectory();
+
+    /** The delimiter between string records. */
+    abstract char[] getDelimiter();
 
     /** An optional header to add to each file. */
     @Nullable abstract String getHeader();
@@ -636,6 +641,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setHeader(@Nullable String header);
 
       abstract Builder<UserT, DestinationT> setFooter(@Nullable String footer);
+
+      abstract Builder<UserT, DestinationT> setDelimiter(char[] delimiter);
 
       abstract Builder<UserT, DestinationT> setFilenamePolicy(
           @Nullable FilenamePolicy filenamePolicy);
@@ -823,6 +830,15 @@ public class TextIO {
     }
 
     /**
+     * Specifies the delimiter after each string written.
+     *
+     * <p>Defaults to '\n'.
+     */
+    public TypedWrite<UserT, DestinationT> withDelimiter(char[] delimiter) {
+      return toBuilder().setDelimiter(delimiter).build();
+    }
+
+    /**
      * Adds a header string to each file. A newline after the header is added automatically.
      *
      * <p>A {@code null} value will clear any previously configured header.
@@ -945,6 +961,7 @@ public class TextIO {
               new TextSink<>(
                   tempDirectory,
                   resolveDynamicDestinations(),
+                  getDelimiter(),
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
@@ -1085,6 +1102,11 @@ public class TextIO {
     /** See {@link TypedWrite#withoutSharding()}. */
     public Write withoutSharding() {
       return new Write(inner.withoutSharding());
+    }
+
+    /** See {@link TypedWrite#withDelimiter(char[])}. */
+    public Write withDelimiter(char[] delimiter) {
+      return new Write(inner.withDelimiter(delimiter));
     }
 
     /** See {@link TypedWrite#withHeader(String)}. */
