@@ -248,7 +248,7 @@ public class PipelineValidator {
   }
 
   private static void validateExecutableStage(
-      String id, PTransform transform, Components outerComponentsIgnored) throws Exception {
+      String id, PTransform transform, Components outerComponents) throws Exception {
     ExecutableStagePayload payload =
         ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
 

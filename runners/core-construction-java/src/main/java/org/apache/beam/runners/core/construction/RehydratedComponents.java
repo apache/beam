@@ -172,4 +172,8 @@ public class RehydratedComponents {
   public Environment getEnvironment(String environmentId) {
     return components.getEnvironmentsOrThrow(environmentId);
   }
+
+  public Components getComponents() {
+    return components;
+  }
 }

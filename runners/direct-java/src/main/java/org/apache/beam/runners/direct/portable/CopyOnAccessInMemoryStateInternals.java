@@ -95,7 +95,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
    *
    * @return this table
    */
-  public CopyOnAccessInMemoryStateInternals commit() {
+  public CopyOnAccessInMemoryStateInternals<K> commit() {
     table.commit();
     return this;
   }
