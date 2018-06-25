@@ -8,6 +8,9 @@ exemptLabels:
 # Limit to only `issues` or `pulls`
 only: pulls
 
+# Label applied when closing
+staleLabel: stale
+
 # Configuration settings that are specific to just 'issues' or 'pulls':
 pulls:
   daysUntilStale: 60
