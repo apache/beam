@@ -194,6 +194,53 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
+  @SqlOperatorTest(name = "OR", kind = "OR")
+  @SqlOperatorTest(name = "NOT", kind = "NOT")
+  @SqlOperatorTest(name = "AND", kind = "AND")
+  public void testLogicOperators() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("1 = 1 AND 1 = 1", true)
+            .addExpr("1 = 1 OR 1 = 2", true)
+            .addExpr("NOT 1 = 2", true)
+            .addExpr("(NOT 1 = 2) AND (2 = 1 OR 3 = 3)", true)
+            .addExpr("2 = 2 AND 2 = 1", false)
+            .addExpr("1 = 2 OR 3 = 2", false)
+            .addExpr("NOT 1 = 1", false)
+            .addExpr("(NOT 2 = 2) AND (1 = 2 OR 2 = 3)", false)
+            .addExpr("'a' = 'a' AND 'a' = 'a'", true)
+            .addExpr("'a' = 'a' OR 'a' = 'b'", true)
+            .addExpr("NOT 'a' = 'b'", true)
+            .addExpr("(NOT 'a' = 'b') AND ('b' = 'a' OR 'c' = 'c')", true)
+            .addExpr("'b' = 'b' AND 'b' = 'a'", false)
+            .addExpr("'a' = 'b' OR 'c' = 'b'", false)
+            .addExpr("NOT 'a' = 'a'", false)
+            .addExpr("(NOT 'b' = 'b') AND ('a' = 'b' OR 'b' = 'c')", false)
+            .addExpr("1.0 = 1.0 AND 1.0 = 1.0", true)
+            .addExpr("1.0 = 1.0 OR 1.0 = 2.0", true)
+            .addExpr("NOT 1.0 = 2.0", true)
+            .addExpr("(NOT 1.0 = 2.0) AND (2.0 = 1.0 OR 3.0 = 3.0)", true)
+            .addExpr("2.0 = 2.0 AND 2.0 = 1.0", false)
+            .addExpr("1.0 = 2.0 OR 3.0 = 2.0", false)
+            .addExpr("NOT 1.0 = 1.0", false)
+            .addExpr("(NOT 2.0 = 2.0) AND (1.0 = 2.0 OR 2.0 = 3.0)", false)
+            .addExpr("NOT true", false)
+            .addExpr("NOT false", true)
+            .addExpr("true AND true", true)
+            .addExpr("true AND false", false)
+            .addExpr("false AND false", false)
+            .addExpr("true OR true", true)
+            .addExpr("true OR false", true)
+            .addExpr("false OR false", false)
+            .addExpr("(NOT false) AND (true OR false)", true)
+            .addExpr("(NOT true) AND (true OR false)", false)
+            .addExpr("(NOT false) OR (true and false)", true)
+            .addExpr("(NOT true) OR (true and false)", false);
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
   @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
