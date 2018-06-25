@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
@@ -50,20 +51,20 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private final NavigableSet<KeyedTimerData<K>> eventTimeTimers = new TreeSet<>();
 
   private final Coder<K> keyCoder;
-  private final TimerRegistry<KeyedTimerData<K>> timerRegistry;
+  private final TimerRegistry<TimerKey<K>> timerRegistry;
 
   // TODO: use BoundedWindow.TIMESTAMP_MIN_VALUE when KafkaIO emits watermarks in bounds.
   private Instant inputWatermark = new Instant(Long.MIN_VALUE);
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public SamzaTimerInternalsFactory(Coder<K> keyCoder,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry) {
+      TimerRegistry<TimerKey<K>> timerRegistry) {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
   }
 
   @Override
-  public TimerInternals timerInternalsForKey(K key) {
+  public TimerInternals timerInternalsForKey(@Nullable K key) {
     final byte[] keyBytes;
 
     if (keyCoder == null) {
@@ -117,6 +118,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
       final TimerKey<K> timerKey = new TimerKey<>(
           keyedTimerData.getKey(),
+          keyedTimerData.getKeyBytes(),
           timerData.getNamespace(),
           timerData.getTimerId());
 
@@ -156,12 +158,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     @Override
     public void setTimer(TimerData timerData) {
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
+      final TimerKey<K> timerKey = new TimerKey<>(
+          key,
+          keyBytes,
+          timerData.getNamespace(),
+          timerData.getTimerId());
+
       switch (timerData.getDomain()) {
         case EVENT_TIME:
-          final TimerKey<K> timerKey = new TimerKey<>(
-              key,
-              timerData.getNamespace(),
-              timerData.getTimerId());
           final KeyedTimerData<K> oldTimer = timerMap.get(timerKey);
 
           if (oldTimer != null) {
@@ -180,7 +184,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           break;
 
         case PROCESSING_TIME:
-          timerRegistry.register(keyedTimerData, timerData.getTimestamp().getMillis());
+          timerRegistry.register(timerKey, timerData.getTimestamp().getMillis());
           break;
 
         default:
@@ -192,23 +196,24 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      deleteTimer(TimerData.of(timerId, namespace, null, timeDomain));
+      deleteTimer(TimerData.of(timerId, namespace, Instant.now(), timeDomain));
     }
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId) {
-      deleteTimer(TimerData.of(timerId, namespace, null, TimeDomain.EVENT_TIME));
+      deleteTimer(TimerData.of(timerId, namespace, Instant.now(), TimeDomain.EVENT_TIME));
     }
 
     @Override
     public void deleteTimer(TimerData timerData) {
+      final TimerKey<K> timerKey = new TimerKey<>(
+          key,
+          keyBytes,
+          timerData.getNamespace(),
+          timerData.getTimerId());
+
       switch (timerData.getDomain()) {
         case EVENT_TIME:
-          final TimerKey<K> timerKey = new TimerKey<>(
-              key,
-              timerData.getNamespace(),
-              timerData.getTimerId());
-
           final KeyedTimerData<K> keyedTimerData = timerMap.remove(timerKey);
           if (keyedTimerData != null) {
             eventTimeTimers.remove(keyedTimerData);
@@ -216,8 +221,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           break;
 
         case PROCESSING_TIME:
-          final KeyedTimerData<K> timer = new KeyedTimerData<>(keyBytes, key, timerData);
-          timerRegistry.delete(timer);
+          timerRegistry.delete(timerKey);
           break;
 
         default:
@@ -247,69 +251,6 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     @Override
     public Instant currentOutputWatermarkTime() {
       return outputWatermark;
-    }
-  }
-
-  private static class TimerKey<K> {
-    private final K key;
-    private final StateNamespace stateNamespace;
-    private final String timerId;
-
-    private TimerKey(K key, StateNamespace stateNamespace, String timerId) {
-      this.key = key;
-      this.stateNamespace = stateNamespace;
-      this.timerId = timerId;
-    }
-
-    public K getKey() {
-      return key;
-    }
-
-    public StateNamespace getStateNamespace() {
-      return stateNamespace;
-    }
-
-
-    public String getTimerId() {
-      return timerId;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TimerKey<?> timerKey = (TimerKey<?>) o;
-
-      if (key != null ? !key.equals(timerKey.key) : timerKey.key != null) {
-        return false;
-      }
-      if (!stateNamespace.equals(timerKey.stateNamespace)) {
-        return false;
-      }
-
-      return timerId.equals(timerKey.timerId);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = key != null ? key.hashCode() : 0;
-      result = 31 * result + stateNamespace.hashCode();
-      result = 31 * result + timerId.hashCode();
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "TimerKey{"
-          + "key=" + key
-          + ", stateNamespace=" + stateNamespace
-          + ", timerId='" + timerId + '\''
-          + '}';
     }
   }
 }

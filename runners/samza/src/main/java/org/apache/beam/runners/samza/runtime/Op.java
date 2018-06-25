@@ -43,7 +43,7 @@ public interface Op<InT, OutT, K> extends Serializable {
    */
   default void open(Config config,
                     TaskContext taskContext,
-                    TimerRegistry<KeyedTimerData<K>> timerRegistry,
+                    TimerRegistry<TimerKey<K>> timerRegistry,
                     OpEmitter<OutT> emitter) {}
 
   void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);
