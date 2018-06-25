@@ -28,12 +28,19 @@ dependencies {
   compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.3.0"
   compile library.java.slf4j_jdk14
+  compile library.java.guava
   testCompile library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output
   integrationTest sourceSets.main.output
   integrationTest library.java.junit
+}
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+          'beam.version': version,
+  ]
 }
 
 shadowJar {
