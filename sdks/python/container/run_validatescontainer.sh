@@ -55,6 +55,14 @@ docker images | grep $TAG
 # Push the container
 gcloud docker -- push $CONTAINER
 
+function cleanup_container {
+  # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  echo "Removed the container"
+}
+trap cleanup_container EXIT
+
 # Virtualenv for the rest of the script to run setup & e2e test
 virtualenv sdks/python/container
 . sdks/python/container/bin/activate
@@ -81,9 +89,5 @@ python setup.py nosetests \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1"
-
-# Delete the container locally and remotely
-docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
