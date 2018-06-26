@@ -47,7 +47,7 @@ class PostcommitJobBuilder {
 
   private void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
-      cjp.setPostCommit(delegate)
+      cjp.setAutoJob delegate
     }
     autoBuilds.with(jobDefinition)
   }

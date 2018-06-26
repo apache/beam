@@ -227,8 +227,8 @@ class common_job_properties {
     }
   }
 
-  // Sets common config for PostCommit jobs.
-  static void setPostCommit(context,
+  // Sets common config for jobs which run on a schedule / push
+  static void setAutoJob(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
                             String notifyAddress = 'commits@beam.apache.org',
