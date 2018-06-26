@@ -22,6 +22,12 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
     gradleTask: ':pythonPreCommit',
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^runners/.*$',
+      '^sdks/python/.*$',
+      '^release/.*$',
+    ]
 )
 builder.build {
   // Publish all test results to Jenkins. Note that Nose documentation
