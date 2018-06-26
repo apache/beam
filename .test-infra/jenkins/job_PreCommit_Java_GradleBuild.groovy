@@ -22,6 +22,13 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java',
     gradleTask: ':javaPreCommit',
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/java/.*$',
+      '^runners/.*$',
+      '^examples/java/.*$',
+      '^release/.*$',
+    ]
 )
 builder.build {
   publishers {
