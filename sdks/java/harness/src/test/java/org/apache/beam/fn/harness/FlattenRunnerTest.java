@@ -155,15 +155,12 @@ public class FlattenRunnerTest {
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
 
     assertThat(consumers.get("inputATarget"), hasSize(2));
+
     FnDataReceiver<WindowedValue<?>> input =
         MultiplexingFnDataReceiver.forConsumers(consumers.get("inputATarget"));
-    // Both of these are the flatten consumer
-    //assertThat(first, equalTo(second));
 
     input.accept(WindowedValue.valueInGlobalWindow("A1"));
-    //second.accept(WindowedValue.valueInGlobalWindow("A1"));
     input.accept(WindowedValue.valueInGlobalWindow("A2"));
-    //second.accept(WindowedValue.valueInGlobalWindow("A2"));
 
     assertThat(
         mainOutputValues,
