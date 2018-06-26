@@ -401,7 +401,16 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("1 IS NOT DISTINCT FROM 2", false)
             .addExpr("1.0 IS NOT DISTINCT FROM 2.0", false)
             .addExpr("'a' IS NOT DISTINCT FROM 'b'", false)
-            .addExpr("true IS NOT DISTINCT FROM false", false);
+            .addExpr("true IS NOT DISTINCT FROM false", false)
+            .addExpr("date '2018-01-01' > DATE '2017-12-31' ", true)
+            .addExpr("date '2018-01-01' >= DATE '2017-12-31' ", true)
+            .addExpr("date '2018-01-01' < DATE '2017-12-31' ", false)
+            .addExpr("date '2018-01-01' <= DATE '2017-12-31' ", false)
+            .addExpr("date '2018-06-24' = DATE '2018-06-24' ", true)
+            .addExpr("Date '2018-06-24' <> DATE '2018-06-24' ", false)
+            .addExpr("TIME '20:17:40' < Time '15:05:57' ", false)
+            .addExpr("TIME '00:00:01' >= time '00:00:01' ", true)
+            .addExpr("TIMESTAMP '2017-12-31 23:59:59' < TIMESTAMP '2018-01-01 00:00:00' ", true);
 
     checker.buildRunAndCheck();
   }
