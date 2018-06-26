@@ -243,7 +243,8 @@ public class Pipeline {
 
           private void checkForMatches(Node node) {
             for (PTransformOverride override : overrides) {
-              if (override.getMatcher().matchesDuringValidation(node.toAppliedPTransform(getPipeline()))) {
+              if (override.getMatcher()
+                  .matchesDuringValidation(node.toAppliedPTransform(getPipeline()))) {
                 matched.put(node, override);
               }
             }
