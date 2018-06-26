@@ -198,8 +198,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
   void apply(Project project) {
 
-    println "Applying BeamModulePlugin to $project.name"
-
     /** ***********************************************************************************************/
     // Apply common properties/repositories and tasks to all projects.
 
@@ -515,7 +513,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // main and test source set runtimes.
 
     project.ext.applyJavaNature = {
-      println "applyJavaNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
       if (!configuration.shadowClosure) {
@@ -1055,7 +1052,6 @@ artifactId=${project.name}
     // When applied in a module's build.gradle file, this closure provides task for running
     // IO integration tests (manually, without PerfKitBenchmarker).
     project.ext.enableJavaPerformanceTesting = {
-      println "enableJavaPerformanceTesting with " + (it ? "$it" : "default configuration") + "for project ${project.name}"
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       // See: http://groovy-lang.org/closures.html#implicit-it
@@ -1075,7 +1071,6 @@ artifactId=${project.name}
     // When applied in a module's build.gradle file, this closure adds task providing
     // additional dependencies that might be needed while running integration tests.
     project.ext.provideIntegrationTestingDependencies = {
-      println "provideIntegrationTestingDependencies with " + (it ? "$it" : "default configuration") + "for project ${project.name}"
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       // See: http://groovy-lang.org/closures.html#implicit-it
@@ -1113,7 +1108,6 @@ artifactId=${project.name}
     // When applied in a module's build gradle file, this closure provides a task
     // that will involve PerfKitBenchmarker for running integrationTests.
     project.ext.createPerformanceTestHarness = {
-      println "createPerformanceTestHarness with " + (it ? "$it" : "default configuration") + " for project ${project.name}"
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       // See: http://groovy-lang.org/closures.html#implicit-it
@@ -1166,7 +1160,6 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     project.ext.applyGoNature = {
-      println "applyGoNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       project.apply plugin: "com.github.blindpirate.gogradle"
       project.golang { goVersion = '1.10' }
 
@@ -1197,7 +1190,6 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     project.ext.applyDockerNature = {
-      println "applyDockerNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       project.apply plugin: "com.palantir.docker"
       project.docker { noCache true }
     }
@@ -1209,7 +1201,6 @@ artifactId=${project.name}
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
-      println "containerImageName with " + (it ? "$it" : "default configuration") + " for project $project.name"
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       ContainerImageNameConfiguration configuration = it ? it as ContainerImageNameConfiguration : new ContainerImageNameConfiguration()
 
@@ -1233,7 +1224,6 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     project.ext.applyGrpcNature = {
-      println "applyGrpcNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
@@ -1283,10 +1273,7 @@ artifactId=${project.name}
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = {
-      println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.apply plugin: "com.commercehub.gradle.plugin.avro"
-    }
+    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
 
     // Creates a task to run the quickstart for a runner.
     // Releases version and URL, can be overriden for a RC release with
@@ -1294,7 +1281,6 @@ artifactId=${project.name}
     project.ext.createJavaExamplesArchetypeValidationTask = {
       JavaExamplesArchetypeValidationConfiguration config = it as JavaExamplesArchetypeValidationConfiguration
       def taskName = "run${config.type}Java${config.runner}"
-      println "Generating :${taskName} in ${project.name}"
       def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
       def argsNeeded = [
