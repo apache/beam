@@ -50,7 +50,7 @@ public class CombineRunners<InputT, OutputT> {
           MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction),
           BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS),
           MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction),
-          BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_GROUPED_VALUES),
+          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES),
           MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction));
     }
   }
