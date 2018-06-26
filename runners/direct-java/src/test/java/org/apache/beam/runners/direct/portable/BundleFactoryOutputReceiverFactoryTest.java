@@ -29,8 +29,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
-import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components.Builder;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -61,7 +61,7 @@ public class BundleFactoryOutputReceiverFactoryTest {
   private final BundleFactory bundleFactory = ImmutableListBundleFactory.create();
   private PCollectionNode fooPC;
   private PCollectionNode barPC;
-  private RunnerApi.Components components;
+  private RunnerApi.Components baseComponents;
 
   private OutputReceiverFactory factory;
   private Collection<UncommittedBundle<?>> outputBundles;
@@ -77,14 +77,15 @@ public class BundleFactoryOutputReceiverFactoryTest {
     SdkComponents sdkComponents = SdkComponents.create();
     String fooId = sdkComponents.registerPCollection(foo);
     String barId = sdkComponents.registerPCollection(bar);
-    components = sdkComponents.toComponents();
+    baseComponents = sdkComponents.toComponents();
 
-    fooPC = PipelineNode.pCollection(fooId, components.getPcollectionsOrThrow(fooId));
-    barPC = PipelineNode.pCollection(barId, components.getPcollectionsOrThrow(barId));
+    fooPC = PipelineNode.pCollection(fooId, baseComponents.getPcollectionsOrThrow(fooId));
+    barPC = PipelineNode.pCollection(barId, baseComponents.getPcollectionsOrThrow(barId));
 
     outputBundles = new ArrayList<>();
     factory =
-        BundleFactoryOutputReceiverFactory.create(bundleFactory, components, outputBundles::add);
+        BundleFactoryOutputReceiverFactory.create(
+            bundleFactory, baseComponents, outputBundles::add);
   }
 
   @Test
@@ -104,13 +105,14 @@ public class BundleFactoryOutputReceiverFactoryTest {
   @Test
   public void receiverAddsElementsToBundle() throws Exception {
     FnDataReceiver<WindowedValue<byte[]>> receiver = factory.create(fooPC.getId());
-    MessageWithComponents sdkWireCoder =
-        WireCoders.createSdkWireCoder(fooPC, components, components::containsCoders);
+
+    Builder builder = baseComponents.toBuilder();
+    String sdkWireCoderId = WireCoders.addSdkWireCoder(fooPC, builder);
+    Components components = builder.build();
+
     Coder<WindowedValue<String>> sdkCoder =
         (Coder<WindowedValue<String>>)
-            CoderTranslation.fromProto(
-                sdkWireCoder.getCoder(),
-                RehydratedComponents.forComponents(sdkWireCoder.getComponents()));
+            RehydratedComponents.forComponents(components).getCoder(sdkWireCoderId);
     Coder<WindowedValue<byte[]>> runnerCoder =
         WireCoders.instantiateRunnerWireCoder(fooPC, components);
 
@@ -151,13 +153,15 @@ public class BundleFactoryOutputReceiverFactoryTest {
   public void multipleInstancesOfPCollectionIndependent() throws Exception {
     FnDataReceiver<WindowedValue<byte[]>> firstReceiver = factory.create(fooPC.getId());
     FnDataReceiver<WindowedValue<byte[]>> secondReceiver = factory.create(fooPC.getId());
-    MessageWithComponents sdkWireCoder =
-        WireCoders.createSdkWireCoder(fooPC, components, components::containsCoders);
+
+    Components.Builder builder = baseComponents.toBuilder();
+    String sdkWireCoderId = WireCoders.addSdkWireCoder(fooPC, builder);
+    Components components = builder.build();
+
     Coder<WindowedValue<String>> sdkCoder =
         (Coder<WindowedValue<String>>)
-            CoderTranslation.fromProto(
-                sdkWireCoder.getCoder(),
-                RehydratedComponents.forComponents(sdkWireCoder.getComponents()));
+            RehydratedComponents.forComponents(components).getCoder(sdkWireCoderId);
+
     Coder<WindowedValue<byte[]>> runnerCoder =
         WireCoders.instantiateRunnerWireCoder(fooPC, components);
 
@@ -199,24 +203,23 @@ public class BundleFactoryOutputReceiverFactoryTest {
   @Test
   public void differentPCollectionsIndependent() throws Exception {
     FnDataReceiver<WindowedValue<byte[]>> fooReceiver = factory.create(fooPC.getId());
-    MessageWithComponents fooSdkWireCoder =
-        WireCoders.createSdkWireCoder(fooPC, components, components::containsCoders);
+
+    Components.Builder builder = baseComponents.toBuilder();
+    String sdkWireCoderId = WireCoders.addSdkWireCoder(fooPC, builder);
+    String barSdkWireCoderId =
+        WireCoders.addSdkWireCoder(barPC, builder);
+    Components components = builder.build();
+
     Coder<WindowedValue<String>> fooSdkCoder =
         (Coder<WindowedValue<String>>)
-            CoderTranslation.fromProto(
-                fooSdkWireCoder.getCoder(),
-                RehydratedComponents.forComponents(fooSdkWireCoder.getComponents()));
+            RehydratedComponents.forComponents(components).getCoder(sdkWireCoderId);
     Coder<WindowedValue<byte[]>> fooRunnerCoder =
         WireCoders.instantiateRunnerWireCoder(fooPC, components);
 
     FnDataReceiver<WindowedValue<byte[]>> barReceiver = factory.create(barPC.getId());
-    MessageWithComponents barSdkWireCoder =
-        WireCoders.createSdkWireCoder(barPC, components, components::containsCoders);
     Coder<WindowedValue<Integer>> barSdkCoder =
         (Coder<WindowedValue<Integer>>)
-            CoderTranslation.fromProto(
-                barSdkWireCoder.getCoder(),
-                RehydratedComponents.forComponents(barSdkWireCoder.getComponents()));
+            RehydratedComponents.forComponents(components).getCoder(barSdkWireCoderId);
     Coder<WindowedValue<byte[]>> barRunnerCoder =
         WireCoders.instantiateRunnerWireCoder(barPC, components);
 
