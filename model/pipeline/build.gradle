@@ -17,6 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
+
 applyJavaNature(enableFindbugs: false, enableErrorProne: false)
 applyGrpcNature()
 
