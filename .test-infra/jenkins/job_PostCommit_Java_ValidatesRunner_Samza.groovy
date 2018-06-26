@@ -23,8 +23,6 @@ import JobBuilder
 JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Samza_Gradle',
   'Run Samza ValidatesRunner', 'Apache Samza Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Samza runner.')
-  previousNames('beam_PostCommit_Java_ValidatesRunner_Samza')
-  previousNames('beam_PostCommit_Java_RunnableOnService_Samza')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
