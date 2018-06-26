@@ -86,13 +86,13 @@ public class BigQueryUtils {
           .put(TypeName.STRING, str -> str)
           .build();
 
-  private static final Map<byte[], StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
-      ImmutableMap.<byte[], StandardSQLTypeName>builder()
-          .put("DATE".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.DATE)
-          .put("TIME".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
-          .put("TIME_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
-          .put("TS".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
-          .put("TS_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
+  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
+      ImmutableMap.<String, StandardSQLTypeName>builder()
+          .put("DATE", StandardSQLTypeName.DATE)
+          .put("TIME", StandardSQLTypeName.TIME)
+          .put("TIME_WITH_LOCAL_TZ", StandardSQLTypeName.TIME)
+          .put("TS", StandardSQLTypeName.TIMESTAMP)
+          .put("TS_WITH_LOCAL_TZ", StandardSQLTypeName.TIMESTAMP)
           .build();
 
   /**
@@ -103,7 +103,8 @@ public class BigQueryUtils {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
     if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata() != null) {
-      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(fieldType.getMetadata());
+      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
+          new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
     }
 
     return sqlType;
