@@ -582,6 +582,7 @@ public class TextIO {
     abstract ValueProvider<ResourceId> getTempDirectory();
 
     /** The delimiter between string records. */
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract char[] getDelimiter();
 
     /** An optional header to add to each file. */
