@@ -31,7 +31,7 @@ job('beam_Dependency_Check') {
     'Run Dependency Check')
 
   // This is a job that runs weekly.
-  common_job_properties.setPostCommit(
+  common_job_properties.setAutoJob(
     delegate,
     '0 12 * * 1',
     false)

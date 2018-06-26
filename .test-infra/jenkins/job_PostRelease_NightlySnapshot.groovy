@@ -39,7 +39,7 @@ job('beam_PostRelease_NightlySnapshot') {
   }
 
   // This is a post-commit job that runs once per day, not for every push.
-  common_job_properties.setPostCommit(
+  common_job_properties.setAutoJob(
       delegate,
       '0 11 * * *',
       false)
