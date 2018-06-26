@@ -56,9 +56,6 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the findbugs plugin is enabled and configured. */
     boolean enableFindbugs = true
 
-    /** Controls whether the errorprone plugin is enabled and configured. */
-    boolean enableErrorProne = true
-
     /** Controls whether compiler warnings are treated as errors. */
     boolean failOnWarning = true
 
@@ -546,13 +543,11 @@ class BeamModulePlugin implements Plugin<Project> {
         options.compilerArgs += ['-parameters', '-Xlint:all']+ (
         defaultLintSuppressions + configuration.disableLintWarnings
         ).collect { "-Xlint:-${it}" }
-        if (configuration.enableErrorProne) {
-          options.compilerArgs += [
-            "-XepDisableWarningsInGeneratedCode",
-            "-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*",
-            "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
-          ]
-        }
+        options.compilerArgs += [
+          "-XepDisableWarningsInGeneratedCode",
+          "-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*",
+          "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
+        ]
         if (configuration.failOnWarning) {
           options.compilerArgs += "-Werror"
         }
@@ -658,11 +653,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      // Enable errorprone, not by default right now
-      if (configuration.enableErrorProne) {
-        project.apply plugin: 'net.ltgt.errorprone'
-        project.tasks.withType(JavaCompile) { options.compilerArgs += "-XepDisableWarningsInGeneratedCode" }
-      }
+      // Enable errorprone static analysis
+      project.apply plugin: 'net.ltgt.errorprone'
+      project.tasks.withType(JavaCompile) { options.compilerArgs += "-XepDisableWarningsInGeneratedCode" }
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
