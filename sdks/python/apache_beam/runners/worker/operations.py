@@ -163,12 +163,12 @@ class Operation(object):
                                     self.consumers[i], coder)
                         for i, coder in enumerate(self.spec.output_coders)]
 
-  def finish(self):
-    """Finish operation."""
-    pass
-
   def process(self, o):
     """Process element in operation."""
+    pass
+
+  def finish(self):
+    """Finish operation."""
     pass
 
   def output(self, windowed_value, output_index=0):
@@ -395,13 +395,13 @@ class DoOperation(Operation):
 
       self.dofn_runner.start()
 
-  def finish(self):
-    with self.scoped_finish_state:
-      self.dofn_runner.finish()
-
   def process(self, o):
     with self.scoped_process_state:
       self.dofn_receiver.receive(o)
+
+  def finish(self):
+    with self.scoped_finish_state:
+      self.dofn_runner.finish()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
@@ -435,9 +435,6 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
-  def finish(self):
-    logging.debug('Finishing %s', self)
-
   def process(self, o):
     with self.scoped_process_state:
       if self.debug_logging_enabled:
@@ -445,6 +442,9 @@ class CombineOperation(Operation):
       key, values = o.value
       self.output(
           o.with_value((key, self.phased_combine_fn.apply(values))))
+
+  def finish(self):
+    logging.debug('Finishing %s', self)
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
