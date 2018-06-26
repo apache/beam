@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 
 /**
  * {@link BeamSqlCompareExpression} is used for compare operations.
@@ -70,6 +71,9 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
       case VARCHAR:
         return BeamSqlPrimitive.of(
             SqlTypeName.BOOLEAN, compare((CharSequence) leftValue, (CharSequence) rightValue));
+      case DATE:
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BOOLEAN, compare((DateTime) leftValue, (DateTime) rightValue));
       default:
         throw new UnsupportedOperationException(toString());
     }
@@ -87,4 +91,7 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
    * SqlTypeName#INTEGER}, {@link SqlTypeName#SMALLINT} and {@link SqlTypeName#TINYINT}.
    */
   public abstract Boolean compare(Number leftValue, Number rightValue);
+
+  /** Compare between DateTime values, mapping to {@link SqlTypeName#DATETIME_TYPES}. */
+  public abstract Boolean compare(DateTime leftValue, DateTime rightValue);
 }
