@@ -80,23 +80,23 @@ public class RowCoder extends CustomCoder<Row> {
   }
 
   // Return the generated coder class for this schema.
-  private Coder<Row> getDelegate() {
+  private Coder<Row> getDelegateCoder() {
     if (delegateCoder == null) {
-      // GeneratedRowCoder caches based on id, so if a new instance of this RowCoder is
+      // RowCoderGenerator caches based on id, so if a new instance of this RowCoder is
       // deserialized, we don't need to run ByteBuddy again to construct the class.
-      delegateCoder = GeneratedRowCoder.of(schema, id);
+      delegateCoder = RowCoderGenerator.generate(schema, id);
     }
     return delegateCoder;
   }
 
   @Override
   public void encode(Row value, OutputStream outStream) throws IOException {
-    getDelegate().encode(value, outStream);
+    getDelegateCoder().encode(value, outStream);
   }
 
   @Override
   public Row decode(InputStream inStream) throws IOException {
-    return getDelegate().decode(inStream);
+    return getDelegateCoder().decode(inStream);
   }
 
   public Schema getSchema() {
