@@ -17,19 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.mock;
 
-import static org.apache.beam.sdk.extensions.sql.TestUtils.buildBeamSqlRowType;
+import static org.apache.beam.sdk.extensions.sql.TestUtils.buildBeamSqlSchema;
 import static org.apache.beam.sdk.extensions.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,9 +34,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * Mocked table for bounded data sources.
- */
+/** Mocked table for bounded data sources. */
 public class MockedBoundedTable extends MockedTable {
   /** rows written to this table. */
   private static final ConcurrentLinkedQueue<Row> CONTENT = new ConcurrentLinkedQueue<>();
@@ -64,16 +59,13 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedBoundedTable of(final Object... args) {
-    return new MockedBoundedTable(buildBeamSqlRowType(args));
+    return new MockedBoundedTable(buildBeamSqlSchema(args));
   }
 
-  /**
-   * Build a mocked bounded table with the specified type.
-   */
+  /** Build a mocked bounded table with the specified type. */
   public static MockedBoundedTable of(final Schema type) {
     return new MockedBoundedTable(type);
   }
-
 
   /**
    * Add rows to the builder.
@@ -95,41 +87,25 @@ public class MockedBoundedTable extends MockedTable {
   }
 
   @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    return begin.apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows));
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply(
-        "MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows));
-  }
+  public POutput buildIOWriter(PCollection<Row> input) {
+    input.apply(
+        ParDo.of(
+            new DoFn<Row, Void>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                CONTENT.add(c.element());
+              }
 
-  @Override public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-    return new OutputStore();
-  }
-
-  /**
-   * Keep output in {@code CONTENT} for validation.
-   *
-   */
-  public static class OutputStore extends PTransform<PCollection<Row>, POutput> {
-
-    @Override
-    public PDone expand(PCollection<Row> input) {
-      input.apply(ParDo.of(new DoFn<Row, Void>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          CONTENT.add(c.element());
-        }
-
-        @Teardown
-        public void close() {
-          CONTENT.clear();
-        }
-
-      }));
-      return PDone.in(input.getPipeline());
-    }
+              @Teardown
+              public void close() {
+                CONTENT.clear();
+              }
+            }));
+    return PDone.in(input.getPipeline());
   }
 }

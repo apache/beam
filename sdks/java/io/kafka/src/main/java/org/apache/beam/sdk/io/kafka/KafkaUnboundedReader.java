@@ -23,12 +23,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closeables;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -75,6 +75,7 @@ import org.slf4j.LoggerFactory;
 class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   ///////////////////// Reader API ////////////////////////////////////////////////////////////
+  @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public boolean start() throws IOException {
     final int defaultPartitionInitTimeout = 60 * 1000;
@@ -85,9 +86,13 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
     try {
-      keyDeserializerInstance = spec.getKeyDeserializer().newInstance();
-      valueDeserializerInstance = spec.getValueDeserializer().newInstance();
-    } catch (InstantiationException | IllegalAccessException e) {
+      keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
+      valueDeserializerInstance =
+          spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
       throw new IOException("Could not instantiate deserializers", e);
     }
 
@@ -164,7 +169,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   }
 
   @Override
-  public boolean advance() {
+  public boolean advance() throws IOException {
     /* Read first record (if any). we need to loop here because :
      *  - (a) some records initially need to be skipped if they are before consumedOffset
      *  - (b) if curBatch is empty, we want to fetch next batch and then advance.
@@ -212,6 +217,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             rawRecord.offset(),
             consumerSpEL.getRecordTimestamp(rawRecord),
             consumerSpEL.getRecordTimestampType(rawRecord),
+            ConsumerSpEL.hasHeaders ? rawRecord.headers() : null,
             keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
             valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
@@ -613,7 +619,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
 
     // cycle through the partitions in order to interleave records from each.
-    curBatch = Iterators.cycle(new LinkedList<>(partitionStates));
+    curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
   }
 
   private void setupInitialOffset(PartitionState pState) {

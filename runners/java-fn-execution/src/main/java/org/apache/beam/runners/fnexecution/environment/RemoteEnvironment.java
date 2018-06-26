@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.fnexecution.environment;
 
+import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 
@@ -27,9 +28,40 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
  * #getInstructionRequestHandler()}.
  */
 public interface RemoteEnvironment extends AutoCloseable {
+  /**
+   * Create a new {@link RemoteEnvironment} for the provided {@link Environment} and {@link
+   * AutoCloseable} {@link InstructionRequestHandler}.
+   *
+   * <p>When the {@link RemoteEnvironment} is closed, the {@link InstructionRequestHandler} will be
+   * closed.
+   */
+  static RemoteEnvironment forHandler(Environment env, InstructionRequestHandler handler) {
+    return new AutoValue_RemoteEnvironment_SimpleRemoteEnvironment(env, handler);
+  }
+
   /** Return the environment that the remote handles. */
   Environment getEnvironment();
 
   /** Return an {@link InstructionRequestHandler} which can communicate with the environment. */
   InstructionRequestHandler getInstructionRequestHandler();
+
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>By default, closes the {@link #getInstructionRequestHandler()}.
+   */
+  @Override
+  default void close() throws Exception {
+    getInstructionRequestHandler().close();
+  }
+
+  /** A {@link RemoteEnvironment} which uses the default {@link #close()} behavior. */
+  @AutoValue
+  abstract class SimpleRemoteEnvironment implements RemoteEnvironment {
+    @Override
+    public abstract Environment getEnvironment();
+
+    @Override
+    public abstract InstructionRequestHandler getInstructionRequestHandler();
+  }
 }

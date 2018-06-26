@@ -1,0 +1,36 @@
+.page-nav
+  border-left: 3px solid $color-brand
+  overflow-y: auto
+  max-height: calc(100vh - 130px)
+  padding: 0 15px
+  position: fixed
+  width: 240px
+
+  li
+    display: block
+    width: 100%
+
+    a
+      color: $color-dark
+      display: block
+      font-size: 12px
+      padding: 5px
+
+    span
+      font-size: 12
+
+    ul
+      padding-left: 20px
+
+  .nav
+    > li.active
+      a
+        text-decoration: underline
+
+  @media (max-width: $ak-breakpoint-lg)
+    margin-top: 0
+    max-height: initial
+    right: 0
+    padding: 0 30px
+    position: relative
+    width: 100%

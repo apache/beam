@@ -45,11 +45,11 @@ public class RegisterHandler {
     idToObject = new ConcurrentHashMap<>();
   }
 
-  public <T extends Message> T getById(String id) {
+  public Message getById(String id) {
     try {
       LOG.debug("Attempting to find {}", id);
       @SuppressWarnings("unchecked")
-      CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
+      CompletableFuture<Message> returnValue = computeIfAbsent(id);
       /*
        * TODO: Even though the register request instruction occurs before the process bundle
        * instruction in the control stream, the instructions are being processed in parallel

@@ -114,7 +114,7 @@ public class TestCountingSource
     return splits;
   }
 
-  class CounterMark implements UnboundedSource.CheckpointMark {
+  static class CounterMark implements UnboundedSource.CheckpointMark {
     int current;
 
     public CounterMark(int current) {
@@ -239,7 +239,8 @@ public class TestCountingSource
     return KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
   }
 
-  private class FromCounterMark implements DelegateCoder.CodingFunction<CounterMark, Integer> {
+  private static class FromCounterMark
+      implements DelegateCoder.CodingFunction<CounterMark, Integer> {
     @Override
     public Integer apply(CounterMark input) {
       return input.current;
@@ -256,7 +257,7 @@ public class TestCountingSource
     }
   }
 
-  private class ToCounterMark implements DelegateCoder.CodingFunction<Integer, CounterMark> {
+  private static class ToCounterMark implements DelegateCoder.CodingFunction<Integer, CounterMark> {
     @Override
     public CounterMark apply(Integer input) {
       return new CounterMark(input);

@@ -18,25 +18,25 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for 'AND' operation.
- */
+/** {@code BeamSqlExpression} for 'AND' operation. */
 public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
   public BeamSqlAndExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<Boolean> evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     boolean result = true;
     for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window);
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, env);
       if (!expOut.getValue()) {
         result = false;
         break;
@@ -44,5 +44,4 @@ public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
     }
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
-
 }

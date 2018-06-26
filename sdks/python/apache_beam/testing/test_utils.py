@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import hashlib
 import imp
 import logging
@@ -27,6 +29,7 @@ import os
 import shutil
 import tempfile
 import time
+from builtins import object
 
 from mock import Mock
 from mock import patch

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -28,18 +29,21 @@ import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -113,7 +117,7 @@ public class FileBasedSinkTest {
 
   /** Assert that a file contains the lines provided, in the same order as expected. */
   private void assertFileContains(List<String> expected, ResourceId file) throws Exception {
-    try (BufferedReader reader = new BufferedReader(new FileReader(file.toString()))) {
+    try (BufferedReader reader = Files.newBufferedReader(Paths.get(file.toString()), UTF_8)) {
       List<String> actual = new ArrayList<>();
       for (;;) {
         String line = reader.readLine();
@@ -128,7 +132,8 @@ public class FileBasedSinkTest {
 
   /** Write lines to a file. */
   private void writeFile(List<String> lines, File file) throws Exception {
-    try (PrintWriter writer = new PrintWriter(new FileOutputStream(file))) {
+    try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(
+        new FileOutputStream(file), UTF_8)))) {
       for (String line : lines) {
         writer.println(line);
       }

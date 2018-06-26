@@ -36,8 +36,12 @@ include "beam-runners-core-java"
 project(":beam-runners-core-java").dir = file("runners/core-java")
 include "beam-runners-direct-java"
 project(":beam-runners-direct-java").dir = file("runners/direct-java")
+include "beam-runners-extensions-java-metrics"
+project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
 include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
+include "beam-runners-flink_2.11-job-server"
+project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-gcp-gcemd"
 project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
 include "beam-runners-gcp-gcsproxy"
@@ -46,24 +50,28 @@ include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
 project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
+// These 2 projects will not be published to Maven so they don't get a special
+// dashed name.
+include ":runners:google-cloud-dataflow-java:examples"
+include ":runners:google-cloud-dataflow-java:examples-streaming"
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
-include "beam-local-artifact-service-java"
-project(":beam-local-artifact-service-java").dir = file("runners/local-artifact-service-java")
 include "beam-runners-local-java-core"
 project(":beam-runners-local-java-core").dir = file("runners/local-java")
 include "beam-runners-reference-java"
 project(":beam-runners-reference-java").dir = file("runners/reference/java")
-include "beam-runners-reference-job-server"
-project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
+include "beam-runners-samza"
+project(":beam-runners-samza").dir = file("runners/samza")
 include "beam-sdks-go"
 project(":beam-sdks-go").dir = file("sdks/go")
 include "beam-sdks-go-container"
 project(":beam-sdks-go-container").dir = file("sdks/go/container")
 include "beam-sdks-go-examples"
 project(":beam-sdks-go-examples").dir = file("sdks/go/examples")
+include "beam-sdks-go-test"
+project(":beam-sdks-go-test").dir = file("sdks/go/test")
 include "beam-sdks-java-build-tools"
 project(":beam-sdks-java-build-tools").dir = file("sdks/java/build-tools")
 include "beam-sdks-java-container"
@@ -84,6 +92,8 @@ include "beam-sdks-java-extensions-sorter"
 project(":beam-sdks-java-extensions-sorter").dir = file("sdks/java/extensions/sorter")
 include "beam-sdks-java-extensions-sql"
 project(":beam-sdks-java-extensions-sql").dir = file("sdks/java/extensions/sql")
+include "beam-sdks-java-extensions-sql-jdbc"
+project(":beam-sdks-java-extensions-sql-jdbc").dir = file("sdks/java/extensions/sql/jdbc")
 include "beam-sdks-java-fn-execution"
 project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
 include "beam-sdks-java-harness"
@@ -130,6 +140,8 @@ include "beam-sdks-java-io-mongodb"
 project(":beam-sdks-java-io-mongodb").dir = file("sdks/java/io/mongodb")
 include "beam-sdks-java-io-mqtt"
 project(":beam-sdks-java-io-mqtt").dir = file("sdks/java/io/mqtt")
+include "beam-sdks-java-io-parquet"
+project(":beam-sdks-java-io-parquet").dir = file("sdks/java/io/parquet")
 include "beam-sdks-java-io-redis"
 project(":beam-sdks-java-io-redis").dir = file("sdks/java/io/redis")
 include "beam-sdks-java-io-solr"

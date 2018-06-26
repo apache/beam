@@ -24,27 +24,33 @@ data: {
         "org.apache.calcite.schema.ColumnStrategy"
         "org.apache.calcite.sql.SqlCreate"
         "org.apache.calcite.sql.SqlDrop"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
+        "org.apache.beam.sdk.schemas.Schema"
+        "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
+        "org.apache.calcite.sql.type.SqlTypeName"
       ]
 
       # List of keywords.
       keywords: [
         "COMMENT"
         "IF"
-	"LOCATION"
-	"TBLPROPERTIES"
+        "LOCATION"
+        "TBLPROPERTIES"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
       nonReservedKeywords: [
         "COMMENT"
         "IF"
-	"LOCATION"
-	"TBLPROPERTIES"
+        "LOCATION"
+        "TBLPROPERTIES"
       ]
 
       # List of methods for parsing custom SQL statements.
       statementParserMethods: [
+        "SqlSetOptionBeam(Span.of(), null)"
       ]
 
       # List of methods for parsing custom literals.
@@ -59,6 +65,7 @@ data: {
       # List of methods for parsing extensions to "ALTER <scope>" calls.
       # Each must accept arguments "(SqlParserPos pos, String scope)".
       alterStatementParserMethods: [
+        "SqlSetOptionBeam"
       ]
 
       # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.

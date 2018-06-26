@@ -81,7 +81,7 @@ func main() {
 	// are more than one artifact.
 
 	dir := filepath.Join(*semiPersistDir, "staged")
-	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, dir)
+	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
 	if err != nil {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}

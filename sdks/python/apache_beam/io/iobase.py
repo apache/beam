@@ -839,9 +839,27 @@ class Read(ptransform.PTransform):
     self.source = source
 
   def expand(self, pbegin):
+    from apache_beam.options.pipeline_options import DebugOptions
+    from apache_beam.transforms import util
+
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(self.pipeline)
+
+    debug_options = self.pipeline._options.view_as(DebugOptions)
+    if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
+      NUM_SPLITS = 1000
+      source = self.source
+      return (
+          pbegin
+          | core.Impulse()
+          | 'Split' >> core.FlatMap(lambda _: source.split(NUM_SPLITS))
+          | util.Reshuffle()
+          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
+              split.source.get_range_tracker(
+                  split.start_position, split.stop_position))))
+    else:
+      # Treat Read itself as a primitive.
+      return pvalue.PCollection(self.pipeline)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -858,7 +876,7 @@ class Read(ptransform.PTransform):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
-    return (common_urns.READ_TRANSFORM,
+    return (common_urns.deprecated_primitives.READ.urn,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
                 is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
@@ -871,7 +889,7 @@ class Read(ptransform.PTransform):
 
 
 ptransform.PTransform.register_urn(
-    common_urns.READ_TRANSFORM,
+    common_urns.deprecated_primitives.READ.urn,
     beam_runner_api_pb2.ReadPayload,
     Read.from_runner_api_parameter)
 
@@ -930,7 +948,7 @@ class Write(ptransform.PTransform):
       return pcoll | self.sink
     else:
       raise ValueError('A sink must inherit iobase.Sink, iobase.NativeSink, '
-                       'or be a PTransform. Received : %r', self.sink)
+                       'or be a PTransform. Received : %r' % self.sink)
 
 
 class WriteImpl(ptransform.PTransform):

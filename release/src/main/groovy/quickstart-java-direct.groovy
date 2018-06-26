@@ -30,14 +30,14 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
 
   t.intent 'Runs the WordCount Code with Direct runner'
     // Run the wordcount example with the Direct runner
-    t.run """mvn compile exec:java \
+    t.run """mvn compile exec:java -q \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--inputFile=pom.xml --output=counts" \
       -Pdirect-runner"""
 
     // Verify text from the pom.xml input file
-    t.run "grep Foundation counts*"
-    t.see "Foundation: 1"
+    String result = t.run "grep Foundation counts*"
+    t.see "Foundation: 1", result
 
     // Clean up
     t.done()

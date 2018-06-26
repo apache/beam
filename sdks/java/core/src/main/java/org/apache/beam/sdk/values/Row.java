@@ -84,6 +84,7 @@ public abstract class Row implements Serializable {
    * Get value by field name, {@link ClassCastException} is thrown
    * if type doesn't match.
    */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
   }
@@ -93,6 +94,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T getValue(int fieldIdx) {
     return (T) getValues().get(fieldIdx);
   }
@@ -413,8 +415,12 @@ public abstract class Row implements Serializable {
         List<Object> arrayElements = verifyArray(value, type.getCollectionElementType(), fieldName);
         return arrayElements;
       } else if (TypeName.MAP.equals(type.getTypeName())) {
-        Map<Object, Object> mapElements = verifyMap(value, type.getMapKeyType(),
-            type.getMapValueType(), fieldName);
+        Map<Object, Object> mapElements =
+            verifyMap(
+              value,
+              type.getMapKeyType().getTypeName(),
+              type.getMapValueType(),
+              fieldName);
         return mapElements;
       } else if (TypeName.ROW.equals(type.getTypeName())) {
         return verifyRow(value, fieldName);
@@ -515,6 +521,10 @@ public abstract class Row implements Serializable {
               return value;
             }
             break;
+          default:
+            // Shouldn't actually get here, but we need this case to satisfy linters.
+            throw new IllegalArgumentException(
+                String.format("Not a primitive type for field name %s: %s", fieldName, type));
         }
         throw new IllegalArgumentException(
             String.format("For field name %s and type %s found incorrect class type %s",

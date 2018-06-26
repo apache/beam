@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(enableFindbugs: false, enableErrorProne: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Fn Execution"

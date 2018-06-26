@@ -30,17 +30,15 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.joda.time.Duration;
 
-/**
- * Creates {@link WindowFn} wrapper based on HOP/TUMBLE/SESSION call in a query.
- */
+/** Creates {@link WindowFn} wrapper based on HOP/TUMBLE/SESSION call in a query. */
 class AggregateWindowFactory {
 
   /**
-   * Returns optional of {@link AggregateWindowField} which represents a
-   * windowing function specified by HOP/TUMBLE/SESSION in the SQL query.
+   * Returns optional of {@link AggregateWindowField} which represents a windowing function
+   * specified by HOP/TUMBLE/SESSION in the SQL query.
    *
-   * <p>If no known windowing function is specified in the query, then {@link Optional#empty()}
-   * is returned.
+   * <p>If no known windowing function is specified in the query, then {@link Optional#empty()} is
+   * returned.
    *
    * <p>Throws {@link UnsupportedOperationException} if it cannot convert SQL windowing function
    * call to Beam model, see {@link #getWindowFieldAt(RexCall, int)} for details.
@@ -49,38 +47,34 @@ class AggregateWindowFactory {
 
     Optional<WindowFn> windowFnOptional = createWindowFn(call.operands, call.op.kind);
 
-    return
-        windowFnOptional
-            .map(windowFn ->
-                     AggregateWindowField
-                         .builder()
-                         .setFieldIndex(groupField)
-                         .setWindowFn(windowFn)
-                         .build());
+    return windowFnOptional.map(
+        windowFn ->
+            AggregateWindowField.builder().setFieldIndex(groupField).setWindowFn(windowFn).build());
   }
 
   /**
    * Returns a {@link WindowFn} based on the SQL windowing function defined by {#code operatorKind}.
    * Supported {@link SqlKind}s:
+   *
    * <ul>
-   *   <li>{@link SqlKind#TUMBLE}, mapped to {@link FixedWindows};</li>
-   *   <li>{@link SqlKind#HOP}, mapped to {@link SlidingWindows};</li>
-   *   <li>{@link SqlKind#SESSION}, mapped to {@link Sessions};</li>
+   *   <li>{@link SqlKind#TUMBLE}, mapped to {@link FixedWindows};
+   *   <li>{@link SqlKind#HOP}, mapped to {@link SlidingWindows};
+   *   <li>{@link SqlKind#SESSION}, mapped to {@link Sessions};
    * </ul>
    *
    * <p>For example:
+   *
    * <pre>{@code
-   *   SELECT event_timestamp, COUNT(*)
-   *   FROM PCOLLECTION
-   *   GROUP BY TUMBLE(event_timestamp, INTERVAL '1' HOUR)
+   * SELECT event_timestamp, COUNT(*)
+   * FROM PCOLLECTION
+   * GROUP BY TUMBLE(event_timestamp, INTERVAL '1' HOUR)
    * }</pre>
    *
-   * <p>SQL window functions support optional window_offset parameter which indicates a
-   * how window definition is offset from the event time. Offset is zero if not specified.
+   * <p>SQL window functions support optional window_offset parameter which indicates a how window
+   * definition is offset from the event time. Offset is zero if not specified.
    *
-   * <p>Beam model does not support offset for session windows, so this method will throw
-   * {@link UnsupportedOperationException} if offset is specified
-   * in SQL query for {@link SqlKind#SESSION}.
+   * <p>Beam model does not support offset for session windows, so this method will throw {@link
+   * UnsupportedOperationException} if offset is specified in SQL query for {@link SqlKind#SESSION}.
    */
   private static Optional<WindowFn> createWindowFn(List<RexNode> parameters, SqlKind operatorKind) {
     switch (operatorKind) {
@@ -112,9 +106,9 @@ class AggregateWindowFactory {
         // Example:
         //   HOP(event_timestamp_field, INTERVAL '1' MINUTE, INTERVAL '1' HOUR)
 
-        SlidingWindows slidingWindows = SlidingWindows
-            .of(durationParameter(parameters, 2))
-            .every(durationParameter(parameters, 1));
+        SlidingWindows slidingWindows =
+            SlidingWindows.of(durationParameter(parameters, 2))
+                .every(durationParameter(parameters, 1));
 
         if (parameters.size() == 4) {
           slidingWindows = slidingWindows.withOffset(durationParameter(parameters, 3));

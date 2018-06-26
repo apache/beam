@@ -17,7 +17,7 @@
  */
 
 /**
- * Defines transforms for reading and writing from HBase.
+ * Transforms for reading and writing from/to Apache HBase.
  *
  * @see org.apache.beam.sdk.io.hbase.HBaseIO
  */

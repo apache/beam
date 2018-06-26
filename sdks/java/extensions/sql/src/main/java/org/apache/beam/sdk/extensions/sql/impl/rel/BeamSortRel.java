@@ -18,23 +18,34 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -51,27 +62,27 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement
- * the {@code Sort} algebra. The following types of ORDER BY are supported:
-
+ * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement the
+ * {@code Sort} algebra. The following types of ORDER BY are supported:
+ *
  * <pre>{@code
- *     select * from t order by id desc limit 10;
- *     select * from t order by id desc limit 10 offset 5;
+ * select * from t order by id desc limit 10;
+ * select * from t order by id desc limit 10 offset 5;
  * }</pre>
  *
  * <p>but Order BY without a limit is NOT supported:
  *
  * <pre>{@code
- *   select * from t order by id desc
+ * select * from t order by id desc
  * }</pre>
  *
  * <h3>Constraints</h3>
+ *
  * <ul>
- *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT`
- *   must fit into the memory of a single machine.</li>
- *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`,
- *   it does not make much sense to use `ORDER BY` with `WINDOW`.
- *   </li>
+ *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into the
+ *       memory of a single machine.
+ *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`, it does not
+ *       make much sense to use `ORDER BY` with `WINDOW`.
  * </ul>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
@@ -120,18 +131,29 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
+  public boolean isLimitOnly() {
+    return fieldIndices.size() == 0;
+  }
+
+  public int getCount() {
+    return count;
+  }
+
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamIOSinkRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> upstream = pinput.get(0);
       Type windowType =
           upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
       if (!windowType.equals(GlobalWindow.class)) {
@@ -141,27 +163,70 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
       BeamSqlRowComparator comparator =
           new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
-      // first find the top (offset + count)
-      PCollection<List<Row>> rawStream =
-          upstream
-              .apply(
-                  "extractTopOffsetAndFetch",
-                  Top.of(startIndex + count, comparator).withoutDefaults())
-              .setCoder(ListCoder.of(upstream.getCoder()));
 
-      // strip the `leading offset`
-      if (startIndex > 0) {
-        rawStream =
-            rawStream
+      PCollection<Row> retStream;
+
+      // There is a need to separate ORDER BY LIMIT and LIMIT, because GroupByKey is not allowed
+      // on unbounded data in global window(Top transform uses GroupByKey internally).
+      // If it is ORDER BY LIMIT.
+      if (fieldIndices.size() > 0) {
+        // first find the top (offset + count)
+        PCollection<List<Row>> rawStream =
+            upstream
                 .apply(
-                    "stripLeadingOffset", ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                    "extractTopOffsetAndFetch",
+                    Top.of(startIndex + count, comparator).withoutDefaults())
                 .setCoder(ListCoder.of(upstream.getCoder()));
+
+        // strip the `leading offset`
+        if (startIndex > 0) {
+          rawStream =
+              rawStream
+                  .apply(
+                      "stripLeadingOffset",
+                      ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                  .setCoder(ListCoder.of(upstream.getCoder()));
+        }
+
+        retStream = rawStream.apply("flatten", Flatten.iterables());
+      } else { // If it is LIMIT only
+        retStream = upstream.apply(new BeamSqlLimitTransforms<Row>());
       }
 
-      PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
-      orderedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      retStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      return retStream;
+    }
+  }
 
-      return orderedStream;
+  private class BeamSqlLimitTransforms<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      Coder<T> coder = input.getCoder();
+      PCollection<KV<String, T>> keyedRow =
+          input.apply(WithKeys.of("DummyKey")).setCoder(KvCoder.of(StringUtf8Coder.of(), coder));
+
+      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount())));
+    }
+  }
+
+  private static class LimitFn<T> extends DoFn<KV<String, T>, T> {
+    private final Integer limitCount;
+
+    public LimitFn(int c) {
+      limitCount = c;
+    }
+
+    @StateId("counter")
+    private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
+
+    @ProcessElement
+    public void processElement(
+        ProcessContext context, @StateId("counter") ValueState<Integer> counterState) {
+      int current = (counterState.read() != null ? counterState.read() : 0);
+      if (current < limitCount) {
+        context.output(context.element().getValue());
+        counterState.write(current + 1);
+      }
     }
   }
 
@@ -180,8 +245,13 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation,
-      RexNode offset, RexNode fetch) {
+  @Override
+  public Sort copy(
+      RelTraitSet traitSet,
+      RelNode newInput,
+      RelCollation newCollation,
+      RexNode offset,
+      RexNode fetch) {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
@@ -190,15 +260,15 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
 
-    public BeamSqlRowComparator(List<Integer> fieldsIndices,
-        List<Boolean> orientation,
-        List<Boolean> nullsFirst) {
+    public BeamSqlRowComparator(
+        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
       this.fieldsIndices = fieldsIndices;
       this.orientation = orientation;
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(Row row1, Row row2) {
+    @Override
+    public int compare(Row row1, Row row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
@@ -244,5 +314,4 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       return 0;
     }
   }
-
 }

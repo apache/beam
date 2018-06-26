@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -48,7 +49,7 @@ func TestNew(t *testing.T) {
 		{
 			Name: "good1",
 			Fn: func(context.Context, int, string) (typex.EventTime, string, int, error) {
-				return typex.EventTime{}, "", 0, nil
+				return mtime.ZeroTimestamp, "", 0, nil
 			},
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
 			Ret:   []ReturnKind{RetEventTime, RetValue, RetValue, RetError},
@@ -68,6 +69,11 @@ func TestNew(t *testing.T) {
 			Name:  "good4",
 			Fn:    func(typex.EventTime, reflect.Type, []byte) {},
 			Param: []FnParamKind{FnEventTime, FnType, FnValue},
+		},
+		{
+			Name:  "good5",
+			Fn:    func(typex.Window, typex.EventTime, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnWindow, FnEventTime, FnType, FnValue},
 		},
 		{
 			Name:  "good-method",
@@ -92,6 +98,11 @@ func TestNew(t *testing.T) {
 			Err:  errContextParam,
 		},
 		{
+			Name: "errContextParam: after Window",
+			Fn:   func(typex.Window, context.Context, int) {},
+			Err:  errContextParam,
+		},
+		{
 			Name: "errContextParam: after EventTime",
 			Fn:   func(typex.EventTime, context.Context, int) {},
 			Err:  errContextParam,
@@ -105,6 +116,12 @@ func TestNew(t *testing.T) {
 			Name: "errContextParam: multiple context",
 			Fn:   func(context.Context, context.Context, int) {},
 			Err:  errContextParam,
+		},
+		{
+			Name: "errWindowParamPrecedence: after EventTime",
+			Fn: func(typex.EventTime, typex.Window, int) {
+			},
+			Err: errWindowParamPrecedence,
 		},
 		{
 			Name: "errEventTimeParamPrecedence: after value",
@@ -165,14 +182,14 @@ func TestNew(t *testing.T) {
 		{
 			Name: "errErrorPrecedence - second",
 			Fn: func() (typex.EventTime, error, string) {
-				return typex.EventTime{}, nil, ""
+				return mtime.ZeroTimestamp, nil, ""
 			},
 			Err: errErrorPrecedence,
 		},
 		{
 			Name: "errEventTimeRetPrecedence",
 			Fn: func() (string, typex.EventTime) {
-				return "", typex.EventTime{}
+				return "", mtime.ZeroTimestamp
 			},
 			Err: errEventTimeRetPrecedence,
 		},

@@ -48,7 +48,6 @@ import com.google.protobuf.TextFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -380,7 +379,7 @@ public class DataflowPipelineTranslator {
       settings.setMaxNumWorkers(options.getMaxNumWorkers());
       workerPool.setAutoscalingSettings(settings);
 
-      List<WorkerPool> workerPools = new LinkedList<>();
+      List<WorkerPool> workerPools = new ArrayList<>();
 
       workerPools.add(workerPool);
       environment.setWorkerPools(workerPools);
@@ -488,7 +487,7 @@ public class DataflowPipelineTranslator {
       // Start the next "steps" list item.
       List<Step> steps = job.getSteps();
       if (steps == null) {
-        steps = new LinkedList<>();
+        steps = new ArrayList<>();
         job.setSteps(steps);
       }
 
@@ -504,6 +503,7 @@ public class DataflowPipelineTranslator {
       return stepContext;
     }
 
+    @Override
     public OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer) {
       String stepName = stepNames.get(producer);
       checkArgument(stepName != null, "%s doesn't have a name specified", producer);
@@ -794,7 +794,7 @@ public class DataflowPipelineTranslator {
               Flatten.PCollections<T> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "Flatten");
 
-            List<OutputReference> inputs = new LinkedList<>();
+            List<OutputReference> inputs = new ArrayList<>();
             for (PValue input : context.getInputs(transform).values()) {
               inputs.add(
                   context.asOutputReference(
@@ -844,13 +844,15 @@ public class DataflowPipelineTranslator {
             WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
             boolean isStreaming =
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
-            boolean disallowCombinerLifting =
-                !windowingStrategy.getWindowFn().isNonMerging()
-                    || !windowingStrategy.getWindowFn().assignsToOneWindow()
-                    || (isStreaming && !transform.fewKeys())
-                    // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-                    || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
-            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
+            boolean allowCombinerLifting =
+                windowingStrategy.getWindowFn().isNonMerging()
+                    && windowingStrategy.getWindowFn().assignsToOneWindow();
+            if (isStreaming) {
+              allowCombinerLifting &= transform.fewKeys();
+              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
+            }
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
@@ -965,17 +967,19 @@ public class DataflowPipelineTranslator {
 
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
-                translateOutputs(context.getOutputs(transform), stepContext);
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(
-                    serializeToByteArray(
-                        DoFnInfo.forFn(
-                            transform.getFn(),
-                            transform.getInputWindowingStrategy(),
-                            transform.getSideInputs(),
-                            transform.getElementCoder(),
-                            transform.getMainOutputTag()))));
+            translateOutputs(context.getOutputs(transform), stepContext);
+            String ptransformId =
+                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            translateFn(
+                stepContext,
+                ptransformId,
+                transform.getFn(),
+                transform.getInputWindowingStrategy(),
+                transform.getSideInputs(),
+                transform.getElementCoder(),
+                context,
+                transform.getMainOutputTag());
+
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
                 CloudObjects.asCloudObject(transform.getRestrictionCoder()));
@@ -1019,13 +1023,6 @@ public class DataflowPipelineTranslator {
       TupleTag<?> mainOutput) {
 
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support splittable DoFn: %s",
-              DataflowRunner.class.getSimpleName(),
-              fn));
-    }
 
     if (signature.usesState() || signature.usesTimers()) {
       DataflowRunner.verifyStateSupported(fn);
@@ -1034,12 +1031,9 @@ public class DataflowPipelineTranslator {
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
 
-    List<String> experiments = context.getPipelineOptions().getExperiments();
-    boolean isFnApi = experiments != null && experiments.contains("beam_fn_api");
-
     // Fn API does not need the additional metadata in the wrapper, and it is Java-only serializable
     // hence not suitable for portable execution
-    if (isFnApi) {
+    if (context.isFnApi()) {
       stepContext.addInput(PropertyNames.SERIALIZED_FN, ptransformId);
     } else {
       stepContext.addInput(

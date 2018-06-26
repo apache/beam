@@ -62,7 +62,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    *
    * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    */
-  public void writeAndOwn(byte[] b) throws IOException {
+  public synchronized void writeAndOwn(byte[] b) throws IOException {
     if (b.length == 0) {
       return;
     }
@@ -79,19 +79,19 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  public void write(byte[] b, int off, int len) {
+  public synchronized void write(byte[] b, int off, int len) {
     fallback();
     super.write(b, off, len);
   }
 
   @Override
-  public void write(int b) {
+  public synchronized void write(int b) {
     fallback();
     super.write(b);
   }
 
   @Override
-  public byte[] toByteArray() {
+  public synchronized byte[] toByteArray() {
     // Note: count == buf.length is not a correct criteria to "return buf;", because the internal
     // buf may be reused after reset().
     if (!isFallback && count > 0) {
@@ -102,7 +102,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  public void reset() {
+  public synchronized void reset() {
     if (count == 0) {
       return;
     }

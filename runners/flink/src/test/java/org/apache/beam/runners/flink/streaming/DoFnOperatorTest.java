@@ -70,8 +70,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -127,6 +127,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -184,6 +185,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -277,7 +279,8 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            VarIntCoder.of() /* key coder */);
+            VarIntCoder.of(), /* key coder */
+            WindowedValue::getValue);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -358,7 +361,8 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            VarIntCoder.of() /* key coder */);
+            VarIntCoder.of(), /* key coder */
+            WindowedValue::getValue);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -464,7 +468,8 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            StringUtf8Coder.of() /* key coder */);
+            StringUtf8Coder.of(), /* key coder */
+            kvWindowedValue -> kvWindowedValue.getValue().getKey());
 
     KeyedOneInputStreamOperatorTestHarness<
             String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
@@ -526,7 +531,17 @@ public class DoFnOperatorTest {
     testHarness.close();
   }
 
-  public void testSideInputs(boolean keyed) throws Exception {
+  @Test
+  public void testNormalParDoSideInputs() throws Exception {
+    testSideInputs(false);
+  }
+
+  @Test
+  public void testKeyedParDoSideInputs() throws Exception {
+    testSideInputs(true);
+  }
+
+  void testSideInputs(boolean keyed) throws Exception {
 
     Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
@@ -555,7 +570,8 @@ public class DoFnOperatorTest {
             sideInputMapping, /* side-input mapping */
             ImmutableList.of(view1, view2), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            keyCoder);
+            keyCoder,
+            keyed ? WindowedValue::getValue : null);
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
         testHarness = new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -564,8 +580,8 @@ public class DoFnOperatorTest {
       // we use a dummy key for the second input since it is considered to be broadcast
       testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
           doFnOperator,
-          new StringKeySelector(),
-          new DummyKeySelector(),
+          WindowedValue::getValue,
+          null,
           BasicTypeInfo.STRING_TYPE_INFO);
     }
 
@@ -658,7 +674,7 @@ public class DoFnOperatorTest {
     testHarness
         .processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(KV.of("a", 100L))));
 
-    final OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
     testHarness.close();
 
     testHarness = createTestHarness(windowingStrategy, filterElementsEqualToCountFn, kvCoder,
@@ -683,6 +699,256 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow(KV.of("a", 5L))
         )
     );
+
+    testHarness.close();
+  }
+
+  @Test
+  public void nonKeyedParDoSideInputCheckpointing() throws Exception {
+    sideInputCheckpointing(() -> {
+      Coder<WindowedValue<String>> coder =
+          WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+      TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+      ImmutableMap<Integer, PCollectionView<?>> sideInputMapping =
+          ImmutableMap.<Integer, PCollectionView<?>>builder()
+              .put(1, view1)
+              .put(2, view2)
+              .build();
+
+      DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
+          new IdentityDoFn<>(),
+          "stepName",
+          coder,
+          outputTag,
+          Collections.emptyList(),
+          new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+          WindowingStrategy.globalDefault(),
+          sideInputMapping, /* side-input mapping */
+          ImmutableList.of(view1, view2), /* side inputs */
+          PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+          null,
+          null);
+
+      return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
+    });
+  }
+
+  @Test
+  public void keyedParDoSideInputCheckpointing() throws Exception {
+    sideInputCheckpointing(() -> {
+      Coder<WindowedValue<String>> coder =
+          WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+      TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+      StringUtf8Coder keyCoder = StringUtf8Coder.of();
+
+      ImmutableMap<Integer, PCollectionView<?>> sideInputMapping =
+          ImmutableMap.<Integer, PCollectionView<?>>builder()
+              .put(1, view1)
+              .put(2, view2)
+              .build();
+
+      DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
+          new IdentityDoFn<>(),
+          "stepName",
+          coder,
+          outputTag,
+          Collections.emptyList(),
+          new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+          WindowingStrategy.globalDefault(),
+          sideInputMapping, /* side-input mapping */
+          ImmutableList.of(view1, view2), /* side inputs */
+          PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+          keyCoder,
+          WindowedValue::getValue);
+
+      return new KeyedTwoInputStreamOperatorTestHarness<>(
+          doFnOperator,
+          WindowedValue::getValue,
+          // we use a dummy key for the second input since it is considered to be broadcast
+          null,
+          BasicTypeInfo.STRING_TYPE_INFO);
+    });
+  }
+
+  void sideInputCheckpointing(
+      TestHarnessFactory<
+          TwoInputStreamOperatorTestHarness<
+              WindowedValue<String>,
+              RawUnionValue,
+              WindowedValue<String>>> harnessFactory) throws Exception {
+
+    TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
+        testHarness = harnessFactory.create();
+
+    testHarness.open();
+
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(500));
+
+    // push in some side inputs for both windows
+    testHarness.processElement2(
+        new StreamRecord<>(
+            new RawUnionValue(
+                1,
+                valuesInWindow(
+                    ImmutableList.of(KV.of((Void) null, "hello"), KV.of((Void) null, "ciao")),
+                    new Instant(0),
+                    firstWindow))));
+    testHarness.processElement2(
+        new StreamRecord<>(
+            new RawUnionValue(
+                2,
+                valuesInWindow(
+                    ImmutableList.of(KV.of((Void) null, "foo"), KV.of((Void) null, "bar")),
+                    new Instant(0),
+                    secondWindow))));
+
+    // snapshot state, throw away the operator, then restore and verify that we still match
+    // main-input elements to the side-inputs that we sent earlier
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+
+    testHarness = harnessFactory.create();
+
+    testHarness.initializeState(snapshot);
+    testHarness.open();
+
+    // push in main-input elements
+    WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
+    WindowedValue<String> worldElement = valueInWindow("World", new Instant(1000), firstWindow);
+    testHarness.processElement1(new StreamRecord<>(helloElement));
+    testHarness.processElement1(new StreamRecord<>(worldElement));
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(helloElement, worldElement));
+
+    testHarness.close();
+  }
+
+  @Test
+  public void nonKeyedParDoPushbackDataCheckpointing() throws Exception {
+    pushbackDataCheckpointing(() -> {
+      Coder<WindowedValue<String>> coder =
+          WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+      TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+      ImmutableMap<Integer, PCollectionView<?>> sideInputMapping =
+          ImmutableMap.<Integer, PCollectionView<?>>builder()
+              .put(1, view1)
+              .put(2, view2)
+              .build();
+
+      DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
+          new IdentityDoFn<>(),
+          "stepName",
+          coder,
+          outputTag,
+          Collections.emptyList(),
+          new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+          WindowingStrategy.globalDefault(),
+          sideInputMapping, /* side-input mapping */
+          ImmutableList.of(view1, view2), /* side inputs */
+          PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+          null,
+          null);
+
+      return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
+    });
+  }
+
+  @Test
+  public void keyedParDoPushbackDataCheckpointing() throws Exception {
+    pushbackDataCheckpointing(() -> {
+      Coder<WindowedValue<String>> coder =
+          WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+      TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+      StringUtf8Coder keyCoder = StringUtf8Coder.of();
+
+      ImmutableMap<Integer, PCollectionView<?>> sideInputMapping =
+          ImmutableMap.<Integer, PCollectionView<?>>builder()
+              .put(1, view1)
+              .put(2, view2)
+              .build();
+
+      DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
+          new IdentityDoFn<>(),
+          "stepName",
+          coder,
+          outputTag,
+          Collections.emptyList(),
+          new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+          WindowingStrategy.globalDefault(),
+          sideInputMapping, /* side-input mapping */
+          ImmutableList.of(view1, view2), /* side inputs */
+          PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+          keyCoder,
+          WindowedValue::getValue);
+
+      return new KeyedTwoInputStreamOperatorTestHarness<>(
+          doFnOperator,
+          WindowedValue::getValue,
+          // we use a dummy key for the second input since it is considered to be broadcast
+          null,
+          BasicTypeInfo.STRING_TYPE_INFO);
+    });
+  }
+
+  void pushbackDataCheckpointing(
+      TestHarnessFactory<
+          TwoInputStreamOperatorTestHarness<
+              WindowedValue<String>,
+              RawUnionValue,
+              WindowedValue<String>>> harnessFactory) throws Exception {
+
+    TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
+        testHarness = harnessFactory.create();
+
+    testHarness.open();
+
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(500));
+
+    // push in main-input elements
+    WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
+    WindowedValue<String> worldElement = valueInWindow("World", new Instant(1000), firstWindow);
+    testHarness.processElement1(new StreamRecord<>(helloElement));
+    testHarness.processElement1(new StreamRecord<>(worldElement));
+
+    // snapshot state, throw away the operator, then restore and verify that we still match
+    // main-input elements to the side-inputs that we sent earlier
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+
+    testHarness = harnessFactory.create();
+
+    testHarness.initializeState(snapshot);
+    testHarness.open();
+
+    // push in some side inputs for both windows
+    testHarness.processElement2(
+        new StreamRecord<>(
+            new RawUnionValue(
+                1,
+                valuesInWindow(
+                    ImmutableList.of(KV.of((Void) null, "hello"), KV.of((Void) null, "ciao")),
+                    new Instant(0),
+                    firstWindow))));
+    testHarness.processElement2(
+        new StreamRecord<>(
+            new RawUnionValue(
+                2,
+                valuesInWindow(
+                    ImmutableList.of(KV.of((Void) null, "foo"), KV.of((Void) null, "bar")),
+                    new Instant(0),
+                    secondWindow))));
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(helloElement, worldElement));
 
     testHarness.close();
   }
@@ -753,7 +1019,7 @@ public class DoFnOperatorTest {
         emptyIterable());
 
     // snapshot and restore
-    final OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    final OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
     testHarness.close();
 
     testHarness = createTestHarness(windowingStrategy, fn, inputCoder, outputCoder, outputTag,
@@ -790,24 +1056,10 @@ public class DoFnOperatorTest {
         new HashMap<>(), /* side-input mapping */
         Collections.emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        VarIntCoder.of() /* key coder */);
+        VarIntCoder.of() /* key coder */,
+        keySelector);
 
     return new KeyedOneInputStreamOperatorTestHarness<>(doFnOperator, keySelector, keyCoderInfo);
-  }
-
-  /**
-   * {@link TwoInputStreamOperatorTestHarness} support OperatorStateBackend,
-   * but don't support KeyedStateBackend. So we just test sideInput of normal ParDo.
-   */
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testNormalParDoSideInputs() throws Exception {
-    testSideInputs(false);
-  }
-
-  @Test
-  public void testKeyedSideInputs() throws Exception {
-    testSideInputs(true);
   }
 
   @Test
@@ -847,6 +1099,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             options,
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -859,7 +1112,7 @@ public class DoFnOperatorTest {
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("c")));
 
     // draw a snapshot
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     // There is a finishBundle in snapshot()
     // Elements will be buffered as part of finishing a bundle in snapshot()
@@ -885,6 +1138,7 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             options,
+            null,
             null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> newHarness =
@@ -970,18 +1224,7 @@ public class DoFnOperatorTest {
     return WindowedValue.of(value, timestamp, window, PaneInfo.NO_FIRING);
   }
 
-
-  private static class DummyKeySelector implements KeySelector<RawUnionValue, String> {
-    @Override
-    public String getKey(RawUnionValue stringWindowedValue) throws Exception {
-      return "dummy_key";
-    }
-  }
-
-  private static class StringKeySelector implements KeySelector<WindowedValue<String>, String> {
-    @Override
-    public String getKey(WindowedValue<String> stringWindowedValue) throws Exception {
-      return stringWindowedValue.getValue();
-    }
+  private interface TestHarnessFactory<T> {
+    T create() throws Exception;
   }
 }

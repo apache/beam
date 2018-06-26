@@ -34,6 +34,7 @@ public class TimerSpecs {
    */
   @AutoValue
   abstract static class SimpleTimerSpec implements TimerSpec {
+    @Override
     public abstract TimeDomain getTimeDomain();
   }
 }

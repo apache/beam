@@ -57,7 +57,13 @@ public class NameCityStateId implements KnownSize, Serializable {
       long id = LONG_CODER.decode(inStream);
       return new NameCityStateId(name, city, state, id);
     }
+
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(NameCityStateId v) {
+      return v;
+    }
   };
 
   @JsonProperty
@@ -111,7 +117,7 @@ public class NameCityStateId implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return name.length() + 1 + city.length() + 1 + state.length() + 1 + 8;
+    return name.length() + 1L + city.length() + 1L + state.length() + 1L + 8L;
   }
 
   @Override

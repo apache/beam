@@ -39,7 +39,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
-from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -50,6 +49,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
+from apache_beam.utils import proto_utils
 from apache_beam.utils.plugin import BeamPlugin
 
 __all__ = ['DataflowRunner']
@@ -241,7 +241,7 @@ class DataflowRunner(PipelineRunner):
           new_side_inputs = []
           for ix, side_input in enumerate(transform_node.side_inputs):
             access_pattern = side_input._side_input_data().access_pattern
-            if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+            if access_pattern == common_urns.side_inputs.ITERABLE.urn:
               # Add a map to ('', value) as Dataflow currently only handles
               # keyed side inputs.
               pipeline = side_input.pvalue.pipeline
@@ -260,7 +260,7 @@ class DataflowRunner(PipelineRunner):
               map_to_void_key.add_output(new_side_input.pvalue)
               parent.add_part(map_to_void_key)
               transform_node.update_input_refcounts()
-            elif access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+            elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
               # Ensure the input coder is a KV coder and patch up the
               # access pattern to appease Dataflow.
               side_input.pvalue.element_type = typehints.coerce_to_kv_type(
@@ -312,19 +312,22 @@ class DataflowRunner(PipelineRunner):
     if apiclient._use_fnapi(pipeline._options):
       pipeline.visit(self.side_input_visitor())
 
-    # Snapshot the pipeline in a portable proto before mutating it
-    proto_pipeline, self.proto_context = pipeline.to_runner_api(
+    # Performing configured PTransform overrides.  Note that this is currently
+    # done before Runner API serialization, since the new proto needs to contain
+    # any added PTransforms.
+    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
+    # Snapshot the pipeline in a portable proto.
+    self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
     # TODO(BEAM-2717): Remove once Coders are already in proto.
-    for pcoll in proto_pipeline.components.pcollections.values():
+    for pcoll in self.proto_pipeline.components.pcollections.values():
       if pcoll.coder_id not in self.proto_context.coders:
         coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
         pcoll.coder_id = self.proto_context.coders.get_id(coder)
-    self.proto_context.coders.populate_map(proto_pipeline.components.coders)
-
-    # Performing configured PTransform overrides.
-    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+    self.proto_context.coders.populate_map(
+        self.proto_pipeline.components.coders)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
@@ -333,7 +336,7 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    self.job = apiclient.Job(pipeline._options, proto_pipeline)
+    self.job = apiclient.Job(pipeline._options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -362,6 +365,8 @@ class DataflowRunner(PipelineRunner):
     result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
+    # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
+    from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
     self._metrics = DataflowMetrics(self.dataflow_client, result, self.job)
     result.metric_results = self._metrics
     return result
@@ -399,8 +404,11 @@ class DataflowRunner(PipelineRunner):
       for the View transforms introduced to produce side inputs to a ParDo.
     """
     return {
-        '@type': input_encoding['@type'],
-        'component_encodings': [input_encoding]
+        '@type': 'kind:stream',
+        'component_encodings': [input_encoding],
+        'is_stream_like': {
+            'value': True
+        },
     }
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
@@ -448,7 +456,8 @@ class DataflowRunner(PipelineRunner):
 
     return step
 
-  def _add_singleton_step(self, label, full_label, tag, input_step):
+  def _add_singleton_step(
+      self, label, full_label, tag, input_step, windowing_strategy):
     """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
     # Import here to avoid adding the dependency for local running scenarios.
     from apache_beam.runners.dataflow.internal import apiclient
@@ -467,6 +476,9 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (full_label, PropertyNames.OUTPUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+    step.add_property(
+        PropertyNames.WINDOWING_STRATEGY,
+        self.serialize_windowing_strategy(windowing_strategy))
     return step
 
   def run_Impulse(self, transform_node):
@@ -582,10 +594,15 @@ class DataflowRunner(PipelineRunner):
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
+    named_inputs = transform_node.named_inputs()
+    label_renames = {}
     for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = 'side%d' % ix
+      si_label = 'side%d-%s' % (ix, transform_node.full_label)
+      old_label = 'side%d' % ix
+      label_renames[old_label] = si_label
+      assert old_label in named_inputs
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
           side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
@@ -600,7 +617,8 @@ class DataflowRunner(PipelineRunner):
 
       self._add_singleton_step(
           step_name, si_full_label, side_pval.pvalue.tag,
-          self._cache.get_pvalue(side_pval.pvalue))
+          self._cache.get_pvalue(side_pval.pvalue),
+          side_pval.pvalue.windowing)
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: step_name,
@@ -620,9 +638,30 @@ class DataflowRunner(PipelineRunner):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
+    transform_id = self.proto_context.transforms.get_id(transform_node)
     if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
-        and transform_proto.spec.urn == common_urns.PARDO_TRANSFORM):
-      serialized_data = self.proto_context.transforms.get_id(transform_node)
+        and transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+      # Patch side input ids to be unique across a given pipeline.
+      if (label_renames and
+          transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+        # Patch PTransform proto.
+        for old, new in label_renames.iteritems():
+          transform_proto.inputs[new] = transform_proto.inputs[old]
+          del transform_proto.inputs[old]
+
+        # Patch ParDo proto.
+        proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
+        proto = proto_utils.parse_Bytes(transform_proto.spec.payload,
+                                        proto_type)
+        for old, new in label_renames.iteritems():
+          proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
+          del proto.side_inputs[old]
+        transform_proto.spec.payload = proto.SerializeToString()
+        # We need to update the pipeline proto.
+        del self.proto_pipeline.components.transforms[transform_id]
+        (self.proto_pipeline.components.transforms[transform_id]
+         .CopyFrom(transform_proto))
+      serialized_data = transform_id
     else:
       serialized_data = pickler.dumps(
           self._pardo_fn_data(transform_node, lookup_label))
@@ -718,6 +757,10 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
+  def apply_Read(self, unused_transform, pbegin):
+    # Always consider Read to be a primitive for dataflow.
+    return beam.pvalue.PCollection(pbegin.pipeline)
+
   def run_Read(self, transform_node):
     transform = transform_node.transform
     step = self._add_step(
@@ -775,8 +818,7 @@ class DataflowRunner(PipelineRunner):
                           transform.source.flatten_results)
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
-                         ' a query',
-                         transform.source)
+                         ' a query' % transform.source)
     elif transform.source.format == 'pubsub':
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
@@ -959,16 +1001,13 @@ class _DataflowIterableSideInput(_DataflowSideInput):
   def __init__(self, iterable_side_input):
     # pylint: disable=protected-access
     side_input_data = iterable_side_input._side_input_data()
-    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT
+    assert (
+        side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
     iterable_view_fn = side_input_data.view_fn
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap['']),
-        coders.WindowedValueCoder(
-            coders.TupleCoder((coders.BytesCoder(),
-                               side_input_data.coder.wrapped_value_coder)),
-            side_input_data.coder.window_coder))
+        lambda multimap: iterable_view_fn(multimap['']))
 
 
 class _DataflowMultimapSideInput(_DataflowSideInput):
@@ -978,12 +1017,12 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
     # pylint: disable=protected-access
     self.pvalue = side_input.pvalue
     side_input_data = side_input._side_input_data()
-    assert side_input_data.access_pattern == common_urns.MULTIMAP_SIDE_INPUT
+    assert (
+        side_input_data.access_pattern == common_urns.side_inputs.MULTIMAP.urn)
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
-        side_input_data.view_fn,
-        self._input_element_coder())
+        side_input_data.view_fn)
 
 
 class DataflowPipelineResult(PipelineResult):

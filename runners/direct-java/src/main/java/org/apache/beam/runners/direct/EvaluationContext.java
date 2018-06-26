@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import javax.annotation.Nullable;
+import java.util.concurrent.ExecutorService;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -78,7 +78,8 @@ class EvaluationContext {
   private final BundleFactory bundleFactory;
 
   /** The current processing time and event time watermarks and timers. */
-  private final WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> watermarkManager;
+  private final WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>>
+      watermarkManager;
 
   /** Executes callbacks based on the progression of the watermark. */
   private final WatermarkCallbackExecutor callbackExecutor;
@@ -93,36 +94,41 @@ class EvaluationContext {
 
   private final Set<PValue> keyedPValues;
 
+  private final ExecutorService executorService;
+
   public static EvaluationContext create(
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
-      Set<PValue> keyedPValues) {
-    return new EvaluationContext(clock, bundleFactory, graph, keyedPValues);
+      Set<PValue> keyedPValues,
+      ExecutorService executorService) {
+    return new EvaluationContext(clock, bundleFactory, graph, keyedPValues, executorService);
   }
 
   private EvaluationContext(
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
-      Set<PValue> keyedPValues) {
+      Set<PValue> keyedPValues,
+      ExecutorService executorService) {
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
+    this.executorService = executorService;
 
-    this.watermarkManager = WatermarkManager.create(clock, graph);
+    this.watermarkManager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.metrics = new DirectMetrics();
+    this.metrics = new DirectMetrics(executorService);
 
     this.callbackExecutor = WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
 
   public void initialize(
       Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
-    watermarkManager.initialize(initialInputs);
+    watermarkManager.initialize((Map) initialInputs);
   }
 
   /**
@@ -141,7 +147,7 @@ class EvaluationContext {
    * @return the committed bundles contained within the handled {@code result}
    */
   public CommittedResult<AppliedPTransform<?, ?, ?>> handleResult(
-      @Nullable CommittedBundle<?> completedBundle,
+      CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       TransformResult<?> result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
@@ -162,9 +168,7 @@ class EvaluationContext {
     CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
       CopyOnAccessInMemoryStateInternals committedState = theirState.commit();
-      StepAndKey stepAndKey =
-          StepAndKey.of(
-              result.getTransform(), completedBundle == null ? null : completedBundle.getKey());
+      StepAndKey stepAndKey = StepAndKey.of(result.getTransform(), completedBundle.getKey());
       if (!committedState.isEmpty()) {
         applicationStateInternals.put(stepAndKey, committedState);
       } else {
@@ -176,7 +180,9 @@ class EvaluationContext {
     watermarkManager.updateWatermarks(
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
-        committedResult,
+        committedResult.getExecutable(),
+        committedResult.getUnprocessedInputs().orNull(),
+        committedResult.getOutputs(),
         result.getWatermarkHold());
     return committedResult;
   }
@@ -188,7 +194,7 @@ class EvaluationContext {
    * {@link Optional}.
    */
   private Optional<? extends CommittedBundle<?>> getUnprocessedInput(
-      @Nullable CommittedBundle<?> completedBundle, TransformResult<?> result) {
+      CommittedBundle<?> completedBundle, TransformResult<?> result) {
     if (completedBundle == null || Iterables.isEmpty(result.getUnprocessedElements())) {
       return Optional.absent();
     }

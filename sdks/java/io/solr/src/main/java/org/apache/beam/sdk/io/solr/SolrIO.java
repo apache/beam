@@ -27,14 +27,12 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -205,7 +203,7 @@ public class SolrIO {
       return HttpClientUtil.createClient(params);
     }
 
-    AuthorizedSolrClient<CloudSolrClient> createClient() throws MalformedURLException {
+    AuthorizedSolrClient<CloudSolrClient> createClient() {
       CloudSolrClient solrClient = new CloudSolrClient(getZkHost(), createHttpClient());
       return new AuthorizedSolrClient<>(solrClient, this);
     }
@@ -287,7 +285,7 @@ public class SolrIO {
 
     /** This is the default predicate used to test if a failed Solr operation should be retried. */
     private static class DefaultRetryPredicate implements RetryPredicate {
-      private static final Set<Integer> ELIGIBLE_CODES =
+      private static final ImmutableSet<Integer> ELIGIBLE_CODES =
           ImmutableSet.of(
               SolrException.ErrorCode.CONFLICT.code,
               SolrException.ErrorCode.SERVER_ERROR.code,
@@ -487,6 +485,7 @@ public class SolrIO {
           throw new IOException("Can not get core status from " + replica, e);
         }
         NamedList<Object> coreStatus = response.getCoreStatus(replica.coreName());
+        @SuppressWarnings("unchecked")
         NamedList<Object> indexStats = (NamedList<Object>) coreStatus.get("index");
         return (long) indexStats.get("sizeInBytes");
       }
@@ -550,7 +549,7 @@ public class SolrIO {
     }
 
     @Override
-    public BoundedReader<SolrDocument> createReader(PipelineOptions options) throws IOException {
+    public BoundedReader<SolrDocument> createReader(PipelineOptions options) {
       return new BoundedSolrReader(this);
     }
 
@@ -805,7 +804,7 @@ public class SolrIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext context) throws Exception {
+      public void startBundle(StartBundleContext context) {
         batch = new ArrayList<>();
       }
 

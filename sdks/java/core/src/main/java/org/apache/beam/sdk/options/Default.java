@@ -35,6 +35,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   public @interface Class {
     java.lang.Class<?> value();
   }
@@ -46,6 +47,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface String {
     java.lang.String value();
   }
@@ -56,6 +58,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Boolean {
     boolean value();
   }
@@ -66,6 +69,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Character {
     char value();
   }
@@ -76,6 +80,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Byte {
     byte value();
   }
@@ -85,6 +90,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Short {
     short value();
   }
@@ -94,6 +100,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Integer {
     int value();
   }
@@ -104,6 +111,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Long {
     long value();
   }
@@ -114,6 +122,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Float {
     float value();
   }
@@ -124,6 +133,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Double {
     double value();
   }
@@ -135,6 +145,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
+  @SuppressWarnings("JavaLangClash")
   @interface Enum {
     java.lang.String value();
   }

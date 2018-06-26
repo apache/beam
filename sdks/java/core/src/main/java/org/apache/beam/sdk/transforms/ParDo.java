@@ -118,19 +118,19 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
  *        {@literal @}ProcessElement
- *         public void processElement(ProcessContext c) {
- *           String line = c.element();
+ *         public void processElement({@literal @}Element String line,
+ *           {@literal @}OutputReceiver<String> r) {
  *           for (String word : line.split("[^a-zA-Z']+")) {
- *             c.output(word);
+ *             r.output(word);
  *           }
  *         }}));
  * PCollection<Integer> wordLengths =
  *     words.apply(ParDo.of(new DoFn<String, Integer>() {
  *        {@literal @}ProcessElement
- *         public void processElement(ProcessContext c) {
- *           String word = c.element();
+ *         public void processElement({@literal @}Element String word,
+ *           {@literal @}OutputReceiver<Integer> r) {
  *           Integer length = word.length();
- *           c.output(length);
+ *           r.output(length);
  *         }}));
  * }</pre>
  *
@@ -221,22 +221,21 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *             final TupleTag<String> specialWordsTag =
  *                 new TupleTag<String>(){};
  *            {@literal @}ProcessElement
- *             public void processElement(ProcessContext c) {
- *               String word = c.element();
+ *             public void processElement(@Element String word, MultiOutputReceiver r) {
  *               if (word.length() <= wordLengthCutOff) {
  *                 // Emit this short word to the main output.
- *                 c.output(word);
+ *                 r.output(wordsBelowCutOffTag, word);
  *               } else {
  *                 // Emit this long word's length to a specified output.
- *                 c.output(wordLengthsAboveCutOffTag, word.length());
+ *                 r.output(wordLengthsAboveCutOffTag, word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
  *                 // Emit this word to a different specified output.
- *                 c.output(markedWordsTag, word);
+ *                 r.output(markedWordsTag, word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
  *                 // Emit this word to the unconsumed output.
- *                 c.output(specialWordsTag, word);
+ *                 r.output(specialWordsTag, word);
  *               }
  *             }})
  *             // Specify the main and consumed output tags of the

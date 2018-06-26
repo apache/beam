@@ -34,13 +34,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
-import java.util.Stack;
 import java.util.function.Function;
 
 /** Static utility methods for {@link Network} instances that are directed. */
@@ -197,7 +195,7 @@ public class Networks {
 
     // Linked hashset will prevent duplicates from appearing and will maintain insertion order.
     LinkedHashSet<NodeT> nodes = new LinkedHashSet<>(network.nodes().size());
-    Queue<NodeT> processingOrder = new LinkedList<>();
+    Queue<NodeT> processingOrder = new ArrayDeque<>();
     // Add all the roots
     for (NodeT node : network.nodes()) {
       if (network.inDegree(node) == 0) {
@@ -259,7 +257,7 @@ public class Networks {
    */
   public static <NodeT, EdgeT> List<List<NodeT>> allPathsFromRootsToLeaves(
       Network<NodeT, EdgeT> network) {
-    Stack<List<NodeT>> paths = new Stack<>();
+    ArrayDeque<List<NodeT>> paths = new ArrayDeque<>();
     // Populate the list with all roots
     for (NodeT node : network.nodes()) {
       if (network.inDegree(node) == 0) {
@@ -268,14 +266,14 @@ public class Networks {
     }
 
     List<List<NodeT>> distinctPathsFromRootsToLeaves = new ArrayList<>();
-    while (!paths.empty()) {
-      List<NodeT> path = paths.pop();
+    while (!paths.isEmpty()) {
+      List<NodeT> path = paths.removeFirst();
       NodeT lastNode = path.get(path.size() - 1);
       if (network.outDegree(lastNode) == 0) {
         distinctPathsFromRootsToLeaves.add(new ArrayList<>(path));
       } else {
         for (EdgeT edge : network.outEdges(lastNode)) {
-          paths.push(
+          paths.addFirst(
               ImmutableList.<NodeT>builder()
                   .addAll(path)
                   .add(network.incidentNodes(edge).target())

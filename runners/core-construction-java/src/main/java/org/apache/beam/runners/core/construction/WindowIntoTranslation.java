@@ -86,7 +86,6 @@ public class WindowIntoTranslation {
         application.getFullName(),
         transformProto.getSpec().getUrn());
 
-    WindowIntoPayload windowIntoPayload;
     try {
       return WindowIntoPayload.parseFrom(transformProto.getSpec().getPayload());
     } catch (InvalidProtocolBufferException exc) {

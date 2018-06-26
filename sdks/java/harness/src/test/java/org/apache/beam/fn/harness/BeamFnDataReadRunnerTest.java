@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
@@ -151,7 +152,8 @@ public class BeamFnDataReadRunnerTest {
         COMPONENTS.getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
 
@@ -211,7 +213,7 @@ public class BeamFnDataReadRunnerTest {
         eq(CODER),
         consumerCaptor.capture());
 
-    executor.submit(
+    Future<?> future = executor.submit(
         () -> {
           // Sleep for some small amount of time simulating the parent blocking
           Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
@@ -226,6 +228,7 @@ public class BeamFnDataReadRunnerTest {
         });
 
     readRunner.blockTillReadFinishes();
+    future.get();
     assertThat(valuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
     assertThat(valuesB, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
@@ -241,7 +244,7 @@ public class BeamFnDataReadRunnerTest {
         eq(CODER),
         consumerCaptor.capture());
 
-    executor.submit(
+    future = executor.submit(
         () -> {
           // Sleep for some small amount of time simulating the parent blocking
           Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
@@ -256,6 +259,7 @@ public class BeamFnDataReadRunnerTest {
         });
 
     readRunner.blockTillReadFinishes();
+    future.get();
     assertThat(valuesA, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
     assertThat(valuesB, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
 

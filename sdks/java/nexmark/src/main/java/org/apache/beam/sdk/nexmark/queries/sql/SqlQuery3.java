@@ -20,8 +20,7 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.nexmark.queries.Query3;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -103,7 +103,7 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
 
     PCollection<Row> queryResultsRows =
         inputStreams
-            .apply(BeamSql.query(QUERY_STRING))
+            .apply(SqlTransform.query(QUERY_STRING))
             .setCoder(RECORD_CODER);
 
     return queryResultsRows
@@ -146,12 +146,12 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
 
   private static RowCoder createRecordCoder() {
     return
-        RowSqlTypes
+        Schema
             .builder()
-            .withVarcharField("name")
-            .withVarcharField("city")
-            .withVarcharField("state")
-            .withBigIntField("id")
+            .addStringField("name")
+            .addStringField("city")
+            .addStringField("state")
+            .addInt64Field("id")
             .build()
             .getRowCoder();
   }

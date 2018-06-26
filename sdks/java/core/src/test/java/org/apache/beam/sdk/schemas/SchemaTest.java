@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -39,76 +38,73 @@ public class SchemaTest {
   @Test
   public void testCreate() {
     Schema schema = Schema.builder()
-        .addByteField("f_byte", false)
-        .addInt16Field("f_int16", false)
-        .addInt32Field("f_int32", false)
-        .addInt64Field("f_int64", false)
-        .addDecimalField("f_decimal", false)
-        .addFloatField("f_float", false)
-        .addDoubleField("f_double", false)
-        .addStringField("f_string", false)
-        .addDateTimeField("f_datetime", false)
-        .addBooleanField("f_boolean", false).build();
+        .addByteField("f_byte")
+        .addInt16Field("f_int16")
+        .addInt32Field("f_int32")
+        .addInt64Field("f_int64")
+        .addDecimalField("f_decimal")
+        .addFloatField("f_float")
+        .addDoubleField("f_double")
+        .addStringField("f_string")
+        .addDateTimeField("f_datetime")
+        .addBooleanField("f_boolean").build();
     assertEquals(10, schema.getFieldCount());
 
     assertEquals(0, schema.indexOf("f_byte"));
     assertEquals("f_byte", schema.getField(0).getName());
-    assertEquals(TypeName.BYTE.type(), schema.getField(0).getType());
+    assertEquals(FieldType.BYTE, schema.getField(0).getType());
 
     assertEquals(1, schema.indexOf("f_int16"));
     assertEquals("f_int16", schema.getField(1).getName());
-    assertEquals(TypeName.INT16.type(), schema.getField(1).getType());
+    assertEquals(FieldType.INT16, schema.getField(1).getType());
 
     assertEquals(2, schema.indexOf("f_int32"));
     assertEquals("f_int32", schema.getField(2).getName());
-    assertEquals(TypeName.INT32.type(), schema.getField(2).getType());
+    assertEquals(FieldType.INT32, schema.getField(2).getType());
 
     assertEquals(3, schema.indexOf("f_int64"));
     assertEquals("f_int64", schema.getField(3).getName());
-    assertEquals(TypeName.INT64.type(), schema.getField(3).getType());
+    assertEquals(FieldType.INT64, schema.getField(3).getType());
 
     assertEquals(4, schema.indexOf("f_decimal"));
     assertEquals("f_decimal", schema.getField(4).getName());
-    assertEquals(TypeName.DECIMAL.type(),
+    assertEquals(FieldType.DECIMAL,
         schema.getField(4).getType());
 
     assertEquals(5, schema.indexOf("f_float"));
     assertEquals("f_float", schema.getField(5).getName());
-    assertEquals(TypeName.FLOAT.type(), schema.getField(5).getType());
+    assertEquals(FieldType.FLOAT, schema.getField(5).getType());
 
     assertEquals(6, schema.indexOf("f_double"));
     assertEquals("f_double", schema.getField(6).getName());
-    assertEquals(TypeName.DOUBLE.type(), schema.getField(6).getType());
+    assertEquals(FieldType.DOUBLE, schema.getField(6).getType());
 
     assertEquals(7, schema.indexOf("f_string"));
     assertEquals("f_string", schema.getField(7).getName());
-    assertEquals(TypeName.STRING.type(), schema.getField(7).getType());
+    assertEquals(FieldType.STRING, schema.getField(7).getType());
 
     assertEquals(8, schema.indexOf("f_datetime"));
     assertEquals("f_datetime", schema.getField(8).getName());
-    assertEquals(TypeName.DATETIME.type(),
+    assertEquals(FieldType.DATETIME,
         schema.getField(8).getType());
 
     assertEquals(9, schema.indexOf("f_boolean"));
     assertEquals("f_boolean", schema.getField(9).getName());
-    assertEquals(TypeName.BOOLEAN.type(), schema.getField(9).getType());
+    assertEquals(FieldType.BOOLEAN, schema.getField(9).getType());
   }
 
   @Test
   public void testNestedSchema() {
-    Schema nestedSchema = Schema.of(
-        Field.of("f1_str", TypeName.STRING.type()));
-    Schema schema = Schema.of(
-        Field.of("nested", TypeName.ROW.type().withRowSchema(nestedSchema)));
+    Schema nestedSchema = Schema.of(Field.of("f1_str", FieldType.STRING));
+    Schema schema = Schema.of(Field.of("nested", FieldType.row(nestedSchema)));
     Field inner = schema.getField("nested").getType().getRowSchema().getField("f1_str");
     assertEquals("f1_str", inner.getName());
-    assertEquals(TypeName.STRING, inner.getType().getTypeName());
+    assertEquals(FieldType.STRING, inner.getType());
   }
 
   @Test
   public void testArraySchema() {
-    FieldType arrayType = TypeName.ARRAY.type()
-        .withCollectionElementType(TypeName.STRING.type());
+    FieldType arrayType = FieldType.array(FieldType.STRING);
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
@@ -118,10 +114,8 @@ public class SchemaTest {
   @Test
   public void testArrayOfRowSchema() {
     Schema nestedSchema = Schema.of(
-        Field.of("f1_str", TypeName.STRING.type()));
-    FieldType arrayType = TypeName.ARRAY.type()
-        .withCollectionElementType(TypeName.ROW.type()
-            .withRowSchema(nestedSchema));
+        Field.of("f1_str", FieldType.STRING));
+    FieldType arrayType = FieldType.array(FieldType.row(nestedSchema));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
@@ -130,9 +124,7 @@ public class SchemaTest {
 
   @Test
   public void testNestedArraySchema() {
-    FieldType arrayType = TypeName.ARRAY.type()
-        .withCollectionElementType(TypeName.ARRAY.type()
-            .withCollectionElementType(TypeName.STRING.type()));
+    FieldType arrayType = FieldType.array(FieldType.array(FieldType.STRING));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
@@ -141,7 +133,7 @@ public class SchemaTest {
 
   @Test
   public void testWrongName() {
-    Schema schema = Schema.of(Field.of("f_byte", TypeName.BYTE.type()));
+    Schema schema = Schema.of(Field.of("f_byte", FieldType.BYTE));
     thrown.expect(IllegalArgumentException.class);
     schema.getField("f_string");
   }
@@ -149,7 +141,7 @@ public class SchemaTest {
   @Test
   public void testWrongIndex() {
     Schema schema = Schema.of(
-        Field.of("f_byte", TypeName.BYTE.type()));
+        Field.of("f_byte", FieldType.BYTE));
     thrown.expect(IndexOutOfBoundsException.class);
     schema.getField(1);
   }
@@ -161,15 +153,15 @@ public class SchemaTest {
     Schema schema =
         Stream
             .of(
-                Schema.Field.of("f_int", TypeName.INT32.type()),
-                Schema.Field.of("f_string", TypeName.STRING.type()))
+                Schema.Field.of("f_int", FieldType.INT32),
+                Schema.Field.of("f_string", FieldType.STRING))
             .collect(toSchema());
 
     assertEquals(2, schema.getFieldCount());
 
     assertEquals("f_int", schema.getField(0).getName());
-    assertEquals(TypeName.INT32, schema.getField(0).getType().getTypeName());
+    assertEquals(FieldType.INT32, schema.getField(0).getType());
     assertEquals("f_string", schema.getField(1).getName());
-    assertEquals(TypeName.STRING, schema.getField(1).getType().getTypeName());
+    assertEquals(FieldType.STRING, schema.getField(1).getType());
   }
 }

@@ -21,13 +21,16 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.commons.compress.utils.CharsetNames.UTF_8;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -246,6 +249,7 @@ public class TextIO {
         .setFilenameSuffix(null)
         .setFilenamePolicy(null)
         .setDynamicDestinations(null)
+        .setDelimiter(new char[] {'\n'})
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
@@ -566,6 +570,7 @@ public class TextIO {
   @AutoValue
   public abstract static class TypedWrite<UserT, DestinationT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
+
     /** The prefix of each file written, combined with suffix and shardTemplate. */
     @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
 
@@ -575,6 +580,9 @@ public class TextIO {
     /** The base directory used for generating temporary files. */
     @Nullable
     abstract ValueProvider<ResourceId> getTempDirectory();
+
+    /** The delimiter between string records. */
+    abstract char[] getDelimiter();
 
     /** An optional header to add to each file. */
     @Nullable abstract String getHeader();
@@ -633,6 +641,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setHeader(@Nullable String header);
 
       abstract Builder<UserT, DestinationT> setFooter(@Nullable String footer);
+
+      abstract Builder<UserT, DestinationT> setDelimiter(char[] delimiter);
 
       abstract Builder<UserT, DestinationT> setFilenamePolicy(
           @Nullable FilenamePolicy filenamePolicy);
@@ -820,6 +830,15 @@ public class TextIO {
     }
 
     /**
+     * Specifies the delimiter after each string written.
+     *
+     * <p>Defaults to '\n'.
+     */
+    public TypedWrite<UserT, DestinationT> withDelimiter(char[] delimiter) {
+      return toBuilder().setDelimiter(delimiter).build();
+    }
+
+    /**
      * Adds a header string to each file. A newline after the header is added automatically.
      *
      * <p>A {@code null} value will clear any previously configured header.
@@ -942,6 +961,7 @@ public class TextIO {
               new TextSink<>(
                   tempDirectory,
                   resolveDynamicDestinations(),
+                  getDelimiter(),
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
@@ -1084,6 +1104,11 @@ public class TextIO {
       return new Write(inner.withoutSharding());
     }
 
+    /** See {@link TypedWrite#withDelimiter(char[])}. */
+    public Write withDelimiter(char[] delimiter) {
+      return new Write(inner.withDelimiter(delimiter));
+    }
+
     /** See {@link TypedWrite#withHeader(String)}. */
     public Write withHeader(@Nullable String header) {
       return new Write(inner.withHeader(header));
@@ -1154,7 +1179,7 @@ public class TextIO {
     /** @see Compression#ZIP */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -1204,7 +1229,8 @@ public class TextIO {
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
-      writer = new PrintWriter(Channels.newOutputStream(channel));
+      writer = new PrintWriter(new BufferedWriter(
+          new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
       if (getHeader() != null) {
         writer.println(getHeader());
       }

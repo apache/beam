@@ -24,7 +24,7 @@ class common_job_properties {
 
   static String checkoutDir = 'src'
 
-  static void setSCM(def context, String repositoryName) {
+  static void setSCM(def context, String repositoryName, boolean allowRemotePoll = true) {
     context.scm {
       git {
         remote {
@@ -39,6 +39,9 @@ class common_job_properties {
         extensions {
           cleanAfterCheckout()
           relativeTargetDirectory(checkoutDir)
+          if (!allowRemotePoll) {
+            disableRemotePoll()
+          }
         }
       }
     }
@@ -51,7 +54,6 @@ class common_job_properties {
             context,
             'beam-site',
             branch,
-            'beam',
             30)
   }
 
@@ -59,13 +61,13 @@ class common_job_properties {
   static void setTopLevelMainJobProperties(def context,
                                            String branch = 'master',
                                            int timeout = 100,
-                                           String jenkinsExecutorLabel = 'beam') {
+                                           boolean allowRemotePoll = true) {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
-            jenkinsExecutorLabel,
-            timeout)
+            timeout,
+            allowRemotePoll)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -73,8 +75,9 @@ class common_job_properties {
   private static void setTopLevelJobProperties(def context,
                                                String repositoryName,
                                                String defaultBranch,
-                                               String jenkinsExecutorLabel,
-                                               int defaultTimeout) {
+                                               int defaultTimeout,
+                                               boolean allowRemotePoll = true) {
+    def jenkinsExecutorLabel = 'beam'
 
     // GitHub project.
     context.properties {
@@ -89,11 +92,11 @@ class common_job_properties {
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
-      daysToKeep(14)
+      daysToKeep(30)
     }
 
     // Source code management.
-    setSCM(context, repositoryName)
+    setSCM(context, repositoryName, allowRemotePoll)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -117,17 +120,18 @@ class common_job_properties {
       }
       credentialsBinding {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
     }
   }
 
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
-  private static void setPullRequestBuildTrigger(context,
-                                                 String commitStatusContext,
-                                                 String prTriggerPhrase = '',
-                                                 boolean onlyTriggerPhraseToggle = true,
-                                                 String successComment = '--none--') {
+  static void setPullRequestBuildTrigger(context,
+                                         String commitStatusContext,
+                                         String prTriggerPhrase = '',
+                                         boolean onlyTriggerPhraseToggle = true,
+                                         List<String> triggerPathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -146,17 +150,20 @@ class common_job_properties {
         if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
+        if (!triggerPathPatterns.isEmpty()) {
+          includedRegions(triggerPathPatterns.join('\n'))
+        }
 
         extensions {
           commitStatus {
             // This is the name that will show up in the GitHub pull request UI
             // for this Jenkins project. It has a limit of 255 characters.
-            delegate.context(("Jenkins: " + commitStatusContext).take(255))
+            delegate.context commitStatusContext.take(255)
           }
 
           // Comment messages after build completes.
           buildStatus {
-            completedStatus('SUCCESS', successComment)
+            completedStatus('SUCCESS', '--none--')
             completedStatus('FAILURE', '--none--')
             completedStatus('ERROR', '--none--')
           }
@@ -165,51 +172,39 @@ class common_job_properties {
     }
   }
 
-  static String[] gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-    // Disable daemon, which helps ensure hermetic environment at small startup performance penalty.
-    // This needs to be disabled if we move to incremental builds.
-    "--no-daemon",
-  ]
+  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
+    def defaultSwitches = [
+      // Gradle log verbosity enough to diagnose basic build issues
+      "--info",
+      // Continue the build even if there is a failure to show as many potential failures as possible.
+      '--continue',
+    ]
 
-  static void setGradleSwitches(context) {
-    for (String gradle_switch : gradle_switches) {
+    for (String gradle_switch : defaultSwitches) {
       context.switches(gradle_switch)
     }
-  }
+    context.switches("--max-workers=${maxWorkers}")
 
-  // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
-    context.mavenInstallation(mavenInstallation)
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
-    // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
-    // tiered compilation to make the JVM startup times faster during the tests.
-    context.mavenOpts('-XX:+TieredCompilation')
-    context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM(checkoutDir + '/pom.xml')
-    // Use a repository local to the workspace for better isolation of jobs.
-    context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
-    // Disable archiving the built artifacts by default, as this is slow and flaky.
-    // We can usually recreate them easily, and we can also opt-in individual jobs
-    // to artifact archiving.
-    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
-      context.archivingDisabled(true)
-    }
+    // Ensure that parallel workers don't exceed total available memory.
+
+    // TODO(BEAM-4230): OperatingSystemMXBeam incorrectly reports total memory; hard-code for now
+    // Jenkins machines are GCE n1-highmem-16, with 104 GB of memory
+    // def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
+    // def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
+    def totalMemoryMb = 104 * 1024
+    // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
+    // machine memory.
+    def totalExecutorMemoryMb = totalMemoryMb / 2
+    def perWorkerMemoryMb = totalExecutorMemoryMb / maxWorkers
+    context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
   }
 
   // Sets common config for PreCommit jobs.
   static void setPreCommit(context,
                            String commitStatusName,
-                           String prTriggerPhrase = '',
-                           String successComment = '--none--') {
+                           String prTriggerPhrase = '') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false, successComment)
+    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false)
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -222,8 +217,7 @@ class common_job_properties {
       context,
       commitStatusName,
       prTriggerPhrase,
-      true,
-      '--none--')
+      true)
   }
 
   // Sets this as a cron job, running on a schedule.
@@ -233,12 +227,13 @@ class common_job_properties {
     }
   }
 
-  // Sets common config for PostCommit jobs.
-  static void setPostCommit(context,
+  // Sets common config for jobs which run on a schedule / push
+  static void setAutoJob(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
                             String notifyAddress = 'commits@beam.apache.org',
                             boolean emailIndividuals = true) {
+
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
@@ -271,7 +266,11 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
+      k8s_get_wait_interval: 10,
       temp_dir: '$WORKSPACE',
+      // Use source cloned by Jenkins and not clone it second time (redundantly).
+      beam_location: '$WORKSPACE/src',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
@@ -297,8 +296,10 @@ class common_job_properties {
     }
   }
 
-  static String getKubernetesNamespace(def testName) {
-    return "${testName}-${new Date().getTime()}"
+  // Namespace must contain lower case alphanumeric characters or '-'
+  static String getKubernetesNamespace(def jobName) {
+    jobName = jobName.replaceAll("_", "-").toLowerCase()
+    return "${jobName}-\${BUILD_ID}"
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {

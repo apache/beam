@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -30,7 +31,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -61,6 +61,7 @@ public class CoderPropertiesTest {
       return StringUtf8Coder.of().decode(inStream);
     }
 
+    @Override
     public void verifyDeterministic() throws NonDeterministicException {
       throw new NonDeterministicException(this, "Not Deterministic");
     }
@@ -81,13 +82,16 @@ public class CoderPropertiesTest {
 
   @Test
   public void testPassingInNonEqualValuesWithDeterministicCoder() throws Exception {
+    AssertionError error = null;
     try {
       CoderProperties.coderDeterministic(StringUtf8Coder.of(), "AAA", "BBB");
-      fail("Expected AssertionError");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(),
-          CoreMatchers.containsString("Expected that the passed in values"));
+    } catch (AssertionError e) {
+      error = e;
     }
+    assertNotNull("Expected AssertionError", error);
+    assertThat(error.getMessage(),
+        CoreMatchers.containsString("Expected that the passed in values"));
+
   }
 
   /** A coder that is non-deterministic because it adds a string to the value. */
@@ -113,13 +117,15 @@ public class CoderPropertiesTest {
 
   @Test
   public void testBadCoderIsNotDeterministic() throws Exception {
+    AssertionError error = null;
     try {
       CoderProperties.coderDeterministic(new BadDeterminsticCoder(), "TestData", "TestData");
-      fail("Expected AssertionError");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(),
-          CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
+    } catch (AssertionError e) {
+      error = e;
     }
+    assertNotNull("Expected AssertionError", error);
+    assertThat(error.getMessage(),
+        CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
   }
 
   @Test
@@ -163,12 +169,15 @@ public class CoderPropertiesTest {
 
   @Test
   public void testBadCoderThatDependsOnChangingState() throws Exception {
+    AssertionError error = null;
     try {
       CoderProperties.coderDecodeEncodeEqual(new StateChangingSerializingCoder(), "TestData");
-      fail("Expected AssertionError");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(), CoreMatchers.containsString("TestData"));
+    } catch (AssertionError e) {
+      error = e;
     }
+
+    assertNotNull("Expected AssertionError", error);
+    assertThat(error.getMessage(), CoreMatchers.containsString("TestData"));
   }
 
   /** This coder loses information critical to its operation. */
@@ -254,15 +263,17 @@ public class CoderPropertiesTest {
 
   @Test
   public void testCoderWhichConsumesMoreBytesThanItProducesFail() throws IOException {
+    AssertionError error = null;
     try {
       BadCoderThatConsumesMoreBytes coder = new BadCoderThatConsumesMoreBytes();
       byte[] bytes = CoderProperties.encode(coder, Context.NESTED, "TestData");
       CoderProperties.decode(coder, Context.NESTED, bytes);
-      Assert.fail("Expected Assertion Error");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(),
-          CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
+    } catch (AssertionError e) {
+      error = e;
     }
-  }
 
+    assertNotNull("Expected Assertion Error", error);
+    assertThat(error.getMessage(),
+        CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
+  }
 }

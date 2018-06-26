@@ -17,9 +17,13 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+from __future__ import absolute_import
+
 import abc
 import inspect
+from builtins import object
 
+from google.protobuf import message
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
@@ -93,10 +97,12 @@ class RunnerApiFn(object):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.SdkFunctionSpec(
+        environment_id=context.default_environment_id(),
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
             payload=typed_param.SerializeToString()
-            if typed_param is not None else None))
+            if isinstance(typed_param, message.Message)
+            else typed_param))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):

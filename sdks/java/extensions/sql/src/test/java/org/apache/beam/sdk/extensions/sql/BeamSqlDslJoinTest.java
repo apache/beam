@@ -21,9 +21,6 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS1;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS2;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.stringContainsInOrder;
 
 import java.util.Arrays;
@@ -39,38 +36,35 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests for joins in queries.
- */
+/** Tests for joins in queries. */
 public class BeamSqlDslJoinTest {
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private static final Schema SOURCE_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("order_id")
-          .withIntegerField("site_id")
-          .withIntegerField("price")
+      Schema.builder()
+          .addNullableField("order_id", Schema.FieldType.INT32)
+          .addNullableField("site_id", Schema.FieldType.INT32)
+          .addNullableField("price", Schema.FieldType.INT32)
           .build();
 
   private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
 
   private static final Schema RESULT_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("order_id")
-          .withIntegerField("site_id")
-          .withIntegerField("price")
-          .withIntegerField("order_id0")
-          .withIntegerField("site_id0")
-          .withIntegerField("price0")
+      Schema.builder()
+          .addNullableField("order_id", Schema.FieldType.INT32)
+          .addNullableField("site_id", Schema.FieldType.INT32)
+          .addNullableField("price", Schema.FieldType.INT32)
+          .addNullableField("order_id0", Schema.FieldType.INT32)
+          .addNullableField("site_id0", Schema.FieldType.INT32)
+          .addNullableField("price0", Schema.FieldType.INT32)
           .build();
 
   private static final RowCoder RESULT_CODER = RESULT_ROW_TYPE.getRowCoder();
@@ -84,12 +78,9 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PAssert.that(queryFromOrderTables(sql)).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            RESULT_ROW_TYPE
-        ).addRows(
-            2, 3, 3, 1, 2, 3
-        ).getRows());
+    PAssert.that(queryFromOrderTables(sql))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(RESULT_ROW_TYPE).addRows(2, 3, 3, 1, 2, 3).getRows());
     pipeline.run();
   }
 
@@ -102,14 +93,11 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PAssert.that(queryFromOrderTables(sql)).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            RESULT_ROW_TYPE
-        ).addRows(
-            1, 2, 3, null, null, null,
-            2, 3, 3, 1, 2, 3,
-            3, 4, 5, null, null, null
-        ).getRows());
+    PAssert.that(queryFromOrderTables(sql))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
+                .addRows(1, 2, 3, null, null, null, 2, 3, 3, 1, 2, 3, 3, 4, 5, null, null, null)
+                .getRows());
     pipeline.run();
   }
 
@@ -122,14 +110,11 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PAssert.that(queryFromOrderTables(sql)).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            RESULT_ROW_TYPE
-        ).addRows(
-            2, 3, 3, 1, 2, 3,
-            null, null, null, 2, 3, 3,
-            null, null, null, 3, 4, 5
-        ).getRows());
+    PAssert.that(queryFromOrderTables(sql))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
+                .addRows(2, 3, 3, 1, 2, 3, null, null, null, 2, 3, 3, null, null, null, 3, 4, 5)
+                .getRows());
     pipeline.run();
   }
 
@@ -142,20 +127,17 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PAssert.that(queryFromOrderTables(sql)).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            RESULT_ROW_TYPE
-        ).addRows(
-            2, 3, 3, 1, 2, 3,
-            1, 2, 3, null, null, null,
-            3, 4, 5, null, null, null,
-            null, null, null, 2, 3, 3,
-            null, null, null, 3, 4, 5
-        ).getRows());
+    PAssert.that(queryFromOrderTables(sql))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
+                .addRows(
+                    2, 3, 3, 1, 2, 3, 1, 2, 3, null, null, null, 3, 4, 5, null, null, null, null,
+                    null, null, 2, 3, 3, null, null, null, 3, 4, 5)
+                .getRows());
     pipeline.run();
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void testException_nonEqualJoin() throws Exception {
     String sql =
         "SELECT *  "
@@ -169,13 +151,9 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
-  @Test
+  @Test(expected = UnsupportedOperationException.class)
   public void testException_crossJoin() throws Exception {
-    thrown.expect(IllegalStateException.class);
-
-    String sql =
-        "SELECT *  "
-            + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
+    String sql = "SELECT *  " + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
 
     pipeline.enableAbandonedNodeEnforcement(false);
     queryFromOrderTables(sql);
@@ -192,21 +170,16 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PCollection<Row> orders = ordersUnbounded()
-        .apply("window", Window.into(FixedWindows.of(Duration.standardSeconds(50))));
+    PCollection<Row> orders =
+        ordersUnbounded()
+            .apply("window", Window.into(FixedWindows.of(Duration.standardSeconds(50))));
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    PAssert
-        .that(
-            inputs.apply("sql", BeamSql.query(sql)))
+    PAssert.that(inputs.apply("sql", SqlTransform.query(sql)))
         .containsInAnyOrder(
-        TestUtils.RowsBuilder
-            .of(
-            RESULT_ROW_TYPE
-        ).addRows(
-            1, 2, 2, 2, 2, 1,
-            1, 4, 3, 3, 3, 1
-        ).getRows());
+            TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
+                .addRows(1, 2, 2, 2, 2, 1, 1, 4, 3, 3, 3, 1)
+                .getRows());
 
     pipeline.run();
   }
@@ -221,18 +194,21 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PCollection<Row> orders = ordersUnbounded()
-        .apply("window",
-               Window
-                   .<Row>into(FixedWindows.of(Duration.standardSeconds(50)))
-                   .triggering(AfterWatermark.pastEndOfWindow())
-                   .withAllowedLateness(Duration.ZERO)
-                   .accumulatingFiredPanes());
+    PCollection<Row> orders =
+        ordersUnbounded()
+            .apply(
+                "window",
+                Window.<Row>into(FixedWindows.of(Duration.standardSeconds(50)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .accumulatingFiredPanes());
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(expectedSingleFireTrigger());
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(
+        stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -250,9 +226,11 @@ public class BeamSqlDslJoinTest {
     PCollection<Row> orders = ordersUnbounded();
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(expectedSingleFireTrigger());
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(
+        stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -267,18 +245,21 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PCollection<Row> orders = ordersUnbounded()
-        .apply("window",
-               Window
-                   .<Row>into(new GlobalWindows())
-                   .triggering(AfterWatermark.pastEndOfWindow())
-                   .withAllowedLateness(Duration.ZERO)
-                   .accumulatingFiredPanes());
+    PCollection<Row> orders =
+        ordersUnbounded()
+            .apply(
+                "window",
+                Window.<Row>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .accumulatingFiredPanes());
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(expectedSingleFireTrigger());
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(
+        stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -293,19 +274,21 @@ public class BeamSqlDslJoinTest {
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
 
-    PCollection<Row> orders = ordersUnbounded()
-        .apply(
-            "window",
-            Window
-                .<Row>into(FixedWindows.of(Duration.standardSeconds(203)))
-                .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
-                .withAllowedLateness(Duration.standardMinutes(2))
-                .accumulatingFiredPanes());
+    PCollection<Row> orders =
+        ordersUnbounded()
+            .apply(
+                "window",
+                Window.<Row>into(FixedWindows.of(Duration.standardSeconds(203)))
+                    .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
+                    .withAllowedLateness(Duration.standardMinutes(2))
+                    .accumulatingFiredPanes());
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(expectedSingleFireTrigger());
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(
+        stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -313,41 +296,45 @@ public class BeamSqlDslJoinTest {
   private PCollection<Row> ordersUnbounded() {
     DateTime ts = new DateTime(2017, 1, 1, 1, 0, 0);
 
-    return
-        TestUtils
-            .rowsBuilderOf(
-                RowSqlTypes
-                    .builder()
-                    .withIntegerField("order_id")
-                    .withIntegerField("price")
-                    .withIntegerField("site_id")
-                    .withTimestampField("timestamp")
-                    .build())
-            .addRows(
-                1, 2, 2, ts.plusSeconds(0),
-                2, 2, 1, ts.plusSeconds(40),
-                1, 4, 3, ts.plusSeconds(60),
-                3, 2, 1, ts.plusSeconds(65),
-                3, 3, 1, ts.plusSeconds(70))
-            .getPCollectionBuilder()
-            .withTimestampField("timestamp")
-            .inPipeline(pipeline)
-            .buildUnbounded();
+    return TestUtils.rowsBuilderOf(
+            Schema.builder()
+                .addInt32Field("order_id")
+                .addInt32Field("price")
+                .addInt32Field("site_id")
+                .addDateTimeField("timestamp")
+                .build())
+        .addRows(
+            1,
+            2,
+            2,
+            ts.plusSeconds(0),
+            2,
+            2,
+            1,
+            ts.plusSeconds(40),
+            1,
+            4,
+            3,
+            ts.plusSeconds(60),
+            3,
+            2,
+            1,
+            ts.plusSeconds(65),
+            3,
+            3,
+            1,
+            ts.plusSeconds(70))
+        .getPCollectionBuilder()
+        .withTimestampField("timestamp")
+        .inPipeline(pipeline)
+        .buildUnbounded();
   }
 
   private PCollection<Row> queryFromOrderTables(String sql) {
     return tuple(
-        "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
-        "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .apply("join", BeamSql.query(sql))
+            "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline.begin()).setCoder(SOURCE_CODER),
+            "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline.begin()).setCoder(SOURCE_CODER))
+        .apply("join", SqlTransform.query(sql))
         .setCoder(RESULT_CODER);
-  }
-
-  private Matcher<UnsupportedOperationException> expectedSingleFireTrigger() {
-    return allOf(
-        isA(UnsupportedOperationException.class),
-        hasProperty("message",
-                    stringContainsInOrder(
-                        Arrays.asList("once per window", "default trigger"))));
   }
 }

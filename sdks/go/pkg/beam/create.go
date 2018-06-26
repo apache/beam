@@ -16,11 +16,12 @@
 package beam
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 func init() {
@@ -31,10 +32,6 @@ func init() {
 
 // Create inserts a fixed set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type A.
-// For example:
-//
-//    foo := beam.Create(s, "a", "b", "c")  // foo : string
-//    bar := beam.Create(s, 1, 2, 3)        // bar : int
 //
 // The returned PCollections can be used as any other PCollections. The values
 // are JSON-coded. Each runner may place limits on the sizes of the values and
@@ -44,10 +41,7 @@ func Create(s Scope, values ...interface{}) PCollection {
 }
 
 // CreateList inserts a fixed set of values into the pipeline from a slice or
-// array. It is a convenience wrapper over Create. For example:
-//
-//    list := []string{"a", "b", "c"}
-//    foo := beam.CreateList(s, list)  // foo : string
+// array. It is a convenience wrapper over Create.
 func CreateList(s Scope, list interface{}) PCollection {
 	var ret []interface{}
 	val := reflect.ValueOf(list)
@@ -68,16 +62,18 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	}
 
 	t := reflect.ValueOf(values[0]).Type()
-	fn := &createFn{T: EncodedType{T: t}}
+	coder := NewCoder(typex.New(t))
+	fn := &createFn{Coder: EncodedCoder{Coder: coder}}
+	en := exec.MakeElementEncoder(UnwrapCoder(coder))
 	for i, value := range values {
 		if other := reflect.ValueOf(value).Type(); other != t {
 			return PCollection{}, fmt.Errorf("value %v at index %v has type %v, want %v", value, i, other, t)
 		}
-		data, err := json.Marshal(value)
-		if err != nil {
+		var buf bytes.Buffer
+		if err := en.Encode(exec.FullValue{Elm: value}, &buf); err != nil {
 			return PCollection{}, fmt.Errorf("marshalling of %v failed: %v", value, err)
 		}
-		fn.Values = append(fn.Values, string(data))
+		fn.Values = append(fn.Values, buf.Bytes())
 	}
 
 	imp := Impulse(s)
@@ -92,17 +88,18 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.
 
 type createFn struct {
-	Values []string    `json:"values"`
-	T      EncodedType `json:"type"`
+	Values [][]byte     `json:"values"`
+	Coder  EncodedCoder `json:"coder"`
 }
 
 func (c *createFn) ProcessElement(_ []byte, emit func(T)) error {
-	for _, str := range c.Values {
-		value, err := reflectx.UnmarshalJSON(c.T.T, str)
+	dec := exec.MakeElementDecoder(UnwrapCoder(c.Coder.Coder))
+	for _, val := range c.Values {
+		fv, err := dec.Decode(bytes.NewBuffer(val))
 		if err != nil {
 			return err
 		}
-		emit(value)
+		emit(fv.Elm)
 	}
 	return nil
 }

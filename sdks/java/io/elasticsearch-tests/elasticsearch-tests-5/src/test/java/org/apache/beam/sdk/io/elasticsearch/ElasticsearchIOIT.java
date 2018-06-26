@@ -45,7 +45,8 @@ import org.junit.Test;
  * correct server IP:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/elasticsearch -DintegrationTestPipelineOptions='[
+ *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-5
+ *  -DintegrationTestPipelineOptions='[
  *  "--elasticsearchServer=1.2.3.4",
  *  "--elasticsearchHttpPort=9200"]'
  *  --tests org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOIT
@@ -60,6 +61,7 @@ public class ElasticsearchIOIT {
   private static IOTestPipelineOptions options;
   private static ConnectionConfiguration readConnectionConfiguration;
   private static ConnectionConfiguration writeConnectionConfiguration;
+  private static ConnectionConfiguration updateConnectionConfiguration;
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
   @Rule
@@ -70,9 +72,11 @@ public class ElasticsearchIOIT {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
     readConnectionConfiguration = ElasticsearchIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchIOITCommon.ReadOrWrite.READ);
+        .getConnectionConfiguration(options, ElasticsearchIOITCommon.IndexMode.READ);
     writeConnectionConfiguration = ElasticsearchIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchIOITCommon.ReadOrWrite.WRITE);
+        .getConnectionConfiguration(options, ElasticsearchIOITCommon.IndexMode.WRITE);
+    updateConnectionConfiguration = ElasticsearchIOITCommon
+        .getConnectionConfiguration(options, ElasticsearchIOITCommon.IndexMode.WRITE_PARTIAL);
     restClient = readConnectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(readConnectionConfiguration,
         restClient, true);
@@ -81,6 +85,7 @@ public class ElasticsearchIOIT {
   @AfterClass
   public static void afterClass() throws Exception {
     ElasticSearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
+    ElasticSearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
     restClient.close();
   }
 
@@ -114,7 +119,7 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testWriteVolume() throws Exception {
-    //cannot share elasticsearchIOTestCommon because tests run in parallel.
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
             writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
@@ -134,10 +139,28 @@ public class ElasticsearchIOIT {
    */
   @Test
   public void testWriteWithFullAddressingVolume() throws Exception {
-    //cannot share elasticsearchIOTestCommon because tests run in parallel.
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
             writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
+  }
+
+  /**
+   * This test verifies volume partial updates of Elasticsearch. The test dataset index is cloned
+   * and then a new field is added to each document using a partial update. The test then asserts
+   * the updates where appied.
+   */
+  @Test
+  public void testWritePartialUpdate() throws Exception {
+    ElasticSearchIOTestUtils.copyIndex(
+        restClient,
+        readConnectionConfiguration.getIndex(),
+        updateConnectionConfiguration.getIndex());
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonUpdate = new ElasticsearchIOTestCommon(
+        updateConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonUpdate.setPipeline(pipeline);
+    elasticsearchIOTestCommonUpdate.testWritePartialUpdate();
   }
 }

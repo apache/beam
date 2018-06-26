@@ -25,11 +25,14 @@ we multiply our counts ratio by four to estimate π.
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import argparse
 import json
 import logging
 import random
+from builtins import object
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import WriteToText

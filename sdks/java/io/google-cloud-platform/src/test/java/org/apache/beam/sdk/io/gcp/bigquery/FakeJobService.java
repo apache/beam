@@ -46,20 +46,23 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.io.FileSystems;
@@ -76,13 +79,14 @@ import org.joda.time.Duration;
 /**
  * A fake implementation of BigQuery's job service.
  */
-class FakeJobService implements JobService, Serializable {
-  static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
+@Experimental(Experimental.Kind.SOURCE_SINK)
+public class FakeJobService implements JobService, Serializable {
+  private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
   // Whenever a job is started, the first 2 calls to GetJob will report the job as pending,
   // the next 2 will return the job as running, and only then will the job report as done.
   private static final int GET_JOBS_TRANSITION_INTERVAL = 2;
 
-  private FakeDatasetService datasetService;
+  private final FakeDatasetService datasetService;
 
   private static class JobInfo {
     Job job;
@@ -101,7 +105,7 @@ class FakeJobService implements JobService, Serializable {
   private static com.google.common.collect.Table<String, String, JobStatistics>
       dryRunQueryResults;
 
-  FakeJobService() {
+  public FakeJobService() {
     this.datasetService = new FakeDatasetService();
   }
 
@@ -114,7 +118,7 @@ class FakeJobService implements JobService, Serializable {
 
   @Override
   public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
-      throws InterruptedException, IOException {
+      throws IOException {
     synchronized (allJobs) {
       verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
@@ -144,7 +148,7 @@ class FakeJobService implements JobService, Serializable {
 
   @Override
   public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
-      throws InterruptedException, IOException {
+      throws IOException {
     checkArgument("AVRO".equals(extractConfig.getDestinationFormat()),
         "Only extract to AVRO is supported");
     synchronized (allJobs) {
@@ -167,8 +171,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   @Override
-  public void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
-      throws IOException, InterruptedException {
+  public void startQueryJob(JobReference jobRef, JobConfigurationQuery query) {
     synchronized (allJobs) {
       Job job = new Job();
       job.setJobReference(jobRef);
@@ -181,7 +184,7 @@ class FakeJobService implements JobService, Serializable {
 
   @Override
   public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
-      throws IOException, InterruptedException {
+      throws IOException {
     synchronized (allJobs) {
       verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
@@ -228,8 +231,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   @Override
-  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query, String location)
-      throws InterruptedException, IOException {
+  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query, String location) {
     synchronized (dryRunQueryResults) {
       JobStatistics result = dryRunQueryResults.get(projectId, query.getQuery());
       if (result != null) {
@@ -240,7 +242,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   @Override
-  public Job getJob(JobReference jobRef) throws InterruptedException {
+  public Job getJob(JobReference jobRef) {
     try {
       synchronized (allJobs) {
         JobInfo job = allJobs.get(jobRef.getProjectId(), jobRef.getJobId());
@@ -358,10 +360,10 @@ class FakeJobService implements JobService, Serializable {
     for (TableReference source : sources) {
       Table table = checkNotNull(datasetService.getTable(source));
       if (!first) {
-        if (partitioning != table.getTimePartitioning()) {
+        if (!Objects.equals(partitioning, table.getTimePartitioning())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
-        if (schema != table.getSchema()) {
+        if (!Objects.equals(schema, table.getSchema())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
       }
@@ -406,7 +408,8 @@ class FakeJobService implements JobService, Serializable {
   private List<TableRow> readRows(String filename) throws IOException {
     Coder<TableRow> coder = TableRowJsonCoder.of();
     List<TableRow> tableRows = Lists.newArrayList();
-    try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+    try (BufferedReader reader =
+        Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8)) {
       String line;
       while ((line = reader.readLine()) != null) {
         TableRow tableRow = coder.decode(
@@ -436,7 +439,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   private void writeRowsHelper(List<TableRow> rows, Schema avroSchema,
-                               String destinationPattern, int shard) throws IOException {
+                               String destinationPattern, int shard) {
     String filename = destinationPattern.replace("*", String.format("%012d", shard));
     try (WritableByteChannel channel = FileSystems.create(
         FileSystems.matchNewResource(filename, false /* isDirectory */), MimeTypes.BINARY);

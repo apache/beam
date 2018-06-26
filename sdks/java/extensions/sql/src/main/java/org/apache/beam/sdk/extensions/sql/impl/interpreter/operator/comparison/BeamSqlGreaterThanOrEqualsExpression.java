@@ -19,10 +19,9 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import org.joda.time.DateTime;
 
-/**
- * {@code BeamSqlExpression} for {@code >=} operation.
- */
+/** {@code BeamSqlExpression} for {@code >=} operation. */
 public class BeamSqlGreaterThanOrEqualsExpression extends BeamSqlCompareExpression {
 
   public BeamSqlGreaterThanOrEqualsExpression(List<BeamSqlExpression> operands) {
@@ -42,8 +41,13 @@ public class BeamSqlGreaterThanOrEqualsExpression extends BeamSqlCompareExpressi
   @Override
   public Boolean compare(Number leftValue, Number rightValue) {
     return (leftValue == null && rightValue == null)
-        || (leftValue != null && rightValue != null
-              && leftValue.floatValue() >= (rightValue).floatValue());
+        || (leftValue != null
+            && rightValue != null
+            && leftValue.floatValue() >= (rightValue).floatValue());
   }
 
+  @Override
+  public Boolean compare(DateTime leftValue, DateTime rightValue) {
+    return leftValue.isAfter(rightValue) || leftValue.isEqual(rightValue);
+  }
 }

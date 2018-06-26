@@ -21,7 +21,7 @@
 // that can be applied to configure a project for certain common
 // tasks.
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 // Add performanceTest task to this build.gradle file
 // so that running Performance tests using PerfKitBenchmarker is possible.
@@ -32,6 +32,13 @@ createPerformanceTestHarness()
 buildscript {
   repositories {
     maven { url offlineRepositoryRoot }
+
+    if (gradle.hasProperty('extraMavenUrls')) {
+      gradle.ext.extraMavenUrls.each {
+        mavenUrl ->
+          return maven { url mavenUrl }
+      }
+    }
 
     // To run gradle in offline mode, one must first invoke
     // 'updateOfflineRepository' to create an offline repo
@@ -49,9 +56,10 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
+    classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
     classpath "com.gradle:build-scan-plugin:1.13.1"                                                     // Enable publishing build scans
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
-    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"                                        // Enable proto code generation
+    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
@@ -59,9 +67,11 @@ buildscript {
     classpath "gradle.plugin.com.github.blindpirate:gogradle:0.9"                                       // Enable Go code compilation
     classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
     classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"                                        // Enable shading Java dependencies
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
     classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
+    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
+    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
   }
 }
 
@@ -71,6 +81,7 @@ buildscript {
 apply plugin: "base"
 
 apply plugin: "com.gradle.build-scan"
+apply plugin: 'com.github.ben-manes.versions'
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
@@ -107,6 +118,12 @@ rat {
 
     // VCF test files
     "**/apache_beam/testing/data/vcf/*",
+
+    // JDBC package config files
+    "**/META-INF/services/java.sql.Driver",
+
+    // TODO: [BEAM-4568] Website sources need to have apache headers
+    "website/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -135,28 +152,65 @@ task javaPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
-  dependsOn ":beam-sdks-java-maven-archetypes-examples:generateAndBuildArchetypeTest"
-  dependsOn ":beam-sdks-java-maven-archetypes-starter:generateAndBuildArchetypeTest"
   dependsOn ":beam-examples-java:preCommit"
 }
 
 task javaPostCommit() {
   dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-extensions-sql:postCommit"
 }
 
 task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
+
+  // TODO: reenable when https://github.com/gogradle/gogradle/issues/225 is fixed
+  // dependsOn ":beam-sdks-go-examples:build"
+  // dependsOn ":beam-sdks-go-test:build"
+
+  // Ensure all container Go boot code builds as well.
+  // dependsOn ":beam-sdks-java-container:build"
+  // dependsOn ":beam-sdks-python-container:build"
+  // dependsOn ":beam-sdks-go-container:build"
+  // dependsOn ":beam-runners-gcp-gcemd:build"
+  // dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {
-  // Same currently as precommit, but duplicated to provide a clearer signal of reliability.
   dependsOn ":goPreCommit"
+  dependsOn ":goIntegrationTests"
+}
+
+task goIntegrationTests() {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', './sdks/go/test/run_integration_tests.sh'
+    }
+  }
+  dependsOn ":beam-sdks-go-test:build"
 }
 
 task pythonPreCommit() {
   dependsOn ":rat"
-  dependsOn ":beam-sdks-python:check"
+  dependsOn ":beam-sdks-python:preCommit"
 }
 
+task pythonPostCommit() {
+  dependsOn ":beam-sdks-python:postCommit"
+}
+
+task runBeamDependencyCheck() {
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependencyUpdates"
+}
+
+apply plugin: 'net.researchgate.release'
+release {
+  revertOnFail = true
+  tagTemplate = 'v${version}'
+  git {
+    requireBranch = 'release-.*|master'
+  }
+}

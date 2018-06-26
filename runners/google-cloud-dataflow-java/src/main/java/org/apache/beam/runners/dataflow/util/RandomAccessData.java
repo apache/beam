@@ -27,8 +27,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -71,7 +73,7 @@ public class RandomAccessData {
     @Override
     public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
-      if (value == POSITIVE_INFINITY) {
+      if (Objects.equals(value, POSITIVE_INFINITY)) {
         throw new CoderException("Positive infinity can not be encoded.");
       }
       if (!context.isWholeStream) {
@@ -117,7 +119,7 @@ public class RandomAccessData {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
-      return VarInt.getLength(value.size) + value.size;
+      return (long) VarInt.getLength(value.size) + value.size;
     }
   }
 
@@ -134,7 +136,7 @@ public class RandomAccessData {
    * all other {@link RandomAccessData}.
    */
   public static final class UnsignedLexicographicalComparator
-      implements Comparator<RandomAccessData> {
+      implements Comparator<RandomAccessData>, Serializable {
     // Do not instantiate
     private UnsignedLexicographicalComparator() {
     }
@@ -147,6 +149,7 @@ public class RandomAccessData {
     /**
      * Compare the two sets of bytes starting at the given offset.
      */
+    @SuppressWarnings("ReferenceEquality") // equals overload calls into this compare method
     public int compare(RandomAccessData o1, RandomAccessData o2, int startOffset) {
       if (o1 == o2) {
         return 0;
@@ -206,7 +209,7 @@ public class RandomAccessData {
     RandomAccessData copy = copy();
     for (int i = copy.size - 1; i >= 0; --i) {
       if (copy.buffer[i] != UnsignedBytes.MAX_VALUE) {
-        copy.buffer[i] = UnsignedBytes.checkedCast(UnsignedBytes.toInt(copy.buffer[i]) + 1);
+        copy.buffer[i] = UnsignedBytes.checkedCast(UnsignedBytes.toInt(copy.buffer[i]) + 1L);
         return copy;
       }
     }
@@ -321,6 +324,7 @@ public class RandomAccessData {
     if (!(other instanceof RandomAccessData)) {
       return false;
     }
+
     return UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(this, (RandomAccessData) other) == 0;
   }
 

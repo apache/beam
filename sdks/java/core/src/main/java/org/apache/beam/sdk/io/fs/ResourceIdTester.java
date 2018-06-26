@@ -108,7 +108,7 @@ public final class ResourceIdTester {
     try {
       ResourceId badFile = baseDirectory.resolve("file/", RESOLVE_FILE);
       fail(String.format("Resolving badFile %s should have failed", badFile));
-    } catch (Throwable t) {
+    } catch (IllegalArgumentException e) {
       // expected
     }
 
@@ -116,7 +116,7 @@ public final class ResourceIdTester {
     try {
       baseDirectory.resolve("file2", RESOLVE_FILE);
       fail(String.format("Should not be able to resolve against file resource %s", file));
-    } catch (Throwable t) {
+    } catch (IllegalArgumentException e) {
       // expected
     }
   }

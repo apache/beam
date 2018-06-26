@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -26,8 +27,8 @@ import org.joda.time.ReadableInstant;
 /**
  * {@code BeamSqlExpression} for {@code HOP}, {@code TUMBLE}, {@code SESSION} operation.
  *
- * <p>These functions don't change the timestamp field, instead it's used to indicate
- * the event_timestamp field, and how the window is defined.
+ * <p>These functions don't change the timestamp field, instead it's used to indicate the
+ * event_timestamp field, and how the window is defined.
  */
 public class BeamSqlWindowExpression extends BeamSqlExpression {
 
@@ -43,9 +44,10 @@ public class BeamSqlWindowExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<ReadableInstant> evaluate(Row inputRow, BoundedWindow window) {
-    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        (ReadableInstant) operands.get(0).evaluate(inputRow, window).getValue());
+  public BeamSqlPrimitive<ReadableInstant> evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    return BeamSqlPrimitive.of(
+        SqlTypeName.TIMESTAMP,
+        (ReadableInstant) operands.get(0).evaluate(inputRow, window, env).getValue());
   }
-
 }

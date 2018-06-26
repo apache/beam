@@ -18,11 +18,12 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
-import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -46,7 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -66,37 +66,35 @@ import org.apache.calcite.util.Pair;
  * {@code BeamRelNode} to replace a {@code Join} node.
  *
  * <p>Support for join can be categorized into 3 cases:
+ *
  * <ul>
- *   <li>BoundedTable JOIN BoundedTable</li>
- *   <li>UnboundedTable JOIN UnboundedTable</li>
- *   <li>BoundedTable JOIN UnboundedTable</li>
+ *   <li>BoundedTable JOIN BoundedTable
+ *   <li>UnboundedTable JOIN UnboundedTable
+ *   <li>BoundedTable JOIN UnboundedTable
  * </ul>
  *
- * <p>For the first two cases, a standard join is utilized as long as the windowFn of the both
- * sides match.
+ * <p>For the first two cases, a standard join is utilized as long as the windowFn of the both sides
+ * match.
  *
  * <p>For the third case, {@code sideInput} is utilized to implement the join, so there are some
  * constraints:
  *
  * <ul>
- *   <li>{@code FULL OUTER JOIN} is not supported.</li>
- *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.</li>
- *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.</li>
+ *   <li>{@code FULL OUTER JOIN} is not supported.
+ *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.
+ *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.
  * </ul>
- *
  *
  * <p>There are also some general constraints:
  *
  * <ul>
- *  <li>Only equi-join is supported.</li>
- *  <li>CROSS JOIN is not supported.</li>
+ *   <li>Only equi-join is supported.
+ *   <li>CROSS JOIN is not supported.
  * </ul>
  */
 public class BeamJoinRel extends Join implements BeamRelNode {
-  private final BeamSqlEnv sqlEnv;
 
   public BeamJoinRel(
-      BeamSqlEnv sqlEnv,
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode left,
@@ -105,7 +103,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Set<CorrelationId> variablesSet,
       JoinRelType joinType) {
     super(cluster, traits, left, right, condition, variablesSet, joinType);
-    this.sqlEnv = sqlEnv;
   }
 
   @Override
@@ -116,36 +113,50 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       RelNode right,
       JoinRelType joinType,
       boolean semiJoinDone) {
-    return new BeamJoinRel(sqlEnv, getCluster(), traitSet, left, right, conditionExpr, variablesSet,
-        joinType);
+    return new BeamJoinRel(
+        getCluster(), traitSet, left, right, conditionExpr, variablesSet, joinType);
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public List<RelNode> getPCollectionInputs() {
+    if (isSideInputJoin()) {
+      return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
+    }
+    return BeamRelNode.super.getPCollectionInputs();
+  }
+
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private boolean isSideInputJoin() {
+    BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
+    BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
+    return !seekable(leftRelNode) && seekable(rightRelNode);
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
       BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-      Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
       final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
 
-      if (!seekable(leftRelNode, sqlEnv) && seekable(rightRelNode, sqlEnv)) {
-        return joinAsLookup(leftRelNode, rightRelNode, inputPCollections, sqlEnv)
+      if (isSideInputJoin()) {
+        checkArgument(pinput.size() == 1, "More than one input received for side input join");
+        return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0))
             .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
       }
 
-      PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform());
-      PCollection<Row> rightRows =
-          inputPCollections.apply("right", rightRelNode.toPTransform());
+      Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
+      assert pinput.size() == 2;
+      PCollection<Row> leftRows = pinput.get(0);
+      PCollection<Row> rightRows = pinput.get(1);
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
 
-      String stageName = BeamSqlRelUtils.getStageName(BeamJoinRel.this);
       WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
       WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
 
@@ -156,10 +167,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       // build the extract key type
       // the name of the join field is not important
       Schema extractKeySchema =
-          pairs
-              .stream()
-              .map(pair -> leftSchema.getField(pair.getKey()))
-              .collect(toSchema());
+          pairs.stream().map(pair -> leftSchema.getField(pair.getKey())).collect(toSchema());
 
       Coder extractKeyRowCoder = extractKeySchema.getRowCoder();
 
@@ -167,14 +175,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<Row, Row>> extractedLeftRows =
           leftRows
               .apply(
-                  stageName + "_left_ExtractJoinFields",
+                  "left_ExtractJoinFields",
                   MapElements.via(new BeamJoinTransforms.ExtractJoinFields(true, pairs)))
               .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
 
       PCollection<KV<Row, Row>> extractedRightRows =
           rightRows
               .apply(
-                  stageName + "_right_ExtractJoinFields",
+                  "right_ExtractJoinFields",
                   MapElements.via(new BeamJoinTransforms.ExtractJoinFields(false, pairs)))
               .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
@@ -193,8 +201,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
               "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
         }
 
-        return standardJoin(
-            extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow, stageName);
+        return standardJoin(extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
       } else if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
               && rightRows.isBounded() == UNBOUNDED)
           || (leftRows.isBounded() == UNBOUNDED
@@ -251,8 +258,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<Row, Row>> extractedLeftRows,
       PCollection<KV<Row, Row>> extractedRightRows,
       Row leftNullRow,
-      Row rightNullRow,
-      String stageName) {
+      Row rightNullRow) {
     PCollection<KV<Row, KV<Row, Row>>> joinedRows = null;
     switch (joinType) {
       case LEFT:
@@ -281,8 +287,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<Row> ret =
         joinedRows
             .apply(
-                stageName + "_JoinParts2WholeRow",
-                MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
+                "JoinParts2WholeRow", MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
             .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
     return ret;
   }
@@ -372,12 +377,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   private PCollection<Row> joinAsLookup(
-      BeamRelNode leftRelNode,
-      BeamRelNode rightRelNode,
-      PCollectionTuple inputPCollections,
-      BeamSqlEnv sqlEnv) {
-    PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform());
-    BeamSqlSeekableTable seekableTable = getSeekableTableFromRelNode(rightRelNode, sqlEnv);
+      BeamRelNode leftRelNode, BeamRelNode rightRelNode, PCollection<Row> factStream) {
+    BeamIOSourceRel srcRel = (BeamIOSourceRel) rightRelNode;
+    BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) srcRel.getBeamSqlTable();
 
     return factStream.apply(
         "join_as_lookup",
@@ -388,19 +390,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             CalciteUtils.toBeamSchema(leftRelNode.getRowType()).getFieldCount()));
   }
 
-  private BeamSqlSeekableTable getSeekableTableFromRelNode(BeamRelNode relNode, BeamSqlEnv sqlEnv) {
-    BeamIOSourceRel srcRel = (BeamIOSourceRel) relNode;
-    String tableName = Joiner.on('.').join(srcRel.getTable().getQualifiedName());
-    BeamSqlTable sourceTable = sqlEnv.findTable(tableName);
-    return (BeamSqlSeekableTable) sourceTable;
-  }
-
   /** check if {@code BeamRelNode} implements {@code BeamSeekableTable}. */
-  private boolean seekable(BeamRelNode relNode, BeamSqlEnv sqlEnv) {
+  private boolean seekable(BeamRelNode relNode) {
     if (relNode instanceof BeamIOSourceRel) {
       BeamIOSourceRel srcRel = (BeamIOSourceRel) relNode;
-      String tableName = Joiner.on('.').join(srcRel.getTable().getQualifiedName());
-      BeamSqlTable sourceTable = sqlEnv.findTable(tableName);
+      BeamSqlTable sourceTable = srcRel.getBeamSqlTable();
       if (sourceTable instanceof BeamSqlSeekableTable) {
         return true;
       }

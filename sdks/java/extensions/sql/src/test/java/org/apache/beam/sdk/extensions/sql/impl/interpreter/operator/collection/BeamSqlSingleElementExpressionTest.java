@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -32,9 +33,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlSingleElementExpression}.
- */
+/** Unit tests for {@link BeamSqlSingleElementExpression}. */
 public class BeamSqlSingleElementExpressionTest {
 
   private static final Row NULL_ROW = null;
@@ -43,34 +42,36 @@ public class BeamSqlSingleElementExpressionTest {
   @Test
   public void testReturnsSingleElement() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
 
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
     assertEquals(
         "aaa",
-        expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
   public void testReturnsNullForEmptyInput() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
 
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertNull(expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertNull(
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
   public void testAcceptsOneOperand() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
 
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);

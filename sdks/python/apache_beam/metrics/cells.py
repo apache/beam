@@ -23,10 +23,13 @@ context.
 Cells depend on a 'dirty-bit' in the CellCommitState class that tracks whether
 a cell's updates have been committed.
 """
+
+from __future__ import absolute_import
 from __future__ import division
 
 import threading
 import time
+from builtins import object
 
 from google.protobuf import timestamp_pb2
 
@@ -245,6 +248,9 @@ class DistributionResult(object):
     else:
       return False
 
+  def __hash__(self):
+    return hash(self.data)
+
   def __ne__(self, other):
     return not self.__eq__(other)
 
@@ -292,6 +298,9 @@ class GaugeResult(object):
     else:
       return False
 
+  def __hash__(self):
+    return hash(self.data)
+
   def __ne__(self, other):
     return not self.__eq__(other)
 
@@ -325,6 +334,9 @@ class GaugeData(object):
 
   def __eq__(self, other):
     return self.value == other.value and self.timestamp == other.timestamp
+
+  def __hash__(self):
+    return hash((self.value, self.timestamp))
 
   def __ne__(self, other):
     return not self.__eq__(other)
@@ -385,6 +397,9 @@ class DistributionData(object):
             self.count == other.count and
             self.min == other.min and
             self.max == other.max)
+
+  def __hash__(self):
+    return hash((self.sum, self.count, self.min, self.max))
 
   def __ne__(self, other):
     return not self.__eq__(other)

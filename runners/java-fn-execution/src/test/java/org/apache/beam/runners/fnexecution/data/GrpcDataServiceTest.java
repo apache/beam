@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Test;
@@ -63,12 +64,13 @@ public class GrpcDataServiceTest {
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
 
   @Test
-  public void testMessageReceivedBySingleClientWhenThereAreMultipleClients()
-      throws Exception {
+  public void testMessageReceivedBySingleClientWhenThereAreMultipleClients() throws Exception {
     final LinkedBlockingQueue<Elements> clientInboundElements = new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
-    GrpcDataService service = GrpcDataService.create(Executors.newCachedThreadPool());
+    GrpcDataService service =
+        GrpcDataService.create(
+            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
@@ -101,7 +103,8 @@ public class GrpcDataServiceTest {
       for (Future<Void> clientFuture : clientFutures) {
         clientFuture.get();
       }
-      assertThat(clientInboundElements,
+      assertThat(
+          clientInboundElements,
           containsInAnyOrder(elementsWithData("0"), elementsWithData("1"), elementsWithData("2")));
     }
   }
@@ -112,7 +115,9 @@ public class GrpcDataServiceTest {
         new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
-    GrpcDataService service = GrpcDataService.create(Executors.newCachedThreadPool());
+    GrpcDataService service =
+        GrpcDataService.create(
+            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();

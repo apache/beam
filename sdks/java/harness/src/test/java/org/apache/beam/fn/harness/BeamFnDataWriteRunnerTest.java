@@ -141,7 +141,8 @@ public class BeamFnDataWriteRunnerTest {
         COMPONENTS.getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
 

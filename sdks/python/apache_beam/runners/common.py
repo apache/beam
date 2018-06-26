@@ -28,7 +28,6 @@ import traceback
 import six
 
 from apache_beam.internal import util
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
@@ -57,7 +56,7 @@ class NameContext(object):
     return not self == other
 
   def __repr__(self):
-    return 'NameContext(%s)' % self.__dict__()
+    return 'NameContext(%s)' % self.__dict__
 
   def __hash__(self):
     return hash(self.step_name)
@@ -102,7 +101,7 @@ class DataflowNameContext(NameContext):
     return hash((self.step_name, self.user_name, self.system_name))
 
   def __repr__(self):
-    return 'DataflowNameContext(%s)' % self.__dict__()
+    return 'DataflowNameContext(%s)' % self.__dict__
 
   def logging_name(self):
     """Stackdriver logging relies on user-given step names (e.g. Foo/Bar)."""
@@ -149,8 +148,8 @@ class MethodWrapper(object):
 
     if not isinstance(obj_to_invoke, (DoFn, RestrictionProvider)):
       raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
-                       'a \'RestrictionProvider\'. Received %r instead.',
-                       obj_to_invoke)
+                       'a \'RestrictionProvider\'. Received %r instead.'
+                       % obj_to_invoke)
 
     args, _, _, defaults = core.get_function_arguments(
         obj_to_invoke, method_name)
@@ -322,7 +321,7 @@ def _find_param_with_default(
       not (default_as_value or default_as_type)):
     raise ValueError(
         'Exactly one of \'default_as_value\' and \'default_as_type\' should be '
-        'provided. Received %r and %r.', default_as_value, default_as_type)
+        'provided. Received %r and %r.' % (default_as_value, default_as_type))
 
   defaults = method.defaults
   default_as_value = default_as_value
@@ -372,15 +371,12 @@ class PerWindowInvoker(DoFnInvoker):
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
 
-    # Fill in sideInputs if they are globally windowed
-    global_window = GlobalWindow()
+    # Flag to cache additional arguments on the first element if all
+    # inputs are within the global window.
+    self.cache_globally_windowed_args = not self.has_windowed_inputs
 
     input_args = input_args if input_args else []
     input_kwargs = input_kwargs if input_kwargs else {}
-
-    if not self.has_windowed_inputs:
-      input_args, input_kwargs = util.insert_values_in_args(
-          input_args, input_kwargs, [si[global_window] for si in side_inputs])
 
     arguments = signature.process_method.args
     defaults = signature.process_method.defaults
@@ -454,7 +450,7 @@ class PerWindowInvoker(DoFnInvoker):
       if not restriction_tracker_param:
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
-            'RestrictionTrackerParam defined', restriction_tracker)
+            'RestrictionTrackerParam defined' % restriction_tracker)
       additional_kwargs[restriction_tracker_param] = restriction_tracker
     if self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
@@ -475,6 +471,19 @@ class PerWindowInvoker(DoFnInvoker):
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process,
           side_inputs)
+    elif self.cache_globally_windowed_args:
+      # Attempt to cache additional args if all inputs are globally
+      # windowed inputs when processing the first element.
+      self.cache_globally_windowed_args = False
+
+      # Fill in sideInputs if they are globally windowed
+      global_window = GlobalWindow()
+      self.args_for_process, self.kwargs_for_process = (
+          util.insert_values_in_args(
+              self.args_for_process, self.kwargs_for_process,
+              [si[global_window] for si in self.side_inputs]))
+      args_for_process, kwargs_for_process = (
+          self.args_for_process, self.kwargs_for_process)
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
@@ -536,6 +545,8 @@ class DoFnRunner(Receiver):
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
+
+    from apache_beam.metrics.execution import ScopedMetricsContainer
 
     self.scoped_metrics_container = (
         scoped_metrics_container or ScopedMetricsContainer())

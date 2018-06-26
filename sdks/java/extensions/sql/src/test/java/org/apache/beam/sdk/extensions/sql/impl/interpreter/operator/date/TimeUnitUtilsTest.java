@@ -25,28 +25,34 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link TimeUnitUtils}.
- */
+/** Unit tests for {@link TimeUnitUtils}. */
 public class TimeUnitUtilsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Test public void testReturnsInternalTimeUnitMultipliers() {
-    assertEquals(TimeUnit.SECOND.multiplier,
+  @Test
+  public void testReturnsInternalTimeUnitMultipliers() {
+    assertEquals(
+        TimeUnit.SECOND.multiplier,
         TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_SECOND));
-    assertEquals(TimeUnit.MINUTE.multiplier,
+    assertEquals(
+        TimeUnit.MINUTE.multiplier,
         TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_MINUTE));
-    assertEquals(TimeUnit.HOUR.multiplier,
+    assertEquals(
+        TimeUnit.HOUR.multiplier,
         TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_HOUR));
-    assertEquals(TimeUnit.DAY.multiplier,
+    assertEquals(
+        TimeUnit.DAY.multiplier,
         TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_DAY));
-    assertEquals(TimeUnit.MONTH.multiplier,
+    assertEquals(
+        TimeUnit.MONTH.multiplier,
         TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_MONTH));
-    assertEquals(TimeUnit.YEAR.multiplier,
+    assertEquals(
+        TimeUnit.YEAR.multiplier,
         TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_YEAR));
   }
 
-  @Test public void testThrowsForUnsupportedIntervalType() {
+  @Test
+  public void testThrowsForUnsupportedIntervalType() {
     thrown.expect(IllegalArgumentException.class);
     TimeUnitUtils.timeUnitInternalMultiplier(SqlTypeName.INTERVAL_DAY_MINUTE);
   }

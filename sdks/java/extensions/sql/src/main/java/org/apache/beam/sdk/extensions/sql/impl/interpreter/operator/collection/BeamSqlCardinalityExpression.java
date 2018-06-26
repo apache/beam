@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection;
 
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -26,15 +27,12 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Implements CARDINALITY(collection) operation which returns
- * the number of elements in the collection.
+ * Implements CARDINALITY(collection) operation which returns the number of elements in the
+ * collection.
  */
 public class BeamSqlCardinalityExpression extends BeamSqlExpression {
 
-  public BeamSqlCardinalityExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
-
+  public BeamSqlCardinalityExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
     super(operands, sqlTypeName);
   }
 
@@ -44,9 +42,9 @@ public class BeamSqlCardinalityExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    Collection<Object> collection = opValueEvaluated(0, inputRow, window);
-
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Collection<Object> collection = (Collection) opValueEvaluated(0, inputRow, window, env);
     return BeamSqlPrimitive.of(outputType, collection.size());
   }
 }

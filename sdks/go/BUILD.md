@@ -20,19 +20,19 @@
 # Go build
 
 This document describes the [Go](https://golang.org) code layout and build integration
-with Maven. The setup is non-trivial, because the Go toolchain expects a
-certain layout and Maven support is limited.
+with Gradle. The setup is non-trivial, because the Go toolchain expects a
+certain layout and Gradle support is limited.
 
 Goals:
 
- 1. Go code can be built and tested using Maven w/o special requirements.
+ 1. Go code can be built and tested using Gradle w/o special requirements.
  1. Go tools such as `go build`, `go test` and `go generate` work as usual.
  1. Go code can be pulled with `go get` from `github.com/apache/beam` for users.
  1. Go programs can used in docker container images.
 
 In short, the goals are to make both worlds work well.
 
-### Maven integration
+### Gradle integration
 
 The Go toolchain expects the package name to match the directory structure,
 which in turn must be rooted in `github.com/apache/beam` for `go get` to work.
@@ -61,3 +61,6 @@ to match the package structure expected by the code imports. Go users can just
 go get github.com/apache/beam/sdks/go/...
 ```
 Developers must invoke Go for cross-compilation manually, if desired.
+
+If you make changes to .proto files, you will need to rebuild the generated code.
+Consult `pkg/beam/model/PROTOBUF.md`.

@@ -29,13 +29,18 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
+
+from __future__ import absolute_import
+
 import threading
+from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker import statesampler
 
 
 class MetricKey(object):
@@ -58,6 +63,9 @@ class MetricKey(object):
     return (self.step == other.step and
             self.metric == other.metric)
 
+  def __hash__(self):
+    return hash((self.step, self.metric))
+
   def __repr__(self):
     return 'MetricKey(step={}, metric={})'.format(
         self.step, self.metric)
@@ -77,9 +85,9 @@ class MetricResult(object):
   Attributes:
     key: A ``MetricKey`` that identifies the metric and bundle of this result.
     committed: The committed updates of the metric. This attribute's type is
-      that of the underlying cell data (e.g. int, DistributionData).
+      of metric type result (e.g. int, DistributionResult, GaugeResult).
     attempted: The logical updates of the metric. This attribute's type is that
-      of the underlying cell data (e.g. int, DistributionData).
+      of metric type result (e.g. int, DistributionResult, GaugeResult).
   """
   def __init__(self, key, committed, attempted):
     """Initializes ``MetricResult``.
@@ -96,6 +104,9 @@ class MetricResult(object):
     return (self.key == other.key and
             self.committed == other.committed and
             self.attempted == other.attempted)
+
+  def __hash__(self):
+    return hash((self.key, self.committed, self.attempted))
 
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
@@ -127,20 +138,23 @@ class _MetricsEnvironment(object):
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
 
-  def current_container(self):
+  def _old_style_container(self):
+    """Gets the current MetricsContainer based on the container stack.
+
+    The container stack is the old method, and will be deprecated. Should
+    rely on StateSampler instead."""
     self.set_container_stack()
     index = len(self.PER_THREAD.container) - 1
     if index < 0:
       return None
     return self.PER_THREAD.container[index]
 
-  def set_current_container(self, container):
-    self.set_container_stack()
-    self.PER_THREAD.container.append(container)
-
-  def unset_current_container(self):
-    self.set_container_stack()
-    self.PER_THREAD.container.pop()
+  def current_container(self):
+    """Returns the current MetricsContainer."""
+    sampler = statesampler.get_current_tracker()
+    if sampler is None:
+      return self._old_style_container()
+    return sampler.current_state().metrics_container
 
 
 MetricsEnvironment = _MetricsEnvironment()
@@ -227,10 +241,12 @@ class ScopedMetricsContainer(object):
     self._container = container
 
   def enter(self):
-    self._stack.append(self._container)
+    if self._container:
+      self._stack.append(self._container)
 
   def exit(self):
-    self._stack.pop()
+    if self._container:
+      self._stack.pop()
 
   def __enter__(self):
     self.enter()

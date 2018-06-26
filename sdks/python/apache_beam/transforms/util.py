@@ -63,22 +63,31 @@ T = typehints.TypeVariable('T')
 class CoGroupByKey(PTransform):
   """Groups results across several PCollections by key.
 
-  Given an input dict mapping serializable keys (called "tags") to 0 or more
-  PCollections of (key, value) tuples, e.g.::
+  Given an input dict of serializable keys (called "tags") to 0 or more
+  PCollections of (key, value) tuples, it creates a single output PCollection
+  of (key, value) tuples whose keys are the unique input keys from all inputs,
+  and whose values are dicts mapping each tag to an iterable of whatever values
+  were under the key in the corresponding PCollection, in this manner::
 
-     {'pc1': pcoll1, 'pc2': pcoll2, 33333: pcoll3}
+      ('some key', {'tag1': ['value 1 under "some key" in pcoll1',
+                             'value 2 under "some key" in pcoll1',
+                             ...],
+                    'tag2': ... ,
+                    ... })
 
-  creates a single output PCollection of (key, value) tuples whose keys are the
-  unique input keys from all inputs, and whose values are dicts mapping each
-  tag to an iterable of whatever values were under the key in the corresponding
-  PCollection::
+  For example, given:
 
-    ('some key', {'pc1': ['value 1 under "some key" in pcoll1',
-                          'value 2 under "some key" in pcoll1'],
-                  'pc2': [],
-                  33333: ['only value under "some key" in pcoll3']})
+      {'tag1': pc1, 'tag2': pc2, 333: pc3}
 
-  Note that pcoll2 had no values associated with "some key".
+  where:
+      pc1 = [(k1, v1)]
+      pc2 = []
+      pc3 = [(k1, v31), (k1, v32), (k2, v33)]
+
+  The output PCollection would be:
+
+      [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
+       (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
 
   CoGroupByKey also works for tuples, lists, or other flat iterables of
   PCollections, in which case the values of the resulting PCollections
@@ -86,18 +95,14 @@ class CoGroupByKey(PTransform):
   PCollection---conceptually, the "tags" are the indices into the input.
   Thus, for this input::
 
-     (pcoll1, pcoll2, pcoll3)
+     (pc1, pc2, pc3)
 
-  the output PCollection's value for "some key" is::
+  the output would be::
 
-    ('some key', (['value 1 under "some key" in pcoll1',
-                   'value 2 under "some key" in pcoll1'],
-                  [],
-                  ['only value under "some key" in pcoll3']))
+      [(k1, ([v1], [], [v31, v32]),
+       (k2, ([], [], [v33]))]
 
-  Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
+  Attributes:
     **kwargs: Accepts a single named argument "pipeline", which specifies the
       pipeline that "owns" this PTransform. Ordinarily CoGroupByKey can obtain
       this information from one of the input PCollections, but if there are none
@@ -221,6 +226,7 @@ class _BatchSizeEstimator(object):
     self._clock = clock
     self._data = []
     self._ignore_next_timing = False
+
     self._size_distribution = Metrics.distribution(
         'BatchElements', 'batch_size')
     self._time_distribution = Metrics.distribution(

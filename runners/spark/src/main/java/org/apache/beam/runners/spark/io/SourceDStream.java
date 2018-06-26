@@ -111,7 +111,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
   @Override
   public scala.Option<RDD<Tuple2<Source<T>, CheckpointMarkT>>> compute(Time validTime) {
-    RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd =
+    RDD<Tuple2<Source<T>, CheckpointMarkT>> rdd =
         new SourceRDD.Unbounded<>(
             ssc().sparkContext(),
             options,

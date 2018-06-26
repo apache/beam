@@ -99,7 +99,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   public byte[] decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     if (context.isWholeStream) {
-      return StreamUtils.getBytes(inStream);
+      return StreamUtils.getBytesWithoutClosing(inStream);
     } else {
       int length = VarInt.decodeInt(inStream);
       if (length < 0) {
@@ -146,6 +146,6 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
-    return VarInt.getLength(value.length) + value.length;
+    return (long) VarInt.getLength(value.length) + value.length;
   }
 }

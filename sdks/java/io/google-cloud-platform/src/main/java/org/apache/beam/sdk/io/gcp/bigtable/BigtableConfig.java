@@ -160,16 +160,16 @@ abstract class BigtableConfig implements Serializable {
         && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
       "Could not obtain Bigtable table id");
 
-    checkArgument(getProjectId() != null
-        && (!getProjectId().isAccessible() || !getProjectId().get().isEmpty())
-        || getBigtableOptions() != null && getBigtableOptions().getProjectId() != null
-        && !getBigtableOptions().getProjectId().isEmpty(),
+    checkArgument((getProjectId() != null
+        && (!getProjectId().isAccessible() || !getProjectId().get().isEmpty()))
+        || (getBigtableOptions() != null && getBigtableOptions().getProjectId() != null
+        && !getBigtableOptions().getProjectId().isEmpty()),
       "Could not obtain Bigtable project id");
 
-    checkArgument(getInstanceId() != null
-        && (!getInstanceId().isAccessible() || !getInstanceId().get().isEmpty())
-        || getBigtableOptions() != null && getBigtableOptions().getInstanceId() != null
-        && !getBigtableOptions().getInstanceId().isEmpty(),
+    checkArgument((getInstanceId() != null
+        && (!getInstanceId().isAccessible() || !getInstanceId().get().isEmpty()))
+        || (getBigtableOptions() != null && getBigtableOptions().getInstanceId() != null
+        && !getBigtableOptions().getInstanceId().isEmpty()),
       "Could not obtain Bigtable instance id");
   }
 

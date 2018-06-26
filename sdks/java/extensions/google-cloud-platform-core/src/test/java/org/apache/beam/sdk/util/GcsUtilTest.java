@@ -335,7 +335,7 @@ public class GcsUtilTest {
         mockStorageGet);
     when(mockStorageGet.execute()).thenThrow(expectedException);
 
-    assertEquals(Collections.EMPTY_LIST, gcsUtil.expand(pattern));
+    assertEquals(Collections.emptyList(), gcsUtil.expand(pattern));
   }
 
   // GCSUtil.expand() should fail for other errors such as access denied.

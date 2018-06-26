@@ -21,7 +21,6 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
 /** Interface for any function that can handle a Fn API {@link BeamFnApi.InstructionRequest}. */
-@FunctionalInterface
-public interface InstructionRequestHandler {
+public interface InstructionRequestHandler extends AutoCloseable {
   CompletionStage<BeamFnApi.InstructionResponse> handle(BeamFnApi.InstructionRequest request);
 }

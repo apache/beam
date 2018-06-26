@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.values.KV.of;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -207,18 +206,23 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
     PCollection<Integer> output =
-        pipeline.apply("CreateMainInput", Create.of(29, 31))
-            .apply("OutputSideInputs",
-                ParDo.of(new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    checkArgument(c.sideInput(view).size() == 4);
-                    checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
-                    for (Integer i : c.sideInput(view)) {
-                      c.output(i);
-                    }
-                  }
-                }).withSideInputs(view));
+        pipeline
+            .apply("CreateMainInput", Create.of(29, 31))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            checkArgument(c.sideInput(view).size() == 4);
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                            for (Integer i : c.sideInput(view)) {
+                              c.output(i);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(11, 13, 17, 23, 11, 13, 17, 23);
 
@@ -260,7 +264,8 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             checkArgument(c.sideInput(view).size() == 4);
-                            checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
                             for (Integer i : c.sideInput(view)) {
                               c.output(i);
                             }
@@ -489,7 +494,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(of(c.element(), v));
+                      c.output(KV.of(c.element(), v));
                     }
                   }
                 }).withSideInputs(view));
@@ -583,7 +588,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(of(c.element(), v));
+                      c.output(KV.of(c.element(), v));
                     }
                   }
                 }).withSideInputs(view));
@@ -625,7 +630,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                              c.output(of(c.element(), v));
+                              c.output(KV.of(c.element(), v));
                             }
                           }
                         })
@@ -716,7 +721,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                              c.output(of(c.element(), v));
+                              c.output(KV.of(c.element(), v));
                             }
                           }
                         })
@@ -853,7 +858,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }).withSideInputs(view));
 
@@ -913,7 +918,7 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }).withSideInputs(view));
 
@@ -1044,7 +1049,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             c.output(
-                                of(
+                                KV.of(
                                     c.element(),
                                     c.sideInput(view).get(c.element().substring(0, 1))));
                           }
@@ -1358,6 +1363,7 @@ public class ViewTest implements Serializable {
             .apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply(Combine.globally((Iterable<Void> input) -> null).asSingletonView());
 
+    @SuppressWarnings("ObjectToString")
     PCollection<String> output =
         pipeline.apply("CreateMainInput", Create.of(""))
             .apply(

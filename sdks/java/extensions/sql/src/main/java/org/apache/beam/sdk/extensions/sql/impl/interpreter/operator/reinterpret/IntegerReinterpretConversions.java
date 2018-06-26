@@ -21,9 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Utility class to contain implementations of SQL integer type conversions.
- */
+/** Utility class to contain implementations of SQL integer type conversions. */
 public abstract class IntegerReinterpretConversions {
 
   public static final ReinterpretConversion INTEGER_TYPES_TO_BIGINT =

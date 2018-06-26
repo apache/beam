@@ -23,6 +23,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -63,6 +64,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
 
   private final Class<T> type;
 
+  @SuppressWarnings("WeakerAccess")
   public WritableCoder(Class<T> type) {
     this.type = type;
   }
@@ -80,10 +82,13 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
         // NullWritable has no default constructor
         return (T) NullWritable.get();
       }
-      T t = type.newInstance();
+      T t = type.getDeclaredConstructor().newInstance();
       t.readFields(new DataInputStream(inStream));
       return t;
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw new CoderException("unable to deserialize record", e);
     }
   }
@@ -122,6 +127,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
+  @SuppressWarnings("WeakerAccess")
   public static CoderProvider getCoderProvider() {
     return new WritableCoderProvider();
   }

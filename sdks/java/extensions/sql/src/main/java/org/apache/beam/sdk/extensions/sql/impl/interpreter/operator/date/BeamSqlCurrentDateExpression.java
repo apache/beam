@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import java.util.Collections;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -36,11 +37,14 @@ public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
     super(Collections.emptyList(), SqlTypeName.DATE);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     return getOperands().isEmpty();
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     return BeamSqlPrimitive.of(outputType, DateTime.now());
   }
 }

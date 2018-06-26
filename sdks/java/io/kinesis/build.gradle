@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -32,8 +32,8 @@ test {
 def aws_version = "1.11.255"
 
 dependencies {
-  compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.guava
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
@@ -49,6 +49,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:2.5.0"
 }

@@ -76,13 +76,13 @@ public class HourlyTeamScore extends UserScore {
 
   private static DateTimeFormatter minFmt =
       DateTimeFormat.forPattern("yyyy-MM-dd-HH-mm")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
+          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("America/Los_Angeles")));
 
 
   /**
    * Options supported by {@link HourlyTeamScore}.
    */
-  interface Options extends UserScore.Options {
+  public interface Options extends UserScore.Options {
 
     @Description("Numeric value of fixed window duration, in minutes")
     @Default.Integer(60)

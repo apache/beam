@@ -38,7 +38,6 @@ import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
-import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -97,8 +96,6 @@ public class PubsubIOTest {
   @Test
   public void testReadTopicDisplayData() {
     String topic = "projects/project/topics/topic";
-    String subscription = "projects/project/subscriptions/subscription";
-    Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.readStrings()
         .fromTopic(StaticValueProvider.of(topic))
         .withTimestampAttribute("myTimestamp")
@@ -113,9 +110,7 @@ public class PubsubIOTest {
 
   @Test
   public void testReadSubscriptionDisplayData() {
-    String topic = "projects/project/topics/topic";
     String subscription = "projects/project/subscriptions/subscription";
-    Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.readStrings()
         .fromSubscription(StaticValueProvider.of(subscription))
         .withTimestampAttribute("myTimestamp")

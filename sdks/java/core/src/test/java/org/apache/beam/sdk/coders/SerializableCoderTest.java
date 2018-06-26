@@ -28,8 +28,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -114,7 +114,7 @@ public class SerializableCoderTest implements Serializable {
     IterableCoder<MyRecord> coder = IterableCoder
         .of(SerializableCoder.of(MyRecord.class));
 
-    List<MyRecord> records = new LinkedList<>();
+    List<MyRecord> records = new ArrayList<>();
     for (String l : LINES) {
       records.add(new MyRecord(l));
     }

@@ -18,11 +18,16 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Gearpump"
 
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
 evaluationDependsOn(":beam-sdks-java-core")
 
 def gearpump_version = "0.8.4"
@@ -46,10 +51,12 @@ dependencies {
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.jackson_databind
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.mockito_core
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -73,6 +80,7 @@ task validatesRunnerStreaming(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
   }
 }
 
@@ -81,3 +89,5 @@ task validatesRunner {
   description "Validates Gearpump runner"
   dependsOn validatesRunnerStreaming
 }
+
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Gearpump')

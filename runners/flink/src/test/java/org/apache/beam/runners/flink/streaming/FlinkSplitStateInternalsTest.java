@@ -114,14 +114,6 @@ public class FlinkSplitStateInternalsTest extends StateInternalsTest {
 
   @Override
   @Ignore
-  public void testMergeEarliestWatermarkIntoSource() {}
-
-  @Override
-  @Ignore
-  public void testMergeLatestWatermarkIntoSource() {}
-
-  @Override
-  @Ignore
   public void testSetReadable() {}
 
   @Override

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -29,7 +30,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * Command line flags.
  */
 public interface NexmarkOptions
-    extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {
+    extends ApplicationNameOptions, GcpOptions, PipelineOptions, PubsubOptions, StreamingOptions {
   @Description("Which suite to run. Default is to use command line arguments for one job.")
   @Default.Enum("DEFAULT")
   NexmarkSuite getSuite();
@@ -59,6 +60,12 @@ public interface NexmarkOptions
   NexmarkUtils.SinkType getSinkType();
 
   void setSinkType(NexmarkUtils.SinkType sinkType);
+
+  @Description("Shall we export the summary to BigQuery.")
+  @Default.Boolean(false)
+  Boolean getExportSummaryToBigQuery();
+
+  void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
 
   @Description("Which mode to run in when source is PUBSUB.")
   @Nullable
@@ -98,6 +105,12 @@ public interface NexmarkOptions
   String getBigQueryTable();
 
   void setBigQueryTable(String bigQueryTable);
+
+  @Description("BigQuery dataset")
+  @Default.String("nexmark")
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(String bigQueryDataset);
 
   @Description("Approximate number of events to generate. "
                + "Zero for effectively unlimited in streaming mode.")
@@ -171,19 +184,16 @@ public interface NexmarkOptions
   void setUseWallclockEventTime(Boolean useWallclockEventTime);
 
   @Description("Assert pipeline results match model results.")
-  @Nullable
   boolean getAssertCorrectness();
 
   void setAssertCorrectness(boolean assertCorrectness);
 
   @Description("Log all input events.")
-  @Nullable
   boolean getLogEvents();
 
   void setLogEvents(boolean logEvents);
 
   @Description("Log all query results.")
-  @Nullable
   boolean getLogResults();
 
   void setLogResults(boolean logResults);
@@ -281,7 +291,6 @@ public interface NexmarkOptions
 
   @Description("If true, don't run the actual query. Instead, calculate the distribution "
                + "of number of query results per (event time) minute according to the query model.")
-  @Nullable
   boolean getJustModelResultRate();
 
   void setJustModelResultRate(boolean justModelResultRate);
@@ -407,23 +416,31 @@ public interface NexmarkOptions
 
   void setQueryLanguage(String value);
 
-  @Description("Base name of Kafka source topic in streaming mode.")
+  @Description("Base name of Kafka events topic in streaming mode.")
   @Nullable
-  @Default.String("nexmark-source")
-  String getKafkaSourceTopic();
+  @Default.String("nexmark")
+  String getKafkaTopic();
 
-  void setKafkaSourceTopic(String value);
+  void setKafkaTopic(String value);
 
-  @Description("Base name of Kafka sink topic in streaming mode.")
+  @Description("Base name of Kafka results topic in streaming mode.")
   @Nullable
-  @Default.String("nexmark-sink")
-  String getKafkaSinkTopic();
+  @Default.String("nexmark-results")
+  String getKafkaResultsTopic();
 
-  void setKafkaSinkTopic(String value);
+  void setKafkaResultsTopic(String value);
 
   @Description("Kafka Bootstrap Server domains.")
   @Nullable
   String getBootstrapServers();
 
   void setBootstrapServers(String value);
+
+  @Description("Same as --numWorkers in DataflowPipelineWorkerPoolOptions")
+  int getNumWorkers();
+  void setNumWorkers(int value);
+
+  @Description("Same as --maxNumWorkers in DataflowPipelineWorkerPoolOptions.")
+  int getMaxNumWorkers();
+  void setMaxNumWorkers(int value);
 }

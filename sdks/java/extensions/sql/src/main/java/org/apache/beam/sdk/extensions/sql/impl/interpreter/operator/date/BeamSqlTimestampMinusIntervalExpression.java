@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -56,9 +57,10 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row row, BoundedWindow window) {
-    DateTime date = new DateTime((Object) opValueEvaluated(0, row, window));
-    Period period = intervalToPeriod(op(1).evaluate(row, window));
+  public BeamSqlPrimitive evaluate(
+      Row row, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    DateTime date = new DateTime(opValueEvaluated(0, row, window, env));
+    Period period = intervalToPeriod(op(1).evaluate(row, window, env));
 
     return BeamSqlPrimitive.of(outputType, date.minus(period));
   }
@@ -67,8 +69,10 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
     BigDecimal intervalValue = operand.getDecimal();
     SqlTypeName intervalType = operand.getOutputType();
 
-    int numberOfIntervals = intervalValue
-        .divide(TimeUnitUtils.timeUnitInternalMultiplier(intervalType)).intValueExact();
+    int numberOfIntervals =
+        intervalValue
+            .divide(TimeUnitUtils.timeUnitInternalMultiplier(intervalType))
+            .intValueExact();
 
     return new Period().withField(durationFieldType(intervalType), numberOfIntervals);
   }

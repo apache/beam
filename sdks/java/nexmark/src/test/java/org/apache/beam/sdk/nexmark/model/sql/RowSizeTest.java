@@ -24,7 +24,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,20 +42,20 @@ import org.junit.rules.ExpectedException;
  */
 public class RowSizeTest {
 
-  private static final Schema ROW_TYPE = RowSqlTypes.builder()
-      .withTinyIntField("f_tinyint")
-      .withSmallIntField("f_smallint")
-      .withIntegerField("f_int")
-      .withBigIntField("f_bigint")
-      .withFloatField("f_float")
-      .withDoubleField("f_double")
-      .withDecimalField("f_decimal")
-      .withBooleanField("f_boolean")
-      .withTimeField("f_time")
-      .withDateField("f_date")
-      .withTimestampField("f_timestamp")
-      .withCharField("f_char")
-      .withVarcharField("f_varchar")
+  private static final Schema ROW_TYPE = Schema.builder()
+      .addByteField("f_tinyint")
+      .addInt16Field("f_smallint")
+      .addInt32Field("f_int")
+      .addInt64Field("f_bigint")
+      .addFloatField("f_float")
+      .addDoubleField("f_double")
+      .addDecimalField("f_decimal")
+      .addBooleanField("f_boolean")
+      .addField("f_time", CalciteUtils.TIME)
+      .addField("f_date", CalciteUtils.DATE)
+      .addDateTimeField("f_timestamp")
+      .addField("f_char", CalciteUtils.CHAR)
+      .addField("f_varchar", CalciteUtils.VARCHAR)
       .build();
 
   private static final long ROW_SIZE = 96L;

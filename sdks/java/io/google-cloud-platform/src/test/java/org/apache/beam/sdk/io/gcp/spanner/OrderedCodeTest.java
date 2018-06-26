@@ -790,7 +790,7 @@ public class OrderedCodeTest {
     byte[] separatorEncoded = {OrderedCode.ESCAPE1, OrderedCode.SEPARATOR};
     byte[] ffCharEncoded = {OrderedCode.ESCAPE1, OrderedCode.NULL_CHARACTER};
     byte[] nullCharEncoded = {OrderedCode.ESCAPE2, OrderedCode.FF_CHARACTER};
-    byte[] infinityEncoded  = {OrderedCode.ESCAPE2, OrderedCode.INFINITY};
+    byte[] infinityEncoded = {OrderedCode.ESCAPE2, OrderedCode.INFINITY};
 
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytes(ffChar);

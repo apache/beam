@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,6 +76,24 @@ public class RedisIOTest {
     PAssert.thatSingleton(readNotMatch.apply(Count.globally())).isEqualTo(0L);
 
     readPipeline.run();
+  }
+
+  @Test
+  public void testReadBuildsCorrectly() {
+    RedisIO.Read read = RedisIO.read().withEndpoint("test", 111).withAuth("pass").withTimeout(5);
+    Assert.assertEquals("test", read.connectionConfiguration().host());
+    Assert.assertEquals(111, read.connectionConfiguration().port());
+    Assert.assertEquals("pass", read.connectionConfiguration().auth());
+    Assert.assertEquals(5, read.connectionConfiguration().timeout());
+  }
+
+  @Test
+  public void testWriteBuildsCorrectly() {
+    RedisIO.Write write = RedisIO.write().withEndpoint("test", 111).withAuth("pass").withTimeout(5);
+    Assert.assertEquals("test", write.connectionConfiguration().host());
+    Assert.assertEquals(111, write.connectionConfiguration().port());
+    Assert.assertEquals("pass", write.connectionConfiguration().auth());
+    Assert.assertEquals(5, write.connectionConfiguration().timeout());
   }
 
   /**

@@ -146,6 +146,17 @@ public class MutationGroupEncoderTest {
   }
 
   @Test
+  public void testUtf8() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+    builder.addKeyPart("test", "id", false);
+    builder.addColumn("test", "string_column", "STRING(MAX)");
+    SpannerSchema schema = builder.build();
+
+    Mutation mutation = Mutation.newInsertBuilder("test").set("string_column").to("абвгд").build();
+    encodeAndVerify(g(mutation), schema);
+  }
+
+  @Test
   public void testDeleteCaseInsensitive() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
     builder.addKeyPart("test", "bool_field", false);
@@ -596,8 +607,9 @@ public class MutationGroupEncoderTest {
     return true;
   }
 
-  // Is different from Mutation#equals. Case insensitive for table/column names, the order of
-  // the columns doesn't matter.
+  // Is different from Mutation#equals (hence suppression of warning). Case insensitive for
+  // table/column names, the order of the columns doesn't matter.
+  @SuppressWarnings("ReferenceEquality")
   private static boolean mutationsEqual(Mutation a, Mutation b) {
     if (a == b) {
       return true;

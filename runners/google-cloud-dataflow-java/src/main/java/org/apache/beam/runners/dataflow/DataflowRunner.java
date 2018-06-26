@@ -21,6 +21,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
@@ -29,7 +30,7 @@ import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.services.clouddebugger.v2.Clouddebugger;
+import com.google.api.services.clouddebugger.v2.CloudDebugger;
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeRequest;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
@@ -39,12 +40,13 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
@@ -254,7 +256,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     validator.validateOutputFilePrefixSupported(stagingLocation);
 
-    if (!Strings.isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
+    if (!isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
     }
 
@@ -447,12 +449,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     overridesBuilder
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()))
-        // Order is important. Streaming views almost all use Combine internally.
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-                new PrimitiveCombineGroupedValuesOverrideFactory()))
+                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()));
+    // Order is important. Streaming views almost all use Combine internally.
+    // TODO (BEAM-4118) Remove this check once combiner lifting is implemented for the FnAPI.
+    if (!hasExperiment(options, "beam_fn_api")) {
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
+                  new PrimitiveCombineGroupedValuesOverrideFactory()));
+    }
+    overridesBuilder
         .add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
@@ -617,14 +624,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new RuntimeException("Should not specify the debuggee");
     }
 
-    Clouddebugger debuggerClient = DataflowTransport.newClouddebuggerClient(options).build();
+    CloudDebugger debuggerClient = DataflowTransport.newClouddebuggerClient(options).build();
     Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
     options.setDebuggee(debuggee);
 
     System.out.println(debuggerMessage(options.getProject(), debuggee.getUniquifier()));
   }
 
-  private Debuggee registerDebuggee(Clouddebugger debuggerClient, String uniquifier) {
+  private Debuggee registerDebuggee(CloudDebugger debuggerClient, String uniquifier) {
     RegisterDebuggeeRequest registerReq = new RegisterDebuggeeRequest();
     registerReq.setDebuggee(new Debuggee()
         .setProject(options.getProject())
@@ -745,7 +752,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try (PrintWriter printWriter =
           new PrintWriter(
-              Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)))) {
+              new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(
+                  FileSystems.create(fileResource, MimeTypes.TEXT)), UTF_8)))) {
         printWriter.print(workSpecJson);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
@@ -1207,7 +1215,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingFnApiCreate<T> extends PTransform<PBegin, PCollection<T>> {
     private final Create.Values<T> transform;
-    private final PCollection<T> originalOutput;
+    private final transient PCollection<T> originalOutput;
 
     private StreamingFnApiCreate(
         Create.Values<T> transform,
@@ -1600,7 +1608,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private class StreamingPubsubIOWriteOverrideFactory
+  private static class StreamingPubsubIOWriteOverrideFactory
       implements PTransformOverrideFactory<
           PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
     private final DataflowRunner runner;
@@ -1682,7 +1690,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
-      return Collections.emptyMap();
+      return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
 

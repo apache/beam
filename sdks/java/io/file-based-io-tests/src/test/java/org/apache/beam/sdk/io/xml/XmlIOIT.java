@@ -19,26 +19,26 @@ package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.util.Map;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -71,7 +71,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class XmlIOIT {
 
-  private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
+  /** XmlIOIT options. */
+  public interface XmlIOITPipelineOptions extends FileBasedIOTestPipelineOptions {
+    @Description("Xml file charset name")
+    @Default.String("UTF-8")
+    String getCharset();
+
+    void setCharset(String charset);
+  }
+
+  private static final ImmutableMap<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
     1000, "7f51adaf701441ee83459a3f705c1b86",
     100_000, "af7775de90d0b0c8bbc36273fbca26fe",
     100_000_000, "bfee52b33aa1552b9c1bfa8bcc41ae80"
@@ -88,10 +97,7 @@ public class XmlIOIT {
 
   @BeforeClass
   public static void setup() {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline
-      .testingPipelineOptions()
-      .as(IOTestPipelineOptions.class);
+    XmlIOITPipelineOptions options = readIOTestPipelineOptions(XmlIOITPipelineOptions.class);
 
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     numberOfRecords = options.getNumberOfRecords();
@@ -102,25 +108,26 @@ public class XmlIOIT {
   public void writeThenReadAll() {
     PCollection<String> testFileNames = pipeline
       .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
-      .apply("Create xml records", MapElements.via(new LongToBird()))
-      .apply("Write xml files", FileIO.<Bird>write()
-          .via(XmlIO.sink(Bird.class)
+      .apply("Create xml records", MapElements.via(new LongToBird())).apply("Write xml files",
+        FileIO.<Bird>write()
+          .via(XmlIO
+            .sink(Bird.class)
             .withRootElement("birds")
             .withCharset(charset))
-          .to(filenamePrefix)
-          .withPrefix("birds")
+          .to(filenamePrefix).withPrefix("birds")
           .withSuffix(".xml"))
       .getPerDestinationOutputFilenames()
-      .apply("Prevent fusion", Reshuffle.viaRandomKey())
       .apply("Get file names", Values.create());
 
     PCollection<Bird> birds = testFileNames
       .apply("Find files", FileIO.matchAll())
       .apply("Read matched files", FileIO.readMatches())
-      .apply("Read xml files", XmlIO.<Bird>readFiles()
-        .withRecordClass(Bird.class).withRootElement("birds")
-        .withRecordElement("bird")
-        .withCharset(charset));
+      .apply("Read xml files",
+        XmlIO.<Bird>readFiles()
+          .withRecordClass(Bird.class)
+          .withRootElement("birds")
+          .withRecordElement("bird")
+          .withCharset(charset));
 
     PCollection<String> consolidatedHashcode = birds
       .apply("Map xml records to strings", MapElements.via(new BirdToString()))
@@ -130,7 +137,7 @@ public class XmlIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFileNames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+      .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }

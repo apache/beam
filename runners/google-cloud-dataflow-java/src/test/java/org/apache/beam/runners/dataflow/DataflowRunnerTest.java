@@ -71,7 +71,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,6 +102,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
@@ -125,6 +125,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
@@ -299,7 +300,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
-    options.setFilesToStage(new LinkedList<>());
+    options.setFilesToStage(new ArrayList<>());
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
@@ -535,7 +536,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
-    PCollection<String> unconsumed = p.apply(TextIO.read().from(options.getInput()));
+    p.apply(TextIO.read().from(options.getInput()));
     DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(new PipelineVisitor.Defaults() {
@@ -1089,7 +1090,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(new TestTransform());
 
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(Matchers.containsString("no translator registered"));
+    thrown.expectMessage(containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
         .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
 
@@ -1181,7 +1182,7 @@ public class DataflowRunnerTest implements Serializable {
   public void testSetStateUnsupportedInBatch() throws Exception {
     PipelineOptions options = buildPipelineOptions();
     options.as(StreamingOptions.class).setStreaming(false);
-    Pipeline p = Pipeline.create(options);
+    Pipeline.create(options);
     verifySetStateUnsupported(options);
   }
 
@@ -1376,6 +1377,15 @@ public class DataflowRunnerTest implements Serializable {
             factory.getReplacementTransform(originalApplication).getTransform();
     assertThat(replacement, not(equalTo((Object) original)));
     assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
+
+    WriteFilesResult<Void> originalResult = objs.apply(original);
+    WriteFilesResult<Void> replacementResult = objs.apply(replacement);
+    Map<PValue, ReplacementOutput> res = factory
+        .mapOutputs(originalResult.expand(), replacementResult);
+    assertEquals(1, res.size());
+    assertEquals(
+        originalResult.getPerDestinationOutputFilenames(),
+        res.get(replacementResult.getPerDestinationOutputFilenames()).getOriginal().getValue());
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
@@ -1409,7 +1419,12 @@ public class DataflowRunnerTest implements Serializable {
 
     @Override
     public WriteOperation<Void, Object> createWriteOperation() {
-      throw new IllegalArgumentException("Should not be used");
+      return new WriteOperation<Void, Object>(this) {
+        @Override
+        public Writer<Void, Object> createWriter() {
+          throw new UnsupportedOperationException();
+        }
+      };
     }
   }
 }

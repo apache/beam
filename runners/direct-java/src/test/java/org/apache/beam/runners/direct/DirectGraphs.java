@@ -23,7 +23,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
 
 /** Test utilities for the {@link DirectRunner}. */
-final class DirectGraphs {
+public final class DirectGraphs {
   public static void performDirectOverrides(Pipeline p) {
     p.replaceAll(
         DirectRunner.fromOptions(PipelineOptionsFactory.create().as(DirectOptions.class))

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Reference :: Java"
@@ -27,8 +27,11 @@ framework to execute user-definied functions."""
 dependencies {
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow library.java.slf4j_api
-  testCompile library.java.junit
+  shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
 }

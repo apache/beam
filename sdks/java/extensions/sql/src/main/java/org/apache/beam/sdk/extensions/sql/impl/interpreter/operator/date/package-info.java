@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * date functions.
- */
+/** date functions. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;

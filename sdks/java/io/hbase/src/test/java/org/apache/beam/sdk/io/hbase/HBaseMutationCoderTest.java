@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Increment;
@@ -36,13 +37,13 @@ public class HBaseMutationCoderTest {
 
   @Test
   public void testMutationEncoding() throws Exception {
-    Mutation put = new Put("1".getBytes());
+    Mutation put = new Put("1".getBytes(StandardCharsets.UTF_8));
     CoderProperties.structuralValueDecodeEncodeEqual(CODER, put);
 
-    Mutation delete = new Delete("1".getBytes());
+    Mutation delete = new Delete("1".getBytes(StandardCharsets.UTF_8));
     CoderProperties.structuralValueDecodeEncodeEqual(CODER, delete);
 
-    Mutation increment = new Increment("1".getBytes());
+    Mutation increment = new Increment("1".getBytes(StandardCharsets.UTF_8));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Only Put and Delete are supported");
     CoderProperties.coderDecodeEncodeEqual(CODER, increment);

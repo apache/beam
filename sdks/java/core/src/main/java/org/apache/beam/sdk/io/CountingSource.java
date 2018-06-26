@@ -366,6 +366,7 @@ public class CountingSource {
       return VarLongCoder.of();
     }
 
+    @Override
     public boolean equals(Object other) {
       if (!(other instanceof UnboundedCountingSource)) {
         return false;
@@ -378,6 +379,7 @@ public class CountingSource {
           && Objects.equals(this.timestampFn, that.timestampFn);
     }
 
+    @Override
     public int hashCode() {
       return Objects.hash(start, stride, elementsPerPeriod, period, timestampFn);
     }
@@ -477,7 +479,8 @@ public class CountingSource {
     @Override
     public long getSplitBacklogBytes() {
       long expected = expectedValue();
-      return Math.max(0L, 8 * (expected - current) / source.stride);
+      long backlogElements = (expected - current) / source.stride;
+      return Math.max(0L, 8 * backlogElements);
     }
   }
 

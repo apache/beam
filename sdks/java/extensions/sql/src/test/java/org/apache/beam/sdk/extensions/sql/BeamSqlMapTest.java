@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.HashMap;
+import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -25,49 +25,46 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests for SQL MAP type.
- */
+/** Tests for SQL MAP type. */
 public class BeamSqlMapTest {
 
-  private static final Schema INPUT_ROW_TYPE = RowSqlTypes.builder().withIntegerField("f_int")
-      .withMapField("f_intStringMap", SqlTypeName.VARCHAR, SqlTypeName.INTEGER).build();
+  private static final Schema INPUT_ROW_TYPE =
+      Schema.builder()
+          .addInt32Field("f_int")
+          .addMapField("f_intStringMap", Schema.FieldType.STRING, Schema.FieldType.INT32)
+          .build();
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public ExpectedException exceptions = ExpectedException.none();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException exceptions = ExpectedException.none();
 
   @Test
   public void testSelectAll() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_int")
-        .withMapField("f_map", SqlTypeName.VARCHAR, SqlTypeName.INTEGER).build();
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addNullableField(
+                "f_map", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32))
+            .build();
 
-    PCollection<Row> result = input.apply("sqlQuery",
-        BeamSql.query("SELECT f_int, f_intStringMap as f_map FROM PCOLLECTION"));
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery",
+            SqlTransform.query("SELECT f_int, f_intStringMap as f_map FROM PCOLLECTION"));
 
     PAssert.that(result)
-        .containsInAnyOrder(Row.withSchema(resultType).addValues(1, new HashMap<String, Integer>() {
-          {
-            put("key11", 11);
-            put("key22", 22);
-          }
-        }).build(),
-
-            Row.withSchema(resultType).addValues(2, new HashMap<String, Integer>() {
-              {
-                put("key33", 33);
-                put("key44", 44);
-                put("key55", 55);
-              }
-            }).build());
+        .containsInAnyOrder(
+            Row.withSchema(resultType)
+                .addValues(1, ImmutableMap.of("key11", 11, "key22", 22))
+                .build(),
+            Row.withSchema(resultType)
+                .addValues(2, ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
+                .build());
 
     pipeline.run();
   }
@@ -76,22 +73,20 @@ public class BeamSqlMapTest {
   public void testSelectMapField() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_int")
-        .withMapField("f_intStringMap", SqlTypeName.VARCHAR, SqlTypeName.INTEGER).build();
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addMapField("f_intStringMap", Schema.FieldType.STRING, Schema.FieldType.INT32)
+            .build();
 
-    PCollection<Row> result = input.apply("sqlQuery",
-        BeamSql.query("SELECT 42, MAP['aa', 1] as `f_map` FROM PCOLLECTION"));
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery", SqlTransform.query("SELECT 42, MAP['aa', 1] as `f_map` FROM PCOLLECTION"));
 
-    PAssert.that(result).containsInAnyOrder(
-        Row.withSchema(resultType).addValues(42, new HashMap<String, Integer>() {
-          {
-            put("aa", 1);
-          }
-        }).build(), Row.withSchema(resultType).addValues(42, new HashMap<String, Integer>() {
-          {
-            put("aa", 1);
-          }
-        }).build());
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", 1)).build(),
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", 1)).build());
 
     pipeline.run();
   }
@@ -100,32 +95,34 @@ public class BeamSqlMapTest {
   public void testAccessMapElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_mapElem").build();
+    Schema resultType =
+        Schema.builder().addNullableField("f_mapElem", Schema.FieldType.INT32).build();
 
-    PCollection<Row> result = input.apply("sqlQuery",
-        BeamSql.query("SELECT f_intStringMap['key11'] FROM PCOLLECTION"));
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery", SqlTransform.query("SELECT f_intStringMap['key11'] FROM PCOLLECTION"));
 
-    PAssert.that(result).containsInAnyOrder(Row.withSchema(resultType).addValues(11).build(),
-        Row.withSchema(resultType).addValue(null).build());
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues(11).build(),
+            Row.withSchema(resultType).addValue(null).build());
 
     pipeline.run();
   }
 
   private PCollection<Row> pCollectionOf2Elements() {
-    return PBegin.in(pipeline).apply("boundedInput1", Create
-        .of(Row.withSchema(INPUT_ROW_TYPE).addValues(1).addValue(new HashMap<String, Integer>() {
-          {
-            put("key11", 11);
-            put("key22", 22);
-          }
-        }).build(),
-            Row.withSchema(INPUT_ROW_TYPE).addValues(2).addValue(new HashMap<String, Integer>() {
-              {
-                put("key33", 33);
-                put("key44", 44);
-                put("key55", 55);
-              }
-            }).build())
-        .withCoder(INPUT_ROW_TYPE.getRowCoder()));
+    return PBegin.in(pipeline)
+        .apply(
+            "boundedInput1",
+            Create.of(
+                    Row.withSchema(INPUT_ROW_TYPE)
+                        .addValues(1)
+                        .addValue(ImmutableMap.of("key11", 11, "key22", 22))
+                        .build(),
+                    Row.withSchema(INPUT_ROW_TYPE)
+                        .addValues(2)
+                        .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
+                        .build())
+                .withCoder(INPUT_ROW_TYPE.getRowCoder()));
   }
 }

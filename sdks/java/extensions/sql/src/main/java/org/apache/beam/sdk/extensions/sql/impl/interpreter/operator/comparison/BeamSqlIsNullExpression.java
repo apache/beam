@@ -19,15 +19,14 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for 'IS NULL' operation.
- */
+/** {@code BeamSqlExpression} for 'IS NULL' operation. */
 public class BeamSqlIsNullExpression extends BeamSqlExpression {
 
   private BeamSqlIsNullExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
@@ -38,17 +37,16 @@ public class BeamSqlIsNullExpression extends BeamSqlExpression {
     this(Arrays.asList(operand), SqlTypeName.BOOLEAN);
   }
 
-  /**
-   * only one operand is required.
-   */
+  /** only one operand is required. */
   @Override
   public boolean accept() {
     return operands.size() == 1;
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(Row inputRow, BoundedWindow window) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window).getValue();
+  public BeamSqlPrimitive<Boolean> evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Object leftValue = operands.get(0).evaluate(inputRow, window, env).getValue();
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue == null);
   }
 }

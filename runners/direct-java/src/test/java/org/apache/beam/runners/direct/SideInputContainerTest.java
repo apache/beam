@@ -27,6 +27,8 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -461,7 +463,8 @@ public class SideInputContainerTest {
             invocation -> {
               Object callback = invocation.getArguments()[3];
               final Runnable callbackRunnable = (Runnable) callback;
-              Executors.newSingleThreadExecutor()
+              ListenableFuture<?> result = MoreExecutors
+                  .listeningDecorator(Executors.newSingleThreadExecutor())
                   .submit(
                       () -> {
                         try {
@@ -471,9 +474,8 @@ public class SideInputContainerTest {
                           callbackRunnable.run();
                           onComplete.countDown();
                         } catch (InterruptedException e) {
-                          fail(
-                              "Unexpectedly interrupted while waiting for latch "
-                                  + "to be counted down");
+                          throw new AssertionError(
+                              "Unexpectedly interrupted while waiting for latch ", e);
                         }
                       });
               return null;

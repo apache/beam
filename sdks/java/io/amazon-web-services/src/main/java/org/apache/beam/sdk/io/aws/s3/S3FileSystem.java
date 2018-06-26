@@ -27,11 +27,14 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
 import com.amazonaws.services.s3.model.CopyObjectRequest;
+import com.amazonaws.services.s3.model.CopyObjectResult;
 import com.amazonaws.services.s3.model.CopyPartRequest;
 import com.amazonaws.services.s3.model.CopyPartResult;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest.KeyVersion;
+import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
@@ -43,7 +46,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -61,13 +63,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.aws.options.S3Options;
@@ -81,36 +83,40 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);
 
-  // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
-  private static final int MINIMUM_UPLOAD_BUFFER_SIZE_BYTES = 5 * 1024 * 1024;
-  private static final int DEFAULT_UPLOAD_BUFFER_SIZE_BYTES =
-      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
-          ? MINIMUM_UPLOAD_BUFFER_SIZE_BYTES
-          : 64 * 1024 * 1024;
+
   // Amazon S3 API: You can create a copy of your object up to 5 GB in a single atomic operation
   // Ref. https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html
-  private static final int MAX_COPY_OBJECT_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
+  private static final long MAX_COPY_OBJECT_SIZE_BYTES = 5_368_709_120L;
 
   // S3 API, delete-objects: "You may specify up to 1000 keys."
   private static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
 
-  private static final Set<String> NON_READ_SEEK_EFFICIENT_ENCODINGS = ImmutableSet.of("gzip");
+  private static final ImmutableSet<String> NON_READ_SEEK_EFFICIENT_ENCODINGS =
+      ImmutableSet.of("gzip");
 
   // Non-final for testing.
   private AmazonS3 amazonS3;
-  private final String storageClass;
-  private final int s3UploadBufferSizeBytes;
+  private final S3Options options;
   private final ListeningExecutorService executorService;
 
   S3FileSystem(S3Options options) {
-    checkNotNull(options, "options");
-
+    this.options = checkNotNull(options, "options");
     if (Strings.isNullOrEmpty(options.getAwsRegion())) {
       LOG.info(
           "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
               + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
+    this.amazonS3 = buildAmazonS3Client(options);
 
+    checkNotNull(options.getS3StorageClass(), "storageClass");
+    checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
+    executorService =
+        MoreExecutors.listeningDecorator(
+            Executors.newFixedThreadPool(
+                options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+  }
+
+  private static AmazonS3 buildAmazonS3Client(S3Options options) {
     AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard().withCredentials(options.getAwsCredentialsProvider());
     if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
@@ -120,24 +126,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           builder.withEndpointConfiguration(
               new EndpointConfiguration(options.getAwsServiceEndpoint(), options.getAwsRegion()));
     }
-    amazonS3 = builder.build();
-
-    this.storageClass = checkNotNull(options.getS3StorageClass(), "storageClass");
-
-    int uploadBufferSizeBytes;
-    if (options.getS3UploadBufferSizeBytes() != null) {
-      uploadBufferSizeBytes = options.getS3UploadBufferSizeBytes();
-    } else {
-      uploadBufferSizeBytes = DEFAULT_UPLOAD_BUFFER_SIZE_BYTES;
-    }
-    this.s3UploadBufferSizeBytes =
-        Math.max(MINIMUM_UPLOAD_BUFFER_SIZE_BYTES, uploadBufferSizeBytes);
-
-    checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
-    executorService =
-        MoreExecutors.listeningDecorator(
-            Executors.newFixedThreadPool(
-                options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+    return builder.build();
   }
 
   @Override
@@ -155,15 +144,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     return this.amazonS3;
   }
 
-  @VisibleForTesting
-  int getS3UploadBufferSizeBytes() {
-    return s3UploadBufferSizeBytes;
-  }
-
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
     List<S3ResourceId> paths =
-        FluentIterable.from(specs).transform(spec -> S3ResourceId.fromUri(spec)).toList();
+        specs.stream().map(S3ResourceId::fromUri).collect(Collectors.toList());
     List<S3ResourceId> globs = new ArrayList<>();
     List<S3ResourceId> nonGlobs = new ArrayList<>();
     List<Boolean> isGlobBooleans = new ArrayList<>();
@@ -356,7 +340,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private PathWithEncoding getPathContentEncoding(S3ResourceId path) {
     ObjectMetadata s3Metadata;
     try {
-      s3Metadata = amazonS3.getObjectMetadata(path.getBucket(), path.getKey());
+      s3Metadata = getObjectMetadata(path);
     } catch (AmazonClientException e) {
       if (e instanceof AmazonS3Exception && ((AmazonS3Exception) e).getStatusCode() == 404) {
         return PathWithEncoding.create(path, new FileNotFoundException());
@@ -375,11 +359,18 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     return callTasks(tasks);
   }
 
+  private ObjectMetadata getObjectMetadata(S3ResourceId s3ResourceId) throws AmazonClientException {
+    GetObjectMetadataRequest request =
+        new GetObjectMetadataRequest(s3ResourceId.getBucket(), s3ResourceId.getKey());
+    request.setSSECustomerKey(options.getSSECustomerKey());
+    return amazonS3.getObjectMetadata(request);
+  }
+
   @VisibleForTesting
   MatchResult matchNonGlobPath(S3ResourceId path) {
     ObjectMetadata s3Metadata;
     try {
-      s3Metadata = amazonS3.getObjectMetadata(path.getBucket(), path.getKey());
+      s3Metadata = getObjectMetadata(path);
     } catch (AmazonClientException e) {
       if (e instanceof AmazonS3Exception && ((AmazonS3Exception) e).getStatusCode() == 404) {
         return MatchResult.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException());
@@ -472,13 +463,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected WritableByteChannel create(S3ResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return new S3WritableByteChannel(
-        amazonS3, resourceId, createOptions.mimeType(), storageClass, s3UploadBufferSizeBytes);
+    return new S3WritableByteChannel(amazonS3, resourceId, createOptions.mimeType(), options);
   }
 
   @Override
   protected ReadableByteChannel open(S3ResourceId resourceId) throws IOException {
-    return new S3ReadableSeekableByteChannel(amazonS3, resourceId);
+    return new S3ReadableSeekableByteChannel(amazonS3, resourceId, options);
   }
 
   @Override
@@ -509,12 +499,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @VisibleForTesting
   void copy(S3ResourceId sourcePath, S3ResourceId destinationPath) throws IOException {
     try {
-      ObjectMetadata objectMetadata =
-          amazonS3.getObjectMetadata(sourcePath.getBucket(), sourcePath.getKey());
-      if (objectMetadata.getContentLength() < MAX_COPY_OBJECT_SIZE_BYTES) {
-        atomicCopy(sourcePath, destinationPath);
+      ObjectMetadata sourceObjectMetadata = getObjectMetadata(sourcePath);
+      if (sourceObjectMetadata.getContentLength() < MAX_COPY_OBJECT_SIZE_BYTES) {
+        atomicCopy(sourcePath, destinationPath, sourceObjectMetadata);
       } else {
-        multipartCopy(sourcePath, destinationPath, objectMetadata);
+        multipartCopy(sourcePath, destinationPath, sourceObjectMetadata);
       }
     } catch (AmazonClientException e) {
       throw new IOException(e);
@@ -522,7 +511,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   }
 
   @VisibleForTesting
-  void atomicCopy(S3ResourceId sourcePath, S3ResourceId destinationPath)
+  CopyObjectResult atomicCopy(
+      S3ResourceId sourcePath, S3ResourceId destinationPath, ObjectMetadata sourceObjectMetadata)
       throws AmazonClientException {
     CopyObjectRequest copyObjectRequest =
         new CopyObjectRequest(
@@ -530,19 +520,22 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             sourcePath.getKey(),
             destinationPath.getBucket(),
             destinationPath.getKey());
-    copyObjectRequest.setStorageClass(storageClass);
-
-    amazonS3.copyObject(copyObjectRequest);
+    copyObjectRequest.setNewObjectMetadata(sourceObjectMetadata);
+    copyObjectRequest.setStorageClass(options.getS3StorageClass());
+    copyObjectRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
+    copyObjectRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
+    return amazonS3.copyObject(copyObjectRequest);
   }
 
   @VisibleForTesting
-  void multipartCopy(
-      S3ResourceId sourcePath, S3ResourceId destinationPath, ObjectMetadata objectMetadata)
+  CompleteMultipartUploadResult multipartCopy(
+      S3ResourceId sourcePath, S3ResourceId destinationPath, ObjectMetadata sourceObjectMetadata)
       throws AmazonClientException {
     InitiateMultipartUploadRequest initiateUploadRequest =
         new InitiateMultipartUploadRequest(destinationPath.getBucket(), destinationPath.getKey())
-            .withStorageClass(storageClass)
-            .withObjectMetadata(objectMetadata);
+            .withStorageClass(options.getS3StorageClass())
+            .withObjectMetadata(sourceObjectMetadata);
+    initiateUploadRequest.setSSECustomerKey(options.getSSECustomerKey());
 
     InitiateMultipartUploadResult initiateUploadResult =
         amazonS3.initiateMultipartUpload(initiateUploadRequest);
@@ -550,7 +543,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     List<PartETag> eTags = new ArrayList<>();
 
-    final long objectSize = objectMetadata.getContentLength();
+    final long objectSize = sourceObjectMetadata.getContentLength();
     // extra validation in case a caller calls directly S3FileSystem.multipartCopy
     // without using S3FileSystem.copy in the future
     if (objectSize == 0) {
@@ -562,11 +555,14 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
               .withDestinationKey(destinationPath.getKey())
               .withUploadId(uploadId)
               .withPartNumber(1);
+      copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
+      copyPartRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
 
       CopyPartResult copyPartResult = amazonS3.copyPart(copyPartRequest);
       eTags.add(copyPartResult.getPartETag());
     } else {
       long bytePosition = 0;
+      Integer uploadBufferSizeBytes = options.getS3UploadBufferSizeBytes();
       // Amazon parts are 1-indexed, not zero-indexed.
       for (int partNumber = 1; bytePosition < objectSize; partNumber++) {
         final CopyPartRequest copyPartRequest =
@@ -578,12 +574,14 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 .withUploadId(uploadId)
                 .withPartNumber(partNumber)
                 .withFirstByte(bytePosition)
-                .withLastByte(Math.min(objectSize - 1, bytePosition + s3UploadBufferSizeBytes - 1));
+                .withLastByte(Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1));
+        copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
+        copyPartRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
 
         CopyPartResult copyPartResult = amazonS3.copyPart(copyPartRequest);
         eTags.add(copyPartResult.getPartETag());
 
-        bytePosition += s3UploadBufferSizeBytes;
+        bytePosition += uploadBufferSizeBytes;
       }
     }
 
@@ -593,7 +591,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             .withKey(destinationPath.getKey())
             .withUploadId(uploadId)
             .withPartETags(eTags);
-    amazonS3.completeMultipartUpload(completeUploadRequest);
+    return amazonS3.completeMultipartUpload(completeUploadRequest);
   }
 
   @Override
@@ -607,9 +605,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected void delete(Collection<S3ResourceId> resourceIds) throws IOException {
     List<S3ResourceId> nonDirectoryPaths =
-        FluentIterable.from(resourceIds)
+        resourceIds
+            .stream()
             .filter(s3ResourceId -> !s3ResourceId.isDirectory())
-            .toList();
+            .collect(Collectors.toList());
     Multimap<String, String> keysByBucket = ArrayListMultimap.create();
     for (S3ResourceId path : nonDirectoryPaths) {
       keysByBucket.put(path.getBucket(), path.getKey());
@@ -633,11 +632,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private void delete(String bucket, Collection<String> keys) throws IOException {
     checkArgument(
         keys.size() <= MAX_DELETE_OBJECTS_PER_REQUEST,
-        "only %d keys can be deleted per request, but got %d",
+        "only %s keys can be deleted per request, but got %s",
         MAX_DELETE_OBJECTS_PER_REQUEST,
         keys.size());
     List<KeyVersion> deleteKeyVersions =
-        FluentIterable.from(keys).transform(key -> new KeyVersion(key)).toList();
+        keys.stream().map(KeyVersion::new).collect(Collectors.toList());
     DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
     try {
       amazonS3.deleteObjects(request);
@@ -671,7 +670,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     try {
       List<CompletionStage<T>> futures = new ArrayList<>(tasks.size());
       for (Callable<T> task : tasks) {
-        futures.add(MoreFutures.supplyAsync(() -> task.call(), executorService));
+        futures.add(MoreFutures.supplyAsync(task::call, executorService));
       }
       return MoreFutures.get(MoreFutures.allAsList(futures));
 

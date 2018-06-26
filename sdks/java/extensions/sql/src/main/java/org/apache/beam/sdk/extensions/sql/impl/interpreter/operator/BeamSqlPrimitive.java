@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.base.MoreObjects;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -27,17 +29,16 @@ import org.apache.calcite.util.NlsString;
 import org.joda.time.ReadableInstant;
 
 /**
- * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}.
- * It holds the value, and return it directly during {@link #evaluate(Row, BoundedWindow)}.
- *
+ * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}. It holds the
+ * value, and return it directly during {@link BeamSqlExpression#evaluate(Row, BoundedWindow,
+ * BeamSqlExpressionEnvironment)}.
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   private T value;
 
-  private BeamSqlPrimitive() {
-  }
+  private BeamSqlPrimitive() {}
 
-  private  BeamSqlPrimitive(T value, SqlTypeName typeName) {
+  private BeamSqlPrimitive(T value, SqlTypeName typeName) {
     this.outputType = typeName;
     this.value = value;
     if (!accept()) {
@@ -50,13 +51,12 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  /**
-   * A builder function to create from Type and value directly.
-   */
+  /** A builder function to create from Type and value directly. */
   public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value) {
     return new BeamSqlPrimitive<>(value, outputType);
   }
 
+  @Override
   public SqlTypeName getOutputType() {
     return outputType;
   }
@@ -88,6 +88,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   public byte getByte() {
     return (Byte) getValue();
   }
+
   public boolean getBoolean() {
     return (Boolean) getValue();
   }
@@ -111,55 +112,65 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     }
 
     switch (outputType) {
-    case BIGINT:
-      return value instanceof Long;
-    case DECIMAL:
-      return value instanceof BigDecimal;
-    case DOUBLE:
-      return value instanceof Double;
-    case FLOAT:
-      return value instanceof Float;
-    case INTEGER:
-      return value instanceof Integer;
-    case SMALLINT:
-      return value instanceof Short;
-    case TINYINT:
-      return value instanceof Byte;
-    case BOOLEAN:
-      return value instanceof Boolean;
-    case CHAR:
-    case VARCHAR:
-      return value instanceof String || value instanceof NlsString;
-    case TIME:
-      return value instanceof ReadableInstant;
-    case TIMESTAMP:
-    case DATE:
-      return value instanceof ReadableInstant;
-    case INTERVAL_SECOND:
-    case INTERVAL_MINUTE:
-    case INTERVAL_HOUR:
-    case INTERVAL_DAY:
-    case INTERVAL_MONTH:
-    case INTERVAL_YEAR:
-      return value instanceof BigDecimal;
-    case SYMBOL:
-      // for SYMBOL, it supports anything...
-      return true;
-    case ARRAY:
-      return value instanceof List;
-    case MAP:
-      return value instanceof Map;
-    case ROW:
-      return value instanceof Row;
-    default:
-      throw new UnsupportedOperationException(
-          "Unsupported Beam SQL type in expression: " + outputType.name());
+      case BIGINT:
+        return value instanceof Long;
+      case DECIMAL:
+        return value instanceof BigDecimal;
+      case DOUBLE:
+        return value instanceof Double;
+      case FLOAT:
+        return value instanceof Float;
+      case INTEGER:
+        return value instanceof Integer;
+      case SMALLINT:
+        return value instanceof Short;
+      case TINYINT:
+        return value instanceof Byte;
+      case BOOLEAN:
+        return value instanceof Boolean;
+      case CHAR:
+      case VARCHAR:
+        return value instanceof String || value instanceof NlsString;
+      case TIME:
+        return value instanceof ReadableInstant;
+      case TIMESTAMP:
+      case DATE:
+        return value instanceof ReadableInstant;
+      case INTERVAL_SECOND:
+      case INTERVAL_MINUTE:
+      case INTERVAL_HOUR:
+      case INTERVAL_DAY:
+      case INTERVAL_MONTH:
+      case INTERVAL_YEAR:
+        return value instanceof BigDecimal;
+      case SYMBOL:
+        // for SYMBOL, it supports anything...
+        return true;
+      case ARRAY:
+        return value instanceof List;
+      case MAP:
+        return value instanceof Map;
+      case ROW:
+        return value instanceof Row;
+      case MULTISET:
+        return value instanceof Iterable;
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported Beam SQL type in expression: " + outputType.name());
     }
   }
 
   @Override
-  public BeamSqlPrimitive<T> evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<T> evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     return this;
   }
 
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("value", value)
+        .add("outputType", outputType)
+        .toString();
+  }
 }

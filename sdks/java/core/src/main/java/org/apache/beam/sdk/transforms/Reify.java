@@ -22,6 +22,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * {@link PTransform PTransforms} for converting between explicit and implicit form of various Beam
@@ -91,10 +93,13 @@ public class Reify {
               ParDo.of(
                   new DoFn<T, ValueInSingleWindow<T>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c, BoundedWindow window) {
-                      c.outputWithTimestamp(
-                          ValueInSingleWindow.of(c.element(), c.timestamp(), window, c.pane()),
-                          c.timestamp());
+                    public void processElement(@Element T element,
+                                               @Timestamp Instant timestamp,
+                                               BoundedWindow window,
+                                               PaneInfo pane,
+                                               OutputReceiver<ValueInSingleWindow<T>> r) {
+                      r.outputWithTimestamp(
+                          ValueInSingleWindow.of(element, timestamp, window, pane), timestamp);
                     }
                   }))
           .setCoder(
@@ -112,8 +117,10 @@ public class Reify {
               ParDo.of(
                   new DoFn<T, TimestampedValue<T>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext context) {
-                      context.output(TimestampedValue.of(context.element(), context.timestamp()));
+                    public void processElement(@Element T element,
+                                               @Timestamp Instant timestamp,
+                                               OutputReceiver<TimestampedValue<T>> r) {
+                      r.output(TimestampedValue.of(element, timestamp));
                     }
                   }))
           .setCoder(TimestampedValueCoder.of(input.getCoder()));
@@ -130,12 +137,17 @@ public class Reify {
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, ValueInSingleWindow<V>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c, BoundedWindow window) {
-                      c.output(
+                    public void processElement(
+                        @Element KV<K, V> element,
+                        @Timestamp Instant timestamp,
+                        BoundedWindow window,
+                        PaneInfo pane,
+                        OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
+                      r.output(
                           KV.of(
-                              c.element().getKey(),
+                              element.getKey(),
                               ValueInSingleWindow.of(
-                                  c.element().getValue(), c.timestamp(), window, c.pane())));
+                                  element.getValue(), timestamp, window, pane)));
                     }
                   }))
           .setCoder(
@@ -157,12 +169,13 @@ public class Reify {
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext context) {
-                      context.output(
+                    public void processElement(@Element KV<K, V> element,
+                                               @Timestamp Instant timestamp,
+                                               OutputReceiver<KV<K, TimestampedValue<V>>> r) {
+                      r.output(
                           KV.of(
-                              context.element().getKey(),
-                              TimestampedValue.of(
-                                  context.element().getValue(), context.timestamp())));
+                              element.getKey(),
+                              TimestampedValue.of(element.getValue(), timestamp)));
                     }
                   }))
           .setCoder(
@@ -186,9 +199,9 @@ public class Reify {
                     }
 
                     @ProcessElement
-                    public void processElement(ProcessContext context) {
-                      KV<K, TimestampedValue<V>> kv = context.element();
-                      context.outputWithTimestamp(
+                    public void processElement(@Element KV<K, TimestampedValue<V>> kv,
+                                               OutputReceiver<KV<K, V>> r) {
+                      r.outputWithTimestamp(
                           KV.of(kv.getKey(), kv.getValue().getValue()),
                           kv.getValue().getTimestamp());
                     }

@@ -28,10 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 
-/**
- * State internals for reusable processing context.
- * @param <K>
- */
+/** State internals for reusable processing context. */
 @DefaultSerializer(JavaSerializer.class)
 public class StateInternalsProxy<K> implements StateInternals, Serializable {
 

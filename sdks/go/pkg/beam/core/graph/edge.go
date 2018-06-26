@@ -31,12 +31,13 @@ type Opcode string
 
 // Valid opcodes.
 const (
-	Impulse  Opcode = "Impulse"
-	ParDo    Opcode = "ParDo"
-	CoGBK    Opcode = "CoGBK"
-	External Opcode = "External"
-	Flatten  Opcode = "Flatten"
-	Combine  Opcode = "Combine"
+	Impulse    Opcode = "Impulse"
+	ParDo      Opcode = "ParDo"
+	CoGBK      Opcode = "CoGBK"
+	External   Opcode = "External"
+	Flatten    Opcode = "Flatten"
+	Combine    Opcode = "Combine"
+	WindowInto Opcode = "WindowInto"
 )
 
 // InputKind represents the role of the input and its shape.
@@ -135,20 +136,19 @@ type Payload struct {
 	Data []byte
 }
 
-// TODO(herohde) 5/24/2017: how should we represent/obtain the coder for Combine
-// accumulator types? Coder registry? Assume JSON?
-
 // MultiEdge represents a primitive data processing operation. Each non-user
 // code operation may be implemented by either the harness or the runner.
 type MultiEdge struct {
 	id     int
 	parent *Scope
 
-	Op        Opcode
-	DoFn      *DoFn      // ParDo
-	CombineFn *CombineFn // Combine
-	Value     []byte     // Impulse
-	Payload   *Payload   // External
+	Op         Opcode
+	DoFn       *DoFn        // ParDo
+	CombineFn  *CombineFn   // Combine
+	AccumCoder *coder.Coder // Combine
+	Value      []byte       // Impulse
+	Payload    *Payload     // External
+	WindowFn   *window.Fn   // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -195,7 +195,8 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 	// (1) Create CoGBK result type: KV<T,U>, .., KV<T,Z> -> CoGBK<T,U,..,Z>.
 
 	c := ns[0].Coder.Components[0]
-	w := ns[0].Window()
+	w := inputWindow(ns)
+	bounded := inputBounded(ns)
 	comp := []typex.FullType{c.T, ns[0].Type().Components()[1]}
 
 	for i := 1; i < len(ns); i++ {
@@ -206,15 +207,18 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 		if !n.Coder.Components[0].Equals(c) {
 			return nil, fmt.Errorf("key coder for %v is %v, want %v", n, n.Coder.Components[0], c)
 		}
-		if !w.Equals(n.Window()) {
-			return nil, fmt.Errorf("mismatched cogbk window types: %v, want %v", n.Window(), w)
+		if !w.Equals(n.WindowingStrategy()) {
+			return nil, fmt.Errorf("mismatched cogbk windowing strategies: %v, want %v", n.WindowingStrategy(), w)
+		}
+		if bounded != n.Bounded() {
+			return nil, fmt.Errorf("unmatched cogbk boundedness: %v, want %v", n.Bounded(), bounded)
 		}
 
 		comp = append(comp, n.Type().Components()[1])
 	}
 
 	t := typex.NewCoGBK(comp...)
-	out := g.NewNode(t, w)
+	out := g.NewNode(t, w, bounded)
 
 	// (2) Add CoGBK edge
 
@@ -234,13 +238,23 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 		return nil, fmt.Errorf("flatten needs at least 2 input, got %v", len(in))
 	}
 	t := in[0].Type()
-	w := in[0].Window()
+	w := inputWindow(in)
+
+	// TODO(herohde) 4/5/2018: is it fine mixing boundedness for flatten?
+	// The output would be unbounded iff any input is.
+	bounded := true
+	for _, n := range in {
+		if !n.Bounded() {
+			bounded = false
+			break
+		}
+	}
 	for _, n := range in {
 		if !typex.IsEqual(t, n.Type()) {
 			return nil, fmt.Errorf("mismatched flatten input types: %v, want %v", n.Type(), t)
 		}
-		if !w.Equals(n.Window()) {
-			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.Window(), w)
+		if !w.Equals(n.WindowingStrategy()) {
+			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.WindowingStrategy(), w)
 		}
 	}
 	if typex.IsCoGBK(t) {
@@ -252,13 +266,13 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	for _, n := range in {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: t})
 	}
-	edge.Output = []*Outbound{{To: g.NewNode(t, w), Type: t}}
+	edge.Output = []*Outbound{{To: g.NewNode(t, w, bounded), Type: t}}
 	return edge, nil
 }
 
 // NewExternal inserts an External transform. The system makes no assumptions about
 // what this transform might do.
-func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.FullType) *MultiEdge {
+func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.FullType, bounded bool) *MultiEdge {
 	edge := g.NewEdge(s)
 	edge.Op = External
 	edge.Payload = payload
@@ -266,7 +280,7 @@ func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.F
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
 	}
 	for _, t := range out {
-		n := g.NewNode(t, inputWindow(in))
+		n := g.NewNode(t, inputWindow(in), bounded)
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
 	}
 	return edge
@@ -295,15 +309,31 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i], inputWindow(in))
+		n := g.NewNode(out[i], inputWindow(in), inputBounded(in))
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 	return edge, nil
 }
 
+// CombinePerKeyScope is the Go SDK canonical name for the combine composite
+// scope. With Beam Portability, "primitive" composite transforms like
+// combine have their URNs & payloads attached to a high level scope, with a
+// default representation beneath. The use of this const permits the
+// translation layer to confirm the SDK expects this combine to be liftable
+// by a runner and should set this scope's URN and Payload accordingly.
+const CombinePerKeyScope = "CombinePerKey"
+
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
 // input.
-func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) {
+func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder) (*MultiEdge, error) {
+	inT := in.Type()
+	if !typex.IsCoGBK(inT) {
+		return nil, fmt.Errorf("combine requires CoGBK type: %v", inT)
+	}
+	if len(inT.Components()) > 2 {
+		return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", inT)
+	}
+
 	// Create a synthetic function for binding purposes. It takes main input
 	// and returns the output type -- but hides the accumulator.
 	//
@@ -328,34 +358,25 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 		synth.Ret = u.MergeAccumulatorsFn().Ret
 	}
 
-	inT := in.Type()
+	// The shape of the inbound type and the type of the inbound node
+	// are different: a node type of CoGBK<A,B> will become B
+	// or KV<A,B>, depending on whether the combineFn is keyed or not.
+	// Combines may omit the key in the signature. In such a case,
+	// it is ignored for the purpose of binding. The runtime will later look at
+	// these types to decide whether to add the key or not.
+	//
+	// However, the outbound type will be KV<A,O> (where O is the output
+	// type) regardless of whether the combineFn is keyed or not.
 
-	isPerKey := typex.IsCoGBK(inT)
-	if isPerKey {
-		// For per-key combine, the shape of the inbound type and the type of the
-		// inbound node are different: a node type of CoGBK<A,B> will become B
-		// or KV<A,B>, depending on whether the combineFn is keyed or not.
-		// Per-key combines may omit the key in the signature. In such a case,
-		// it is ignored for the purpose of binding. The runtime will later look at
-		// these types to decide whether to add the key or not.
-		//
-		// However, the outbound type will be KV<A,O> (where O is the output
-		// type) regardless of whether the combineFn is keyed or not.
-
-		if len(inT.Components()) > 2 {
-			return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", inT)
-		}
-
-		if len(synth.Param) == 1 {
-			inT = inT.Components()[1] // Drop implicit key for binding purposes
-		} else {
-			inT = typex.NewKV(inT.Components()...)
-		}
-
-		// The runtime always adds the key for the output of per-key combiners.
-		key := in.Type().Components()[0]
-		synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
+	if len(synth.Param) == 1 {
+		inT = inT.Components()[1] // Drop implicit key for binding purposes
+	} else {
+		inT = typex.NewKV(inT.Components()...)
 	}
+
+	// The runtime always adds the key for the output of combiners.
+	key := in.Type().Components()[0]
+	synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 
 	inbound, kinds, outbound, out, err := Bind(synth, nil, inT)
 	if err != nil {
@@ -365,9 +386,10 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 	edge := g.NewEdge(s)
 	edge.Op = Combine
 	edge.CombineFn = u
+	edge.AccumCoder = ac
 	edge.Input = []*Inbound{{Kind: kinds[0], From: in, Type: inbound[0]}}
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i], in.Window())
+		n := g.NewNode(out[i], in.WindowingStrategy(), in.Bounded())
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 	return edge, nil
@@ -377,8 +399,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 // built-in bytes coder.
 func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	ft := typex.New(reflectx.ByteSlice)
-	w := window.NewGlobalWindow()
-	n := g.NewNode(ft, w)
+	n := g.NewNode(ft, window.DefaultWindowingStrategy(), true)
 	n.Coder = coder.NewBytes()
 
 	edge := g.NewEdge(s)
@@ -388,9 +409,29 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	return edge
 }
 
-func inputWindow(in []*Node) *window.Window {
+// NewWindowInto inserts a new WindowInto edge into the graph.
+func NewWindowInto(g *Graph, s *Scope, wfn *window.Fn, in *Node) *MultiEdge {
+	n := g.NewNode(in.Type(), &window.WindowingStrategy{Fn: wfn}, in.Bounded())
+	n.Coder = in.Coder
+
+	edge := g.NewEdge(s)
+	edge.Op = WindowInto
+	edge.WindowFn = wfn
+	edge.Input = []*Inbound{{Kind: Main, From: in, Type: in.Type()}}
+	edge.Output = []*Outbound{{To: n, Type: in.Type()}}
+	return edge
+}
+
+func inputWindow(in []*Node) *window.WindowingStrategy {
 	if len(in) == 0 {
-		return window.NewGlobalWindow()
+		return window.DefaultWindowingStrategy()
 	}
-	return in[0].Window()
+	return in[0].WindowingStrategy()
+}
+
+func inputBounded(in []*Node) bool {
+	if len(in) == 0 {
+		return true
+	}
+	return in[0].Bounded()
 }

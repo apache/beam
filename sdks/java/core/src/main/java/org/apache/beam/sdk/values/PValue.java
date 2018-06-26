@@ -41,6 +41,7 @@ public interface PValue extends POutput, PInput {
    * is almost never appropriate.
    */
   @Deprecated
+  @Override
   Map<TupleTag<?>, PValue> expand();
 
   /**

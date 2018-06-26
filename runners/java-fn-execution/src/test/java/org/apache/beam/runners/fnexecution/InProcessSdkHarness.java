@@ -19,22 +19,21 @@
 package org.apache.beam.runners.fnexecution;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
-import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
-import org.apache.beam.runners.fnexecution.control.QueueControlClientPool;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -67,10 +66,11 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     return dataServer.getApiServiceDescriptor();
   }
 
+  @Override
   protected void before() throws Exception {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
-    ControlClientPool<FnApiControlClient> clientPool = QueueControlClientPool.createSynchronous();
+    ControlClientPool clientPool = MapControlClientPool.create();
     FnApiControlClientPoolService clientPoolService =
         FnApiControlClientPoolService.offeringClientsToPool(
             clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
@@ -79,34 +79,33 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            serverFactory);
     controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
-    executor.submit(
-        () -> {
-          FnHarness.main(
-              PipelineOptionsFactory.create(),
-              loggingServer.getApiServiceDescriptor(),
-              controlServer.getApiServiceDescriptor(),
-              new ManagedChannelFactory() {
-                @Override
-                public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-                  return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
-                }
-              },
-              StreamObserverFactory.direct());
-          return null;
-        });
+    InstructionRequestHandler requestHandler =
+        InProcessEnvironmentFactory.create(
+                PipelineOptionsFactory.create(),
+                loggingServer,
+                controlServer,
+                clientPool.getSource())
+            // The InProcessEnvironmentFactory can only create Java environments, regardless of the
+            // Environment that's passed to it.
+            .createEnvironment(Environment.getDefaultInstance())
+            .getInstructionRequestHandler();
 
-    client = SdkHarnessClient.usingFnApiClient(clientPool.getSource().get(),
-        dataServer.getService());
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by
+    // the harness. All clients have the implicit empty id for now.
+    client = SdkHarnessClient.usingFnApiClient(requestHandler, dataServer.getService());
   }
 
+  @Override
   protected void after() {
     try (AutoCloseable logs = loggingServer;
         AutoCloseable data = dataServer;
         AutoCloseable ctl = controlServer;
-        AutoCloseable c = client; ) {
+        AutoCloseable c = client) {
       executor.shutdownNow();
     } catch (Exception e) {
       throw new RuntimeException(e);

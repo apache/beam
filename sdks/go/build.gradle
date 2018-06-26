@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go"
@@ -31,5 +31,8 @@ golang {
 
     // Build debugging utilities
     go 'build -o ./build/bin/beamctl github.com/apache/beam/sdks/go/cmd/beamctl'
+
+    // Build integration test driver
+    go 'build -o ./build/bin/integration github.com/apache/beam/sdks/go/test/integration'
   }
 }

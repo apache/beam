@@ -108,7 +108,7 @@ class ReadFromPubSub(PTransform):
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
   def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+               timestamp_attribute=None):
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -118,12 +118,8 @@ class ReadFromPubSub(PTransform):
         deduplication of messages. If not provided, we cannot guarantee
         that no duplicate data will be delivered on the Pub/Sub stream. In this
         case, deduplication of the stream will be strictly best effort.
-      with_attributes:
-        True - output elements will be :class:`~PubsubMessage` objects.
-        False - output elements will be of type ``str`` (message payload only).
       timestamp_attribute: Message value to use as element timestamp. If None,
         uses message publishing time as the timestamp.
-        Note that this argument doesn't require with_attributes=True.
 
         Timestamp values should be in one of two formats:
 
@@ -135,12 +131,13 @@ class ReadFromPubSub(PTransform):
           units smaller than milliseconds) may be ignored.
     """
     super(ReadFromPubSub, self).__init__()
-    self.with_attributes = with_attributes
+    # TODO(BEAM-4536): Add with_attributes to kwargs once fixed.
+    self.with_attributes = False
     self._source = _PubSubSource(
         topic=topic,
         subscription=subscription,
         id_label=id_label,
-        with_attributes=with_attributes,
+        with_attributes=self.with_attributes,
         timestamp_attribute=timestamp_attribute)
 
   def expand(self, pvalue):
@@ -151,6 +148,11 @@ class ReadFromPubSub(PTransform):
     else:
       pcoll.element_type = bytes
     return pcoll
+
+  def to_runner_api_parameter(self, context):
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
 
 
 class ReadStringsFromPubSub(PTransform):
@@ -169,8 +171,7 @@ class ReadStringsFromPubSub(PTransform):
 
   def expand(self, pvalue):
     p = (pvalue.pipeline
-         | ReadFromPubSub(self.topic, self.subscription, self.id_label,
-                          with_attributes=False)
+         | ReadFromPubSub(self.topic, self.subscription, self.id_label)
          | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
     p.element_type = text_type
     return p
@@ -192,6 +193,11 @@ class WriteStringsToPubSub(PTransform):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
+
+  def to_runner_api_parameter(self, context):
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
 
 
 PROJECT_ID_REGEXP = '[a-z][-a-z0-9:.]{4,61}[a-z0-9]'

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.commons.lang3.SystemUtils;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -251,16 +252,14 @@ public class LocalResourceIdTest {
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("/").getFilename(), null);
-    assertEquals(toResourceIdentifier("/root/tmp").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
-        "xyz.txt");
+    assertEquals(null, toResourceIdentifier("/").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("/root/tmp/xyz.txt").getFilename());
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4110")
   public void testResourceIdTester() throws Exception {
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }

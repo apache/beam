@@ -21,11 +21,10 @@ package org.apache.beam.sdk.extensions.sql.mock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -33,14 +32,13 @@ import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * A mocked unbounded table.
- */
+/** A mocked unbounded table. */
 public class MockedUnboundedTable extends MockedTable {
   /** rows flow out from this table with the specified watermark instant. */
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
+
   private MockedUnboundedTable(Schema beamSchema) {
     super(beamSchema);
   }
@@ -59,7 +57,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedUnboundedTable of(final Object... args) {
-    return new MockedUnboundedTable(TestUtils.buildBeamSqlRowType(args));
+    return new MockedUnboundedTable(TestUtils.buildBeamSqlSchema(args));
   }
 
   public MockedUnboundedTable timestampColumnIndex(int idx) {
@@ -88,23 +86,22 @@ public class MockedUnboundedTable extends MockedTable {
     return this;
   }
 
-  @Override public BeamIOType getSourceType() {
-    return BeamIOType.UNBOUNDED;
-  }
-
-  @Override public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  @Override
+  public PCollection<Row> buildIOReader(PBegin begin) {
     TestStream.Builder<Row> values = TestStream.create(schema.getRowCoder());
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
       for (int i = 0; i < pair.getValue().size(); i++) {
-        values = values.addElements(TimestampedValue.of(pair.getValue().get(i),
-            new Instant(pair.getValue().get(i).getDateTime(timestampField))));
+        values =
+            values.addElements(
+                TimestampedValue.of(
+                    pair.getValue().get(i),
+                    new Instant(pair.getValue().get(i).getDateTime(timestampField))));
       }
     }
 
-    return pipeline.begin().apply(
-        "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
-        values.advanceWatermarkToInfinity());
+    return begin.apply(
+        "MockedUnboundedTable_" + COUNTER.incrementAndGet(), values.advanceWatermarkToInfinity());
   }
 }

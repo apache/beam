@@ -226,7 +226,7 @@ public class ParDoTranslatorTest {
     operator.input.process(ApexStreamTuple.DataTuple.of(wv1)); // pushed back input
 
     final List<Object> results = Lists.newArrayList();
-    Sink<Object> sink =  new Sink<Object>() {
+    Sink<Object> sink = new Sink<Object>() {
       @Override
       public void put(Object tuple) {
         results.add(tuple);

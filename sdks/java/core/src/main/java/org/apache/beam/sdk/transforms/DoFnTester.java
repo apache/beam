@@ -33,9 +33,12 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -242,6 +245,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+              return processContext.pane();
+            }
+
+            @Override
             public PipelineOptions pipelineOptions() {
               return getPipelineOptions();
             }
@@ -263,6 +271,31 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
               return processContext;
+            }
+
+            @Override
+            public InputT element(DoFn<InputT, OutputT> doFn) {
+              return processContext.element();
+            }
+
+            @Override
+            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+              return processContext.timestamp();
+            }
+
+            @Override
+            public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access TimeDomain from @ProcessElement");            }
+
+            @Override
+            public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+              return DoFnOutputReceivers.windowedReceiver(processContext, null);
+            }
+
+            @Override
+            public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+              return DoFnOutputReceivers.windowedMultiReceiver(processContext);
             }
 
             @Override
@@ -654,6 +687,41 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
               return null;
             }
 
+            @Override
+            @Nullable
+            public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
+              return null;
+            }
+
+            @Override
+            @Nullable
+            public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
+              return null;
+            }
+
+            @Override
+            @Nullable
+            public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
+              return null;
+            }
+
+            @Override
+            @Nullable
+            public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
+              return null;
+            }
+
+            @Override
+            @Nullable
+            public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
+              return null;
+            }
+
+            @Override
+            @Nullable
+            public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+              return null;
+            }
             @Override
             protected Void dispatchDefault(DoFnSignature.Parameter p) {
               throw new UnsupportedOperationException(

@@ -445,7 +445,7 @@ public class PipelineOptionsFactory {
     }
   }
 
-  private static final Set<Class<?>> SIMPLE_TYPES = ImmutableSet.<Class<?>>builder()
+  private static final ImmutableSet<Class<?>> SIMPLE_TYPES = ImmutableSet.<Class<?>>builder()
       .add(boolean.class)
       .add(Boolean.class)
       .add(char.class)
@@ -469,7 +469,7 @@ public class PipelineOptionsFactory {
       ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
-  private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES =
+  private static final ImmutableSet<String> PIPELINE_OPTIONS_FACTORY_CLASSES =
       ImmutableSet.of(PipelineOptionsFactory.class.getName(), Builder.class.getName());
 
   /** Methods that are ignored when validating the proxy class. */
@@ -1422,7 +1422,7 @@ public class PipelineOptionsFactory {
       try {
         checkArgument(arg.startsWith("--"),
             "Argument '%s' does not begin with '--'", arg);
-        int index = arg.indexOf("=");
+        int index = arg.indexOf('=');
         // Make sure that '=' isn't the first character after '--' or the last character
         checkArgument(index != 2,
             "Argument '%s' starts with '--=', empty argument name not allowed", arg);

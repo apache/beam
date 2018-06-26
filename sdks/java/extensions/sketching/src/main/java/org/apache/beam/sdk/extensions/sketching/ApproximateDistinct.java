@@ -534,9 +534,8 @@ public final class ApproximateDistinct {
    * Utility class that provides {@link DoFn}s to retrieve the cardinality from a {@link
    * HyperLogLogPlus} structure in a global or perKey context.
    */
-  public static class RetrieveCardinality {
-
-    public static <K> DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>> perKey() {
+  private static class RetrieveCardinality {
+    private static <K> DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>> perKey() {
       return new DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
@@ -546,7 +545,7 @@ public final class ApproximateDistinct {
       };
     }
 
-    public static DoFn<HyperLogLogPlus, Long> globally() {
+    private static DoFn<HyperLogLogPlus, Long> globally() {
       return new DoFn<HyperLogLogPlus, Long>() {
         @ProcessElement
         public void apply(ProcessContext c) {

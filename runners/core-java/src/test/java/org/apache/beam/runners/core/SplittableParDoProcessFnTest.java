@@ -31,6 +31,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -124,7 +125,7 @@ public class SplittableParDoProcessFnTest {
           PositionT,
           TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
       implements AutoCloseable {
-    private final DoFnTester<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> tester;
+    private final DoFnTester<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> tester;
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
@@ -200,7 +201,8 @@ public class SplittableParDoProcessFnTest {
 
     void startElement(WindowedValue<KV<InputT, RestrictionT>> windowedValue) throws Exception {
       tester.processElement(
-          KeyedWorkItems.elementsWorkItem("key", Collections.singletonList(windowedValue)));
+          KeyedWorkItems.elementsWorkItem(
+              "key".getBytes(StandardCharsets.UTF_8), Collections.singletonList(windowedValue)));
     }
 
     /**
@@ -219,7 +221,8 @@ public class SplittableParDoProcessFnTest {
       if (timers.isEmpty()) {
         return false;
       }
-      tester.processElement(KeyedWorkItems.timersWorkItem("key", timers));
+      tester.processElement(
+          KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers));
       return true;
     }
 
@@ -426,7 +429,7 @@ public class SplittableParDoProcessFnTest {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
           tracker.tryClaim(i); ++i, ++numIterations) {
         c.output(String.valueOf(c.element() + i));
-        if (numIterations == numOutputsPerCall) {
+        if (numIterations == numOutputsPerCall - 1) {
           return resume();
         }
       }
@@ -439,6 +442,7 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
+  @Test
   public void testResumeCarriesOverState() throws Exception {
     DoFn<Integer, String> fn = new CounterFn(1);
     Instant base = Instant.now();

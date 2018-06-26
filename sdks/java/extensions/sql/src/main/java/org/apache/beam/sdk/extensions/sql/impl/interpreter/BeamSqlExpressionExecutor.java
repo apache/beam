@@ -23,22 +23,16 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * {@code BeamSqlExpressionExecutor} fills the gap between relational
- * expressions in Calcite SQL and executable code.
- *
+ * {@code BeamSqlExpressionExecutor} fills the gap between relational expressions in Calcite SQL and
+ * executable code.
  */
 public interface BeamSqlExpressionExecutor extends Serializable {
 
-  /**
-   * invoked before data processing.
-   */
+  /** invoked before data processing. */
   void prepare();
 
-  /**
-   * apply transformation to input record {@link Row} with {@link BoundedWindow}.
-   *
-   */
-  List<Object> execute(Row inputRow, BoundedWindow window);
+  /** apply transformation to input record {@link Row} with {@link BoundedWindow}. */
+  List<Object> execute(Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env);
 
   void close();
 }

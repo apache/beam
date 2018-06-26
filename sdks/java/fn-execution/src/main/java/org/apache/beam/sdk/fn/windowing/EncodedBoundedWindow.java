@@ -88,7 +88,8 @@ public abstract class EncodedBoundedWindow extends BoundedWindow {
 
     @Override
     protected long getEncodedElementByteSize(EncodedBoundedWindow value) throws Exception {
-      return VarInt.getLength(value.getEncodedWindow().size()) + value.getEncodedWindow().size();
+      return (long) VarInt.getLength(value.getEncodedWindow().size())
+        + value.getEncodedWindow().size();
     }
   }
 }

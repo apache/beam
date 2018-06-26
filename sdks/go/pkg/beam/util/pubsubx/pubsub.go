@@ -72,10 +72,10 @@ func EnsureSubscription(ctx context.Context, client *pubsub.Client, topic, id st
 func CleanupTopic(ctx context.Context, project, topic string) {
 	client, err := pubsub.NewClient(ctx, project)
 	if err != nil {
-		log.Errorf(ctx, "Failed to delete topic %v", topic, err)
+		log.Errorf(ctx, "Failed to delete topic %v: %v", topic, err)
 	}
 	if err := client.Topic(topic).Delete(ctx); err != nil {
-		log.Errorf(ctx, "Failed to delete topic %v", topic, err)
+		log.Errorf(ctx, "Failed to delete topic %v: %v", topic, err)
 	}
 }
 

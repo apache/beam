@@ -29,11 +29,12 @@ class TestScripts {
    class var {
      static File startDir
      static File curDir
-     static String lastText
      static String repoUrl
      static String ver
      static String gcpProject
      static String gcsBucket
+     static String bqDataset
+     static String pubsubTopic
    }
 
    def TestScripts(String[] args) {
@@ -42,6 +43,9 @@ class TestScripts {
      cli.repourl(args:1, 'Repository URL')
      cli.gcpProject(args:1, 'Google Cloud Project')
      cli.gcsBucket(args:1, 'Google Cloud Storage Bucket')
+     cli.bqDataset(args:1, "BigQuery Dataset")
+     cli.pubsubTopic(args:1, "PubSub Topic")
+
      def options = cli.parse(args)
      var.repoUrl = options.repourl
      var.ver = options.ver
@@ -54,6 +58,14 @@ class TestScripts {
      if (options.gcsBucket) {
        var.gcsBucket = options.gcsBucket
        println "GCS Storage bucket: ${var.gcsBucket}"
+     }
+     if (options.bqDataset) {
+         var.bqDataset = options.bqDataset
+         println "BigQuery Dataset: ${var.bqDataset}"
+     }
+     if (options.pubsubTopic) {
+         var.pubsubTopic = options.pubsubTopic
+         println "PubSub Topic: ${var.pubsubTopic}"
      }
    }
 
@@ -69,40 +81,64 @@ class TestScripts {
      return var.gcsBucket
    }
 
+   def bqDataset() {
+     return var.bqDataset
+   }
+
+   def pubsubTopic() {
+     return var.pubsubTopic
+   }
+
    // Both documents the overal scenario and creates a clean temp directory
    def describe(String desc) {
      var.startDir = File.createTempDir()
      var.startDir.deleteOnExit()
      var.curDir = var.startDir
-     print "*****\n* Scenario: ${desc}\n*****\n"
+     print "**************************************\n* Scenario: ${desc}\n**************************************\n"
    }
 
    // Just document the intention of a set of steps
    def intent(String desc) {
-     print "\n*****\n* Test: ${desc}\n*****\n\n"
+     print "\n**************************************\n* Test: ${desc}\n**************************************\n\n"
    }
 
+   def success(String desc) {
+     print "\n**************************************\n* SUCCESS: ${desc}\n**************************************\n\n"
+   }
 
    // Run a command
-   public void run(String cmd) {
+   public String run(String cmd) {
      println cmd
      if (cmd.startsWith("cd ")) {
        _chdir(cmd.substring(3))
+       return ""
      } else if (cmd.startsWith("mvn ")) {
-       _mvn(cmd.substring(4))
+       return _mvn(cmd.substring(4))
      } else {
-       _execute(cmd)
+       return _execute(cmd)
      }
    }
 
-   // Check for expected results in stdout of the last command
-   public void see(String expected) {
-     if (!var.lastText.contains(expected)) {
+   // Check for expected results in actual stdout from previous command, if fails, log errors then exit.
+   public void see(String expected, String actual) {
+     if (!actual.contains(expected)) {
        var.startDir.deleteDir()
-       println "Cannot find ${expected} in ${var.lastText}"
-       _error("Cannot find expected text")
+       println "Cannot find ${expected} in ${actual}"
+       error("Cannot find expected text")
      }
      println "Verified $expected"
+   }
+
+   // Check if there are one or more matches in stdout of the last command.
+   public boolean seeAnyOf(List<String> expecteds, String actual) {
+     for (String expected: expecteds) {
+       if(actual.contains(expected)) {
+         println "Verified $expected"
+         return true
+       }
+     }
+     println "Cannot find ${expecteds} in text"
+     return false
    }
 
    // Cleanup and print success
@@ -113,37 +149,38 @@ class TestScripts {
    }
 
    // Run a single command, capture output, verify return code is 0
-   private void _execute(String cmd) {
+   private String _execute(String cmd) {
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
      pb.directory(var.curDir)
      pb.redirectErrorStream(true)
      def proc = pb.start()
-     var.lastText = ""
+     String output_text = ""
      def text = StringBuilder.newInstance()
      proc.inputStream.eachLine {
        println it
        text.append(it + "\n")
      }
      proc.waitFor()
-     var.lastText = text.toString().trim()
+     output_text = text.toString().trim()
      if (proc.exitValue() != 0) {
-       println var.lastText
-       _error("Failed command")
+       println output_text
+       error("Failed command")
      }
+     return output_text
    }
 
    // Change directory
    private void _chdir(String subdir) {
      var.curDir = new File(var.curDir.absolutePath, subdir)
      if (!var.curDir.exists()) {
-       _error("Directory ${var.curDir} not found")
+       error("Directory ${var.curDir} not found")
      }
    }
 
    // Run a maven command, setting up a new local repository and a settings.xml with a custom repository
-   private void _mvn(String args) {
+   private String _mvn(String args) {
      def m2 = new File(var.startDir, ".m2/repository")
      m2.mkdirs()
      def settings = new File(var.startDir, "settings.xml")
@@ -171,11 +208,11 @@ class TestScripts {
        println "Using maven ${maven_home}"
        def mvnPath = "${maven_home}/bin"
        def setPath = "export PATH=${mvnPath}:${path} && "
-       _execute(setPath + cmd)
+       return _execute(setPath + cmd)
    }
 
    // Clean up and report error
-   private void _error(String text) {
+   public void error(String text) {
      var.startDir.deleteDir()
      println "[ERROR] $text"
      System.exit(1)

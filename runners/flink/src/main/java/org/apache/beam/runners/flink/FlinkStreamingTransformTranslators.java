@@ -54,9 +54,9 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOp
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -415,6 +415,7 @@ class FlinkStreamingTransformTranslators {
           Map<TupleTag<?>, Integer> tagsToIds,
           Coder<WindowedValue<InputT>> inputCoder,
           Coder keyCoder,
+          KeySelector<WindowedValue<InputT>, ?> keySelector,
           Map<Integer, PCollectionView<?>> transformedSideInputs);
     }
 
@@ -464,6 +465,7 @@ class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(input);
 
       Coder keyCoder = null;
+      KeySelector keySelector = null;
       boolean stateful = false;
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       if (signature.stateDeclarations().size() > 0
@@ -471,11 +473,12 @@ class FlinkStreamingTransformTranslators {
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed
         keyCoder = ((KvCoder) input.getCoder()).getKeyCoder();
-        inputDataStream = inputDataStream.keyBy(new KvToByteBufferKeySelector(keyCoder));
+        keySelector = new KvToByteBufferKeySelector(keyCoder);
+        inputDataStream = inputDataStream.keyBy(keySelector);
         stateful = true;
       } else if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
-        // we know that it is keyed on String
-        keyCoder = StringUtf8Coder.of();
+        // we know that it is keyed on byte[]
+        keyCoder = ByteArrayCoder.of();
         stateful = true;
       }
 
@@ -498,6 +501,7 @@ class FlinkStreamingTransformTranslators {
                 tagsToIds,
                 inputCoder,
                 keyCoder,
+                keySelector,
                 new HashMap<>() /* side-input mapping */);
 
         outputStream = inputDataStream
@@ -521,6 +525,7 @@ class FlinkStreamingTransformTranslators {
                 tagsToIds,
                 inputCoder,
                 keyCoder,
+                keySelector,
                 transformedSideInputs.f0);
 
         if (stateful) {
@@ -627,6 +632,7 @@ class FlinkStreamingTransformTranslators {
               tagsToIds,
               inputCoder,
               keyCoder,
+              keySelector,
               transformedSideInputs) ->
               new DoFnOperator<>(
                   doFn1,
@@ -640,7 +646,8 @@ class FlinkStreamingTransformTranslators {
                   transformedSideInputs,
                   sideInputs1,
                   context1.getPipelineOptions(),
-                  keyCoder));
+                  keyCoder,
+                  keySelector));
     }
   }
 
@@ -676,6 +683,7 @@ class FlinkStreamingTransformTranslators {
               tagsToIds,
               inputCoder,
               keyCoder,
+              keySelector,
               transformedSideInputs) ->
               new SplittableDoFnOperator<>(
                   doFn,
@@ -689,7 +697,8 @@ class FlinkStreamingTransformTranslators {
                   transformedSideInputs,
                   sideInputs,
                   context1.getPipelineOptions(),
-                  keyCoder));
+                  keyCoder,
+                  keySelector));
     }
   }
 
@@ -803,6 +812,9 @@ class FlinkStreamingTransformTranslators {
               .returns(workItemTypeInfo)
               .name("ToKeyedWorkItem");
 
+      WorkItemKeySelector keySelector = new WorkItemKeySelector<>(
+          inputKvCoder.getKeyCoder());
+
       KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>, ByteBuffer>
           keyedWorkItemStream =
               workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
@@ -830,7 +842,8 @@ class FlinkStreamingTransformTranslators {
               new HashMap<>(), /* side-input mapping */
               Collections.emptyList(), /* side inputs */
               context.getPipelineOptions(),
-              inputKvCoder.getKeyCoder());
+              inputKvCoder.getKeyCoder(),
+              keySelector);
 
       // our operator excepts WindowedValue<KeyedWorkItem> while our input stream
       // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
@@ -883,9 +896,11 @@ class FlinkStreamingTransformTranslators {
               .returns(workItemTypeInfo)
               .name("ToKeyedWorkItem");
 
+      WorkItemKeySelector keySelector = new WorkItemKeySelector<>(
+          inputKvCoder.getKeyCoder());
       KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>, ByteBuffer>
           keyedWorkItemStream =
-              workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
+              workItemStream.keyBy(keySelector);
 
       GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
       try {
@@ -918,7 +933,8 @@ class FlinkStreamingTransformTranslators {
               new HashMap<>(), /* side-input mapping */
               Collections.emptyList(), /* side inputs */
               context.getPipelineOptions(),
-              inputKvCoder.getKeyCoder());
+              inputKvCoder.getKeyCoder(),
+              keySelector);
 
       // our operator excepts WindowedValue<KeyedWorkItem> while our input stream
       // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
@@ -1074,7 +1090,7 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class ToKeyedWorkItem<K, InputT>
+  static class ToKeyedWorkItem<K, InputT>
       extends RichFlatMapFunction<
       WindowedValue<KV<K, InputT>>,
       WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
@@ -1156,7 +1172,7 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public String getUrn(SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?> transform) {
-      return SplittableParDo.SPLITTABLE_PROCESS_URN;
+      return SPLITTABLE_PROCESS_URN;
     }
   }
 

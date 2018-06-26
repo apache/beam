@@ -43,7 +43,6 @@ import org.apache.beam.sdk.testing.CombineFnTester;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.ApproximateUnique.ApproximateUniqueCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -56,18 +55,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
 
 /**
  * Tests for the ApproximateUnique transform.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    ApproximateUniqueTest.ApproximateUniqueWithDuplicatesTest.class,
-    ApproximateUniqueTest.ApproximateUniqueVariationsTest.class,
-    ApproximateUniqueTest.ApproximateUniqueCombineFnTest.class,
-    ApproximateUniqueTest.ApproximateUniqueMiscTest.class
-})
 public class ApproximateUniqueTest implements Serializable {
   // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 
@@ -355,7 +346,7 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testApproximateUniqueWithSmallInput() {
       final PCollection<Integer> input = p.apply(
           Create.of(Arrays.asList(1, 2, 3, 3)));

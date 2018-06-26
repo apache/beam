@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -33,9 +34,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlIntervalMultiplyExpression.
- */
+/** Test for BeamSqlIntervalMultiplyExpression. */
 public class BeamSqlIntervalMultiplyExpressionTest {
   private static final Row NULL_INPUT_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
@@ -54,7 +53,8 @@ public class BeamSqlIntervalMultiplyExpressionTest {
   private static final BeamSqlExpression SQL_INTEGER_FIVE =
       BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5);
 
-  @Test public void testHappyPath_outputTypeAndAccept() {
+  @Test
+  public void testHappyPath_outputTypeAndAccept() {
     BeamSqlExpression multiplyExpression =
         newMultiplyExpression(SQL_INTERVAL_DAY, SQL_INTEGER_FOUR);
 
@@ -62,7 +62,8 @@ public class BeamSqlIntervalMultiplyExpressionTest {
     assertTrue(multiplyExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptTreeOperands() {
+  @Test
+  public void testDoesNotAcceptTreeOperands() {
     BeamSqlIntervalMultiplyExpression multiplyExpression =
         newMultiplyExpression(SQL_INTERVAL_DAY, SQL_INTEGER_FIVE, SQL_INTEGER_FOUR);
 
@@ -70,7 +71,8 @@ public class BeamSqlIntervalMultiplyExpressionTest {
     assertFalse(multiplyExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptWithoutIntervalOperand() {
+  @Test
+  public void testDoesNotAcceptWithoutIntervalOperand() {
     BeamSqlIntervalMultiplyExpression multiplyExpression =
         newMultiplyExpression(SQL_INTEGER_FOUR, SQL_INTEGER_FIVE);
 
@@ -78,7 +80,8 @@ public class BeamSqlIntervalMultiplyExpressionTest {
     assertFalse(multiplyExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptWithoutIntegerOperand() {
+  @Test
+  public void testDoesNotAcceptWithoutIntegerOperand() {
     BeamSqlIntervalMultiplyExpression multiplyExpression =
         newMultiplyExpression(SQL_INTERVAL_DAY, SQL_INTERVAL_MONTH);
 
@@ -86,12 +89,14 @@ public class BeamSqlIntervalMultiplyExpressionTest {
     assertFalse(multiplyExpression.accept());
   }
 
-  @Test public void testEvaluate_integerOperand() {
+  @Test
+  public void testEvaluate_integerOperand() {
     BeamSqlIntervalMultiplyExpression multiplyExpression =
         newMultiplyExpression(SQL_INTERVAL_DAY, SQL_INTEGER_FOUR);
 
     BeamSqlPrimitive multiplicationResult =
-        multiplyExpression.evaluate(NULL_INPUT_ROW, NULL_WINDOW);
+        multiplyExpression.evaluate(
+            NULL_INPUT_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
 
     BigDecimal expectedResult =
         DECIMAL_FOUR.multiply(timeUnitInternalMultiplier(SqlTypeName.INTERVAL_DAY));
@@ -100,7 +105,7 @@ public class BeamSqlIntervalMultiplyExpressionTest {
     assertEquals(SqlTypeName.INTERVAL_DAY, multiplicationResult.getOutputType());
   }
 
-  private BeamSqlIntervalMultiplyExpression newMultiplyExpression(BeamSqlExpression ... operands) {
+  private BeamSqlIntervalMultiplyExpression newMultiplyExpression(BeamSqlExpression... operands) {
     return new BeamSqlIntervalMultiplyExpression(Arrays.asList(operands));
   }
 }

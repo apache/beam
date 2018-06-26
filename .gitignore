@@ -40,7 +40,6 @@ sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
 sdks/python/apache_beam/portability/api/*pb2*.*
-sdks/python/apache_beam/portability/common_urns.py
 sdks/python/nosetests.xml
 
 # Ignore IntelliJ files.
@@ -72,6 +71,9 @@ sdks/python/nosetests.xml
 
 # Ignore MacOSX files.
 **/.DS_Store/**/*
+
+# Ignore Jupyter notebook checkpoints.
+**/.ipynb_checkpoints/**/*
 
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.

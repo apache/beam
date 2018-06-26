@@ -51,6 +51,11 @@ public class AuctionCount implements KnownSize, Serializable {
       long num = LONG_CODER.decode(inStream);
       return new AuctionCount(auction, num);
     }
+
+    @Override
+    public Object structuralValue(AuctionCount v) {
+      return v;
+    }
   };
 
   @JsonProperty public final long auction;
@@ -90,7 +95,7 @@ public class AuctionCount implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + 8;
+    return 8L + 8L;
   }
 
   @Override

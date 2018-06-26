@@ -38,13 +38,9 @@ public class KinesisServiceMock {
 
   private KinesisServiceMock() {}
 
-  public static KinesisServiceMock getInstance() {
+  public static synchronized KinesisServiceMock getInstance() {
     if (instance == null) {
-      synchronized (KinesisServiceMock.class) {
-        if (instance == null) {
-          instance = new KinesisServiceMock();
-        }
-      }
+      instance = new KinesisServiceMock();
     }
     return instance;
   }

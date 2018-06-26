@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
@@ -32,10 +32,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 
-/**
- * Rule to detect the window/trigger settings.
- *
- */
+/** Rule to detect the window/trigger settings. */
 public class BeamAggregationRule extends RelOptRule {
   public static final BeamAggregationRule INSTANCE =
       new BeamAggregationRule(Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER);
@@ -44,25 +41,18 @@ public class BeamAggregationRule extends RelOptRule {
       Class<? extends Aggregate> aggregateClass,
       Class<? extends Project> projectClass,
       RelBuilderFactory relBuilderFactory) {
-    super(
-        operand(aggregateClass,
-            operand(projectClass, any())),
-        relBuilderFactory, null);
-  }
-
-  public BeamAggregationRule(RelOptRuleOperand operand, String description) {
-    super(operand, description);
+    super(operand(aggregateClass, operand(projectClass, any())), relBuilderFactory, null);
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
-    updateWindow(call, aggregate, project);
+    RelNode x = updateWindow(call, aggregate, project);
+    call.transformTo(x);
   }
 
-  private void updateWindow(RelOptRuleCall call, Aggregate aggregate,
-                            Project project) {
+  private static RelNode updateWindow(RelOptRuleCall call, Aggregate aggregate, Project project) {
     ImmutableBitSet groupByFields = aggregate.getGroupSet();
     List<RexNode> projectMapping = project.getProjects();
 
@@ -77,16 +67,16 @@ public class BeamAggregationRule extends RelOptRule {
       windowField = AggregateWindowFactory.getWindowFieldAt((RexCall) projNode, groupFieldIndex);
     }
 
-    BeamAggregationRel newAggregator = new BeamAggregationRel(aggregate.getCluster(),
+    return new BeamAggregationRel(
+        aggregate.getCluster(),
         aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        convert(aggregate.getInput(),
+        convert(
+            aggregate.getInput(),
             aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         aggregate.indicator,
         aggregate.getGroupSet(),
         aggregate.getGroupSets(),
         aggregate.getAggCallList(),
         windowField);
-    call.transformTo(newAggregator);
   }
-
 }

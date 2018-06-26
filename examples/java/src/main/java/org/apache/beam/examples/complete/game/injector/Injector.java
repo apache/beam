@@ -90,6 +90,8 @@ class Injector {
   private static final int THREAD_SLEEP_MS = 500;
 
   // Lists used to generate random team names.
+  // If COLORS is changed, please also make changes in
+  // release/src/main/groovy/MobileGamingCommands.COLORS
   private static final ArrayList<String> COLORS =
       new ArrayList<>(
           Arrays.asList(
@@ -349,6 +351,7 @@ class Injector {
         out.println(message);
       }
     } catch (Exception e) {
+      System.err.print("Error in writing generated events to file");
       e.printStackTrace();
     } finally {
       out.flush();

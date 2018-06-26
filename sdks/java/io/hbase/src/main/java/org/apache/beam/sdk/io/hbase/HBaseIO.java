@@ -319,8 +319,7 @@ public class HBaseIO {
         LOG.debug("Suggested {} source(s) based on number of regions", regionLocations.size());
 
         List<ByteKeyRange> ranges =
-            HBaseUtils.getRanges(
-                regionLocations, read.tableId, read.serializableScan.get());
+            HBaseUtils.getRanges(regionLocations, read.tableId, read.serializableScan.get());
         final int numSources = ranges.size();
         LOG.debug("Spliting into {} source(s)", numSources);
         if (numSources > 0) {
@@ -348,7 +347,7 @@ public class HBaseIO {
     }
 
     @Override
-    public BoundedReader<Result> createReader(PipelineOptions pipelineOptions) throws IOException {
+    public BoundedReader<Result> createReader(PipelineOptions pipelineOptions) {
       return new HBaseReader(this);
     }
 
@@ -407,7 +406,7 @@ public class HBaseIO {
     }
 
     @Override
-    public boolean advance() throws IOException {
+    public boolean advance() {
       if (!iter.hasNext()) {
         return rangeTracker.markDone();
       }
@@ -554,7 +553,7 @@ public class HBaseIO {
 
     private class HBaseWriterFn extends DoFn<Mutation, Void> {
 
-      public HBaseWriterFn(String tableId, SerializableConfiguration serializableConfiguration) {
+      HBaseWriterFn(String tableId, SerializableConfiguration serializableConfiguration) {
         this.tableId = checkNotNull(tableId, "tableId");
         this.serializableConfiguration =
             checkNotNull(serializableConfiguration, "serializableConfiguration");

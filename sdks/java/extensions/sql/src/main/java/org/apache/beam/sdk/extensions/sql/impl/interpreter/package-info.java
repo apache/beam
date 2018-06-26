@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * interpreter generate runnable 'code' to execute SQL relational expressions.
- */
+/** interpreter generate runnable 'code' to execute SQL relational expressions. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;

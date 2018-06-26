@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
@@ -47,9 +47,11 @@ import org.apache.beam.sdk.values.Row;
  */
 public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Bid>> {
 
-  private static final PTransform<PInput, PCollection<Row>> QUERY = BeamSql
-      .query("SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
-      .registerUdf("DolToEur", new DolToEur());
+  private static final PTransform<PInput, PCollection<Row>> QUERY =
+      SqlTransform
+          .query(
+              "SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
+          .registerUdf("DolToEur", new DolToEur());
 
   /**
    * Dollar to Euro conversion.

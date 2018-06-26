@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Charsets;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -138,7 +139,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             "%s$%s$%s",
             OnTimerInvoker.class.getSimpleName(),
             CharMatcher.javaLetterOrDigit().retainFrom(timerId),
-            BaseEncoding.base64().omitPadding().encode(timerId.getBytes()));
+            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(Charsets.UTF_8)));
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()

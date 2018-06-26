@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * MATH functions/operators.
- */
+/** MATH functions/operators. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;

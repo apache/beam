@@ -49,19 +49,22 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Instant;
 
 /**
@@ -74,9 +77,9 @@ import org.joda.time.Instant;
  * {@link AppliedPTransform AppliedPTransforms} and a map of {@link PCollection PCollections} to
  * all the {@link AppliedPTransform AppliedPTransforms} that consume them at construction time.
  *
- * <p>Whenever a root {@link AppliedPTransform transform} produces elements, the
+ * <p>Whenever a root {@link AppliedPTransform executable} produces elements, the
  * {@link WatermarkManager} is provided with the produced elements and the output watermark
- * of the producing {@link AppliedPTransform transform}. The
+ * of the producing {@link AppliedPTransform executable}. The
  * {@link WatermarkManager watermark manager} is responsible for computing the watermarks
  * of all {@link AppliedPTransform transforms} that consume one or more
  * {@link PCollection PCollections}.
@@ -126,7 +129,8 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-class WatermarkManager<ExecutableT, CollectionT> {
+@Internal
+public class WatermarkManager<ExecutableT, CollectionT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -142,6 +146,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * late data. This value is represented by {@link WatermarkManager#THE_END_OF_TIME}.
    */
   @VisibleForTesting interface Watermark {
+    String getName();
+
     /**
      * Returns the current value of this watermark.
      */
@@ -200,6 +206,15 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
+  private static WatermarkUpdate updateAndTrace(String name, Instant oldTime, Instant currentTime) {
+    WatermarkUpdate res = WatermarkUpdate.fromTimestamps(oldTime, currentTime);
+    if (res.isAdvanced()) {
+      WindowTracing.debug(
+          "Watermark {} advanced from {} to {}", name, oldTime, currentTime);
+    }
+    return res;
+  }
+
   /**
    * The input {@link Watermark} of an {@link AppliedPTransform}.
    *
@@ -210,8 +225,10 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * <p>See {@link #refresh()} for more information.
    */
   @VisibleForTesting static class AppliedPTransformInputWatermark implements Watermark {
+    private final String name;
+
     private final Collection<? extends Watermark> inputWatermarks;
-    private final SortedMultiset<CommittedBundle<?>> pendingElements;
+    private final SortedMultiset<Bundle<?, ?>> pendingElements;
 
     // This tracks only the quantity of timers at each timestamp, for quickly getting the cross-key
     // minimum
@@ -226,14 +243,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
     private AtomicReference<Instant> currentWatermark;
 
-    public AppliedPTransformInputWatermark(Collection<? extends Watermark> inputWatermarks) {
+    public AppliedPTransformInputWatermark(
+        String name, Collection<? extends Watermark> inputWatermarks) {
+      this.name = name;
+
       this.inputWatermarks = inputWatermarks;
       // The ordering must order elements by timestamp, and must not compare two distinct elements
       // as equal. This is built on the assumption that any element added as a pending element will
       // be consumed without modifications.
       //
       // The same logic is applied for pending timers
-      Ordering<CommittedBundle<?>> pendingBundleComparator =
+      Ordering<Bundle<?, ?>> pendingBundleComparator =
           new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements =
           TreeMultiset.create(pendingBundleComparator);
@@ -241,6 +261,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
       this.objectTimers = new HashMap<>();
       this.existingTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    @Override
+    public String getName() {
+      return name;
     }
 
     @Override
@@ -277,14 +302,14 @@ class WatermarkManager<ExecutableT, CollectionT> {
       }
       Instant newWatermark = INSTANT_ORDERING.max(oldWatermark, minInputWatermark);
       currentWatermark.set(newWatermark);
-      return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
+      return updateAndTrace(getName(), oldWatermark, newWatermark);
     }
 
-    private synchronized void addPending(CommittedBundle<?> newPending) {
+    private synchronized void addPending(Bundle<?, ?> newPending) {
       pendingElements.add(newPending);
     }
 
-    private synchronized void removePending(CommittedBundle<?> completed) {
+    private synchronized void removePending(Bundle<?, ?> completed) {
       pendingElements.remove(completed);
     }
 
@@ -367,12 +392,15 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * {@link #refresh()} for more information.
    */
   private static class AppliedPTransformOutputWatermark implements Watermark {
+    private final String name;
+
     private final AppliedPTransformInputWatermark inputWatermark;
     private final PerKeyHolds holds;
     private AtomicReference<Instant> currentWatermark;
 
     public AppliedPTransformOutputWatermark(
-        AppliedPTransformInputWatermark inputWatermark) {
+        String name, AppliedPTransformInputWatermark inputWatermark) {
+      this.name = name;
       this.inputWatermark = inputWatermark;
       holds = new PerKeyHolds();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
@@ -384,6 +412,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
       } else {
         holds.updateHold(key, newHold);
       }
+    }
+
+    @Override
+    public String getName() {
+      return name;
     }
 
     @Override
@@ -415,7 +448,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
           holds.getMinHold());
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
-      return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
+      return updateAndTrace(getName(), oldWatermark, newWatermark);
     }
 
     @Override
@@ -445,8 +478,10 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * </ul>
    */
   private static class SynchronizedProcessingTimeInputWatermark implements Watermark {
+    private final String name;
+
     private final Collection<? extends Watermark> inputWms;
-    private final Collection<CommittedBundle<?>> pendingBundles;
+    private final Collection<Bundle<?, ?>> pendingBundles;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> processingTimers;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> synchronizedProcessingTimers;
     private final Map<StructuralKey<?>, Table<StateNamespace, String, TimerData>> existingTimers;
@@ -455,7 +490,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
     private AtomicReference<Instant> earliestHold;
 
-    public SynchronizedProcessingTimeInputWatermark(Collection<? extends Watermark> inputWms) {
+    public SynchronizedProcessingTimeInputWatermark(String name,
+        Collection<? extends Watermark> inputWms) {
+      this.name = name;
       this.inputWms = inputWms;
       this.pendingBundles = new HashSet<>();
       this.processingTimers = new HashMap<>();
@@ -467,6 +504,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
         initialHold = INSTANT_ORDERING.min(initialHold, wm.get());
       }
       earliestHold = new AtomicReference<>(initialHold);
+    }
+
+    @Override
+    public String getName() {
+      return name;
     }
 
     @Override
@@ -494,21 +536,21 @@ class WatermarkManager<ExecutableT, CollectionT> {
       for (Watermark input : inputWms) {
         minTime = INSTANT_ORDERING.min(minTime, input.get());
       }
-      for (CommittedBundle<?> bundle : pendingBundles) {
+      for (Bundle<?, ?> bundle : pendingBundles) {
         // TODO: Track elements in the bundle by the processing time they were output instead of
         // entire bundles. Requried to support arbitrarily splitting and merging bundles between
         // steps
         minTime = INSTANT_ORDERING.min(minTime, bundle.getSynchronizedProcessingOutputWatermark());
       }
       earliestHold.set(minTime);
-      return WatermarkUpdate.fromTimestamps(oldHold, minTime);
+      return updateAndTrace(getName(), oldHold, minTime);
     }
 
-    public synchronized void addPending(CommittedBundle<?> bundle) {
+    public synchronized void addPending(Bundle<?, ?> bundle) {
       pendingBundles.add(bundle);
     }
 
-    public synchronized void removePending(CommittedBundle<?> bundle) {
+    public synchronized void removePending(Bundle<?, ?> bundle) {
       pendingBundles.remove(bundle);
     }
 
@@ -644,13 +686,22 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * </ul>
    */
   private static class SynchronizedProcessingTimeOutputWatermark implements Watermark {
+    private final String name;
+
     private final SynchronizedProcessingTimeInputWatermark inputWm;
     private AtomicReference<Instant> latestRefresh;
 
     public SynchronizedProcessingTimeOutputWatermark(
+        String name,
         SynchronizedProcessingTimeInputWatermark inputWm) {
+      this.name = name;
       this.inputWm = inputWm;
       this.latestRefresh = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    @Override
+    public String getName() {
+      return name;
     }
 
     @Override
@@ -682,7 +733,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       Instant newTimestamp =
           INSTANT_ORDERING.min(inputWm.get(), inputWm.getEarliestTimerTimestamp());
       latestRefresh.set(newTimestamp);
-      return WatermarkUpdate.fromTimestamps(oldRefresh, newTimestamp);
+      return updateAndTrace(getName(), oldRefresh, newTimestamp);
     }
 
     @Override
@@ -697,7 +748,13 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * The {@code Watermark} that is after the latest time it is possible to represent in the global
    * window. This is a distinguished value representing a complete {@link PTransform}.
    */
-  private static final Watermark THE_END_OF_TIME = new Watermark() {
+  private static final Watermark THE_END_OF_TIME =
+      new Watermark() {
+        @Override
+        public String getName() {
+          return "THE_END_OF_TIME";
+        }
+
         @Override
         public WatermarkUpdate refresh() {
           // THE_END_OF_TIME is a distinguished value that cannot be advanced.
@@ -754,6 +811,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * watermarks for.
    */
   private final ExecutableGraph<ExecutableT, CollectionT> graph;
+  private final Function<ExecutableT, String> getName;
 
   /**
    * The input and output watermark of each {@link AppliedPTransform}.
@@ -784,15 +842,24 @@ class WatermarkManager<ExecutableT, CollectionT> {
    *
    * @param clock the clock to use to determine processing time
    * @param graph the graph representing this pipeline
+   * @param getName a function for producing a short identifier for the executable in watermark
+   *     tracing log messages.
    */
-  public static WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> create(
-      Clock clock, DirectGraph graph) {
-    return new WatermarkManager<>(clock, graph);
+  public static <ExecutableT, CollectionT>
+      WatermarkManager<ExecutableT, ? super CollectionT> create(
+          Clock clock,
+          ExecutableGraph<ExecutableT, ? super CollectionT> graph,
+          Function<ExecutableT, String> getName) {
+    return new WatermarkManager<>(clock, graph, getName);
   }
 
-  private WatermarkManager(Clock clock, ExecutableGraph<ExecutableT, CollectionT> graph) {
+  private WatermarkManager(
+      Clock clock,
+      ExecutableGraph<ExecutableT, CollectionT> graph,
+      Function<ExecutableT, String> getName) {
     this.clock = clock;
     this.graph = graph;
+    this.getName = getName;
 
     this.pendingUpdates = new ConcurrentLinkedQueue<>();
 
@@ -813,35 +880,39 @@ class WatermarkManager<ExecutableT, CollectionT> {
     return getTransformWatermark(graph.getProducer(value));
   }
 
-  private TransformWatermarks getTransformWatermark(ExecutableT transform) {
-    TransformWatermarks wms = transformToWatermarks.get(transform);
+  private TransformWatermarks getTransformWatermark(ExecutableT executable) {
+    String name = getName.apply(executable);
+
+    TransformWatermarks wms = transformToWatermarks.get(executable);
     if (wms == null) {
-      List<Watermark> inputCollectionWatermarks = getInputWatermarks(transform);
+      List<Watermark> inputCollectionWatermarks = getInputWatermarks(executable);
       AppliedPTransformInputWatermark inputWatermark =
-          new AppliedPTransformInputWatermark(inputCollectionWatermarks);
+          new AppliedPTransformInputWatermark(name + ".in", inputCollectionWatermarks);
       AppliedPTransformOutputWatermark outputWatermark =
-          new AppliedPTransformOutputWatermark(inputWatermark);
+          new AppliedPTransformOutputWatermark(name + ".out", inputWatermark);
 
       SynchronizedProcessingTimeInputWatermark inputProcessingWatermark =
-          new SynchronizedProcessingTimeInputWatermark(getInputProcessingWatermarks(transform));
+          new SynchronizedProcessingTimeInputWatermark(
+              name + ".inProcessing", getInputProcessingWatermarks(executable));
       SynchronizedProcessingTimeOutputWatermark outputProcessingWatermark =
-          new SynchronizedProcessingTimeOutputWatermark(inputProcessingWatermark);
+          new SynchronizedProcessingTimeOutputWatermark(
+              name + ".outProcessing", inputProcessingWatermark);
 
       wms =
           new TransformWatermarks(
-              transform,
+              executable,
               inputWatermark,
               outputWatermark,
               inputProcessingWatermark,
               outputProcessingWatermark);
-      transformToWatermarks.put(transform, wms);
+      transformToWatermarks.put(executable, wms);
     }
     return wms;
   }
 
-  private Collection<Watermark> getInputProcessingWatermarks(ExecutableT transform) {
+  private Collection<Watermark> getInputProcessingWatermarks(ExecutableT executable) {
     ImmutableList.Builder<Watermark> inputWmsBuilder = ImmutableList.builder();
-    Collection<CollectionT> inputs = graph.getPerElementInputs(transform);
+    Collection<CollectionT> inputs = graph.getPerElementInputs(executable);
     if (inputs.isEmpty()) {
       inputWmsBuilder.add(THE_END_OF_TIME);
     }
@@ -853,9 +924,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
     return inputWmsBuilder.build();
   }
 
-  private List<Watermark> getInputWatermarks(ExecutableT transform) {
+  private List<Watermark> getInputWatermarks(ExecutableT executable) {
     ImmutableList.Builder<Watermark> inputWatermarksBuilder = ImmutableList.builder();
-    Collection<CollectionT> inputs = graph.getPerElementInputs(transform);
+    Collection<CollectionT> inputs = graph.getPerElementInputs(executable);
     if (inputs.isEmpty()) {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
@@ -873,19 +944,20 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * AppliedPTransform PTransform} has not processed any elements, return a watermark of {@link
    * BoundedWindow#TIMESTAMP_MIN_VALUE}.
    *
-   * @return a snapshot of the input watermark and output watermark for the provided transform
+   * @return a snapshot of the input watermark and output watermark for the provided executable
    */
-  public TransformWatermarks getWatermarks(ExecutableT transform) {
-    return transformToWatermarks.get(transform);
+  public TransformWatermarks getWatermarks(ExecutableT executable) {
+    return transformToWatermarks.get(executable);
   }
 
-  public void initialize(Map<ExecutableT, ? extends Iterable<CommittedBundle<?>>> initialBundles) {
+  public void initialize(
+      Map<ExecutableT, ? extends Iterable<Bundle<?,  CollectionT>>> initialBundles) {
     refreshLock.lock();
     try {
-      for (Map.Entry<ExecutableT, ? extends Iterable<CommittedBundle<?>>> rootEntry :
+      for (Map.Entry<ExecutableT, ? extends Iterable<Bundle<?, CollectionT>>> rootEntry :
           initialBundles.entrySet()) {
         TransformWatermarks rootWms = transformToWatermarks.get(rootEntry.getKey());
-        for (CommittedBundle<?> initialBundle : rootEntry.getValue()) {
+        for (Bundle<?, ? extends CollectionT> initialBundle : rootEntry.getValue()) {
           rootWms.addPending(initialBundle);
         }
         pendingRefreshes.add(rootEntry.getKey());
@@ -896,9 +968,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
   }
 
   /**
-   * Updates the watermarks of a transform with one or more inputs.
+   * Updates the watermarks of a executable with one or more inputs.
    *
-   * <p>Each transform has two monotonically increasing watermarks: the input watermark, which can,
+   * <p>Each executable has two monotonically increasing watermarks: the input watermark, which can,
    * at any time, be updated to equal:
    * <pre>
    * MAX(CurrentInputWatermark, MIN(PendingElements, InputPCollectionWatermarks))
@@ -908,24 +980,27 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * MAX(CurrentOutputWatermark, MIN(InputWatermark, WatermarkHolds))
    * </pre>.
    *
+   * <p>Updates to watermarks may not be immediately visible.
+   *
    * @param completed the input that has completed
-   * @param timerUpdate the timers that were added, removed, and completed as part of producing
-   *                    this update
-   * @param result the result that was produced by processing the input
-   * @param earliestHold the earliest watermark hold in the transform's state. {@code null} if there
-   *                     is no hold
+   * @param timerUpdate the timers that were added, removed, and completed as part of producing this
+   *     update
+   * @param executable the executable applied to {@code completed} to produce the outputs
+   * @param unprocessedInputs inputs that could not be processed
+   * @param outputs outputs that were produced by the application of the {@code executable} to the
+   *     input
+   * @param earliestHold the earliest watermark hold in the executable's state.
    */
   public void updateWatermarks(
-      @Nullable CommittedBundle<?> completed,
+      @Nullable Bundle<?, ? extends CollectionT> completed,
       TimerUpdate timerUpdate,
-      CommittedResult<ExecutableT> result,
+      ExecutableT executable,
+      @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+      Iterable<? extends Bundle<?, ? extends CollectionT>> outputs,
       Instant earliestHold) {
-    pendingUpdates.offer(PendingWatermarkUpdate.create(
-        result.getExecutable(),
-        completed,
-        timerUpdate,
-        result,
-        earliestHold));
+    pendingUpdates.offer(
+        PendingWatermarkUpdate.create(
+            executable, completed, timerUpdate, unprocessedInputs, outputs, earliestHold));
     tryApplyPendingUpdates();
   }
 
@@ -952,50 +1027,60 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
-  @GuardedBy("refreshLock")
   /**
    * Applies up to {@code numUpdates}, or all available updates if numUpdates is non-positive.
    */
+  @GuardedBy("refreshLock")
   private void applyNUpdates(int numUpdates) {
     for (int i = 0; !pendingUpdates.isEmpty() && (i < numUpdates || numUpdates <= 0); i++) {
-      PendingWatermarkUpdate<ExecutableT> pending = pendingUpdates.poll();
+      PendingWatermarkUpdate<ExecutableT, CollectionT> pending = pendingUpdates.poll();
       applyPendingUpdate(pending);
       pendingRefreshes.add(pending.getExecutable());
     }
   }
 
-  private void applyPendingUpdate(PendingWatermarkUpdate<ExecutableT> pending) {
-    CommittedResult<ExecutableT> result = pending.getResult();
-    ExecutableT transform = result.getExecutable();
-    CommittedBundle<?> inputBundle = pending.getInputBundle();
+  /** Apply a {@link PendingWatermarkUpdate} to the {@link WatermarkManager}. */
+  private void applyPendingUpdate(PendingWatermarkUpdate<ExecutableT, CollectionT> pending) {
+    ExecutableT executable = pending.getExecutable();
+    Bundle<?, ? extends CollectionT> inputBundle = pending.getInputBundle();
 
-    updatePending(inputBundle, pending.getTimerUpdate(), result);
+    updatePending(
+        inputBundle,
+        pending.getTimerUpdate(),
+        executable,
+        pending.getUnprocessedInputs(),
+        pending.getOutputs());
 
-    TransformWatermarks transformWms = transformToWatermarks.get(transform);
-    transformWms.setEventTimeHold(inputBundle == null ? null : inputBundle.getKey(),
-        pending.getEarliestHold());
+    TransformWatermarks transformWms = transformToWatermarks.get(executable);
+    transformWms.setEventTimeHold(
+        inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
   }
 
   /**
    * First adds all produced elements to the queue of pending elements for each consumer, then adds
    * all pending timers to the collection of pending timers, then removes all completed and deleted
    * timers from the collection of pending timers, then removes all completed elements from the
-   * pending queue of the transform.
+   * pending queue of the executable.
    *
    * <p>It is required that all newly pending elements are added to the queue of pending elements
    * for each consumer prior to the completed elements being removed, as doing otherwise could cause
    * a Watermark to appear in a state in which the upstream (completed) element does not hold the
    * watermark but the element it produced is not yet pending. This can cause the watermark to
    * erroneously advance.
+   *
+   * <p>See {@link #updateWatermarks(Bundle, TimerUpdate, Object, Bundle,
+   * Iterable, Instant)} for information about the parameters of this method.
    */
   private void updatePending(
-      CommittedBundle<?> input,
+      Bundle<?, ? extends CollectionT> input,
       TimerUpdate timerUpdate,
-      CommittedResult<ExecutableT> result) {
+      ExecutableT executable,
+      @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+      Iterable<? extends Bundle<?, ? extends CollectionT>> outputs) {
     // Newly pending elements must be added before completed elements are removed, as the two
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
-    for (CommittedBundle<?> bundle : result.getOutputs()) {
+    for (Bundle<?, ? extends CollectionT> bundle : outputs) {
       for (ExecutableT consumer :
           // TODO: Remove this cast once CommittedBundle returns a CollectionT
           graph.getPerElementConsumers((CollectionT) bundle.getPCollection())) {
@@ -1004,10 +1089,10 @@ class WatermarkManager<ExecutableT, CollectionT> {
       }
     }
 
-    TransformWatermarks completedTransform = transformToWatermarks.get(result.getExecutable());
-    if (result.getUnprocessedInputs().isPresent()) {
+    TransformWatermarks completedTransform = transformToWatermarks.get(executable);
+    if (unprocessedInputs != null) {
       // Add the unprocessed inputs
-      completedTransform.addPending(result.getUnprocessedInputs().get());
+      completedTransform.addPending(unprocessedInputs);
     }
     completedTransform.updateTimers(timerUpdate);
     if (input != null) {
@@ -1019,7 +1104,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * Refresh the watermarks contained within this {@link WatermarkManager}, causing all
    * watermarks to be advanced as far as possible.
    */
-  synchronized void refreshAll() {
+  public synchronized void refreshAll() {
     refreshLock.lock();
     try {
       applyAllPendingUpdates();
@@ -1034,8 +1119,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
   private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
     Set<ExecutableT> newRefreshes = new HashSet<>();
-    for (ExecutableT transform : toRefresh) {
-      newRefreshes.addAll(refreshWatermarks(transform));
+    for (ExecutableT executable : toRefresh) {
+      newRefreshes.addAll(refreshWatermarks(executable));
     }
     return newRefreshes;
   }
@@ -1179,7 +1264,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * A reference to the input and output watermarks of an {@link AppliedPTransform}.
    */
   public class TransformWatermarks {
-    private final ExecutableT transform;
+    private final ExecutableT executable;
 
     private final AppliedPTransformInputWatermark inputWatermark;
     private final AppliedPTransformOutputWatermark outputWatermark;
@@ -1191,12 +1276,12 @@ class WatermarkManager<ExecutableT, CollectionT> {
     private Instant latestSynchronizedOutputWm;
 
     private TransformWatermarks(
-        ExecutableT transform,
+        ExecutableT executable,
         AppliedPTransformInputWatermark inputWatermark,
         AppliedPTransformOutputWatermark outputWatermark,
         SynchronizedProcessingTimeInputWatermark inputSynchProcessingWatermark,
         SynchronizedProcessingTimeOutputWatermark outputSynchProcessingWatermark) {
-      this.transform = transform;
+      this.executable = executable;
       this.inputWatermark = inputWatermark;
       this.outputWatermark = outputWatermark;
 
@@ -1258,12 +1343,12 @@ class WatermarkManager<ExecutableT, CollectionT> {
       outputWatermark.updateHold(key, newHold);
     }
 
-    private void removePending(CommittedBundle<?> bundle) {
+    private void removePending(Bundle<?, ?> bundle) {
       inputWatermark.removePending(bundle);
       synchronizedProcessingInputWatermark.removePending(bundle);
     }
 
-    private void addPending(CommittedBundle<?> bundle) {
+    private void addPending(Bundle<?, ?> bundle) {
       inputWatermark.addPending(bundle);
       synchronizedProcessingInputWatermark.addPending(bundle);
     }
@@ -1284,7 +1369,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       for (Map.Entry<StructuralKey<?>, List<TimerData>> firedTimers :
           timersPerKey.entrySet()) {
         keyFiredTimers.add(
-            new FiredTimers<>(transform, firedTimers.getKey(), firedTimers.getValue()));
+            new FiredTimers<>(executable, firedTimers.getKey(), firedTimers.getValue()));
       }
       return keyFiredTimers;
     }
@@ -1429,17 +1514,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @VisibleForTesting
-    Iterable<? extends TimerData> getCompletedTimers() {
+    public Iterable<? extends TimerData> getCompletedTimers() {
       return completedTimers;
     }
 
     @VisibleForTesting
-    Iterable<? extends TimerData> getSetTimers() {
+    public Iterable<? extends TimerData> getSetTimers() {
       return setTimers;
     }
 
     @VisibleForTesting
-    Iterable<? extends TimerData> getDeletedTimers() {
+    public Iterable<? extends TimerData> getDeletedTimers() {
       return deletedTimers;
     }
 
@@ -1470,26 +1555,26 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
   /**
    * A pair of {@link TimerData} and key which can be delivered to the appropriate
-   * {@link AppliedPTransform}. A timer fires at the transform that set it with a specific key when
+   * {@link AppliedPTransform}. A timer fires at the executable that set it with a specific key when
    * the time domain in which it lives progresses past a specified time, as determined by the
    * {@link WatermarkManager}.
    */
   public static class FiredTimers<ExecutableT> {
-    /** The transform the timers were set at and will be delivered to. */
-    private final ExecutableT transform;
+    /** The executable the timers were set at and will be delivered to. */
+    private final ExecutableT executable;
     /** The key the timers were set for and will be delivered to. */
     private final StructuralKey<?> key;
     private final Collection<TimerData> timers;
 
     private FiredTimers(
-        ExecutableT transform, StructuralKey<?> key, Collection<TimerData> timers) {
-      this.transform = transform;
+        ExecutableT executable, StructuralKey<?> key, Collection<TimerData> timers) {
+      this.executable = executable;
       this.key = key;
       this.timers = timers;
     }
 
-    public ExecutableT getTransform() {
-      return transform;
+    public ExecutableT getExecutable() {
+      return executable;
     }
 
     public StructuralKey<?> getKey() {
@@ -1512,48 +1597,42 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
-  private static class BundleByElementTimestampComparator extends Ordering<CommittedBundle<?>>
+  private static class BundleByElementTimestampComparator extends Ordering<Bundle<?, ?>>
       implements Serializable {
     @Override
-    public int compare(CommittedBundle<?> o1, CommittedBundle<?> o2) {
+    public int compare(Bundle<?, ?> o1, Bundle<?, ?> o2) {
       return ComparisonChain.start()
           .compare(o1.getMinimumTimestamp(), o2.getMinimumTimestamp())
           .result();
     }
   }
 
-  public Set<ExecutableT> getCompletedTransforms() {
-    Set<ExecutableT> result = new HashSet<>();
-    for (Map.Entry<ExecutableT, TransformWatermarks> wms :
-        transformToWatermarks.entrySet()) {
-      if (wms.getValue().getOutputWatermark().equals(THE_END_OF_TIME.get())) {
-        result.add(wms.getKey());
-      }
-    }
-    return result;
-  }
-
   @AutoValue
-  abstract static class PendingWatermarkUpdate<ExecutableT> {
+  abstract static class PendingWatermarkUpdate<ExecutableT, CollectionT> {
     abstract ExecutableT getExecutable();
 
     @Nullable
-    abstract CommittedBundle<?> getInputBundle();
+    abstract Bundle<?, ? extends CollectionT> getInputBundle();
 
     abstract TimerUpdate getTimerUpdate();
 
-    abstract CommittedResult<ExecutableT> getResult();
+    @Nullable
+    abstract Bundle<?, ? extends CollectionT> getUnprocessedInputs();
+
+    abstract Iterable<? extends Bundle<?, ? extends CollectionT>> getOutputs();
 
     abstract Instant getEarliestHold();
 
-    public static <ExecutableT> PendingWatermarkUpdate<ExecutableT> create(
-        ExecutableT executable,
-        CommittedBundle<?> inputBundle,
-        TimerUpdate timerUpdate,
-        CommittedResult<ExecutableT> result,
-        Instant earliestHold) {
-      return new AutoValue_WatermarkManager_PendingWatermarkUpdate(
-          executable, inputBundle, timerUpdate, result, earliestHold);
+    public static <ExecutableT, CollectionT>
+        PendingWatermarkUpdate<ExecutableT, CollectionT> create(
+            ExecutableT executable,
+            @Nullable Bundle<?, ? extends CollectionT> inputBundle,
+            TimerUpdate timerUpdate,
+            @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+            Iterable<? extends Bundle<?, ? extends CollectionT>> outputs,
+            Instant earliestHold) {
+      return new AutoValue_WatermarkManager_PendingWatermarkUpdate<>(
+          executable, inputBundle, timerUpdate, unprocessedInputs, outputs, earliestHold);
     }
   }
 }

@@ -48,6 +48,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -58,14 +60,14 @@ import org.joda.time.Instant;
  */
 public class SplittableDoFnOperator<
         InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
-    extends DoFnOperator<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
+    extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
 
   private transient ScheduledExecutorService executorService;
 
   public SplittableDoFnOperator(
-      DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
+      DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> doFn,
       String stepName,
-      Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> inputCoder,
+      Coder<WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>> inputCoder,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -73,7 +75,8 @@ public class SplittableDoFnOperator<
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
-      Coder<?> keyCoder) {
+      Coder<?> keyCoder,
+      KeySelector<WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, ?> keySelector) {
     super(
         doFn,
         stepName,
@@ -85,35 +88,33 @@ public class SplittableDoFnOperator<
         sideInputTagMapping,
         sideInputs,
         options,
-        keyCoder);
+        keyCoder,
+        keySelector);
   }
 
   @Override
   protected DoFnRunner<
-      KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> createWrappingDoFnRunner(
-          DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> wrappedRunner) {
+      KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createWrappingDoFnRunner(
+          DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> wrappedRunner) {
     // don't wrap in anything because we don't need state cleanup because ProcessFn does
     // all that
     return wrappedRunner;
   }
 
   @Override
-  public void open() throws Exception {
-    super.open();
+  public void initializeState(StateInitializationContext context) throws Exception {
+    super.initializeState(context);
 
     checkState(doFn instanceof ProcessFn);
 
-    StateInternalsFactory<String> stateInternalsFactory =
-        key -> {
-          // this will implicitly be keyed by the key of the incoming
-          // element or by the key of a firing timer
-          return (StateInternals) keyedStateInternals;
-        };
-    TimerInternalsFactory<String> timerInternalsFactory =
-        key -> {
-          // this will implicitly be keyed like the StateInternalsFactory
-          return timerInternals;
-        };
+    // this will implicitly be keyed by the key of the incoming
+    // element or by the key of a firing timer
+    StateInternalsFactory<byte[]> stateInternalsFactory =
+        key -> (StateInternals) keyedStateInternals;
+
+    // this will implicitly be keyed like the StateInternalsFactory
+    TimerInternalsFactory<byte[]> timerInternalsFactory =
+        key -> timerInternals;
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
@@ -161,7 +162,7 @@ public class SplittableDoFnOperator<
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
-                (String) keyedStateInternals.getKey(),
+                (byte[]) keyedStateInternals.getKey(),
                 Collections.singletonList(timer.getNamespace()))));
   }
 

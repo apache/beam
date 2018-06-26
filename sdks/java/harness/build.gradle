@@ -16,7 +16,16 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+
+// We specifically enumerate all the projects that we depend on since
+// the list is used in both defining the included set for the uber jar
+// and also the set of project level dependencies.
+def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
+                        ":beam-sdks-java-fn-execution",
+                        ":beam-sdks-java-extensions-google-cloud-platform-core",
+                        ":beam-runners-core-java", ":beam-runners-core-construction-java"]
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
@@ -24,30 +33,22 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // jars.
   {
     dependencies {
-      include('**/*.class')
+      // Directly include all projects depended on
+      dependOnProjects.each {
+        include(project(path: it, configuration: "shadow"))
+      }
+      // Include all dependencies and transitive dependencies
+      include(dependency(".*:.*"))
     }
   })
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-java-fn-execution")
-
 dependencies {
-  compile project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  dependOnProjects.each {
+    compile project(path: it, configuration: "shadow")
+  }
   compile library.java.jackson_databind
   compile library.java.findbugs_jsr305
   compile library.java.guava
@@ -60,6 +61,7 @@ dependencies {
   compile library.java.slf4j_api
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14

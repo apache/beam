@@ -182,7 +182,7 @@ class PTransformTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_read_metrics(self):
-    from apache_beam.examples.snippets.snippets import CountingSource
+    from apache_beam.io.utils import CountingSource
 
     class CounterDoFn(beam.DoFn):
       def __init__(self):
@@ -197,7 +197,7 @@ class PTransformTest(unittest.TestCase):
     (pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn()))
     res = pipeline.run()
     res.wait_until_finish()
-    # This counter is defined in snippets.CountingSource.
+    # This counter is defined in utils.CountingSource.
     metric_results = res.metrics().query(MetricsFilter()
                                          .with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]

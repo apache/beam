@@ -120,7 +120,6 @@ class Operation(object):
       # sampling.
       self.name_context = name_context
     else:
-      logging.info('Creating namecontext within operation')
       self.name_context = common.NameContext(name_context)
 
     # TODO(BEAM-4028): Remove following two lines. Rely on name context.
@@ -133,24 +132,27 @@ class Operation(object):
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
-    self.scoped_metrics_container = ScopedMetricsContainer(
-        self.metrics_container)
+    # TODO(BEAM-4094): Remove ScopedMetricsContainer after Dataflow no longer
+    # depends on it.
+    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start')
+        self.name_context.metrics_name(), 'start',
+        metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process')
+        self.name_context.metrics_name(), 'process',
+        metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish')
+        self.name_context.metrics_name(), 'finish',
+        metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(
-        logging.DEBUG)
+    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
     # Everything except WorkerSideInputSource, which is not a
     # top-level operation, should have output_coders
     #TODO(pabloem): Define better what step name is used here.
@@ -161,12 +163,12 @@ class Operation(object):
                                     self.consumers[i], coder)
                         for i, coder in enumerate(self.spec.output_coders)]
 
-  def finish(self):
-    """Finish operation."""
-    pass
-
   def process(self, o):
     """Process element in operation."""
+    pass
+
+  def finish(self):
+    """Finish operation."""
     pass
 
   def output(self, windowed_value, output_index=0):
@@ -240,16 +242,15 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      with self.scoped_metrics_container:
-        super(ReadOperation, self).start()
-        range_tracker = self.spec.source.source.get_range_tracker(
-            self.spec.source.start_position, self.spec.source.stop_position)
-        for value in self.spec.source.source.read(range_tracker):
-          if isinstance(value, WindowedValue):
-            windowed_value = value
-          else:
-            windowed_value = _globally_windowed_value.with_value(value)
-          self.output(windowed_value)
+      super(ReadOperation, self).start()
+      range_tracker = self.spec.source.source.get_range_tracker(
+          self.spec.source.start_position, self.spec.source.stop_position)
+      for value in self.spec.source.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -302,9 +303,6 @@ class DoOperation(Operation):
     # provided directly.
     assert self.side_input_maps is None
 
-    # Get experiments active in the worker to check for side input metrics exp.
-    experiments = RuntimeValueProvider.get_value('experiments', list, [])
-
     # We will read the side inputs in the order prescribed by the
     # tags_and_types argument because this is exactly the order needed to
     # replace the ArgumentPlaceholder objects in the args/kwargs of the DoFn
@@ -327,7 +325,7 @@ class DoOperation(Operation):
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics' in experiments:
+        if 'sideinput_io_metrics_v2' in RuntimeValueProvider.experiments:
           si_counter = opcounters.SideInputReadCounter(
               self.counter_factory,
               self.state_sampler,
@@ -335,7 +333,7 @@ class DoOperation(Operation):
               # Inputs are 1-indexed, so we add 1 to i in the side input id
               input_index=i + 1)
         else:
-          si_counter = opcounters.TransformIOCounter()
+          si_counter = opcounters.NoOpTransformIOCounter()
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
@@ -390,20 +388,20 @@ class DoOperation(Operation):
           logging_context=logger.PerThreadLoggingContext(
               step_name=self.name_context.logging_name()),
           state=state,
-          scoped_metrics_container=self.scoped_metrics_container)
+          scoped_metrics_container=None)
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
 
       self.dofn_runner.start()
 
-  def finish(self):
-    with self.scoped_finish_state:
-      self.dofn_runner.finish()
-
   def process(self, o):
     with self.scoped_process_state:
       self.dofn_receiver.receive(o)
+
+  def finish(self):
+    with self.scoped_finish_state:
+      self.dofn_runner.finish()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
@@ -437,16 +435,16 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
-  def finish(self):
-    logging.debug('Finishing %s', self)
-
   def process(self, o):
-    if self.debug_logging_enabled:
-      logging.debug('Processing [%s] in %s', o, self)
-    key, values = o.value
-    with self.scoped_metrics_container:
+    with self.scoped_process_state:
+      if self.debug_logging_enabled:
+        logging.debug('Processing [%s] in %s', o, self)
+      key, values = o.value
       self.output(
           o.with_value((key, self.phased_combine_fn.apply(values))))
+
+  def finish(self):
+    logging.debug('Finishing %s', self)
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -474,12 +472,13 @@ class PGBKOperation(Operation):
     self.max_size = 10 * 1000
 
   def process(self, o):
-    # TODO(robertwb): Structural (hashable) values.
-    key = o.value[0], tuple(o.windows)
-    self.table[key].append(o)
-    self.size += 1
-    if self.size > self.max_size:
-      self.flush(9 * self.max_size // 10)
+    with self.scoped_process_state:
+      # TODO(robertwb): Structural (hashable) values.
+      key = o.value[0], tuple(o.windows)
+      self.table[key].append(o)
+      self.size += 1
+      if self.size > self.max_size:
+        self.flush(9 * self.max_size // 10)
 
   def finish(self):
     self.flush(0)
@@ -529,32 +528,33 @@ class PGBKCVOperation(Operation):
     self.table = {}
 
   def process(self, wkv):
-    key, value = wkv.value
-    # pylint: disable=unidiomatic-typecheck
-    # Optimization for the global window case.
-    if len(wkv.windows) == 1 and type(wkv.windows[0]) is _global_window_type:
-      wkey = 0, key
-    else:
-      wkey = tuple(wkv.windows), key
-    entry = self.table.get(wkey, None)
-    if entry is None:
-      if self.key_count >= self.max_keys:
-        target = self.key_count * 9 // 10
-        old_wkeys = []
-        # TODO(robertwb): Use an LRU cache?
-        for old_wkey, old_wvalue in self.table.iteritems():
-          old_wkeys.append(old_wkey)  # Can't mutate while iterating.
-          self.output_key(old_wkey, old_wvalue[0])
-          self.key_count -= 1
-          if self.key_count <= target:
-            break
-        for old_wkey in reversed(old_wkeys):
-          del self.table[old_wkey]
-      self.key_count += 1
-      # We save the accumulator as a one element list so we can efficiently
-      # mutate when new values are added without searching the cache again.
-      entry = self.table[wkey] = [self.combine_fn.create_accumulator()]
-    entry[0] = self.combine_fn_add_input(entry[0], value)
+    with self.scoped_process_state:
+      key, value = wkv.value
+      # pylint: disable=unidiomatic-typecheck
+      # Optimization for the global window case.
+      if len(wkv.windows) == 1 and type(wkv.windows[0]) is _global_window_type:
+        wkey = 0, key
+      else:
+        wkey = tuple(wkv.windows), key
+      entry = self.table.get(wkey, None)
+      if entry is None:
+        if self.key_count >= self.max_keys:
+          target = self.key_count * 9 // 10
+          old_wkeys = []
+          # TODO(robertwb): Use an LRU cache?
+          for old_wkey, old_wvalue in self.table.iteritems():
+            old_wkeys.append(old_wkey)  # Can't mutate while iterating.
+            self.output_key(old_wkey, old_wvalue[0])
+            self.key_count -= 1
+            if self.key_count <= target:
+              break
+          for old_wkey in reversed(old_wkeys):
+            del self.table[old_wkey]
+        self.key_count += 1
+        # We save the accumulator as a one element list so we can efficiently
+        # mutate when new values are added without searching the cache again.
+        entry = self.table[wkey] = [self.combine_fn.create_accumulator()]
+      entry[0] = self.combine_fn_add_input(entry[0], value)
 
   def finish(self):
     for wkey, value in self.table.iteritems():
@@ -578,9 +578,10 @@ class FlattenOperation(Operation):
   """
 
   def process(self, o):
-    if self.debug_logging_enabled:
-      logging.debug('Processing [%s] in %s', o, self)
-    self.output(o)
+    with self.scoped_process_state:
+      if self.debug_logging_enabled:
+        logging.debug('Processing [%s] in %s', o, self)
+      self.output(o)
 
 
 def create_operation(name_context, spec, counter_factory, step_name,
@@ -700,13 +701,9 @@ class SimpleMapTaskExecutor(object):
     # operations is a list of operation_specs.Worker* instances.
     # The order of the elements is important because the inputs use
     # list indexes as references.
-
-    for ix, spec in enumerate(self._map_task.operations):
+    for name_context, spec in zip(self._map_task.name_contexts,
+                                  self._map_task.operations):
       # This is used for logging and assigning names to counters.
-      name_context = common.DataflowNameContext(
-          step_name=self._map_task.original_names[ix],
-          user_name=self._map_task.step_names[ix],
-          system_name=self._map_task.system_names[ix])
       op = create_operation(
           name_context, spec, self._counter_factory, None,
           self._state_sampler,
@@ -725,8 +722,6 @@ class SimpleMapTaskExecutor(object):
 
     for ix, op in reversed(list(enumerate(self._ops))):
       logging.debug('Starting op %d %s', ix, op)
-      with op.scoped_metrics_container:
-        op.start()
+      op.start()
     for op in self._ops:
-      with op.scoped_metrics_container:
-        op.finish()
+      op.finish()

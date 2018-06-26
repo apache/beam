@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.autoCastField;
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -42,9 +43,10 @@ import org.apache.calcite.rex.RexLiteral;
  * {@code BeamRelNode} to replace a {@code Values} node.
  *
  * <p>{@code BeamValuesRel} will be used in the following SQLs:
+ *
  * <ul>
- *   <li>{@code insert into t (name, desc) values ('hello', 'world')}</li>
- *   <li>{@code select 1, '1', LOCALTIME}</li>
+ *   <li>{@code insert into t (name, desc) values ('hello', 'world')}
+ *   <li>{@code select 1, '1', LOCALTIME}
  * </ul>
  */
 public class BeamValuesRel extends Values implements BeamRelNode {
@@ -55,20 +57,23 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       ImmutableList<ImmutableList<RexLiteral>> tuples,
       RelTraitSet traits) {
     super(cluster, rowType, tuples, traits);
-
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 0,
+          "Should not have received input for %s: %s",
+          BeamValuesRel.class.getSimpleName(),
+          pinput);
 
-      String stageName = BeamSqlRelUtils.getStageName(BeamValuesRel.this);
       if (tuples.isEmpty()) {
         throw new IllegalStateException("Values with empty tuples!");
       }
@@ -77,18 +82,13 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
 
-      return inputPCollections
-          .getPipeline()
-          .apply(stageName, Create.of(rows))
-          .setCoder(schema.getRowCoder());
+      return pinput.getPipeline().begin().apply(Create.of(rows)).setCoder(schema.getRowCoder());
     }
   }
 
   private Row tupleToRow(Schema schema, ImmutableList<RexLiteral> tuple) {
-    return
-        IntStream
-            .range(0, tuple.size())
-            .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
-            .collect(toRow(schema));
+    return IntStream.range(0, tuple.size())
+        .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
+        .collect(toRow(schema));
   }
 }

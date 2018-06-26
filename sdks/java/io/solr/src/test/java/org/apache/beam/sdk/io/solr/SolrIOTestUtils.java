@@ -59,17 +59,6 @@ public class SolrIOTestUtils {
     }
   }
 
-  /** Delete given collection. */
-  static void deleteCollection(String collection, AuthorizedSolrClient client) throws IOException {
-    try {
-      CollectionAdminRequest.Delete delete =
-          new CollectionAdminRequest.Delete().setCollectionName(collection);
-      client.process(delete);
-    } catch (SolrServerException e) {
-      throw new IOException(e);
-    }
-  }
-
   /** Clear given collection. */
   static void clearCollection(String collection, AuthorizedSolrClient client) throws IOException {
     try {

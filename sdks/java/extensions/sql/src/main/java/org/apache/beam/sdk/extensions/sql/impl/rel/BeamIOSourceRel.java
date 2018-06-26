@@ -17,57 +17,58 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import com.google.common.base.Joiner;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.TableScan;
 
-/**
- * BeamRelNode to replace a {@code TableScan} node.
- *
- */
+/** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
-  private BeamSqlEnv sqlEnv;
+  private final BeamSqlTable sqlTable;
+  private final Map<String, String> pipelineOptions;
 
   public BeamIOSourceRel(
-      BeamSqlEnv sqlEnv, RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table) {
-    super(cluster, traitSet, table);
-    this.sqlEnv = sqlEnv;
+      RelOptCluster cluster,
+      RelOptTable table,
+      BeamSqlTable sqlTable,
+      Map<String, String> pipelineOptions) {
+    super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
+    this.sqlTable = sqlTable;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
-
-      TupleTag<Row> sourceTupleTag = new TupleTag<>(sourceName);
-      if (inputPCollections.has(sourceTupleTag)) {
-        // choose PCollection from input PCollectionTuple if exists there.
-        PCollection<Row> sourceStream = inputPCollections.get(new TupleTag<Row>(sourceName));
-        return sourceStream;
-      } else {
-        // If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-        BeamSqlTable sourceTable = sqlEnv.findTable(sourceName);
-        return sourceTable
-            .buildIOReader(inputPCollections.getPipeline())
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
-      }
+    public PCollection<Row> expand(PCollectionList<Row> input) {
+      checkArgument(
+          input.size() == 0,
+          "Should not have received input for %s: %s",
+          BeamIOSourceRel.class.getSimpleName(),
+          input);
+      return sqlTable.buildIOReader(input.getPipeline().begin());
     }
+  }
+
+  protected BeamSqlTable getBeamSqlTable() {
+    return sqlTable;
+  }
+
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return pipelineOptions;
   }
 }

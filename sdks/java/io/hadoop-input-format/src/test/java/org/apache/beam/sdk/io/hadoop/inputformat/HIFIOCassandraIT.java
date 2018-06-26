@@ -109,7 +109,7 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+  private final SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
     @Override
     public String apply(Row input) {
       return input.getString("y_id") + "|" + input.getString("field0") + "|"
@@ -166,7 +166,7 @@ public class HIFIOCassandraIT implements Serializable {
     conf.setClass("mapreduce.job.inputformat.class",
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass("key.class", java.lang.Long.class, Object.class);
-    conf.setClass("value.class", com.datastax.driver.core.Row.class, Object.class);
+    conf.setClass("value.class", Row.class, Object.class);
     return conf;
   }
 }

@@ -17,6 +17,8 @@
 
 """Test for the coders example."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 

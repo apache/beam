@@ -233,10 +233,8 @@ public class ReflectHelpers {
       }
       if (current == null) {
         current = proposed;
-      } else if (proposed != current) {
-        if (isParent(current, proposed)) {
-          current = proposed;
-        }
+      } else if (proposed != current && isParent(current, proposed)) {
+        current = proposed;
       }
     }
     return current == null ? ClassLoader.getSystemClassLoader() : current;

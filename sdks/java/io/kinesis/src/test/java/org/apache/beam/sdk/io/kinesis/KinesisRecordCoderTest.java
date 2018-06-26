@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -30,7 +31,7 @@ public class KinesisRecordCoderTest {
   @Test
   public void encodingAndDecodingWorks() throws Exception {
     KinesisRecord record = new KinesisRecord(
-        ByteBuffer.wrap("data".getBytes()),
+        ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8)),
         "sequence",
         128L,
         "partition",

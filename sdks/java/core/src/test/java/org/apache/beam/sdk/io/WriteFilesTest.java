@@ -32,12 +32,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -71,6 +73,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -83,6 +86,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.compress.utils.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -155,6 +159,16 @@ public class WriteFilesTest {
           .apply(ParDo.of(new AddArbitraryKey<>()))
           .apply(GroupByKey.create())
           .apply(ParDo.of(new RemoveArbitraryKey<>()));
+    }
+  }
+
+  private static class VerifyFilesExist<DestinationT> extends
+      PTransform<PCollection<KV<DestinationT, String>>, PDone> {
+    @Override
+    public PDone expand(PCollection<KV<DestinationT, String>> input) {
+      input.apply(Values.create())
+          .apply(FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW));
+      return PDone.in(input.getPipeline());
     }
   }
 
@@ -239,7 +253,8 @@ public class WriteFilesTest {
     WriteFiles<String, ?, String> write = WriteFiles.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
-        .apply(write);
+        .apply(write)
+        .getPerDestinationOutputFilenames().apply(new VerifyFilesExist<>());
 
     p.run();
 
@@ -323,6 +338,7 @@ public class WriteFilesTest {
             .withNumShards(1));
   }
 
+  @Test
   public void testBuildWrite() {
     SimpleSink<Void> sink = makeSimpleSink();
     WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(3);
@@ -477,13 +493,15 @@ public class WriteFilesTest {
     WriteFiles<String, Integer, String> writeFiles = WriteFiles.to(sink).withNumShards(numShards);
 
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
+    WriteFilesResult<Integer> res;
     if (!bounded) {
       input.setIsBoundedInternal(IsBounded.UNBOUNDED);
       input = input.apply(Window.into(FixedWindows.of(Duration.standardDays(1))));
-      input.apply(writeFiles.withWindowedWrites());
+      res = input.apply(writeFiles.withWindowedWrites());
     } else {
-      input.apply(writeFiles);
+      res = input.apply(writeFiles);
     }
+    res.getPerDestinationOutputFilenames().apply(new VerifyFilesExist<>());
     p.run();
 
     for (int i = 0; i < 5; ++i) {
@@ -661,7 +679,8 @@ public class WriteFilesTest {
     }
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(transform)
-        .apply(write);
+        .apply(write)
+        .getPerDestinationOutputFilenames().apply(new VerifyFilesExist<>());
     p.run();
 
     Optional<Integer> numShards =
@@ -705,7 +724,7 @@ public class WriteFilesTest {
 
     List<String> actual = Lists.newArrayList();
     for (File outputFile : outputFiles) {
-      try (BufferedReader reader = new BufferedReader(new FileReader(outputFile))) {
+      try (BufferedReader reader = Files.newBufferedReader(outputFile.toPath(), Charsets.UTF_8)) {
         for (;;) {
           String line = reader.readLine();
           if (line == null) {

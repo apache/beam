@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
@@ -46,7 +46,11 @@ processResources {
   ]
 }
 
-// The :beam-examples-java main/test sourceSets are used in generation.
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.{main|test}.allSource" directly.
+ */
 evaluationDependsOn(':beam-examples-java')
 
 task generateSources(type: Exec) {
@@ -55,17 +59,6 @@ task generateSources(type: Exec) {
   inputs.dir project(':beam-examples-java').sourceSets.main.allSource
   inputs.dir project(':beam-examples-java').sourceSets.test.allSource
   commandLine './generate-sources.sh'
-}
-
-// Add archetype testing/generation to existing GradleBuild PreCommit
-// https://issues.apache.org/jira/browse/BEAM-3256
-task generateAndBuildArchetypeTest(type: Exec) {
-  if (project.hasProperty("maven_home")) {
-    commandLine "${maven_home}/bin/mvn", 'clean', 'install'
-    environment "MAVEN_HOME", "${maven_home}"
-  } else {
-    commandLine 'mvn', 'clean', 'install'
-  }
 }
 
 sourceSets {

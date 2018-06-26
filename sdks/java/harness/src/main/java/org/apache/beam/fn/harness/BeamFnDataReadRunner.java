@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -93,7 +94,8 @@ public class BeamFnDataReadRunner<OutputT> {
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+        Consumer<ThrowingRunnable> addFinishFunction,
+        BundleSplitListener splitListener) throws IOException {
 
       BeamFnApi.Target target = BeamFnApi.Target.newBuilder()
           .setPrimitiveTransformReference(pTransformId)

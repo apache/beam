@@ -17,6 +17,8 @@
 
 """Unit tests for the test_stream module."""
 
+from __future__ import absolute_import
+
 import unittest
 
 import apache_beam as beam
@@ -29,6 +31,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_per_window
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.window import FixedWindows
@@ -110,6 +113,7 @@ class TestStreamTest(unittest.TestCase):
     p = TestPipeline(options=options)
     my_record_fn = RecordFn()
     records = p | test_stream | beam.ParDo(my_record_fn)
+
     assert_that(records, equal_to([
         ('a', timestamp.Timestamp(10)),
         ('b', timestamp.Timestamp(10)),
@@ -118,6 +122,7 @@ class TestStreamTest(unittest.TestCase):
         ('e', timestamp.Timestamp(20)),
         ('late', timestamp.Timestamp(12)),
         ('last', timestamp.Timestamp(310)),]))
+
     p.run()
 
   def test_gbk_execution_no_triggers(self):
@@ -132,14 +137,6 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements([TimestampedValue('late', 12)])
                    .add_elements([TimestampedValue('last', 310)]))
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def fired_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -147,37 +144,38 @@ class TestStreamTest(unittest.TestCase):
                | test_stream
                | beam.WindowInto(FixedWindows(15))
                | beam.Map(lambda x: ('k', x))
-               | beam.GroupByKey()
-               | beam.Map(fired_elements))
+               | beam.GroupByKey())
+
     # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
-    assert_that(records, equal_to([
-        ('k', ['a', 'b', 'c']),
-        ('k', ['d', 'e']),
-        ('k', ['late']),
-        ('k', ['last'])]))
+
+    # assert per window
+    expected_window_to_elements = {
+        window.IntervalWindow(0, 15): [
+            ('k', ['a', 'b', 'c']),
+            ('k', ['late']),
+        ],
+        window.IntervalWindow(15, 30): [
+            ('k', ['d', 'e']),
+        ],
+        window.IntervalWindow(300, 315): [
+            ('k', ['last']),
+        ],
+    }
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
+
     p.run()
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([
-        ('k', ['a', 'b', 'c']),
-        ('k', ['d', 'e']),
-        ('k', ['late']),
-        ('k', ['last'])], result)
 
   def test_gbk_execution_after_watermark_trigger(self):
     test_stream = (TestStream()
                    .advance_watermark_to(10)
                    .add_elements(['a'])
                    .advance_watermark_to(20))
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result   # pylint: disable=global-variable-undefined
-    result = []
-
-    def fired_elements(elem):
-      result.append(elem)
-      return elem
 
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
@@ -189,19 +187,26 @@ class TestStreamTest(unittest.TestCase):
                    trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
                    accumulation_mode=trigger.AccumulationMode.DISCARDING)
                | beam.Map(lambda x: ('k', x))
-               | beam.GroupByKey()
-               | beam.Map(fired_elements))
+               | beam.GroupByKey())
+
     # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
 
-    # TODO(BEAM-3377): Reinstate after assert_that in streaming is fixed.
-    # assert_that(records, equal_to([
-    #     ('k', ['a']), ('k', [])]))
+    # assert per window
+    expected_window_to_elements = {
+        window.IntervalWindow(15, 30): [
+            ('k', ['a']),
+            ('k', []),
+        ],
+    }
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
 
     p.run()
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('k', ['a']), ('k', [])], result)
 
   def test_gbk_execution_after_processing_trigger_fired(self):
     """Advance TestClock to (X + delta) and see the pipeline does finish."""
@@ -214,14 +219,6 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements(['a'])
                    .advance_processing_time(5.1))
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def fired_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -233,30 +230,24 @@ class TestStreamTest(unittest.TestCase):
                    accumulation_mode=trigger.AccumulationMode.DISCARDING
                    )
                | beam.Map(lambda x: ('k', x))
-               | beam.GroupByKey()
-               | beam.Map(fired_elements))
+               | beam.GroupByKey())
+
     # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
 
-    # TODO(BEAM-3377): Reinstate after assert_that in streaming is fixed.
-    assert_that(records, equal_to([
-        ('k', ['a'])]))
+    expected_window_to_elements = {
+        window.IntervalWindow(0, 15): [('k', ['a'])],
+    }
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
 
     p.run()
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('k', ['a'])], result)
 
   def test_basic_execution_batch_sideinputs(self):
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def recorded_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -277,23 +268,13 @@ class TestStreamTest(unittest.TestCase):
         yield (elm, ts, side)
 
     records = (main_stream     # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side))
-               | beam.Map(recorded_elements))
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
+
+    assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 4])]))
+
     p.run()
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('e', Timestamp(10), [2, 1, 4])], result)
-
   def test_basic_execution_sideinputs(self):
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def recorded_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -318,24 +299,13 @@ class TestStreamTest(unittest.TestCase):
         yield (elm, ts, side)
 
     records = (main_stream        # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream))
-               | beam.Map(recorded_elements))
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
+
+    assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 7, 4])]))
 
     p.run()
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('e', Timestamp(10), [2, 1, 7, 4])], result)
-
   def test_basic_execution_batch_sideinputs_fixed_windows(self):
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def recorded_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -360,24 +330,22 @@ class TestStreamTest(unittest.TestCase):
         yield (elm, ts, side)
 
     records = (main_stream     # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side))
-               | beam.Map(recorded_elements))
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
+
+    # assert per window
+    expected_window_to_elements = {
+        window.IntervalWindow(2, 3):[('a', Timestamp(2), [2])],
+        window.IntervalWindow(4, 5):[('b', Timestamp(4), [4])]
+    }
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
+
     p.run()
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('a', Timestamp(2), [2]),
-                      ('b', Timestamp(4), [4])], result)
-
   def test_basic_execution_sideinputs_fixed_windows(self):
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def recorded_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -410,17 +378,26 @@ class TestStreamTest(unittest.TestCase):
         yield (elm, ts, side)
 
     records = (main_stream     # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream))
-               | beam.Map(recorded_elements))
-    p.run()
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('a1', Timestamp(9), ['s1']),
-                      ('a2', Timestamp(9), ['s1']),
-                      ('a3', Timestamp(9), ['s1']),
-                      ('a4', Timestamp(9), ['s1']),
-                      ('b', Timestamp(9), ['s1']),
-                      ('c', Timestamp(18), ['s2'])], result)
+    # assert per window
+    expected_window_to_elements = {
+        window.IntervalWindow(9, 10): [
+            ('a1', Timestamp(9), ['s1']),
+            ('a2', Timestamp(9), ['s1']),
+            ('a3', Timestamp(9), ['s1']),
+            ('a4', Timestamp(9), ['s1']),
+            ('b', Timestamp(9), ['s1'])
+        ],
+        window.IntervalWindow(18, 19):[('c', Timestamp(18), ['s2'])],
+    }
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
+
+    p.run()
 
 
 if __name__ == '__main__':

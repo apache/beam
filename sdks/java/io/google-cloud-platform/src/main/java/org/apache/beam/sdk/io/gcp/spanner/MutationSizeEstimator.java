@@ -115,8 +115,9 @@ class MutationSizeEstimator {
         return v.isNull() ? 0 : v.getString().length();
       case BYTES:
         return v.isNull() ? 0 : v.getBytes().length();
+      default:
+        throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
-    throw new IllegalArgumentException("Unsupported type " + v.getType());
   }
 
   private static long estimateArrayValue(Value v) {
@@ -127,9 +128,9 @@ class MutationSizeEstimator {
       case BOOL:
         return v.getBoolArray().size();
       case INT64:
-        return 8 * v.getInt64Array().size();
+        return 8L * v.getInt64Array().size();
       case FLOAT64:
-        return 8 * v.getFloat64Array().size();
+        return 8L * v.getFloat64Array().size();
       case STRING:
         long totalLength = 0;
         for (String s : v.getStringArray()) {
@@ -149,10 +150,11 @@ class MutationSizeEstimator {
         }
         return totalLength;
       case DATE:
-        return 12 * v.getDateArray().size();
+        return 12L * v.getDateArray().size();
       case TIMESTAMP:
-        return 12 * v.getTimestampArray().size();
+        return 12L * v.getTimestampArray().size();
+      default:
+        throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
-    throw new IllegalArgumentException("Unsupported type " + v.getType());
   }
 }

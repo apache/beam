@@ -17,7 +17,10 @@
 
 """Unit tests for the retry module."""
 
+from __future__ import absolute_import
+
 import unittest
+from builtins import object
 
 from apache_beam.utils import retry
 

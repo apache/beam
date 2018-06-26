@@ -199,10 +199,10 @@ class DataflowMetrics(MetricResults):
   def query(self, filter=None):
     response = self._get_metrics_from_dataflow()
     metric_results = self._populate_metric_results(response)
-    return {'counters': [elm for elm in metric_results
-                         if self.matches(filter, elm.key)
-                         and DataflowMetrics._is_counter(elm)],
-            'distributions': [elm for elm in metric_results
-                              if self.matches(filter, elm.key)
-                              and DataflowMetrics._is_distribution(elm)],
-            'gauges': []}  # TODO(pabloem): Add Gauge support for dataflow.
+    return {self.COUNTERS: [elm for elm in metric_results
+                            if self.matches(filter, elm.key)
+                            and DataflowMetrics._is_counter(elm)],
+            self.DISTRIBUTIONS: [elm for elm in metric_results
+                                 if self.matches(filter, elm.key)
+                                 and DataflowMetrics._is_distribution(elm)],
+            self.GAUGES: []}  # TODO(pabloem): Add Gauge support for dataflow.

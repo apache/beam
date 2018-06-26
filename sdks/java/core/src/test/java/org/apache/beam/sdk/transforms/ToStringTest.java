@@ -22,9 +22,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -42,7 +42,7 @@ public class ToStringTest {
   public final TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testToStringOf() {
     Integer[] ints = {1, 2, 3, 4, 5};
     String[] strings = {"1", "2", "3", "4", "5"};
@@ -53,7 +53,7 @@ public class ToStringTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testToStringKV() {
     ArrayList<KV<String, Integer>> kvs = new ArrayList<>();
     kvs.add(KV.of("one", 1));
@@ -70,7 +70,7 @@ public class ToStringTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testToStringKVWithDelimiter() {
     ArrayList<KV<String, Integer>> kvs = new ArrayList<>();
     kvs.add(KV.of("one", 1));
@@ -87,7 +87,7 @@ public class ToStringTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testToStringIterable() {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
@@ -105,7 +105,7 @@ public class ToStringTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testToStringIterableWithDelimiter() {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));

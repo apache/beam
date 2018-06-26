@@ -26,8 +26,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
@@ -39,7 +39,6 @@ import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -82,8 +81,11 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link TextIO.Write}. */
+@RunWith(JUnit4.class)
 public class TextIOWriteTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
@@ -137,7 +139,7 @@ public class TextIOWriteTest {
     }
   }
 
-  class StartsWith implements Predicate<String> {
+  static class StartsWith implements Predicate<String> {
     String prefix;
 
     StartsWith(String prefix) {
@@ -365,30 +367,6 @@ public class TextIOWriteTest {
     runTestWrite(elems, header, footer, 1);
   }
 
-  private static class MatchesFilesystem implements SerializableFunction<Iterable<String>, Void> {
-    private final ResourceId baseFilename;
-
-    MatchesFilesystem(ResourceId baseFilename) {
-      this.baseFilename = baseFilename;
-    }
-
-    @Override
-    public Void apply(Iterable<String> values) {
-      try {
-        String pattern = baseFilename.toString() + "*";
-        List<String> matches = Lists.newArrayList();
-        for (Metadata match :Iterables.getOnlyElement(
-            FileSystems.match(Collections.singletonList(pattern))).metadata()) {
-          matches.add(match.resourceId().toString());
-        }
-        assertThat(values, containsInAnyOrder(Iterables.toArray(matches, String.class)));
-      } catch (Exception e) {
-        fail("Exception caught " + e);
-      }
-      return null;
-    }
-  }
-
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
     String outputName = "file.txt";
@@ -408,9 +386,8 @@ public class TextIOWriteTest {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
 
-    WriteFilesResult<Void> result = input.apply(write);
-    PAssert.that(result.getPerDestinationOutputFilenames().apply("GetFilenames", Values.create()))
-        .satisfies(new MatchesFilesystem(baseFilename));
+    input.apply(write);
+
     p.run();
 
     assertOutputFiles(
@@ -459,7 +436,7 @@ public class TextIOWriteTest {
     List<String> expectedElements = new ArrayList<>(elems.length);
     for (String elem : elems) {
       byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-      String line = new String(encodedElem);
+      String line = new String(encodedElem, Charsets.UTF_8);
       expectedElements.add(line);
     }
 
@@ -476,7 +453,7 @@ public class TextIOWriteTest {
 
   private static List<String> readLinesFromFile(File f) throws IOException {
     List<String> currentFile = new ArrayList<>();
-    try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), Charsets.UTF_8)) {
       while (true) {
         String line = reader.readLine();
         if (line == null) {

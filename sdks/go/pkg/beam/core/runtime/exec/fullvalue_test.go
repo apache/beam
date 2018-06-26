@@ -17,20 +17,90 @@ package exec
 
 import (
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 )
+
+func makeInput(vs ...interface{}) []MainInput {
+	var ret []MainInput
+	for _, v := range makeValues(vs...) {
+		ret = append(ret, MainInput{Key: v})
+	}
+	return ret
+}
 
 func makeValues(vs ...interface{}) []FullValue {
 	var ret []FullValue
 	for _, v := range vs {
-		ret = append(ret, FullValue{Elm: v})
+		ret = append(ret, FullValue{
+			Windows:   window.SingleGlobalWindow,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       v,
+		})
 	}
 	return ret
+}
+
+// makeKVValues returns a list of KV<K,V> inputs as a list of main inputs.
+func makeKVInput(key interface{}, vs ...interface{}) []MainInput {
+	var ret []MainInput
+	for _, v := range makeKVValues(key, vs...) {
+		ret = append(ret, MainInput{Key: v})
+	}
+	return ret
+}
+
+// makeKVValues returns a list of KV<K,V> inputs.
+func makeKVValues(key interface{}, vs ...interface{}) []FullValue {
+	var ret []FullValue
+	for _, v := range vs {
+		k := FullValue{
+			Windows:   window.SingleGlobalWindow,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       key,
+			Elm2:      v,
+		}
+		ret = append(ret, k)
+	}
+	return ret
+}
+
+// makeKeyedInput returns a CoGBK<K, V> where the list of values are a stream
+// in a single main input.
+func makeKeyedInput(key interface{}, vs ...interface{}) []MainInput {
+	k := FullValue{
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.ZeroTimestamp,
+		Elm:       key,
+	}
+	return []MainInput{{
+		Key:    k,
+		Values: []ReStream{&FixedReStream{Buf: makeValues(vs...)}},
+	}}
+}
+
+func makeKV(k, v interface{}) []FullValue {
+	return []FullValue{{
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.ZeroTimestamp,
+		Elm:       k,
+		Elm2:      v,
+	}}
 }
 
 func extractValues(vs ...FullValue) []interface{} {
 	var ret []interface{}
 	for _, v := range vs {
 		ret = append(ret, v.Elm)
+	}
+	return ret
+}
+
+func extractKeyedValues(vs ...FullValue) []interface{} {
+	var ret []interface{}
+	for _, v := range vs {
+		ret = append(ret, v.Elm2)
 	}
 	return ret
 }
@@ -65,6 +135,14 @@ func equal(a, b FullValue) bool {
 	}
 	if a.Elm2 != nil {
 		if !reflect.DeepEqual(a.Elm2, b.Elm2) {
+			return false
+		}
+	}
+	if len(a.Windows) != len(b.Windows) {
+		return false
+	}
+	for i, w := range a.Windows {
+		if !w.Equals(b.Windows[i]) {
 			return false
 		}
 	}

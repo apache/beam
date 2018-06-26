@@ -34,7 +34,7 @@ import org.hamcrest.Matcher;
  * Hamcrest {@link Matcher} to match {@link MatchResult}. Necessary because {@link
  * MatchResult#metadata()} throws an exception under normal circumstances.
  */
-public class MatchResultMatcher extends BaseMatcher<MatchResult> {
+class MatchResultMatcher extends BaseMatcher<MatchResult> {
 
   private final MatchResult.Status expectedStatus;
   private final List<MatchResult.Metadata> expectedMetadata;
@@ -54,7 +54,7 @@ public class MatchResultMatcher extends BaseMatcher<MatchResult> {
     return new MatchResultMatcher(MatchResult.Status.OK, expectedMetadata, null);
   }
 
-  static MatchResultMatcher create(MatchResult.Metadata expectedMetadata) {
+  private static MatchResultMatcher create(MatchResult.Metadata expectedMetadata) {
     return create(ImmutableList.of(expectedMetadata));
   }
 

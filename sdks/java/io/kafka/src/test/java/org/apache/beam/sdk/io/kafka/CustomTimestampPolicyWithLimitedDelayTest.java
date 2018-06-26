@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -46,12 +47,13 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
       .map(ts -> {
         Instant result = policy.getTimestampForRecord(
           null, new KafkaRecord<>("topic", 0, 0, now.getMillis() + ts,
-                                  KafkaTimestampType.CREATE_TIME, "key", "value"));
+                                      KafkaTimestampType.CREATE_TIME,
+                                      new RecordHeaders(),
+                                      "key", "value"));
         return result.getMillis() - now.getMillis();
       })
       .collect(Collectors.toList());
   }
-
 
   @Test
   public void testCustomTimestampPolicyWithLimitedDelay() {
@@ -106,7 +108,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
     // (3) Verify that Watermark advances when there is no backlog
 
     // advance current time by 5 minutes
-    now = now.plus(Duration.standardSeconds(300));
+    now = now.plus(Duration.standardMinutes(5));
     Instant backlogCheckTime = now.minus(Duration.standardSeconds(10));
 
     when(ctx.getMessageBacklog()).thenReturn(0L);

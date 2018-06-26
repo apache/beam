@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -73,6 +74,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -262,6 +264,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
       KafkaExactlyOnceSink.ensureEOSSupport();
     }
 
+    // Futures ignored as exceptions will be flushed out in the commitTxn
+    @SuppressWarnings("FutureReturnValueIgnored")
     @ProcessElement
     public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState,
                                @StateId(MIN_BUFFERED_ID) ValueState<Long> minBufferedIdState,
@@ -433,18 +437,20 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         ProducerSpEL.beginTransaction(producer);
       }
 
-      void sendRecord(TimestampedValue<KV<K, V>> record, Counter sendCounter) {
+
+      Future<RecordMetadata> sendRecord(TimestampedValue<KV<K, V>> record, Counter sendCounter) {
         try {
           Long timestampMillis = spec.getPublishTimestampFunction() != null
             ? spec.getPublishTimestampFunction().getTimestamp(record.getValue(),
                                                               record.getTimestamp()).getMillis()
             : null;
 
-          producer.send(
+          Future<RecordMetadata> result = producer.send(
               new ProducerRecord<>(
                   spec.getTopic(), null, timestampMillis,
                   record.getValue().getKey(), record.getValue().getValue()));
           sendCounter.inc();
+          return result;
         } catch (KafkaException e) {
           ProducerSpEL.abortTransaction(producer);
           throw e;
@@ -573,6 +579,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
       private final Cache<Integer, ShardWriter<K, V>> cache;
 
+      // Exceptions arising from the cache cleanup are ignored
+      @SuppressWarnings("FutureReturnValueIgnored")
       ShardWriterCache() {
         this.cache =
           CacheBuilder.newBuilder()

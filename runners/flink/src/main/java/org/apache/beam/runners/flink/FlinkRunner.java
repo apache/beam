@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -117,10 +118,15 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.error("Pipeline execution failed", e);
       throw new RuntimeException("Pipeline execution failed", e);
     }
+    return createPipelineResult(result, options);
+  }
 
+  static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkDetachedRunnerResult();
+      FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
+      // no metricsPusher because metrics are not supported in detached mode
+      return flinkDetachedRunnerResult;
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
@@ -130,8 +136,13 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           LOG.info("{} : {}", entry.getKey(), entry.getValue());
         }
       }
-
-      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      FlinkRunnerResult flinkRunnerResult = new FlinkRunnerResult(accumulators,
+          result.getNetRuntime());
+      MetricsPusher metricsPusher =
+          new MetricsPusher(
+              flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
+      metricsPusher.start();
+      return flinkRunnerResult;
     }
   }
 
@@ -185,9 +196,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       });
 
       LOG.warn("Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
-          + "because the key coder is not deterministic. Falling back to singleton implementation "
-          + "which may cause memory and/or performance problems. Future major versions of "
-          + "the Flink runner will require deterministic key coders.",
+              + "because the key coder is not deterministic. Falling back to singleton "
+              + "implementation which may cause memory and/or performance problems. Future major "
+              + "versions of the Flink runner will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
   }

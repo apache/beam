@@ -18,7 +18,8 @@
 package org.apache.beam.runners.fnexecution.state;
 
 import java.util.concurrent.CompletionStage;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 
 /**
  * Handler for {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest StateRequests}.
@@ -34,6 +35,12 @@ public interface StateRequestHandler {
    * <p>Throwing an error during handling will complete the handler result {@link CompletionStage}
    * exceptionally.
    */
-  CompletionStage<BeamFnApi.StateResponse.Builder> handle(BeamFnApi.StateRequest request)
-      throws Exception;
+  CompletionStage<StateResponse.Builder> handle(StateRequest request) throws Exception;
+
+  static StateRequestHandler unsupported() {
+    return request -> {
+      throw new UnsupportedOperationException(
+          String.format("Cannot use an empty %s", StateRequestHandler.class.getSimpleName()));
+    };
+  }
 }

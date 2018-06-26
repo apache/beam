@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
@@ -27,7 +27,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.findbugs_jsr305
-  shadow "com.fasterxml.jackson.core:jackson-annotations:2.8.9"
+  shadow library.java.jackson_annotations
   shadow "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
   shadow "org.apache.httpcomponents:httpasyncclient:4.1.2"
   shadow "org.apache.httpcomponents:httpcore-nio:4.4.5"

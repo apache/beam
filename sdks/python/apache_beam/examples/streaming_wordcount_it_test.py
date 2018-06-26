@@ -17,9 +17,12 @@
 
 """End-to-end test for the streaming wordcount example."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 import uuid
+from builtins import range
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
@@ -37,6 +40,7 @@ INPUT_SUB = 'wc_subscription_input'
 OUTPUT_SUB = 'wc_subscription_output'
 
 DEFAULT_INPUT_NUMBERS = 500
+WAIT_UNTIL_FINISH_DURATION = 3 * 60 * 1000   # in milliseconds
 
 
 class StreamingWordCountIT(unittest.TestCase):
@@ -87,6 +91,7 @@ class StreamingWordCountIT(unittest.TestCase):
                                                timeout=400)
     extra_opts = {'input_subscription': self.input_sub.full_name,
                   'output_topic': self.output_topic.full_name,
+                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
                   'on_success_matcher': all_of(state_verifier,
                                                pubsub_msg_verifier)}
 

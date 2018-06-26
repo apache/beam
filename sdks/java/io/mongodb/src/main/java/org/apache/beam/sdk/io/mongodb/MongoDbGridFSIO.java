@@ -153,7 +153,8 @@ public class MongoDbGridFSIO {
       (input, callback) -> {
         final Instant time = new Instant(input.getUploadDate().getTime());
         try (BufferedReader reader =
-            new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+            new BufferedReader(
+                new InputStreamReader(input.getInputStream(), StandardCharsets.UTF_8))) {
           for (String line = reader.readLine(); line != null; line = reader.readLine()) {
             callback.output(line, time);
           }
@@ -496,6 +497,7 @@ public class MongoDbGridFSIO {
           return current;
         }
 
+        @Override
         public Instant getCurrentTimestamp() throws NoSuchElementException {
           if (current == null) {
             throw new NoSuchElementException();

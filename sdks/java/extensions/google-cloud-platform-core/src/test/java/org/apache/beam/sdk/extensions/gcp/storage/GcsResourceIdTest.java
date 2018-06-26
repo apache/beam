@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -157,16 +158,14 @@ public class GcsResourceIdTest {
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("gs://my_bucket/").getFilename(), null);
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc").getFilename(),
-        "abc");
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc/").getFilename(),
-        "abc");
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename(),
-        "xyz.txt");
+    assertEquals(null, toResourceIdentifier("gs://my_bucket/").getFilename());
+    assertEquals("abc", toResourceIdentifier("gs://my_bucket/abc").getFilename());
+    assertEquals("abc", toResourceIdentifier("gs://my_bucket/abc/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename());
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4143")
   public void testResourceIdTester() throws Exception {
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("gs://bucket/foo/"));

@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Expressions implementing map operations.
- */
+/** Expressions implementing map operations. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map;
 

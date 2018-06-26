@@ -32,6 +32,12 @@ func init() {
 // look exactly like the more primitive sources/sinks, but be picked at
 // pipeline construction time.
 
+// NewPipelineWithRoot creates a new empty pipeline and its root scope.
+func NewPipelineWithRoot() (*Pipeline, Scope) {
+	p := NewPipeline()
+	return p, p.Root()
+}
+
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
 func Seq(s Scope, col PCollection, dofns ...interface{}) PCollection {
@@ -83,12 +89,6 @@ func swapKVFn(x X, y Y) (Y, X) {
 
 // Explode is a PTransform that takes a single PCollection<[]A> and returns a
 // PCollection<A> containing all the elements for each incoming slice.
-//
-// Example of use:
-//
-//    d := top.Top(s, merged, 5, ...)    // PCollection<[]A>
-//    top5 := beam.Explode(s, d)
-//
 func Explode(s Scope, col PCollection) PCollection {
 	s = s.Scope("beam.Explode")
 	return ParDo(s, explodeFn, col)

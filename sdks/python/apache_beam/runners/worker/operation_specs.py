@@ -24,6 +24,7 @@ source, write to a sink, parallel do, etc.
 import collections
 
 from apache_beam import coders
+from apache_beam.runners import common
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -336,6 +337,10 @@ def get_coder_from_spec(coder_spec):
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
     return coders.coders.GlobalWindowCoder()
+  elif coder_spec['@type'] == 'kind:varint':
+    assert ('component_encodings' not in coder_spec
+            or len(coder_spec['component_encodings'] == 0))
+    return coders.coders.VarIntCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1
     return coders.coders.LengthPrefixCoder(
@@ -359,17 +364,57 @@ class MapTask(object):
     stage_name: The name of this map task execution stage.
     system_names: The system names of the step corresponding to each map task
       operation in the execution graph.
-    step_names: The names of the step corresponding to each map task operation.
+    step_names: The user-given names of the step corresponding to each map task
+      operation (e.g. Foo/Bar/ParDo).
     original_names: The internal name of a step in the original workflow graph.
+    name_contexts: A common.NameContext object containing name information
+      about a step.
   """
 
-  def __init__(
-      self, operations, stage_name, system_names, step_names, original_names):
+  def __init__(self, operations, stage_name,
+               system_names=None,
+               step_names=None,
+               original_names=None,
+               name_contexts=None):
     self.operations = operations
     self.stage_name = stage_name
-    self.system_names = system_names
-    self.step_names = step_names
-    self.original_names = original_names
+    # TODO(BEAM-4028): Remove arguments other than name_contexts.
+    self.name_contexts = name_contexts or self._make_name_contexts(
+        original_names, step_names, system_names)
+
+  @staticmethod
+  def _make_name_contexts(original_names, user_names, system_names):
+    # TODO(BEAM-4028): Remove method once map task relies on name contexts.
+    return [common.DataflowNameContext(step_name, user_name, system_name)
+            for step_name, user_name, system_name in zip(original_names,
+                                                         user_names,
+                                                         system_names)]
+
+  @property
+  def system_names(self):
+    """Returns a list containing the system names of steps.
+
+    A System name is the name of a step in the optimized Dataflow graph.
+    """
+    return [nc.system_name for nc in self.name_contexts]
+
+  @property
+  def original_names(self):
+    """Returns a list containing the original names of steps.
+
+    An original name is the internal name of a step in the Dataflow graph
+    (e.g. 's2').
+    """
+    return [nc.step_name for nc in self.name_contexts]
+
+  @property
+  def step_names(self):
+    """Returns a list containing the user names of steps.
+
+    In this context, a step name is the user-given name of a step in the
+    Dataflow graph (e.g. 's2').
+    """
+    return [nc.user_name for nc in self.name_contexts]
 
   def __str__(self):
     return '<%s %s steps=%s>' % (self.__class__.__name__, self.stage_name,

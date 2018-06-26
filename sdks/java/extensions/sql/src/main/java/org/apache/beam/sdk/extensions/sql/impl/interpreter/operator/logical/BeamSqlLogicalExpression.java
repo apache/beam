@@ -22,9 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for Logical operators.
- */
+/** {@code BeamSqlExpression} for Logical operators. */
 public abstract class BeamSqlLogicalExpression extends BeamSqlExpression {
   private BeamSqlLogicalExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
