@@ -286,7 +286,11 @@ class BeamBuiltinAggregations {
 
     @Override
     public BigDecimal toBigDecimal(Float record) {
-      return new BigDecimal(record);
+      if (record != null) {
+        return new BigDecimal(record);
+      } else {
+        return BigDecimal.ZERO;
+      }
     }
   }
 

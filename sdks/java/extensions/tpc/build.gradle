@@ -1,0 +1,109 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'eu.appsatori.fatjar'
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(failOnWarning: true, enableSpotless: true, testShadowJar: true,
+        shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+    dependencies {
+        include(dependency(library.java.protobuf_java))
+        include(dependency(library.java.protobuf_java_util))
+        include(dependency("org.apache.calcite:.*"))
+//        include(dependency(project(':beam-sdks-java-extensions-sql')))
+    }
+    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+//    relocate "org.apache.beam.sdk.extensions.tpc", getJavaRelocatedPath("org.apache.beam.sdk.extensions.tpc")
+})
+
+configurations {
+    integrationTest
+    gradleRun
+}
+
+def calcite_version = "1.16.0"
+def avatica_version = "1.11.0"
+
+dependencies {
+    shadow project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
+    shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+    shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+//    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+//    shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+//    shadow "io.airlift.tpch:tpch:0.9"
+    compile "org.apache.calcite:calcite-core:$calcite_version"
+    shadow "org.apache.calcite.avatica:avatica-core:$avatica_version"
+    shadow "org.apache.calcite:calcite-plus:$calcite_version"
+
+    shadow "io.netty:netty-all:4.1.17.Final"
+    shadow project(path: ":beam-runners-spark", configuration: "shadow")
+    shadow project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+    shadow library.java.spark_streaming
+    shadow library.java.spark_core
+
+    compile "net.hydromatic:tpcds:0.4"
+    compile library.java.slf4j_jdk14
+    testCompile library.java.junit
+    // Depending on outputs so integrationTest can run with only test dependencies.
+    // This enables us to test the JDBC jar being loaded on a custom classloader.
+    integrationTest sourceSets.test.output
+    integrationTest sourceSets.main.output
+    integrationTest library.java.junit
+
+    gradleRun project(path: project.path, configuration: "shadow")
+}
+
+
+fatJar {
+    classifier 'fat'
+    zip64 true
+    manifest {
+        attributes 'Main-Class': 'org.apache.beam.sdk.extensions.tpc.BeamTpc'
+    }
+    exclude 'META-INF/license/*.'
+}
+
+shadowJar {
+//    dependencies {
+//        include "org.apache.calcite:calcite-core:$calcite_version"
+//        include "io.netty:netty-all:4.1.17.Final"
+//        include project(path: ":beam-runners-spark", configuration: "shadow")
+//        include project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+//        include library.java.spark_streaming
+//        include library.java.spark_core
+//    }
+//
+//    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+
+    manifest {
+        attributes "Main-Class": "org.apache.beam.sdk.extensions.tpc.BeamTpc"
+    }
+}
+
+test {
+    doFirst {
+        // Assert everything is in the output or test jar
+        assert classpath.size() == 2
+    }
+}
+
+task run(type: JavaExec) {
+    main = "org.apache.beam.sdk.extensions.tpc.BeamTpc"
+    classpath = configurations.gradleRun
+    args "--inputFile=/Users/jiangkai/data/"
+//  jvmArgs '-ea'
+}

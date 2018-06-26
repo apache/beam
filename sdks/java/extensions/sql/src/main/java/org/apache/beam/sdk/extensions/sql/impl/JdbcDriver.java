@@ -115,7 +115,10 @@ public class JdbcDriver extends Driver {
         info2,
         CalciteConnectionProperty.PARSER_FACTORY,
         BeamSqlParserImpl.class.getName() + "#FACTORY");
-    setDefault(info2, CalciteConnectionProperty.TYPE_SYSTEM, BeamRelDataTypeSystem.class.getName());
+    setDefault(
+        info2,
+        CalciteConnectionProperty.TYPE_SYSTEM,
+        BeamRelDataTypeSystem.class.getName().concat("#INSTANCE"));
     setDefault(info2, CalciteConnectionProperty.SCHEMA, "beam");
     setDefault(
         info2, CalciteConnectionProperty.SCHEMA_FACTORY, BeamCalciteSchemaFactory.class.getName());
