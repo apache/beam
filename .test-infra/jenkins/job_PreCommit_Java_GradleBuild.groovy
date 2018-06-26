@@ -16,34 +16,22 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import PrecommitJobBuilder
 
-// This is the Java precommit which runs a Gradle build, and the current set
-// of precommit tests.
-job('beam_PreCommit_Java_GradleBuild') {
-  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    90)
-
-  // Publish all test results to Jenkins
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Java',
+    gradleTask: ':javaPreCommit',
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/java/.*$',
+      '^runners/.*$',
+      '^examples/java/.*$',
+      '^release/.*$',
+    ]
+)
+builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
-  }
-
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit')
-  steps {
-    gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':javaPreCommit')
-      common_job_properties.setGradleSwitches(delegate)
-    }
   }
 }

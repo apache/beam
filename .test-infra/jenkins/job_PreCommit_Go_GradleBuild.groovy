@@ -16,29 +16,18 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import PrecommitJobBuilder
 
-// This is the Go precommit which runs a gradle build, and the current set
-// of precommit tests.
-job('beam_PreCommit_Go_GradleBuild') {
-  description('Runs Go PreCommit tests for the current GitHub Pull Request.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    150)
-
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :goPreCommit', 'Run Go PreCommit')
-  steps {
-    gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':goPreCommit')
-      common_job_properties.setGradleSwitches(delegate)
-    }
-  }
-}
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Go',
+    gradleTask: ':goPreCommit',
+    timeoutMins: 150,
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/go/.*$',
+      '^runners/.*$',
+      '^release/.*$',
+    ]
+)
+builder.build()

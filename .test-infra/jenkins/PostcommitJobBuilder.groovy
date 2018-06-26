@@ -24,12 +24,12 @@ import common_job_properties as cjp
  * Purpose of this class is to define common strategies and reporting/building paramereters
  * for pre- and post- commit test jobs and unify them across the project.
  */
-class JobBuilder {
+class PostcommitJobBuilder {
   private def scope;
   private def jobDefinition;
   private def job;
 
-  private JobBuilder(scope, jobDefinition = {}) {
+  private PostcommitJobBuilder(scope, jobDefinition = {}) {
     this.scope = scope
     this.jobDefinition = jobDefinition
     this.job = null
@@ -40,14 +40,14 @@ class JobBuilder {
                             githubUiHint,
                             scope,
                             jobDefinition = {}) {
-    JobBuilder jb = new JobBuilder(scope, jobDefinition)
+    PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
     jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
   }
 
   private void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
-      cjp.setPostCommit(delegate)
+      cjp.setAutoJob delegate
     }
     autoBuilds.with(jobDefinition)
   }
