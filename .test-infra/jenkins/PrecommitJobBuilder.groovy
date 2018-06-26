@@ -51,7 +51,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Cron'
     job.with {
       description buildDescription('on a daily schedule.')
-      common_job_properties.setPostCommit delegate // TODO: Rename method as only defines cron
+      common_job_properties.setAutoJob delegate
     }
     job.with additionalCustomization
   }
