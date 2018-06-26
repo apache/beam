@@ -21,7 +21,6 @@ package org.apache.beam.fn.harness;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
@@ -33,8 +32,8 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -110,9 +109,8 @@ public class FlattenRunnerTest {
   }
 
   /**
-   * Create a Flatten that has 4 inputs (inputATarget1, inputATarget2, inputBTarget, inputCTarget)
-   * and one output (mainOutput). Validate that inputs are flattened together and directed to the
-   * output.
+   * Create a Flatten that consumes data from the same PCollection duplicated through two outputs
+   * and validates that inputs are flattened together and directed to the output.
    */
   @Test
   public void testFlattenWithDuplicateInputCollectionProducesMultipleOutputs() throws Exception {
@@ -157,16 +155,15 @@ public class FlattenRunnerTest {
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
 
     assertThat(consumers.get("inputATarget"), hasSize(2));
-    Iterator<FnDataReceiver<WindowedValue<?>>> targets = consumers.get("inputATarget").iterator();
-    FnDataReceiver<WindowedValue<?>> first = targets.next();
-    FnDataReceiver<WindowedValue<?>> second = targets.next();
+    FnDataReceiver<WindowedValue<?>> input =
+        MultiplexingFnDataReceiver.forConsumers(consumers.get("inputATarget"));
     // Both of these are the flatten consumer
-    assertThat(first, equalTo(second));
+    //assertThat(first, equalTo(second));
 
-    first.accept(WindowedValue.valueInGlobalWindow("A1"));
-    second.accept(WindowedValue.valueInGlobalWindow("A1"));
-    first.accept(WindowedValue.valueInGlobalWindow("A2"));
-    second.accept(WindowedValue.valueInGlobalWindow("A2"));
+    input.accept(WindowedValue.valueInGlobalWindow("A1"));
+    //second.accept(WindowedValue.valueInGlobalWindow("A1"));
+    input.accept(WindowedValue.valueInGlobalWindow("A2"));
+    //second.accept(WindowedValue.valueInGlobalWindow("A2"));
 
     assertThat(
         mainOutputValues,
