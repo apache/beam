@@ -35,6 +35,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.joda.time.DateTime;
 
 /**
  * Utility methods for working with {@code BeamTable}.
@@ -105,6 +106,8 @@ public final class BeamTableUtils {
       } else {
         return rawObj;
       }
+    } else if (type.isDateType()) {
+      return DateTime.parse(rawObj.toString());
     } else if (type.isNumericType()
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
