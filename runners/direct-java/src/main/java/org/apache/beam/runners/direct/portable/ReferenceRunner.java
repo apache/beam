@@ -418,12 +418,10 @@ public class ReferenceRunner {
       String feedSDFCollectionId =
           uniqueId(String.format("%s.feed", spkId), components::containsPcollections);
       {
-        String feedSDFCoderId =
-            uniqueId(String.format("%s/FeedSDF-wire", spkId), components::containsCoders);
         String elementRestrictionCoderId = kvComponents.valueCoderId();
-        MessageWithComponents feedSDFCoder =
-            LengthPrefixUnknownCoders.forCoder(
-                elementRestrictionCoderId, newComponents.build(), false);
+        String feedSDFCoderId =
+            LengthPrefixUnknownCoders.addLengthPrefixedCoder(
+                elementRestrictionCoderId, newComponents, false);
 
         PCollection feedSDFCollection =
             input.toBuilder().setUniqueName(feedSDFCollectionId).setCoderId(feedSDFCoderId).build();
@@ -440,8 +438,6 @@ public class ReferenceRunner {
                 .build();
 
         newComponents
-            .putCoders(feedSDFCoderId, feedSDFCoder.getCoder())
-            .putAllCoders(feedSDFCoder.getComponents().getCodersMap())
             .putPcollections(feedSDFCollectionId, feedSDFCollection)
             .putTransforms(feedSDFId, feedSDF);
         newPTransform.addSubtransforms(feedSDFId);

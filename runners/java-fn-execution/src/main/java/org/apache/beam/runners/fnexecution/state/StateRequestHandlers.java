@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -178,10 +179,10 @@ public class StateRequestHandlers {
    * {@link MultimapSideInputHandlerFactory} are cached.
    */
   public static StateRequestHandler forMultimapSideInputHandlerFactory(
-      ExecutableProcessBundleDescriptor processBundleDescriptor,
+      Map<String, Map<String, MultimapSideInputSpec>> sideInputSpecs,
       MultimapSideInputHandlerFactory multimapSideInputHandlerFactory) {
     return new StateRequestHandlerToMultimapSideInputHandlerFactoryAdapter(
-        processBundleDescriptor, multimapSideInputHandlerFactory);
+        sideInputSpecs, multimapSideInputHandlerFactory);
   }
 
   /**
@@ -191,14 +192,14 @@ public class StateRequestHandlers {
   static class StateRequestHandlerToMultimapSideInputHandlerFactoryAdapter
       implements StateRequestHandler {
 
-    private final ExecutableProcessBundleDescriptor processBundleDescriptor;
+    private final Map<String, Map<String, MultimapSideInputSpec>> sideInputSpecs;
     private final MultimapSideInputHandlerFactory multimapSideInputHandlerFactory;
     private final ConcurrentHashMap<MultimapSideInputSpec, MultimapSideInputHandler> cache;
 
     StateRequestHandlerToMultimapSideInputHandlerFactoryAdapter(
-        ExecutableProcessBundleDescriptor processBundleDescriptor,
+        Map<String, Map<String, MultimapSideInputSpec>> sideInputSpecs,
         MultimapSideInputHandlerFactory multimapSideInputHandlerFactory) {
-      this.processBundleDescriptor = processBundleDescriptor;
+      this.sideInputSpecs = sideInputSpecs;
       this.multimapSideInputHandlerFactory = multimapSideInputHandlerFactory;
       this.cache = new ConcurrentHashMap<>();
     }
@@ -215,9 +216,7 @@ public class StateRequestHandlers {
 
         StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
         MultimapSideInputSpec<?, ?, ?> sideInputReferenceSpec =
-            processBundleDescriptor.getMultimapSideInputSpecs()
-                .get(stateKey.getPtransformId())
-                .get(stateKey.getSideInputId());
+            sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
         MultimapSideInputHandler<?, ?, ?> handler = cache.computeIfAbsent(
             sideInputReferenceSpec,
             this::createHandler);
@@ -248,7 +247,7 @@ public class StateRequestHandlers {
       StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
 
       MultimapSideInputSpec<K, V, W> sideInputReferenceSpec =
-          processBundleDescriptor.getMultimapSideInputSpecs()
+          sideInputSpecs
               .get(stateKey.getPtransformId())
               .get(stateKey.getSideInputId());
 
