@@ -40,6 +40,8 @@ include "beam-runners-extensions-java-metrics"
 project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
 include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
+include "beam-runners-flink_2.11-job-server"
+project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-gcp-gcemd"
 project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
 include "beam-runners-gcp-gcsproxy"
