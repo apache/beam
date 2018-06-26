@@ -18,7 +18,6 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
-  failOnWarning: true,
   shadowClosure: {
     append "reference.conf"
   },
