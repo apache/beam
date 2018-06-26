@@ -307,10 +307,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def bigtable_proto_version = "1.0.0-pre3"
     def google_clients_version = "1.23.0"
     def google_auth_version = "0.7.1"
-    def grpc_version = "1.2.0"
-    def protobuf_version = "3.2.0"
+    def grpc_version = "1.12.0"
+    def protobuf_version = "3.5.1"
     def guava_version = "20.0"
-    def netty_version = "4.1.8.Final"
+    def netty_version = "4.1.22.Final"
     def grpc_google_common_protos = "0.1.9"
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
@@ -371,7 +371,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core                           : "com.google.cloud:google-cloud-core:1.0.2",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$grpc_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:0.20.0b-beta",
+        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:0.53.0-beta",
         google_http_client                          : "com.google.http-client:google-http-client:$google_clients_version",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:$google_clients_version",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_clients_version",
@@ -411,7 +411,7 @@ class BeamModulePlugin implements Plugin<Project> {
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
         mockito_core                                : "org.mockito:mockito-core:1.9.5",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.7.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
