@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(enableFindbugs: false, enableErrorProne: false)
+applyJavaNature(enableFindbugs: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Fn Execution"
