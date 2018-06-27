@@ -144,8 +144,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Sets.newHashSet(FluentIterable.<TupleTag<?>>of(mainOutputTag).append(additionalOutputTags));
     this.stepContext = stepContext;
 
-    // Currently we only support a single FieldAccess on a processElement. We should decide
-    // whether to get rid of the FieldAccess ids, or find a use for multiple.
+    // Currently we only support a single FieldAccessDescriptor on a processElement. We should
+    // decide whether to get rid of the FieldAccess ids, or find a use for multiple.
     DoFnSignature doFnSignature = DoFnSignatures.getSignature(fn.getClass());
     DoFnSignature.ProcessElementMethod processElementMethod = doFnSignature.processElement();
     RowParameter rowParameter = processElementMethod.getRowParameter();
@@ -164,7 +164,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         FieldAccessDeclaration fieldAccessDeclaration =
             doFnSignature.fieldAccessDeclarations().get(id);
         checkArgument(fieldAccessDeclaration != null,
-            "No FieldAccessDescriptor defined with id", id);
+            "No FieldAccessDeclaration defined with id", id);
         checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
         try {
           fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);

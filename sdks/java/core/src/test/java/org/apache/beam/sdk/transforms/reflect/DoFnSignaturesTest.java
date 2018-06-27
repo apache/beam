@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -164,6 +167,47 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void process(OutputReceiver<Integer> receiver) {}
             }.getClass());
+  }
+
+  @Test
+  public void testRowParameterWithoutFieldAccess() {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Element Row row) {}
+    }.getClass());
+    assertThat(sig.processElement().getRowParameter(), notNullValue());
+  }
+
+  @Test
+  public void testFieldAccess() {
+    FieldAccessDescriptor descriptor = FieldAccessDescriptor.withFieldNames("foo", "bar");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @FieldAccess("foo")
+      final FieldAccessDescriptor fieldAccess = descriptor;
+      @ProcessElement
+      public void process(@FieldAccess("foo") Row row) {}
+    }.getClass());
+    assertThat(sig.fieldAccessDeclarations().get("foo"), equalTo(descriptor));
+    assertThat(sig.processElement().getRowParameter(), notNullValue());
+  }
+
+  @Test
+  public void testMissingFieldAccess() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("No FieldAccessDescriptor defined.");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@FieldAccess("foo") Row row) {}
+    }.getClass());
+  }
+
+  @Test
+  public void testRowReceiver() {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(OutputReceiver<Row> rowReceiver) {}
+    }.getClass());
+    assertThat(sig.processElement().getMainOutputReceiver().isRowReceiver(), is(true));
   }
 
   @Test

@@ -870,7 +870,7 @@ public class DoFnSignatures {
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
     } else if (rawType.equals(OutputReceiver.class)) {
-      // It's a schemad row receiver if it's an OutputReceiver<Row> _and_ the output type is not
+      // It's a schema row receiver if it's an OutputReceiver<Row> _and_ the output type is not
       // already Row.
       boolean schemaRowReceiver = paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
           && !outputT.equals(TypeDescriptor.of(Row.class));

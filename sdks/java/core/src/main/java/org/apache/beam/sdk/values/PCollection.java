@@ -288,8 +288,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets a {@link Schema} on this {@link PCollection}. This is a wrapper around
-   * {@link #setCoder(Coder)}.
+   * Sets a {@link Schema} on this {@link PCollection}.
    */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
