@@ -108,12 +108,10 @@ public class BigQueryHelpers {
     return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
   }
 
-  /**
-   * Strip off any partition decorator information from a tablespec.
-   */
+  /** Strip off any partition decorator information from a tablespec. */
   public static String stripPartitionDecorator(String tableSpec) {
     int index = tableSpec.lastIndexOf('$');
-    return  (index  == -1) ? tableSpec : tableSpec.substring(0, index);
+    return (index == -1) ? tableSpec : tableSpec.substring(0, index);
   }
 
   static String jobToPrettyString(@Nullable Job job) throws IOException {
@@ -204,7 +202,8 @@ public class BigQueryHelpers {
       } else {
         throw new RuntimeException(
             String.format(
-                UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset", toTableSpec(table)), e);
+                UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset", toTableSpec(table)),
+            e);
       }
     }
   }
@@ -246,8 +245,8 @@ public class BigQueryHelpers {
   }
 
   // Create a unique job id for a table load.
-  static String createJobId(String prefix, TableDestination tableDestination, int partition,
-      long index) {
+  static String createJobId(
+      String prefix, TableDestination tableDestination, int partition, long index) {
     // Job ID must be different for each partition of each table.
     String destinationHash =
         Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
@@ -330,10 +329,11 @@ public class BigQueryHelpers {
   static TableReference createTempTableReference(String projectId, String jobUuid) {
     String queryTempDatasetId = "temp_dataset_" + jobUuid;
     String queryTempTableId = "temp_table_" + jobUuid;
-    TableReference queryTempTableRef = new TableReference()
-        .setProjectId(projectId)
-        .setDatasetId(queryTempDatasetId)
-        .setTableId(queryTempTableId);
+    TableReference queryTempTableRef =
+        new TableReference()
+            .setProjectId(projectId)
+            .setDatasetId(queryTempDatasetId)
+            .setTableId(queryTempTableId);
     return queryTempTableRef;
   }
 

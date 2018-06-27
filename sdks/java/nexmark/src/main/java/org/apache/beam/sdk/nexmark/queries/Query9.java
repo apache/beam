@@ -35,9 +35,7 @@ public class Query9 extends NexmarkQuery {
   }
 
   private PCollection<AuctionBid> applyTyped(PCollection<Event> events) {
-    return events
-        .apply(Filter.by(new AuctionOrBid()))
-        .apply(new WinningBids(name, configuration));
+    return events.apply(Filter.by(new AuctionOrBid())).apply(new WinningBids(name, configuration));
   }
 
   @Override

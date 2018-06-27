@@ -37,25 +37,23 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * Session window test.
- */
+/** Session window test. */
 public class TopWikipediaSessionsTest extends StreamingProgramTestBase implements Serializable {
 
   protected String resultDir;
   protected String resultPath;
 
-  public TopWikipediaSessionsTest() {
-  }
+  public TopWikipediaSessionsTest() {}
 
-  static final String[] EXPECTED_RESULT = new String[] {
-      "user: user1 value:3",
-      "user: user1 value:1",
-      "user: user2 value:4",
-      "user: user2 value:6",
-      "user: user3 value:7",
-      "user: user3 value:2"
-  };
+  static final String[] EXPECTED_RESULT =
+      new String[] {
+        "user: user1 value:3",
+        "user: user1 value:1",
+        "user: user2 value:4",
+        "user: user2 value:6",
+        "user: user3 value:7",
+        "user: user3 value:2"
+      };
 
   @Override
   protected void preSubmit() throws Exception {
@@ -158,14 +156,17 @@ public class TopWikipediaSessionsTest extends StreamingProgramTestBase implement
             .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))))
             .apply(Count.perElement());
 
-    PCollection<String> format = output.apply(ParDo.of(new DoFn<KV<String, Long>, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        KV<String, Long> el = c.element();
-        String out = "user: " + el.getKey() + " value:" + el.getValue();
-        c.output(out);
-      }
-    }));
+    PCollection<String> format =
+        output.apply(
+            ParDo.of(
+                new DoFn<KV<String, Long>, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    KV<String, Long> el = c.element();
+                    String out = "user: " + el.getKey() + " value:" + el.getValue();
+                    c.output(out);
+                  }
+                }));
 
     format.apply(TextIO.write().to(resultPath));
 

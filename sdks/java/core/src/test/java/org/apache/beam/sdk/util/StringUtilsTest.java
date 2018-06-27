@@ -24,15 +24,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for StringUtils.
- */
+/** Tests for StringUtils. */
 @RunWith(JUnit4.class)
 public class StringUtilsTest {
 
   @Test
   public void testTranscodeEmptyByteArray() {
-    byte[] bytes = { };
+    byte[] bytes = {};
     String string = "";
     assertEquals(string, StringUtils.byteArrayToJsonString(bytes));
     assertArrayEquals(bytes, StringUtils.jsonStringToByteArray(string));
@@ -40,8 +38,7 @@ public class StringUtilsTest {
 
   @Test
   public void testTranscodeMixedByteArray() {
-    byte[] bytes = {
-      0, 5, 12, 16, 31, 32, 65, 66, 126, 127, (byte) 128, (byte) 255, 67, 0 };
+    byte[] bytes = {0, 5, 12, 16, 31, 32, 65, 66, 126, 127, (byte) 128, (byte) 255, 67, 0};
     String string = "%00%05%0c%10%1f AB~%7f%80%ffC%00";
     assertEquals(string, StringUtils.byteArrayToJsonString(bytes));
     assertArrayEquals(bytes, StringUtils.jsonStringToByteArray(string));

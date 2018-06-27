@@ -32,7 +32,6 @@ import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
-
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticSearchIOTestUtils {
   static final String[] FAMOUS_SCIENTISTS = {
@@ -89,26 +88,33 @@ class ElasticSearchIOTestUtils {
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
-  static void insertTestDocuments(ConnectionConfiguration connectionConfiguration,
-      long numDocs, RestClient restClient) throws IOException {
+  static void insertTestDocuments(
+      ConnectionConfiguration connectionConfiguration, long numDocs, RestClient restClient)
+      throws IOException {
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     StringBuilder bulkRequest = new StringBuilder();
     int i = 0;
     for (String document : data) {
-      bulkRequest.append(String.format(
-          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
-          connectionConfiguration.getIndex(), connectionConfiguration.getType(), i++, document));
+      bulkRequest.append(
+          String.format(
+              "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
+              connectionConfiguration.getIndex(),
+              connectionConfiguration.getType(),
+              i++,
+              document));
     }
-    String endPoint = String.format("/%s/%s/_bulk", connectionConfiguration.getIndex(),
-        connectionConfiguration.getType());
+    String endPoint =
+        String.format(
+            "/%s/%s/_bulk", connectionConfiguration.getIndex(), connectionConfiguration.getType());
     HttpEntity requestBody =
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-    Response response = restClient.performRequest("POST", endPoint,
-        Collections.singletonMap("refresh", "true"), requestBody);
-    ElasticsearchIO
-        .checkForErrors(response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
+    Response response =
+        restClient.performRequest(
+            "POST", endPoint, Collections.singletonMap("refresh", "true"), requestBody);
+    ElasticsearchIO.checkForErrors(
+        response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
   }
 
   /**
@@ -214,7 +220,11 @@ class ElasticSearchIOTestUtils {
     String requestBody =
         "{\n"
             + "  \"query\" : {\"match\": {\n"
-            + "    \"" + field + "\": \"" + value + "\"\n"
+            + "    \""
+            + field
+            + "\": \""
+            + value
+            + "\"\n"
             + "  }}\n"
             + "}\n";
     String endPoint =

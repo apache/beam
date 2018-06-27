@@ -53,8 +53,7 @@ class QuiescenceDriver implements ExecutionDriver {
   public static ExecutionDriver create(
       EvaluationContext context,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
-      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode>
-          bundleProcessor,
+      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode> bundleProcessor,
       PipelineMessageReceiver messageReceiver,
       Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> initialBundles) {
     return new QuiescenceDriver(context, graph, bundleProcessor, messageReceiver, initialBundles);
@@ -69,8 +68,7 @@ class QuiescenceDriver implements ExecutionDriver {
   private final CompletionCallback defaultCompletionCallback =
       new TimerIterableCompletionCallback(Collections.emptyList());
 
-  private final Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
-      pendingRootBundles;
+  private final Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> pendingRootBundles;
   private final Queue<WorkUpdate> pendingWork = new ConcurrentLinkedQueue<>();
 
   private final AtomicReference<ExecutorState> state =
@@ -81,11 +79,9 @@ class QuiescenceDriver implements ExecutionDriver {
   private QuiescenceDriver(
       EvaluationContext evaluationContext,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
-      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode>
-          bundleProcessor,
+      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode> bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
-      Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootBundles) {
+      Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> pendingRootBundles) {
     this.evaluationContext = evaluationContext;
     this.graph = graph;
     this.bundleProcessor = bundleProcessor;
@@ -187,8 +183,8 @@ class QuiescenceDriver implements ExecutionDriver {
     // If any timers have fired, they will add more work; We don't need to add more
     if (state.get() == ExecutorState.QUIESCENT) {
       // All current TransformExecutors are blocked; add more work from the roots.
-      for (Map.Entry<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootEntry : pendingRootBundles.entrySet()) {
+      for (Map.Entry<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> pendingRootEntry :
+          pendingRootBundles.entrySet()) {
         Collection<CommittedBundle<?>> bundles = new ArrayList<>();
         // Pull all available work off of the queue, then schedule it all, so this loop
         // terminates

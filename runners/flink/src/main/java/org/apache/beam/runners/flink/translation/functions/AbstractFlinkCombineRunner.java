@@ -34,9 +34,8 @@ import org.apache.flink.util.Collector;
  * Abstract base for runners that execute a {@link org.apache.beam.sdk.transforms.Combine.PerKey}.
  * This unifies processing of merging/non-merging and partial/final combines.
  *
- * <p>The input to {@link #combine(
- * FlinkCombiner, WindowingStrategy, SideInputReader, PipelineOptions, Iterable, Collector)} are
- * elements of the same key but * for different windows.
+ * <p>The input to {@link #combine( FlinkCombiner, WindowingStrategy, SideInputReader,
+ * PipelineOptions, Iterable, Collector)} are elements of the same key but * for different windows.
  */
 public abstract class AbstractFlinkCombineRunner<
     K, InputT, AccumT, OutputT, W extends BoundedWindow> {
@@ -50,70 +49,89 @@ public abstract class AbstractFlinkCombineRunner<
       SideInputReader sideInputReader,
       PipelineOptions options,
       Iterable<WindowedValue<KV<K, InputT>>> elements,
-      Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception;
+      Collector<WindowedValue<KV<K, OutputT>>> out)
+      throws Exception;
 
   /**
    * Adapter interface that allows using a {@link CombineFnBase.GlobalCombineFn} to either produce
-   * the {@code AccumT} as output or to combine several accumulators into an {@code OutputT}.
-   * The former would be used for a partial combine while the latter is used for the final merging
-   * of accumulators.
+   * the {@code AccumT} as output or to combine several accumulators into an {@code OutputT}. The
+   * former would be used for a partial combine while the latter is used for the final merging of
+   * accumulators.
    */
-  public interface FlinkCombiner<K, InputT, AccumT, OutputT>{
+  public interface FlinkCombiner<K, InputT, AccumT, OutputT> {
 
-    AccumT firstInput(K key, InputT value, PipelineOptions options,
-                      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+    AccumT firstInput(
+        K key,
+        InputT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
+        Collection<? extends BoundedWindow> windows);
 
-    AccumT addInput(K key, AccumT accumulator, InputT value, PipelineOptions options,
-                    SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+    AccumT addInput(
+        K key,
+        AccumT accumulator,
+        InputT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
+        Collection<? extends BoundedWindow> windows);
 
-    OutputT extractOutput(K key, AccumT accumulator, PipelineOptions options,
-                          SideInputReader sideInputReader,
-                          Collection<? extends BoundedWindow> windows);
+    OutputT extractOutput(
+        K key,
+        AccumT accumulator,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
+        Collection<? extends BoundedWindow> windows);
   }
 
   /**
-   * A straight wrapper of {@link CombineFnBase.GlobalCombineFn} that takes in {@code InputT}
-   * and emits {@code OutputT}.
+   * A straight wrapper of {@link CombineFnBase.GlobalCombineFn} that takes in {@code InputT} and
+   * emits {@code OutputT}.
    */
-  public static class CompleteFlinkCombiner<K, InputT, AccumT, OutputT> implements
-      FlinkCombiner<K, InputT, AccumT, OutputT> {
+  public static class CompleteFlinkCombiner<K, InputT, AccumT, OutputT>
+      implements FlinkCombiner<K, InputT, AccumT, OutputT> {
 
     private final GlobalCombineFnRunner<InputT, AccumT, OutputT> combineFnRunner;
 
-    public CompleteFlinkCombiner(
-        CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn) {
+    public CompleteFlinkCombiner(CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn) {
       combineFnRunner = GlobalCombineFnRunners.create(combineFn);
     }
 
     @Override
     public AccumT firstInput(
-        K key, InputT value, PipelineOptions options, SideInputReader sideInputReader,
+        K key,
+        InputT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
-      AccumT accumulator =
-          combineFnRunner.createAccumulator(options, sideInputReader, windows);
+      AccumT accumulator = combineFnRunner.createAccumulator(options, sideInputReader, windows);
       return combineFnRunner.addInput(accumulator, value, options, sideInputReader, windows);
     }
 
     @Override
     public AccumT addInput(
-        K key, AccumT accumulator, InputT value, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+        K key,
+        AccumT accumulator,
+        InputT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
+        Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.addInput(accumulator, value, options, sideInputReader, windows);
     }
 
     @Override
     public OutputT extractOutput(
-        K key, AccumT accumulator, PipelineOptions options, SideInputReader sideInputReader,
+        K key,
+        AccumT accumulator,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.extractOutput(accumulator, options, sideInputReader, windows);
     }
   }
 
-  /**
-   * A partial combiner that takes in {@code InputT} and produces {@code AccumT}.
-   */
-  public static class PartialFlinkCombiner<K, InputT, AccumT> implements
-      FlinkCombiner<K, InputT, AccumT, AccumT> {
+  /** A partial combiner that takes in {@code InputT} and produces {@code AccumT}. */
+  public static class PartialFlinkCombiner<K, InputT, AccumT>
+      implements FlinkCombiner<K, InputT, AccumT, AccumT> {
 
     private final GlobalCombineFnRunner<InputT, AccumT, ?> combineFnRunner;
 
@@ -123,33 +141,40 @@ public abstract class AbstractFlinkCombineRunner<
 
     @Override
     public AccumT firstInput(
-        K key, InputT value, PipelineOptions options, SideInputReader sideInputReader,
+        K key,
+        InputT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
-      AccumT accumulator =
-          combineFnRunner.createAccumulator(options, sideInputReader, windows);
+      AccumT accumulator = combineFnRunner.createAccumulator(options, sideInputReader, windows);
       return combineFnRunner.addInput(accumulator, value, options, sideInputReader, windows);
     }
 
     @Override
     public AccumT addInput(
-        K key, AccumT accumulator, InputT value, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+        K key,
+        AccumT accumulator,
+        InputT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
+        Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.addInput(accumulator, value, options, sideInputReader, windows);
     }
 
     @Override
     public AccumT extractOutput(
-        K key, AccumT accumulator, PipelineOptions options, SideInputReader sideInputReader,
+        K key,
+        AccumT accumulator,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return accumulator;
     }
   }
 
-  /**
-   * A final combiner that takes in {@code AccumT} and produces {@code OutputT}.
-   */
-  public static class FinalFlinkCombiner<K, AccumT, OutputT> implements
-      FlinkCombiner<K, AccumT, AccumT, OutputT> {
+  /** A final combiner that takes in {@code AccumT} and produces {@code OutputT}. */
+  public static class FinalFlinkCombiner<K, AccumT, OutputT>
+      implements FlinkCombiner<K, AccumT, AccumT, OutputT> {
 
     private final GlobalCombineFnRunner<?, AccumT, OutputT> combineFnRunner;
 
@@ -159,22 +184,32 @@ public abstract class AbstractFlinkCombineRunner<
 
     @Override
     public AccumT firstInput(
-        K key, AccumT value, PipelineOptions options, SideInputReader sideInputReader,
+        K key,
+        AccumT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return value;
     }
 
     @Override
     public AccumT addInput(
-        K key, AccumT accumulator, AccumT value, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+        K key,
+        AccumT accumulator,
+        AccumT value,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
+        Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.mergeAccumulators(
           ImmutableList.of(accumulator, value), options, sideInputReader, windows);
     }
 
     @Override
     public OutputT extractOutput(
-        K key, AccumT accumulator, PipelineOptions options, SideInputReader sideInputReader,
+        K key,
+        AccumT accumulator,
+        PipelineOptions options,
+        SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.extractOutput(accumulator, options, sideInputReader, windows);
     }

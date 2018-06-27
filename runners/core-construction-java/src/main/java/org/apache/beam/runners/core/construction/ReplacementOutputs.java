@@ -33,9 +33,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * Utility methods for creating {@link ReplacementOutput} for known styles of {@link POutput}.
- */
+/** Utility methods for creating {@link ReplacementOutput} for known styles of {@link POutput}. */
 public class ReplacementOutputs {
   private ReplacementOutputs() {}
 

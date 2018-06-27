@@ -155,8 +155,11 @@ public class ArtifactServiceStager {
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
       ArtifactMetadata metadata =
           ArtifactMetadata.newBuilder().setName(file.getStagingName()).build();
-      PutArtifactMetadata putMetadata = PutArtifactMetadata.newBuilder().setMetadata(metadata)
-          .setStagingSessionToken(stagingSessionToken).build();
+      PutArtifactMetadata putMetadata =
+          PutArtifactMetadata.newBuilder()
+              .setMetadata(metadata)
+              .setStagingSessionToken(stagingSessionToken)
+              .build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(putMetadata).build());
 
       MessageDigest md5Digest = MessageDigest.getInstance("MD5");
@@ -264,8 +267,7 @@ public class ArtifactServiceStager {
     }
 
     static StagingResult failure(Map<StagedFile, Throwable> failures) {
-      return new AutoValue_ArtifactServiceStager_StagingResult(
-          null, failures);
+      return new AutoValue_ArtifactServiceStager_StagingResult(null, failures);
     }
 
     boolean isSuccess() {
@@ -277,5 +279,4 @@ public class ArtifactServiceStager {
 
     abstract Map<StagedFile, Throwable> getFailures();
   }
-
 }

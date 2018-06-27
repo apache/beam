@@ -36,16 +36,12 @@ import org.slf4j.LoggerFactory;
 public abstract class ReleaseInfo implements Serializable {
   private static final String PROPERTIES_PATH = "/org/apache/beam/sdk/sdk.properties";
 
-  /**
-   * Returns an instance of {@link ReleaseInfo}.
-   */
+  /** Returns an instance of {@link ReleaseInfo}. */
   public static ReleaseInfo getReleaseInfo() {
     return LazyInit.INSTANCE;
   }
 
-  /**
-   * Returns an immutable map of all properties pertaining to this release.
-   */
+  /** Returns an immutable map of all properties pertaining to this release. */
   public abstract Map<String, String> getProperties();
 
   /** Provides the SDK name. */
@@ -65,6 +61,7 @@ public abstract class ReleaseInfo implements Serializable {
 
   private static class LazyInit {
     private static final ReleaseInfo INSTANCE;
+
     static {
       Properties properties = new Properties();
       try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {

@@ -72,22 +72,18 @@ public class ListCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAASs",
-      "AAAABAECAwQ",
-      "AAAAAwcGBQ");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AAAAAA", "AAAAASs", "AAAABAECAwQ", "AAAAAwcGBQ");
 
   @Test
   public void testWireFormatEncode() throws Exception {
-      CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

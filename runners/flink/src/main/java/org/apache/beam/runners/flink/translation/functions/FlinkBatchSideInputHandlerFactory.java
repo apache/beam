@@ -111,8 +111,8 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
     private final Coder<K> keyCoder;
     private final Coder<W> windowCoder;
 
-    private SideInputHandler(Multimap<SideInputKey, V> collection, Coder<K> keyCoder,
-        Coder<W> windowCoder) {
+    private SideInputHandler(
+        Multimap<SideInputKey, V> collection, Coder<K> keyCoder, Coder<W> windowCoder) {
       this.collection = collection;
       this.keyCoder = keyCoder;
       this.windowCoder = windowCoder;
@@ -120,13 +120,13 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
 
     @Override
     public Iterable<V> get(K key, W window) {
-      return collection
-          .get(SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)));
+      return collection.get(
+          SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)));
     }
   }
 
   @AutoValue
-  abstract static class SideInputKey{
+  abstract static class SideInputKey {
     static SideInputKey of(Object key, Object window) {
       return new AutoValue_FlinkBatchSideInputHandlerFactory_SideInputKey(key, window);
     }

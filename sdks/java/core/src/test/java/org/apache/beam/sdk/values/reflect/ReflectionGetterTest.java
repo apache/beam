@@ -23,14 +23,10 @@ import static org.junit.Assert.assertEquals;
 import java.lang.reflect.Method;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link ReflectionGetter}.
- */
+/** Unit tests for {@link ReflectionGetter}. */
 public class ReflectionGetterTest {
 
-  /**
-   * Test pojo.
-   */
+  /** Test pojo. */
   private static class Pojo {
     public String getStringField() {
       return "test";
@@ -67,7 +63,6 @@ public class ReflectionGetterTest {
     assertEquals("intField", intGetter.name());
     assertEquals("notGetter", notGetter.name());
   }
-
 
   @Test
   public void testInitializedWithCorrectTypes() {

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from JDBC.
- */
+/** Transforms for reading and writing from JDBC. */
 package org.apache.beam.sdk.io.jdbc;

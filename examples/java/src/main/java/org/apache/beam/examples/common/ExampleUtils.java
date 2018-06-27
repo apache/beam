@@ -57,8 +57,8 @@ import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 
 /**
- * The utility class that sets up and tears down external resources,
- * and cancels the streaming pipelines once the program terminates.
+ * The utility class that sets up and tears down external resources, and cancels the streaming
+ * pipelines once the program terminates.
  *
  * <p>It is used to run Beam examples.
  */
@@ -67,8 +67,8 @@ public class ExampleUtils {
   private static final int SC_NOT_FOUND = 404;
 
   /**
-   * \p{L} denotes the category of Unicode letters,
-   * so this pattern will match on everything that is not a letter.
+   * \p{L} denotes the category of Unicode letters, so this pattern will match on everything that is
+   * not a letter.
    *
    * <p>It is used for tokenizing strings in the wordcount examples.
    */
@@ -80,24 +80,21 @@ public class ExampleUtils {
   private Set<PipelineResult> pipelinesToCancel = Sets.newHashSet();
   private List<String> pendingMessages = Lists.newArrayList();
 
-  /**
-   * Do resources and runner options setup.
-   */
+  /** Do resources and runner options setup. */
   public ExampleUtils(PipelineOptions options) {
     this.options = options;
   }
 
   /**
-   * Sets up external resources that are required by the example,
-   * such as Pub/Sub topics and BigQuery tables.
+   * Sets up external resources that are required by the example, such as Pub/Sub topics and
+   * BigQuery tables.
    *
    * @throws IOException if there is a problem setting up the resources
    */
   public void setup() throws IOException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backOff =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(3).withInitialBackoff(Duration.millis(200)).backoff();
+        FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200)).backoff();
     Throwable lastException = null;
     try {
       do {
@@ -129,14 +126,15 @@ public class ExampleUtils {
     if (!pubsubOptions.getPubsubTopic().isEmpty()) {
       pendingMessages.add("**********************Set Up Pubsub************************");
       setupPubsubTopic(pubsubOptions.getPubsubTopic());
-      pendingMessages.add("The Pub/Sub topic has been set up for this example: "
-          + pubsubOptions.getPubsubTopic());
+      pendingMessages.add(
+          "The Pub/Sub topic has been set up for this example: " + pubsubOptions.getPubsubTopic());
 
       if (!pubsubOptions.getPubsubSubscription().isEmpty()) {
         setupPubsubSubscription(
             pubsubOptions.getPubsubTopic(), pubsubOptions.getPubsubSubscription());
-        pendingMessages.add("The Pub/Sub subscription has been set up for this example: "
-            + pubsubOptions.getPubsubSubscription());
+        pendingMessages.add(
+            "The Pub/Sub subscription has been set up for this example: "
+                + pubsubOptions.getPubsubSubscription());
       }
     }
   }
@@ -157,20 +155,22 @@ public class ExampleUtils {
         && bigQueryTableOptions.getBigQueryTable() != null
         && bigQueryTableOptions.getBigQuerySchema() != null) {
       pendingMessages.add("******************Set Up Big Query Table*******************");
-      setupBigQueryTable(bigQueryTableOptions.getProject(),
-                         bigQueryTableOptions.getBigQueryDataset(),
-                         bigQueryTableOptions.getBigQueryTable(),
-                         bigQueryTableOptions.getBigQuerySchema());
-      pendingMessages.add("The BigQuery table has been set up for this example: "
-          + bigQueryTableOptions.getProject()
-          + ":" + bigQueryTableOptions.getBigQueryDataset()
-          + "." + bigQueryTableOptions.getBigQueryTable());
+      setupBigQueryTable(
+          bigQueryTableOptions.getProject(),
+          bigQueryTableOptions.getBigQueryDataset(),
+          bigQueryTableOptions.getBigQueryTable(),
+          bigQueryTableOptions.getBigQuerySchema());
+      pendingMessages.add(
+          "The BigQuery table has been set up for this example: "
+              + bigQueryTableOptions.getProject()
+              + ":"
+              + bigQueryTableOptions.getBigQueryDataset()
+              + "."
+              + bigQueryTableOptions.getBigQueryTable());
     }
   }
 
-  /**
-   * Tears down external resources that can be deleted upon the example's completion.
-   */
+  /** Tears down external resources that can be deleted upon the example's completion. */
   private void tearDown() {
     pendingMessages.add("*************************Tear Down*************************");
     ExamplePubsubTopicAndSubscriptionOptions pubsubOptions =
@@ -178,20 +178,22 @@ public class ExampleUtils {
     if (!pubsubOptions.getPubsubTopic().isEmpty()) {
       try {
         deletePubsubTopic(pubsubOptions.getPubsubTopic());
-        pendingMessages.add("The Pub/Sub topic has been deleted: "
-            + pubsubOptions.getPubsubTopic());
+        pendingMessages.add(
+            "The Pub/Sub topic has been deleted: " + pubsubOptions.getPubsubTopic());
       } catch (IOException e) {
-        pendingMessages.add("Failed to delete the Pub/Sub topic : "
-            + pubsubOptions.getPubsubTopic());
+        pendingMessages.add(
+            "Failed to delete the Pub/Sub topic : " + pubsubOptions.getPubsubTopic());
       }
       if (!pubsubOptions.getPubsubSubscription().isEmpty()) {
         try {
           deletePubsubSubscription(pubsubOptions.getPubsubSubscription());
-          pendingMessages.add("The Pub/Sub subscription has been deleted: "
-              + pubsubOptions.getPubsubSubscription());
+          pendingMessages.add(
+              "The Pub/Sub subscription has been deleted: "
+                  + pubsubOptions.getPubsubSubscription());
         } catch (IOException e) {
-          pendingMessages.add("Failed to delete the Pub/Sub subscription : "
-              + pubsubOptions.getPubsubSubscription());
+          pendingMessages.add(
+              "Failed to delete the Pub/Sub subscription : "
+                  + pubsubOptions.getPubsubSubscription());
         }
       }
     }
@@ -201,38 +203,42 @@ public class ExampleUtils {
     if (bigQueryTableOptions.getBigQueryDataset() != null
         && bigQueryTableOptions.getBigQueryTable() != null
         && bigQueryTableOptions.getBigQuerySchema() != null) {
-      pendingMessages.add("The BigQuery table might contain the example's output, "
-          + "and it is not deleted automatically: "
-          + bigQueryTableOptions.getProject()
-          + ":" + bigQueryTableOptions.getBigQueryDataset()
-          + "." + bigQueryTableOptions.getBigQueryTable());
-      pendingMessages.add("Please go to the Developers Console to delete it manually."
-          + " Otherwise, you may be charged for its usage.");
+      pendingMessages.add(
+          "The BigQuery table might contain the example's output, "
+              + "and it is not deleted automatically: "
+              + bigQueryTableOptions.getProject()
+              + ":"
+              + bigQueryTableOptions.getBigQueryDataset()
+              + "."
+              + bigQueryTableOptions.getBigQueryTable());
+      pendingMessages.add(
+          "Please go to the Developers Console to delete it manually."
+              + " Otherwise, you may be charged for its usage.");
     }
   }
 
-  /**
-   * Returns a BigQuery client builder using the specified {@link BigQueryOptions}.
-   */
+  /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
   private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
-    return new Bigquery.Builder(Transport.getTransport(), Transport.getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+    return new Bigquery.Builder(
+            Transport.getTransport(),
+            Transport.getJsonFactory(),
+            chainHttpRequestInitializer(
+                options.getGcpCredential(),
+                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
-  /**
-   * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
-   */
+  /** Returns a Pubsub client builder using the specified {@link PubsubOptions}. */
   private static Pubsub.Builder newPubsubClient(PubsubOptions options) {
-    return new Pubsub.Builder(Transport.getTransport(), Transport.getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+    return new Pubsub.Builder(
+            Transport.getTransport(),
+            Transport.getJsonFactory(),
+            chainHttpRequestInitializer(
+                options.getGcpCredential(),
+                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setRootUrl(options.getPubsubRootUrl())
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
@@ -245,34 +251,43 @@ public class ExampleUtils {
           new NullCredentialInitializer(), httpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential),
-          httpRequestInitializer);
+          new HttpCredentialsAdapter(credential), httpRequestInitializer);
     }
   }
 
-  private void setupBigQueryTable(String projectId, String datasetId, String tableId,
-      TableSchema schema) throws IOException {
+  private void setupBigQueryTable(
+      String projectId, String datasetId, String tableId, TableSchema schema) throws IOException {
     if (bigQueryClient == null) {
       bigQueryClient = newBigQueryClient(options.as(BigQueryOptions.class)).build();
     }
 
     Datasets datasetService = bigQueryClient.datasets();
     if (executeNullIfNotFound(datasetService.get(projectId, datasetId)) == null) {
-      Dataset newDataset = new Dataset().setDatasetReference(
-          new DatasetReference().setProjectId(projectId).setDatasetId(datasetId));
+      Dataset newDataset =
+          new Dataset()
+              .setDatasetReference(
+                  new DatasetReference().setProjectId(projectId).setDatasetId(datasetId));
       datasetService.insert(projectId, newDataset).execute();
     }
 
     Tables tableService = bigQueryClient.tables();
     Table table = executeNullIfNotFound(tableService.get(projectId, datasetId, tableId));
     if (table == null) {
-      Table newTable = new Table().setSchema(schema).setTableReference(
-          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId));
+      Table newTable =
+          new Table()
+              .setSchema(schema)
+              .setTableReference(
+                  new TableReference()
+                      .setProjectId(projectId)
+                      .setDatasetId(datasetId)
+                      .setTableId(tableId));
       tableService.insert(projectId, datasetId, newTable).execute();
     } else if (!table.getSchema().equals(schema)) {
       throw new RuntimeException(
-          "Table exists and schemas do not match, expecting: " + schema.toPrettyString()
-          + ", actual: " + table.getSchema().toPrettyString());
+          "Table exists and schemas do not match, expecting: "
+              + schema.toPrettyString()
+              + ", actual: "
+              + table.getSchema().toPrettyString());
     }
   }
 
@@ -290,9 +305,7 @@ public class ExampleUtils {
       pubsubClient = newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) == null) {
-      Subscription subInfo = new Subscription()
-        .setAckDeadlineSeconds(60)
-        .setTopic(topic);
+      Subscription subInfo = new Subscription().setAckDeadlineSeconds(60).setTopic(topic);
       pubsubClient.projects().subscriptions().create(subscription, subInfo).execute();
     }
   }
@@ -325,9 +338,7 @@ public class ExampleUtils {
     }
   }
 
-  /**
-   * Waits for the pipeline to finish and cancels it before the program exists.
-   */
+  /** Waits for the pipeline to finish and cancels it before the program exists. */
   public void waitToFinish(PipelineResult result) {
     pipelinesToCancel.add(result);
     if (!options.as(ExampleOptions.class).getKeepJobsRunning()) {
@@ -392,8 +403,8 @@ public class ExampleUtils {
     System.out.println("***********************************************************");
   }
 
-  private static <T> T executeNullIfNotFound(
-      AbstractGoogleClientRequest<T> request) throws IOException {
+  private static <T> T executeNullIfNotFound(AbstractGoogleClientRequest<T> request)
+      throws IOException {
     try {
       return request.execute();
     } catch (GoogleJsonResponseException e) {

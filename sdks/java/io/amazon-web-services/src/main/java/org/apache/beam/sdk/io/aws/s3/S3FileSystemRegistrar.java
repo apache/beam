@@ -28,9 +28,7 @@ import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * {@link AutoService} registrar for the {@link S3FileSystem}.
- */
+/** {@link AutoService} registrar for the {@link S3FileSystem}. */
 @AutoService(FileSystemRegistrar.class)
 @Experimental(Experimental.Kind.FILESYSTEM)
 public class S3FileSystemRegistrar implements FileSystemRegistrar {

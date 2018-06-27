@@ -39,21 +39,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link GearpumpPipelineTranslator} knows how to translate {@link Pipeline} objects
- * into Gearpump {@link Graph}.
+ * {@link GearpumpPipelineTranslator} knows how to translate {@link Pipeline} objects into Gearpump
+ * {@link Graph}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
 
-  private static final Logger LOG = LoggerFactory.getLogger(
-      GearpumpPipelineTranslator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GearpumpPipelineTranslator.class);
 
   /**
-   * A map from {@link PTransform} subclass to the corresponding
-   * {@link TransformTranslator} to use to translate that transform.
+   * A map from {@link PTransform} subclass to the corresponding {@link TransformTranslator} to use
+   * to translate that transform.
    */
-  private static final Map<Class<? extends PTransform>, TransformTranslator>
-      transformTranslators = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, TransformTranslator> transformTranslators =
+      new HashMap<>();
 
   private final TranslationContext translationContext;
 
@@ -62,11 +61,11 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
-    registerTransformTranslator(Flatten.PCollections.class,
-        new FlattenPCollectionsTranslator());
+    registerTransformTranslator(Flatten.PCollections.class, new FlattenPCollectionsTranslator());
     registerTransformTranslator(ParDo.MultiOutput.class, new ParDoMultiOutputTranslator());
     registerTransformTranslator(Window.Assign.class, new WindowAssignTranslator());
-    registerTransformTranslator(CreateStreamingGearpumpView.CreateGearpumpPCollectionView.class,
+    registerTransformTranslator(
+        CreateStreamingGearpumpView.CreateGearpumpPCollectionView.class,
         new CreateGearpumpPCollectionViewTranslator());
   }
 
@@ -77,9 +76,10 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
   public void translate(Pipeline pipeline) {
     List<PTransformOverride> overrides =
         ImmutableList.<PTransformOverride>builder()
-            .add(PTransformOverride.of(
-                PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
-                new CreateStreamingGearpumpView.Factory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+                    new CreateStreamingGearpumpView.Factory()))
             .build();
 
     pipeline.replaceAll(overrides);
@@ -103,8 +103,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     PTransform transform = node.getTransform();
     TransformTranslator translator = getTransformTranslator(transform.getClass());
     if (null == translator) {
-      throw new IllegalStateException(
-          "no translator registered for " + transform);
+      throw new IllegalStateException("no translator registered for " + transform);
     }
     translationContext.setCurrentTransform(node, getPipeline());
     translator.translate(transform, translationContext);
@@ -116,25 +115,23 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
   }
 
   /**
-   * Records that instances of the specified PTransform class
-   * should be translated by default by the corresponding
-   * {@link TransformTranslator}.
+   * Records that instances of the specified PTransform class should be translated by default by the
+   * corresponding {@link TransformTranslator}.
    */
   private static <TransformT extends PTransform> void registerTransformTranslator(
       Class<TransformT> transformClass,
       TransformTranslator<? extends TransformT> transformTranslator) {
     if (transformTranslators.put(transformClass, transformTranslator) != null) {
-      throw new IllegalArgumentException(
-          "defining multiple translators for " + transformClass);
+      throw new IllegalArgumentException("defining multiple translators for " + transformClass);
     }
   }
 
   /**
-   * Returns the {@link TransformTranslator} to use for instances of the
-   * specified PTransform class, or null if none registered.
+   * Returns the {@link TransformTranslator} to use for instances of the specified PTransform class,
+   * or null if none registered.
    */
-  private <TransformT extends PTransform>
-  TransformTranslator<TransformT> getTransformTranslator(Class<TransformT> transformClass) {
+  private <TransformT extends PTransform> TransformTranslator<TransformT> getTransformTranslator(
+      Class<TransformT> transformClass) {
     return transformTranslators.get(transformClass);
   }
 }

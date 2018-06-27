@@ -34,10 +34,9 @@ import org.apache.beam.sdk.transforms.Sum;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPaneStateMachine extends TriggerStateMachine {
 
-private static final StateTag<CombiningState<Long, long[], Long>>
-      ELEMENTS_IN_PANE_TAG =
-      StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-          "count", VarLongCoder.of(), Sum.ofLongs()));
+  private static final StateTag<CombiningState<Long, long[], Long>> ELEMENTS_IN_PANE_TAG =
+      StateTags.makeSystemTagInternal(
+          StateTags.combiningValueFromInputInternal("count", VarLongCoder.of(), Sum.ofLongs()));
 
   private final int countElems;
 
@@ -46,16 +45,12 @@ private static final StateTag<CombiningState<Long, long[], Long>>
     this.countElems = countElems;
   }
 
-  /**
-   * The number of elements after which this trigger may fire.
-   */
+  /** The number of elements after which this trigger may fire. */
   public int getElementCount() {
     return countElems;
   }
 
-  /**
-   * Creates a trigger that fires when the pane contains at least {@code countElems} elements.
-   */
+  /** Creates a trigger that fires when the pane contains at least {@code countElems} elements. */
   public static AfterPaneStateMachine elementCountAtLeast(int countElems) {
     return new AfterPaneStateMachine(countElems);
   }

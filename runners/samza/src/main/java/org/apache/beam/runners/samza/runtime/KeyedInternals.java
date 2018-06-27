@@ -35,9 +35,7 @@ import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Instant;
 
-/**
- * Provides access to the keyed StateInternals and TimerInternals.
- */
+/** Provides access to the keyed StateInternals and TimerInternals. */
 @ThreadSafe
 class KeyedInternals<K> {
 
@@ -69,8 +67,10 @@ class KeyedInternals<K> {
   }
 
   void setKey(K key) {
-    checkState(threadLocalKeyedStates.get() == null,
-        "States for key %s is not cleared before processing", key);
+    checkState(
+        threadLocalKeyedStates.get() == null,
+        "States for key %s is not cleared before processing",
+        key);
 
     threadLocalKeyedStates.set(new KeyedStates<K>(key));
   }
@@ -82,11 +82,12 @@ class KeyedInternals<K> {
 
   void clearKey() {
     final List<State> states = threadLocalKeyedStates.get().states;
-    states.forEach(state -> {
-      if (state instanceof SamzaStoreStateInternals.KeyValueIteratorState) {
-        ((SamzaStoreStateInternals.KeyValueIteratorState) state).closeIterators();
-      }
-    });
+    states.forEach(
+        state -> {
+          if (state instanceof SamzaStoreStateInternals.KeyValueIteratorState) {
+            ((SamzaStoreStateInternals.KeyValueIteratorState) state).closeIterators();
+          }
+        });
     states.clear();
 
     threadLocalKeyedStates.remove();
@@ -100,10 +101,9 @@ class KeyedInternals<K> {
     }
 
     @Override
-    public <T extends State> T state(StateNamespace namespace, StateTag<T> address,
-        StateContext<?> c) {
-      checkState(getKey() != null,
-          "Key is not set before state access in Stateful ParDo.");
+    public <T extends State> T state(
+        StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
+      checkState(getKey() != null, "Key is not set before state access in Stateful ParDo.");
 
       final T state = stateFactory.stateInternalsForKey(getKey()).state(namespace, address, c);
       threadLocalKeyedStates.get().states.add(state);
@@ -118,8 +118,8 @@ class KeyedInternals<K> {
     }
 
     @Override
-    public void setTimer(StateNamespace namespace, String timerId, Instant target,
-        TimeDomain timeDomain) {
+    public void setTimer(
+        StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
       getInternals().setTimer(namespace, timerId, target, timeDomain);
     }
 

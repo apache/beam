@@ -28,9 +28,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link OffsetRangeTracker}.
- */
+/** Tests for {@link OffsetRangeTracker}. */
 @RunWith(JUnit4.class)
 public class OffsetRangeTrackerTest {
   @Rule public final ExpectedException expected = ExpectedException.none();

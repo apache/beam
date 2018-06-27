@@ -64,13 +64,13 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     @SuppressWarnings("unchecked")
     Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
     try {
-        OnTimerMethodSpecifier onTimerMethodSpecifier =
-                OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
-        Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
+      OnTimerMethodSpecifier onTimerMethodSpecifier =
+          OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
+      Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
 
-        OnTimerInvoker<InputT, OutputT> invoker =
+      OnTimerInvoker<InputT, OutputT> invoker =
           (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
-        return invoker;
+      return invoker;
     } catch (InstantiationException
         | IllegalAccessException
         | IllegalArgumentException
@@ -100,31 +100,31 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
   private static final String FN_DELEGATE_FIELD_NAME = "delegate";
 
   /**
-   * A cache of constructors of generated {@link OnTimerInvoker} classes,
-   * keyed by {@link OnTimerMethodSpecifier}.
+   * A cache of constructors of generated {@link OnTimerInvoker} classes, keyed by {@link
+   * OnTimerMethodSpecifier}.
    *
    * <p>Needed because generating an invoker class is expensive, and to avoid generating an
    * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
    */
   private final LoadingCache<OnTimerMethodSpecifier, Constructor<?>> constructorCache =
-          CacheBuilder.newBuilder().build(
-          new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
-              @Override
-              public Constructor<?> load(final OnTimerMethodSpecifier onTimerMethodSpecifier)
-                      throws Exception {
+      CacheBuilder.newBuilder()
+          .build(
+              new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
+                @Override
+                public Constructor<?> load(final OnTimerMethodSpecifier onTimerMethodSpecifier)
+                    throws Exception {
                   DoFnSignature signature =
-                          DoFnSignatures.getSignature(onTimerMethodSpecifier.fnClass());
+                      DoFnSignatures.getSignature(onTimerMethodSpecifier.fnClass());
                   Class<? extends OnTimerInvoker<?, ?>> invokerClass =
-                          generateOnTimerInvokerClass(signature, onTimerMethodSpecifier.timerId());
+                      generateOnTimerInvokerClass(signature, onTimerMethodSpecifier.timerId());
                   try {
-                      return invokerClass.getConstructor(signature.fnClass());
+                    return invokerClass.getConstructor(signature.fnClass());
                   } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-                      throw new RuntimeException(e);
+                    throw new RuntimeException(e);
                   }
-
-              }
-          });
-    /**
+                }
+              });
+  /**
    * Generates a {@link OnTimerInvoker} class for the given {@link DoFnSignature} and {@link
    * TimerId}.
    */
@@ -145,8 +145,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
         new ByteBuddy()
             // Create subclasses inside the target class, to have access to
             // private and package-private bits
-            .with(StableInvokerNamingStrategy.forDoFnClass(fnClass)
-                .withSuffix(suffix))
+            .with(StableInvokerNamingStrategy.forDoFnClass(fnClass).withSuffix(suffix))
 
             // class <invoker class> implements OnTimerInvoker {
             .subclass(OnTimerInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)

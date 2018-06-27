@@ -78,9 +78,7 @@ public class ViewOverrideFactoryTest implements Serializable {
               assertThat(
                   replacementView.getTagInternal(), equalTo((TupleTag) view.getTagInternal()));
               assertThat(replacementView.getViewFn(), equalTo(view.getViewFn()));
-              assertThat(
-                  replacementView.getWindowMappingFn(),
-                  equalTo(view.getWindowMappingFn()));
+              assertThat(replacementView.getWindowMappingFn(), equalTo(view.getWindowMappingFn()));
               assertThat(node.getInputs().entrySet(), hasSize(1));
             }
           }

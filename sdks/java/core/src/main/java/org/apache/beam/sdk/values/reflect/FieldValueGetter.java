@@ -25,12 +25,14 @@ import org.apache.beam.sdk.annotations.Internal;
  *
  * <p>An interface to access a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime by {@link RowFactory}
- * to map pojo fields to BeamRecord fields.
+ * <p>Implementations of this interface are generated at runtime by {@link RowFactory} to map pojo
+ * fields to BeamRecord fields.
  */
 @Internal
 public interface FieldValueGetter<T> {
   Object get(T object);
+
   String name();
+
   Class type();
 }

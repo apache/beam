@@ -31,8 +31,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Validates if the types specified in {@link Row} {@link Schema}
- * are supported for conversion from Json.
+ * Validates if the types specified in {@link Row} {@link Schema} are supported for conversion from
+ * Json.
  */
 class RowJsonValidation {
 
@@ -60,8 +60,10 @@ class RowJsonValidation {
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
       throw new RowJsonDeserializer.UnsupportedRowJsonException(
-          fieldTypeName.name() + " is not supported when converting JSON objects to Rows. "
-          + "Supported types are: " + SUPPORTED_TYPES.toString());
+          fieldTypeName.name()
+              + " is not supported when converting JSON objects to Rows. "
+              + "Supported types are: "
+              + SUPPORTED_TYPES.toString());
     }
   }
 }

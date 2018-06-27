@@ -26,19 +26,16 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 
-/**
- * Used to pass values around within test pipelines.
- */
+/** Used to pass values around within test pipelines. */
 @AutoValue
 public abstract class TestRow implements Serializable, Comparable<TestRow> {
-  /**
-   * Manually create a test row.
-   */
+  /** Manually create a test row. */
   public static TestRow create(Integer id, String name) {
     return new AutoValue_TestRow(id, name);
   }
 
   public abstract Integer id();
+
   public abstract String name();
 
   @Override
@@ -46,16 +43,12 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
     return id().compareTo(other.id());
   }
 
-  /**
-   * Creates a {@link org.apache.beam.sdk.io.common.TestRow} from the seed value.
-   */
+  /** Creates a {@link org.apache.beam.sdk.io.common.TestRow} from the seed value. */
   public static TestRow fromSeed(Integer seed) {
     return create(seed, getNameForSeed(seed));
   }
 
-  /**
-   * Returns the name field value produced from the given seed.
-   */
+  /** Returns the name field value produced from the given seed. */
   public static String getNameForSeed(Integer seed) {
     return "Testval" + seed;
   }
@@ -82,9 +75,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
     }
   }
 
-  /**
-   * Outputs just the name stored in the {@link org.apache.beam.sdk.io.common.TestRow}.
-   */
+  /** Outputs just the name stored in the {@link org.apache.beam.sdk.io.common.TestRow}. */
   public static class SelectNameFn extends DoFn<TestRow, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -93,20 +84,20 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
   }
 
   /**
-   * Precalculated hashes - you can calculate an entry by running HashingFn on
-   * the name() for the rows generated from seeds in [0, n).
+   * Precalculated hashes - you can calculate an entry by running HashingFn on the name() for the
+   * rows generated from seeds in [0, n).
    */
-  private static final ImmutableMap<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
-      1000, "7d94d63a41164be058a9680002914358",
-      100_000, "c7cbddb319209e200f1c5eebef8fe960",
-      600_000, "e2add2f680de9024e9bc46cd3912545e",
-      5_000_000, "c44f8a5648cd9207c9c6f77395a998dc"
-  );
+  private static final ImmutableMap<Integer, String> EXPECTED_HASHES =
+      ImmutableMap.of(
+          1000, "7d94d63a41164be058a9680002914358",
+          100_000, "c7cbddb319209e200f1c5eebef8fe960",
+          600_000, "e2add2f680de9024e9bc46cd3912545e",
+          5_000_000, "c44f8a5648cd9207c9c6f77395a998dc");
 
   /**
    * Returns the hash value that {@link org.apache.beam.sdk.io.common.HashingFn} will return when it
-   * is run on {@link org.apache.beam.sdk.io.common.TestRow}s produced by
-   * getExpectedValues(0, rowCount).
+   * is run on {@link org.apache.beam.sdk.io.common.TestRow}s produced by getExpectedValues(0,
+   * rowCount).
    */
   public static String getExpectedHashForRowCount(int rowCount)
       throws UnsupportedOperationException {

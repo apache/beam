@@ -160,7 +160,7 @@ public class WindowingStrategyTranslation implements Serializable {
   }
 
   public static RunnerApi.OutputTime.Enum toProto(TimestampCombiner timestampCombiner) {
-    switch(timestampCombiner) {
+    switch (timestampCombiner) {
       case EARLIEST:
         return OutputTime.Enum.EARLIEST_IN_PANE;
       case END_OF_WINDOW:
@@ -170,9 +170,7 @@ public class WindowingStrategyTranslation implements Serializable {
       default:
         throw new IllegalArgumentException(
             String.format(
-                "Unknown %s: %s",
-                TimestampCombiner.class.getSimpleName(),
-                timestampCombiner));
+                "Unknown %s: %s", TimestampCombiner.class.getSimpleName(), timestampCombiner));
     }
   }
 
@@ -213,9 +211,7 @@ public class WindowingStrategyTranslation implements Serializable {
       return SdkFunctionSpec.newBuilder()
           .setEnvironmentId(
               components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
-          .setSpec(
-              FunctionSpec.newBuilder()
-                  .setUrn(getUrn(GlobalWindowsPayload.Enum.PROPERTIES)))
+          .setSpec(FunctionSpec.newBuilder().setUrn(getUrn(GlobalWindowsPayload.Enum.PROPERTIES)))
           .build();
     } else if (windowFn instanceof FixedWindows) {
       FixedWindowsPayload fixedWindowsPayload =
@@ -232,11 +228,12 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setPayload(fixedWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof SlidingWindows) {
-      SlidingWindowsPayload slidingWindowsPayload = SlidingWindowsPayload.newBuilder()
-          .setSize(Durations.fromMillis(((SlidingWindows) windowFn).getSize().getMillis()))
-          .setOffset(Timestamps.fromMillis(((SlidingWindows) windowFn).getOffset().getMillis()))
-          .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
-          .build();
+      SlidingWindowsPayload slidingWindowsPayload =
+          SlidingWindowsPayload.newBuilder()
+              .setSize(Durations.fromMillis(((SlidingWindows) windowFn).getSize().getMillis()))
+              .setOffset(Timestamps.fromMillis(((SlidingWindows) windowFn).getOffset().getMillis()))
+              .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
+              .build();
       return SdkFunctionSpec.newBuilder()
           .setEnvironmentId(
               components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
@@ -312,8 +309,8 @@ public class WindowingStrategyTranslation implements Serializable {
   }
 
   /**
-   * Converts from a {@link RunnerApi.WindowingStrategy} accompanied by {@link Components}
-   * to the SDK's {@link WindowingStrategy}.
+   * Converts from a {@link RunnerApi.WindowingStrategy} accompanied by {@link Components} to the
+   * SDK's {@link WindowingStrategy}.
    */
   public static WindowingStrategy<?, ?> fromProto(RunnerApi.MessageWithComponents proto)
       throws InvalidProtocolBufferException {
@@ -362,14 +359,13 @@ public class WindowingStrategyTranslation implements Serializable {
       if (s.equals(getUrn(GlobalWindowsPayload.Enum.PROPERTIES))) {
         return new GlobalWindows();
       } else if (s.equals(getUrn(FixedWindowsPayload.Enum.PROPERTIES))) {
-        FixedWindowsPayload fixedParams = FixedWindowsPayload.parseFrom(
-            windowFnSpec.getSpec().getPayload());
+        FixedWindowsPayload fixedParams =
+            FixedWindowsPayload.parseFrom(windowFnSpec.getSpec().getPayload());
         return FixedWindows.of(Duration.millis(Durations.toMillis(fixedParams.getSize())))
             .withOffset(Duration.millis(Timestamps.toMillis(fixedParams.getOffset())));
       } else if (s.equals(getUrn(SlidingWindowsPayload.Enum.PROPERTIES))) {
         SlidingWindowsPayload slidingParams =
-            SlidingWindowsPayload.parseFrom(
-                windowFnSpec.getSpec().getPayload());
+            SlidingWindowsPayload.parseFrom(windowFnSpec.getSpec().getPayload());
         return SlidingWindows.of(Duration.millis(Durations.toMillis(slidingParams.getSize())))
             .every(Duration.millis(Durations.toMillis(slidingParams.getPeriod())))
             .withOffset(Duration.millis(Timestamps.toMillis(slidingParams.getOffset())));

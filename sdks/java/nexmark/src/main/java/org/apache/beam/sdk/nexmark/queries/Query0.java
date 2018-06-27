@@ -45,22 +45,23 @@ public class Query0 extends NexmarkQuery {
     final Coder<Event> coder = events.getCoder();
     return events
         // Force round trip through coder.
-        .apply(name + ".Serialize",
-            ParDo.of(new DoFn<Event, Event>() {
-                  private final Counter bytesMetric =
-                    Metrics.counter(name , "bytes");
+        .apply(
+        name + ".Serialize",
+        ParDo.of(
+            new DoFn<Event, Event>() {
+              private final Counter bytesMetric = Metrics.counter(name, "bytes");
 
-                  @ProcessElement
-                  public void processElement(ProcessContext c) throws CoderException, IOException {
-                    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                    coder.encode(c.element(), outStream, Coder.Context.OUTER);
-                    byte[] byteArray = outStream.toByteArray();
-                    bytesMetric.inc((long) byteArray.length);
-                    ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
-                    Event event = coder.decode(inStream, Coder.Context.OUTER);
-                    c.output(event);
-                  }
-                }));
+              @ProcessElement
+              public void processElement(ProcessContext c) throws CoderException, IOException {
+                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                coder.encode(c.element(), outStream, Coder.Context.OUTER);
+                byte[] byteArray = outStream.toByteArray();
+                bytesMetric.inc((long) byteArray.length);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
+                Event event = coder.decode(inStream, Coder.Context.OUTER);
+                c.output(event);
+              }
+            }));
   }
 
   @Override

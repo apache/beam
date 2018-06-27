@@ -37,19 +37,14 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * {@link Schema} describes the fields in {@link Row}.
- *
- */
+/** {@link Schema} describes the fields in {@link Row}. */
 @Experimental
 public class Schema implements Serializable {
   // A mapping between field names an indices.
   private BiMap<String, Integer> fieldIndices = HashBiMap.create();
   private List<Field> fields;
 
-  /**
-   * Builder class for building {@link Schema} objects.
-   */
+  /** Builder class for building {@link Schema} objects. */
   public static class Builder {
     List<Field> fields;
 
@@ -132,8 +127,7 @@ public class Schema implements Serializable {
     }
 
     public Builder addArrayField(String name, FieldType collectionElementType) {
-      fields.add(
-          Field.of(name, FieldType.array(collectionElementType)));
+      fields.add(Field.of(name, FieldType.array(collectionElementType)));
       return this;
     }
 
@@ -142,8 +136,7 @@ public class Schema implements Serializable {
       return this;
     }
 
-    public Builder addMapField(
-        String name, FieldType keyType, FieldType valueType) {
+    public Builder addMapField(String name, FieldType keyType, FieldType valueType) {
       fields.add(Field.of(name, FieldType.map(keyType, valueType)));
       return this;
     }
@@ -160,12 +153,12 @@ public class Schema implements Serializable {
   public Schema(List<Field> fields) {
     this.fields = fields;
     int index = 0;
-    for (Field field :fields) {
+    for (Field field : fields) {
       fieldIndices.put(field.getName(), index++);
     }
   }
 
-  public static Schema of(Field ... fields) {
+  public static Schema of(Field... fields) {
     return Schema.builder().addFields(fields).build();
   }
 
@@ -199,32 +192,33 @@ public class Schema implements Serializable {
     return fields;
   }
 
-  /** An enumerated list of type constructors.
+  /**
+   * An enumerated list of type constructors.
    *
    * <ul>
    *   <li>Atomic types are built from type constructors that take no arguments
-   *   <li>Arrays, rows, and maps are type constructors that take additional
-   *       arguments to form a valid {@link FieldType}.
+   *   <li>Arrays, rows, and maps are type constructors that take additional arguments to form a
+   *       valid {@link FieldType}.
    * </ul>
    */
   @SuppressWarnings("MutableConstantField")
   public enum TypeName {
-    BYTE,    // One-byte signed integer.
-    INT16,   // two-byte signed integer.
-    INT32,   // four-byte signed integer.
-    INT64,   // eight-byte signed integer.
-    DECIMAL,  // Decimal integer
+    BYTE, // One-byte signed integer.
+    INT16, // two-byte signed integer.
+    INT32, // four-byte signed integer.
+    INT64, // eight-byte signed integer.
+    DECIMAL, // Decimal integer
     FLOAT,
     DOUBLE,
-    STRING,  // String.
+    STRING, // String.
     DATETIME, // Date and time.
-    BOOLEAN,  // Boolean.
+    BOOLEAN, // Boolean.
     ARRAY,
     MAP,
-    ROW;    // The field is itself a nested row.
+    ROW; // The field is itself a nested row.
 
-    public static final Set<TypeName> NUMERIC_TYPES = ImmutableSet.of(
-        BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
+    public static final Set<TypeName> NUMERIC_TYPES =
+        ImmutableSet.of(BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
     public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
     public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
@@ -234,21 +228,27 @@ public class Schema implements Serializable {
     public boolean isPrimitiveType() {
       return !isCollectionType() && !isMapType() && !isCompositeType();
     }
+
     public boolean isNumericType() {
       return NUMERIC_TYPES.contains(this);
     }
+
     public boolean isStringType() {
       return STRING_TYPES.contains(this);
     }
+
     public boolean isDateType() {
       return DATE_TYPES.contains(this);
     }
+
     public boolean isCollectionType() {
       return COLLECTION_TYPES.contains(this);
     }
+
     public boolean isMapType() {
       return MAP_TYPES.contains(this);
     }
+
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
     }
@@ -265,22 +265,25 @@ public class Schema implements Serializable {
     public abstract TypeName getTypeName();
 
     // For container types (e.g. ARRAY), returns the type of the contained element.
-    @Nullable public abstract FieldType getCollectionElementType();
+    @Nullable
+    public abstract FieldType getCollectionElementType();
 
     // For MAP type, returns the type of the key element, it must be a primitive type;
-    @Nullable public abstract FieldType getMapKeyType();
+    @Nullable
+    public abstract FieldType getMapKeyType();
 
     // For MAP type, returns the type of the value element, it can be a nested type;
-    @Nullable public abstract FieldType getMapValueType();
+    @Nullable
+    public abstract FieldType getMapValueType();
 
     // For ROW types, returns the schema for the row.
-    @Nullable public abstract Schema getRowSchema();
+    @Nullable
+    public abstract Schema getRowSchema();
 
-    /**
-     * Returns optional extra metadata.
-     */
+    /** Returns optional extra metadata. */
     @SuppressWarnings("mutable")
-    @Nullable public abstract byte[] getMetadata();
+    @Nullable
+    public abstract byte[] getMetadata();
 
     abstract FieldType.Builder toBuilder();
 
@@ -291,17 +294,21 @@ public class Schema implements Serializable {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
+
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
+
       abstract Builder setMapKeyType(@Nullable FieldType mapKeyType);
+
       abstract Builder setMapValueType(@Nullable FieldType mapValueType);
+
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
+
       abstract Builder setMetadata(@Nullable byte[] metadata);
+
       abstract FieldType build();
     }
 
-    /**
-     * Create a {@link FieldType} for the given type.
-     */
+    /** Create a {@link FieldType} for the given type. */
     public static FieldType of(TypeName typeName) {
       return forTypeName(typeName).build();
     }
@@ -354,16 +361,12 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
     }
 
-    /**
-     * Returns a copy of the descriptor with metadata  set.
-     */
+    /** Returns a copy of the descriptor with metadata set. */
     public FieldType withMetadata(@Nullable byte[] metadata) {
       return toBuilder().setMetadata(metadata).build();
     }
 
-    /**
-     * Returns a copy of the descriptor with metadata  set.
-     */
+    /** Returns a copy of the descriptor with metadata set. */
     public FieldType withMetadata(String metadata) {
       return toBuilder().setMetadata(metadata.getBytes(StandardCharsets.UTF_8)).build();
     }
@@ -380,69 +383,63 @@ public class Schema implements Serializable {
           && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
           && Arrays.equals(getMetadata(), other.getMetadata());
-
     }
 
     @Override
     public int hashCode() {
-      return Arrays.deepHashCode(new Object[] { getTypeName(), getCollectionElementType(),
-          getMapKeyType(), getMapValueType(), getRowSchema(), getMetadata() });
+      return Arrays.deepHashCode(
+          new Object[] {
+            getTypeName(),
+            getCollectionElementType(),
+            getMapKeyType(),
+            getMapValueType(),
+            getRowSchema(),
+            getMetadata()
+          });
     }
   }
 
-
-  /**
-   * Field of a row. Contains the {@link FieldType} along with associated metadata.
-   *
-   */
+  /** Field of a row. Contains the {@link FieldType} along with associated metadata. */
   @AutoValue
   public abstract static class Field implements Serializable {
-    /**
-     * Returns the field name.
-     */
+    /** Returns the field name. */
     public abstract String getName();
 
-    /**
-     * Returns the field's description.
-     */
+    /** Returns the field's description. */
     public abstract String getDescription();
 
-    /**
-     * Returns the fields {@link FieldType}.
-     */
+    /** Returns the fields {@link FieldType}. */
     public abstract FieldType getType();
 
-    /**
-     * Returns whether the field supports null values.
-     */
+    /** Returns whether the field supports null values. */
     public abstract Boolean getNullable();
 
-
     public abstract Builder toBuilder();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setName(String name);
+
       abstract Builder setDescription(String description);
+
       abstract Builder setType(FieldType fieldType);
+
       abstract Builder setNullable(Boolean nullable);
+
       abstract Field build();
     }
 
-    /**
-     * Return's a field with the give name and type.
-     */
+    /** Return's a field with the give name and type. */
     public static Field of(String name, FieldType fieldType) {
       return new AutoValue_Schema_Field.Builder()
           .setName(name)
           .setDescription("")
           .setType(fieldType)
-          .setNullable(false)  // By default fields are not nullable.
+          .setNullable(false) // By default fields are not nullable.
           .build();
     }
 
-    /**
-     * Return's a nullable field with the give name and type.
-     */
+    /** Return's a nullable field with the give name and type. */
     public static Field nullable(String name, FieldType fieldType) {
       return new AutoValue_Schema_Field.Builder()
           .setName(name)
@@ -452,31 +449,22 @@ public class Schema implements Serializable {
           .build();
     }
 
-    /**
-     * Returns a copy of the Field with the name set.
-     */
+    /** Returns a copy of the Field with the name set. */
     public Field withName(String name) {
       return toBuilder().setName(name).build();
-
     }
 
-    /**
-     * Returns a copy of the Field with the description set.
-     */
+    /** Returns a copy of the Field with the description set. */
     public Field withDescription(String description) {
       return toBuilder().setDescription(description).build();
     }
 
-    /**
-     * Returns a copy of the Field with the {@link FieldType} set.
-     */
+    /** Returns a copy of the Field with the {@link FieldType} set. */
     public Field withType(FieldType fieldType) {
       return toBuilder().setType(fieldType).build();
     }
 
-    /**
-     * Returns a copy of the Field with isNullable set.
-     */
+    /** Returns a copy of the Field with isNullable set. */
     public Field withNullable(boolean isNullable) {
       return toBuilder().setNullable(isNullable).build();
     }
@@ -499,9 +487,7 @@ public class Schema implements Serializable {
     }
   }
 
-  /**
-   * Collects a stream of {@link Field}s into a {@link Schema}.
-   */
+  /** Collects a stream of {@link Field}s into a {@link Schema}. */
   public static Collector<Field, List<Field>, Schema> toSchema() {
     return Collector.of(
         ArrayList::new,
@@ -517,24 +503,17 @@ public class Schema implements Serializable {
     return new Schema(fields);
   }
 
-
-  /**
-   * Return the coder for a {@link Row} with this schema.
-   */
+  /** Return the coder for a {@link Row} with this schema. */
   public RowCoder getRowCoder() {
     return RowCoder.of(this);
   }
 
-  /**
-   * Return the list of all field names.
-   */
+  /** Return the list of all field names. */
   public List<String> getFieldNames() {
     return getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());
   }
 
-  /**
-   * Return a field by index.
-   */
+  /** Return a field by index. */
   public Field getField(int index) {
     return getFields().get(index);
   }
@@ -543,9 +522,7 @@ public class Schema implements Serializable {
     return getFields().get(indexOf(name));
   }
 
-  /**
-   * Find the index of a given field.
-   */
+  /** Find the index of a given field. */
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
     if (index == null) {
@@ -554,16 +531,12 @@ public class Schema implements Serializable {
     return index;
   }
 
-  /**
-   * Returns true if {@code fieldName} exists in the schema, false otherwise.
-   */
+  /** Returns true if {@code fieldName} exists in the schema, false otherwise. */
   public boolean hasField(String fieldName) {
     return fieldIndices.containsKey(fieldName);
   }
 
-  /**
-   * Return the name of field by index.
-   */
+  /** Return the name of field by index. */
   public String nameOf(int fieldIndex) {
     String name = fieldIndices.inverse().get(fieldIndex);
     if (name == null) {
@@ -572,9 +545,7 @@ public class Schema implements Serializable {
     return name;
   }
 
-  /**
-   * Return the count of fields.
-   */
+  /** Return the count of fields. */
   public int getFieldCount() {
     return getFields().size();
   }

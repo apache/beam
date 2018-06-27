@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag for tests that use {@link TestStream}, which is not a part of the Beam model
- * but a special feature currently only implemented by the direct runner.
+ * Category tag for tests that use {@link TestStream}, which is not a part of the Beam model but a
+ * special feature currently only implemented by the direct runner.
  */
 public interface UsesTestStream {}

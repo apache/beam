@@ -53,8 +53,7 @@ public class TestStreamEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
   private EvaluationContext context;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   private DirectRunner runner;
 
   @Before
@@ -68,14 +67,16 @@ public class TestStreamEvaluatorFactoryTest {
   /** Demonstrates that returned evaluators produce elements in sequence. */
   @Test
   public void producesElementsInSequence() throws Exception {
-    TestStream<Integer> testStream = TestStream.create(VarIntCoder.of())
-        .addElements(1, 2, 3)
-        .advanceWatermarkTo(new Instant(0))
-        .addElements(TimestampedValue.atMinimumTimestamp(4),
-            TimestampedValue.atMinimumTimestamp(5),
-            TimestampedValue.atMinimumTimestamp(6))
-        .advanceProcessingTime(Duration.standardMinutes(10))
-        .advanceWatermarkToInfinity();
+    TestStream<Integer> testStream =
+        TestStream.create(VarIntCoder.of())
+            .addElements(1, 2, 3)
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(
+                TimestampedValue.atMinimumTimestamp(4),
+                TimestampedValue.atMinimumTimestamp(5),
+                TimestampedValue.atMinimumTimestamp(6))
+            .advanceProcessingTime(Duration.standardMinutes(10))
+            .advanceWatermarkToInfinity();
     PCollection<Integer> streamVals = p.apply(new DirectTestStream<>(runner, testStream));
 
     TestClock clock = new TestClock();
@@ -86,8 +87,7 @@ public class TestStreamEvaluatorFactoryTest {
 
     AppliedPTransform<?, ?, ?> streamProducer = DirectGraphs.getProducer(streamVals);
     Collection<CommittedBundle<?>> initialInputs =
-        new TestStreamEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(streamProducer, 1);
+        new TestStreamEvaluatorFactory.InputProvider(context).getInitialInputs(streamProducer, 1);
     @SuppressWarnings("unchecked")
     CommittedBundle<TestStreamIndex<Integer>> initialBundle =
         (CommittedBundle<TestStreamIndex<Integer>>) Iterables.getOnlyElement(initialInputs);

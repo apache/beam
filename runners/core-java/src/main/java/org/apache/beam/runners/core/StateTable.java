@@ -42,8 +42,8 @@ public abstract class StateTable {
 
   /**
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
-   * StateTag}, binding it using the {@link #binderForNamespace} if it is not
-   * already present in this {@link StateTable}.
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not already present in
+   * this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
       StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
@@ -107,8 +107,8 @@ public abstract class StateTable {
   }
 
   /**
-   * Provide the {@code StateBinder} to use for creating {@code Storage} instances
-   * in the specified {@code namespace}.
+   * Provide the {@code StateBinder} to use for creating {@code Storage} instances in the specified
+   * {@code namespace}.
    */
   protected abstract StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c);
 }

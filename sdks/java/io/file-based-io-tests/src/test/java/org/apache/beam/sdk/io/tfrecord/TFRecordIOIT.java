@@ -50,6 +50,7 @@ import org.junit.runners.JUnit4;
  * Integration tests for {@link org.apache.beam.sdk.io.TFRecordIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
@@ -60,10 +61,9 @@ import org.junit.runners.JUnit4;
  *  --tests org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
- * </p>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class TFRecordIOIT {
@@ -72,11 +72,9 @@ public class TFRecordIOIT {
   private static Integer numberOfTextLines;
   private static Compression compressionType;
 
-  @Rule
-  public TestPipeline writePipeline = TestPipeline.create();
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
@@ -94,35 +92,39 @@ public class TFRecordIOIT {
   // TODO: There are two pipelines due to: https://issues.apache.org/jira/browse/BEAM-3267
   @Test
   public void writeThenReadAll() {
-    TFRecordIO.Write writeTransform = TFRecordIO
-      .write()
-      .to(filenamePrefix)
-      .withCompression(compressionType)
-      .withSuffix(".tfrecord");
+    TFRecordIO.Write writeTransform =
+        TFRecordIO.write()
+            .to(filenamePrefix)
+            .withCompression(compressionType)
+            .withSuffix(".tfrecord");
 
     writePipeline
-      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-      .apply("Produce text lines",
-        ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-      .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
-      .apply("Write content to files", writeTransform);
+        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+        .apply(
+            "Produce text lines",
+            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+        .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
+        .apply("Write content to files", writeTransform);
 
     writePipeline.run().waitUntilFinish();
 
     String filenamePattern = createFilenamePattern();
-    PCollection<String> consolidatedHashcode = readPipeline
-      .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
-      .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
-      .apply("Calculate hashcode", Combine.globally(new HashingFn()))
-      .apply(Reshuffle.viaRandomKey());
+    PCollection<String> consolidatedHashcode =
+        readPipeline
+            .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
+            .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()))
+            .apply(Reshuffle.viaRandomKey());
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline
-      .apply(Create.of(filenamePattern))
-      .apply("Delete test files", ParDo.of(new DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+        .apply(Create.of(filenamePattern))
+        .apply(
+            "Delete test files",
+            ParDo.of(new DeleteFileFn())
+                .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     readPipeline.run().waitUntilFinish();
   }
 

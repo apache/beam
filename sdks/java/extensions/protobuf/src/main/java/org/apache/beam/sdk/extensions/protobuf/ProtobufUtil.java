@@ -51,8 +51,8 @@ class ProtobufUtil {
   }
 
   /**
-   * Returns the {@link Descriptor} for the given Protocol Buffers {@link Message} as well as
-   * every class it can include transitively.
+   * Returns the {@link Descriptor} for the given Protocol Buffers {@link Message} as well as every
+   * class it can include transitively.
    *
    * @throws IllegalArgumentException if there is an error in Java reflection.
    */
@@ -81,8 +81,8 @@ class ProtobufUtil {
   }
 
   /**
-   * Recursively checks whether the specified class uses any Protocol Buffers fields that cannot
-   * be deterministically encoded.
+   * Recursively checks whether the specified class uses any Protocol Buffers fields that cannot be
+   * deterministically encoded.
    *
    * @throws NonDeterministicException if the object cannot be encoded deterministically.
    */
@@ -99,9 +99,7 @@ class ProtobufUtil {
               String.format(
                   "Protocol Buffers message %s transitively includes Map field %s (from file %s)."
                       + " Maps cannot be deterministically encoded.",
-                  message.getName(),
-                  fd.getFullName(),
-                  fd.getFile().getFullName());
+                  message.getName(), fd.getFullName(), fd.getFile().getFullName());
           throw new NonDeterministicException(coder, reason);
         }
       }

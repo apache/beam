@@ -72,16 +72,13 @@ public class CreatePCollectionViewTranslation {
 
     return (PCollectionView<ViewT>)
         SerializableUtils.deserializeFromByteArray(
-            transformProto
-                .getSpec()
-                .getPayload()
-                .toByteArray(),
+            transformProto.getSpec().getPayload().toByteArray(),
             PCollectionView.class.getSimpleName());
   }
 
   /**
-   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
-   * as part of the translation for a `ParDo` side input.
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
+   *     part of the translation for a `ParDo` side input.
    */
   @Deprecated
   static class CreatePCollectionViewTranslator
@@ -107,8 +104,8 @@ public class CreatePCollectionViewTranslation {
   /**
    * Registers {@link CreatePCollectionViewTranslator}.
    *
-   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
-   * as part of the translation for a `ParDo` side input.
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
+   *     part of the translation for a `ParDo` side input.
    */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   @Deprecated

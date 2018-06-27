@@ -56,14 +56,16 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * An implementation of the 'NEXMark queries' for Beam.
- * These are multiple queries over a three table schema representing an online auction system:
+ * An implementation of the 'NEXMark queries' for Beam. These are multiple queries over a three
+ * table schema representing an online auction system:
+ *
  * <ul>
- * <li>{@link Person} represents a person submitting an item for auction and/or making a bid
- * on an auction.
- * <li>{@link Auction} represents an item under auction.
- * <li>{@link Bid} represents a bid for an item under auction.
+ *   <li>{@link Person} represents a person submitting an item for auction and/or making a bid on an
+ *       auction.
+ *   <li>{@link Auction} represents an item under auction.
+ *   <li>{@link Bid} represents a bid for an item under auction.
  * </ul>
+ *
  * The queries exercise many aspects of the Beam model.
  *
  * <p>We synthesize the creation of people, auctions and bids in real-time. The data is not
@@ -74,9 +76,7 @@ import org.joda.time.Instant;
  */
 public class Main<OptionT extends NexmarkOptions> {
 
-  /**
-   * Entry point.
-   */
+  /** Entry point. */
   void runAll(OptionT options, NexmarkLauncher nexmarkLauncher) throws IOException {
     Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
@@ -98,7 +98,7 @@ public class Main<OptionT extends NexmarkOptions> {
           saveSummary(null, configurations, actual, baseline, start, options);
         }
       }
-      if (options.getExportSummaryToBigQuery()){
+      if (options.getExportSummaryToBigQuery()) {
         savePerfsToBigQuery(options, actual, null);
       }
     } finally {
@@ -147,25 +147,24 @@ public class Main<OptionT extends NexmarkOptions> {
                 ImmutableList.of(
                     new TableFieldSchema().setName("runtimeSec").setType("FLOAT"),
                     new TableFieldSchema().setName("eventsPerSec").setType("FLOAT"),
-                    new TableFieldSchema()
-                        .setName("numResults")
-                        .setType("INTEGER")));
+                    new TableFieldSchema().setName("numResults").setType("INTEGER")));
 
-    String tableSpec =
-        NexmarkUtils.tableSpec(options, "{query}", 0L, null);
+    String tableSpec = NexmarkUtils.tableSpec(options, "{query}", 0L, null);
     SerializableFunction<
             ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
         tableFunction =
-            input -> new TableDestination(
-                tableSpec.replace("{query}", String.valueOf(input.getValue().getKey().query)),
-                "perfkit queries");
+            input ->
+                new TableDestination(
+                    tableSpec.replace("{query}", String.valueOf(input.getValue().getKey().query)),
+                    "perfkit queries");
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
         input -> {
           NexmarkPerf nexmarkPerf = input.getValue();
-          TableRow row = new TableRow()
-              .set("runtimeSec", nexmarkPerf.runtimeSec)
-              .set("eventsPerSec", nexmarkPerf.eventsPerSec)
-              .set("numResults", nexmarkPerf.numResults);
+          TableRow row =
+              new TableRow()
+                  .set("runtimeSec", nexmarkPerf.runtimeSec)
+                  .set("eventsPerSec", nexmarkPerf.eventsPerSec)
+                  .set("numResults", nexmarkPerf.numResults);
           return row;
         };
     BigQueryIO.Write io =
@@ -175,19 +174,16 @@ public class Main<OptionT extends NexmarkOptions> {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withFormatFunction(rowFunction);
-    if (testBigQueryServices != null){
+    if (testBigQueryServices != null) {
       io = io.withTestServices(testBigQueryServices);
     }
     perfsPCollection.apply("savePerfsToBigQuery", io);
     pipeline.run();
   }
 
-  /**
-   * Append the pair of {@code configuration} and {@code perf} to perf file.
-   */
+  /** Append the pair of {@code configuration} and {@code perf} to perf file. */
   private void appendPerf(
-      @Nullable String perfFilename, NexmarkConfiguration configuration,
-      NexmarkPerf perf) {
+      @Nullable String perfFilename, NexmarkConfiguration configuration, NexmarkPerf perf) {
     if (perfFilename == null) {
       return;
     }
@@ -198,7 +194,11 @@ public class Main<OptionT extends NexmarkOptions> {
     lines.add(configuration.toString());
     lines.add(perf.toString());
     try {
-      Files.write(Paths.get(perfFilename), lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE,
+      Files.write(
+          Paths.get(perfFilename),
+          lines,
+          StandardCharsets.UTF_8,
+          StandardOpenOption.CREATE,
           StandardOpenOption.APPEND);
     } catch (IOException e) {
       throw new RuntimeException("Unable to write perf file: ", e);
@@ -206,9 +206,7 @@ public class Main<OptionT extends NexmarkOptions> {
     NexmarkUtils.console("appended results to perf file %s.", perfFilename);
   }
 
-  /**
-   * Load the baseline perf.
-   */
+  /** Load the baseline perf. */
   @Nullable
   private static Map<NexmarkConfiguration, NexmarkPerf> loadBaseline(
       @Nullable String baselineFilename) {
@@ -230,8 +228,8 @@ public class Main<OptionT extends NexmarkOptions> {
       NexmarkPerf perf = NexmarkPerf.fromString(lines.get(i));
       baseline.put(configuration, perf);
     }
-    NexmarkUtils.console("loaded %d entries from baseline file %s.", baseline.size(),
-        baselineFilename);
+    NexmarkUtils.console(
+        "loaded %d entries from baseline file %s.", baseline.size(), baselineFilename);
     return baseline;
   }
 
@@ -273,8 +271,16 @@ public class Main<OptionT extends NexmarkOptions> {
 
     lines.add("");
     lines.add("Performance:");
-    lines.add(String.format("  %4s  %12s  %12s  %12s  %12s  %12s  %12s", "Conf", "Runtime(sec)",
-        "(Baseline)", "Events(/sec)", "(Baseline)", "Results", "(Baseline)"));
+    lines.add(
+        String.format(
+            "  %4s  %12s  %12s  %12s  %12s  %12s  %12s",
+            "Conf",
+            "Runtime(sec)",
+            "(Baseline)",
+            "Events(/sec)",
+            "(Baseline)",
+            "Results",
+            "(Baseline)"));
     conf = 0;
     for (NexmarkConfiguration configuration : configurations) {
       String line = String.format("  %04d  ", conf++);
@@ -336,8 +342,12 @@ public class Main<OptionT extends NexmarkOptions> {
 
     if (summaryFilename != null) {
       try {
-        Files.write(Paths.get(summaryFilename), lines, StandardCharsets.UTF_8,
-            StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        Files.write(
+            Paths.get(summaryFilename),
+            lines,
+            StandardCharsets.UTF_8,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND);
       } catch (IOException e) {
         throw new RuntimeException("Unable to save summary file: ", e);
       }
@@ -346,20 +356,23 @@ public class Main<OptionT extends NexmarkOptions> {
   }
 
   /**
-   * Write all perf data and any baselines to a javascript file which can be used by
-   * graphing page etc.
+   * Write all perf data and any baselines to a javascript file which can be used by graphing page
+   * etc.
    */
   private static void saveJavascript(
       @Nullable String javascriptFilename,
-      Iterable<NexmarkConfiguration> configurations, Map<NexmarkConfiguration, NexmarkPerf> actual,
-      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) {
+      Iterable<NexmarkConfiguration> configurations,
+      Map<NexmarkConfiguration, NexmarkPerf> actual,
+      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
+      Instant start) {
     if (javascriptFilename == null) {
       return;
     }
 
     List<String> lines = new ArrayList<>();
-    lines.add(String.format(
-        "// Run started %s and ran for %s", start, new Duration(start, Instant.now())));
+    lines.add(
+        String.format(
+            "// Run started %s and ran for %s", start, new Duration(start, Instant.now())));
     lines.add("var all = [");
 
     for (NexmarkConfiguration configuration : configurations) {
@@ -379,8 +392,12 @@ public class Main<OptionT extends NexmarkOptions> {
     lines.add("];");
 
     try {
-      Files.write(Paths.get(javascriptFilename), lines, StandardCharsets.UTF_8,
-          StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+      Files.write(
+          Paths.get(javascriptFilename),
+          lines,
+          StandardCharsets.UTF_8,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.TRUNCATE_EXISTING);
     } catch (IOException e) {
       throw new RuntimeException("Unable to save javascript file: ", e);
     }
@@ -388,9 +405,8 @@ public class Main<OptionT extends NexmarkOptions> {
   }
 
   public static void main(String[] args) throws IOException {
-    NexmarkOptions options = PipelineOptionsFactory.fromArgs(args)
-      .withValidation()
-      .as(NexmarkOptions.class);
+    NexmarkOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(NexmarkOptions.class);
     NexmarkLauncher<NexmarkOptions> nexmarkLauncher = new NexmarkLauncher<>(options);
     new Main<>().runAll(options, nexmarkLauncher);
   }

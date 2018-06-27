@@ -36,8 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
  * <pre>{@code
  * TupleTag<SomeType> inputTag = new TupleTag<>();
  * TupleTag<SomeOtherType> outputTag = new TupleTag<SomeOtherType>(){};
- * }
- * </pre>
+ * }</pre>
  *
  * @param <V> the type of the elements or values of the tagged thing, e.g., a {@code
  *     PCollection<V>}.
@@ -55,15 +54,12 @@ public class TupleTag<V> implements Serializable {
   /**
    * Constructs a new {@code TupleTag} with the given id.
    *
-   * <p>It is up to the user to ensure that two {@code TupleTag}s
-   * with the same id actually mean the same tag and carry the same
-   * generic type parameter.  Violating this invariant can lead to
-   * hard-to-diagnose runtime type errors.  Consequently, this
-   * operation should be used very sparingly, such as when the
-   * producer and consumer of {@code TupleTag}s are written in
-   * separate modules and can only coordinate via ids rather than
-   * shared {@code TupleTag} instances.  Most of the time,
-   * {@link #TupleTag()} should be preferred.
+   * <p>It is up to the user to ensure that two {@code TupleTag}s with the same id actually mean the
+   * same tag and carry the same generic type parameter. Violating this invariant can lead to
+   * hard-to-diagnose runtime type errors. Consequently, this operation should be used very
+   * sparingly, such as when the producer and consumer of {@code TupleTag}s are written in separate
+   * modules and can only coordinate via ids rather than shared {@code TupleTag} instances. Most of
+   * the time, {@link #TupleTag()} should be preferred.
    */
   public TupleTag(String id) {
     this(id, false);
@@ -74,18 +70,17 @@ public class TupleTag<V> implements Serializable {
    *
    * <p>Two {@code TupleTag}s with the same id are considered equal.
    *
-   * <p>{@code TupleTag}s are not ordered, i.e., the class does not implement
-   * Comparable interface. TupleTags implement equals and hashCode, making them
-   * suitable for use as keys in HashMap and HashSet.
+   * <p>{@code TupleTag}s are not ordered, i.e., the class does not implement Comparable interface.
+   * TupleTags implement equals and hashCode, making them suitable for use as keys in HashMap and
+   * HashSet.
    */
   public String getId() {
     return id;
   }
 
   /**
-   * If this {@code TupleTag} is tagging output {@code outputIndex} of
-   * a {@code PTransform}, returns the name that should be used by
-   * default for the output.
+   * If this {@code TupleTag} is tagging output {@code outputIndex} of a {@code PTransform}, returns
+   * the name that should be used by default for the output.
    */
   public String getOutName(int outIndex) {
     if (generated) {
@@ -96,13 +91,11 @@ public class TupleTag<V> implements Serializable {
   }
 
   /**
-   * Returns a {@code TypeDescriptor} capturing what is known statically
-   * about the type of this {@code TupleTag} instance's most-derived
-   * class.
+   * Returns a {@code TypeDescriptor} capturing what is known statically about the type of this
+   * {@code TupleTag} instance's most-derived class.
    *
-   * <p>This is useful for a {@code TupleTag} constructed as an
-   * instance of an anonymous subclass with a trailing {@code {}},
-   * e.g., {@code new TupleTag<SomeType>(){}}.
+   * <p>This is useful for a {@code TupleTag} constructed as an instance of an anonymous subclass
+   * with a trailing {@code {}}, e.g., {@code new TupleTag<SomeType>(){}}.
    */
   public TypeDescriptor<V> getTypeDescriptor() {
     return new TypeDescriptor<V>(getClass()) {};
@@ -139,10 +132,14 @@ public class TupleTag<V> implements Serializable {
     // the chance of collision.
     String nonce = Long.toHexString(RANDOM.nextLong());
     // [Thread.getStackTrace, TupleTag.getId, TupleTag.<init>, caller, ...]
-    String caller = stackTrace.length >= 4
-        ? stackTrace[3].getClassName() + "." + stackTrace[3].getMethodName()
-            + ":" + stackTrace[3].getLineNumber()
-        : "unknown";
+    String caller =
+        stackTrace.length >= 4
+            ? stackTrace[3].getClassName()
+                + "."
+                + stackTrace[3].getMethodName()
+                + ":"
+                + stackTrace[3].getLineNumber()
+            : "unknown";
     return caller + "#" + nonce;
   }
 

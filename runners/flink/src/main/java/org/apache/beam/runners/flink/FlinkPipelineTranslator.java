@@ -20,18 +20,18 @@ package org.apache.beam.runners.flink;
 import org.apache.beam.sdk.Pipeline;
 
 /**
- * The role of this class is to translate the Beam operators to
- * their Flink counterparts. If we have a streaming job, this is instantiated as a
- * {@link FlinkStreamingPipelineTranslator}. In other case, i.e. for a batch job,
- * a {@link FlinkBatchPipelineTranslator} is created. Correspondingly, the
- * {@link org.apache.beam.sdk.values.PCollection}-based user-provided job is translated into
- * a {@link org.apache.flink.streaming.api.datastream.DataStream} (for streaming) or a
- * {@link org.apache.flink.api.java.DataSet} (for batch) one.
+ * The role of this class is to translate the Beam operators to their Flink counterparts. If we have
+ * a streaming job, this is instantiated as a {@link FlinkStreamingPipelineTranslator}. In other
+ * case, i.e. for a batch job, a {@link FlinkBatchPipelineTranslator} is created. Correspondingly,
+ * the {@link org.apache.beam.sdk.values.PCollection}-based user-provided job is translated into a
+ * {@link org.apache.flink.streaming.api.datastream.DataStream} (for streaming) or a {@link
+ * org.apache.flink.api.java.DataSet} (for batch) one.
  */
 abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
 
   /**
    * Translates the pipeline by passing this class as a visitor.
+   *
    * @param pipeline The pipeline to be translated
    */
   public void translate(Pipeline pipeline) {
@@ -40,6 +40,7 @@ abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.Defaults
 
   /**
    * Utility formatting method.
+   *
    * @param n number of spaces to generate
    * @return String with "|" followed by n spaces
    */

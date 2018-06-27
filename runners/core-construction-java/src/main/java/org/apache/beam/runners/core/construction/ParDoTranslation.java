@@ -300,8 +300,8 @@ public class ParDoTranslation {
               "no input with tag %s",
               sideInputTag);
       views.add(
-          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
-              parDoProto, components));
+          PCollectionViewTranslation.viewFromProto(
+              sideInput, sideInputTag, originalPCollection, parDoProto, components));
     }
     return views;
   }
@@ -477,16 +477,15 @@ public class ParDoTranslation {
         SerializableUtils.deserializeFromByteArray(serializedFn, "Custom DoFn And Main Output tag");
   }
 
-
   /**
    * Translates a Java DoFn parameter to a proto representation.
    *
-   * <p>Returns {@code null} rather than crashing for parameters that are not yet supported,
-   * to allow legacy Java-based runners to perform a proto round-trip and afterwards use
-   * {@link DoFnSignatures} to analyze.
+   * <p>Returns {@code null} rather than crashing for parameters that are not yet supported, to
+   * allow legacy Java-based runners to perform a proto round-trip and afterwards use {@link
+   * DoFnSignatures} to analyze.
    *
-   * <p>The proto definition for parameters is provisional and those parameters that are not
-   * needed for portability will be removed from the enum.
+   * <p>The proto definition for parameters is provisional and those parameters that are not needed
+   * for portability will be removed from the enum.
    */
   // Using nullability instead of optional because of shading
   public static @Nullable RunnerApi.Parameter translateParameter(Parameter parameter) {

@@ -128,9 +128,10 @@ public class PipelineOptionsTranslationTest {
 
     @Test
     public void structWithNullOptionsDeserializes() throws Exception {
-      Struct serialized = Struct.newBuilder()
-          .putFields("options", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
-          .build();
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields("options", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+              .build();
       PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
 
       assertThat(deserialized, notNullValue());

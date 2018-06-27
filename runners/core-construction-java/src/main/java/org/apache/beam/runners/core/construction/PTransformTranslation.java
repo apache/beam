@@ -54,21 +54,18 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class PTransformTranslation {
 
-  public static final String PAR_DO_TRANSFORM_URN =
-      getUrn(StandardPTransforms.Primitives.PAR_DO);
-  public static final String FLATTEN_TRANSFORM_URN =
-      getUrn(StandardPTransforms.Primitives.FLATTEN);
+  public static final String PAR_DO_TRANSFORM_URN = getUrn(StandardPTransforms.Primitives.PAR_DO);
+  public static final String FLATTEN_TRANSFORM_URN = getUrn(StandardPTransforms.Primitives.FLATTEN);
   public static final String GROUP_BY_KEY_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.GROUP_BY_KEY);
-  public static final String IMPULSE_TRANSFORM_URN =
-      getUrn(StandardPTransforms.Primitives.IMPULSE);
+  public static final String IMPULSE_TRANSFORM_URN = getUrn(StandardPTransforms.Primitives.IMPULSE);
   public static final String ASSIGN_WINDOWS_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS);
   public static final String TEST_STREAM_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.TEST_STREAM);
 
-  public static final String READ_TRANSFORM_URN = getUrn(
-      StandardPTransforms.DeprecatedPrimitives.READ);
+  public static final String READ_TRANSFORM_URN =
+      getUrn(StandardPTransforms.DeprecatedPrimitives.READ);
   /**
    * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
    *     part of the translation for a `ParDo` side input.
@@ -79,8 +76,7 @@ public class PTransformTranslation {
 
   public static final String COMBINE_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
-  public static final String RESHUFFLE_URN = getUrn(
-      StandardPTransforms.Composites.RESHUFFLE);
+  public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
@@ -135,8 +131,7 @@ public class PTransformTranslation {
 
       if (!alreadyRegistered.isEmpty()) {
         throw new IllegalArgumentException(
-            String.format(
-                "URNs already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
+            String.format("URNs already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
       }
 
       rehydrators.putAll(newRehydrators);

@@ -40,9 +40,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ImmutabilityCheckingBundleFactory}.
- */
+/** Tests for {@link ImmutabilityCheckingBundleFactory}. */
 @RunWith(JUnit4.class)
 public class ImmutabilityCheckingBundleFactoryTest {
 
@@ -51,7 +49,6 @@ public class ImmutabilityCheckingBundleFactoryTest {
   private ImmutabilityCheckingBundleFactory factory;
   private PCollection<byte[]> created;
   private PCollection<byte[]> transformed;
-
 
   @Before
   public void setup() {

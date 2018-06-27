@@ -28,8 +28,8 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
- * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id,
- * and the latest offset consumed so far.
+ * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id, and
+ * the latest offset consumed so far.
  */
 @DefaultCoder(AvroCoder.class)
 public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
@@ -41,8 +41,8 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private KafkaCheckpointMark() {} // for Avro
 
-  public KafkaCheckpointMark(List<PartitionMark> partitions,
-                             Optional<KafkaUnboundedReader<?, ?>> reader) {
+  public KafkaCheckpointMark(
+      List<PartitionMark> partitions, Optional<KafkaUnboundedReader<?, ?>> reader) {
     this.partitions = partitions;
     this.reader = reader;
   }
@@ -66,8 +66,8 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   }
 
   /**
-   * A tuple to hold topic, partition, and offset that comprise the checkpoint
-   * for a single partition.
+   * A tuple to hold topic, partition, and offset that comprise the checkpoint for a single
+   * partition.
    */
   public static class PartitionMark implements Serializable {
     private static final long MIN_WATERMARK_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
@@ -105,12 +105,16 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
     @Override
     public String toString() {
       return "PartitionMark{"
-          + "topic='" + topic + '\''
-          + ", partition=" + partition
-          + ", nextOffset=" + nextOffset
-          + ", watermarkMillis=" + watermarkMillis
+          + "topic='"
+          + topic
+          + '\''
+          + ", partition="
+          + partition
+          + ", nextOffset="
+          + nextOffset
+          + ", watermarkMillis="
+          + watermarkMillis
           + '}';
     }
   }
 }
-

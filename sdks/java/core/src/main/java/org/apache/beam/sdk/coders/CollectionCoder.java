@@ -23,8 +23,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
 /**
- * A {@link CollectionCoder} encodes {@link Collection Collections} in the format
- * of {@link IterableLikeCoder}.
+ * A {@link CollectionCoder} encodes {@link Collection Collections} in the format of {@link
+ * IterableLikeCoder}.
  */
 public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
 
@@ -38,8 +38,7 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
   /**
    * {@inheritDoc}
    *
-   * @return the decoded elements directly, since {@link List} is a subtype of
-   * {@link Collection}.
+   * @return the decoded elements directly, since {@link List} is a subtype of {@link Collection}.
    */
   @Override
   protected final Collection<T> decodeToIterable(List<T> decodedElements) {

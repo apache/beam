@@ -52,12 +52,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link BatchViewOverrides}.
- */
+/** Tests for {@link BatchViewOverrides}. */
 @RunWith(JUnit4.class)
 public class BatchViewOverridesTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testBatchViewAsSingletonToIsmRecord() throws Exception {
     DoFnTester<

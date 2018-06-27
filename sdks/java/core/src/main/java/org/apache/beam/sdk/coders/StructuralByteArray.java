@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
-
 import com.google.common.io.BaseEncoding;
 import java.util.Arrays;
 
 /**
- * A wrapper around a byte[] that uses structural, value-based
- * equality rather than byte[]'s normal object identity.
+ * A wrapper around a byte[] that uses structural, value-based equality rather than byte[]'s normal
+ * object identity.
  */
 public class StructuralByteArray {
   byte[] value;

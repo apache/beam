@@ -19,9 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import java.io.IOException;
 
-/**
- * An {@link Exception} thrown if there is a problem encoding or decoding a value.
- */
+/** An {@link Exception} thrown if there is a problem encoding or decoding a value. */
 public class CoderException extends IOException {
   public CoderException(String message) {
     super(message);

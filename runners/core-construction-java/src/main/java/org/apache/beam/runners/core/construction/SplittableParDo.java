@@ -72,12 +72,12 @@ import org.joda.time.Instant;
  * network of simpler transforms:
  *
  * <ol>
- * <li>Pair each element with an initial restriction
- * <li>Split each restriction into sub-restrictions
- * <li>Explode windows, since splitting within each window has to happen independently
- * <li>Assign a unique key to each element/restriction pair
- * <li>Process the keyed element/restriction pairs in a runner-specific way with the splittable
- *     {@link DoFn}'s {@link DoFn.ProcessElement} method.
+ *   <li>Pair each element with an initial restriction
+ *   <li>Split each restriction into sub-restrictions
+ *   <li>Explode windows, since splitting within each window has to happen independently
+ *   <li>Assign a unique key to each element/restriction pair
+ *   <li>Process the keyed element/restriction pairs in a runner-specific way with the splittable
+ *       {@link DoFn}'s {@link DoFn.ProcessElement} method.
  * </ol>
  *
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
@@ -308,7 +308,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-    getTransformPayloadTranslators() {
+        getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
           .put(ProcessKeyedElements.class, new ProcessKeyedElementsTranslator())
           .build();
@@ -321,16 +321,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   }
 
   /** A translator for {@link ProcessKeyedElements}. */
-  public static class ProcessKeyedElementsTranslator extends
-      PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
+  public static class ProcessKeyedElementsTranslator
+      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
           ProcessKeyedElements<?, ?, ?>> {
 
     public static TransformPayloadTranslator create() {
       return new ProcessKeyedElementsTranslator();
     }
 
-    private ProcessKeyedElementsTranslator() {
-    }
+    private ProcessKeyedElementsTranslator() {}
 
     @Override
     public String getUrn(ProcessKeyedElements<?, ?, ?> transform) {
@@ -339,51 +338,55 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?>> transform,
-        SdkComponents components) throws IOException {
+        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?>> transform, SdkComponents components)
+        throws IOException {
       ProcessKeyedElements<?, ?, ?> pke = transform.getTransform();
       final DoFn<?, ?> fn = pke.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       final String restrictionCoderId = components.registerCoder(pke.getRestrictionCoder());
 
-      ParDoPayload payload = ParDoTranslation.payloadForParDoLike(new ParDoLike() {
-        @Override
-        public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-          return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
-        }
+      ParDoPayload payload =
+          ParDoTranslation.payloadForParDoLike(
+              new ParDoLike() {
+                @Override
+                public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+                }
 
-        @Override
-        public List<Parameter> translateParameters() {
-          return ParDoTranslation.translateParameters(signature.processElement().extraParameters());
-        }
+                @Override
+                public List<Parameter> translateParameters() {
+                  return ParDoTranslation.translateParameters(
+                      signature.processElement().extraParameters());
+                }
 
-        @Override
-        public Map<String, SideInput> translateSideInputs(SdkComponents components) {
-          return ParDoTranslation.translateSideInputs(pke.getSideInputs(), components);
-        }
+                @Override
+                public Map<String, SideInput> translateSideInputs(SdkComponents components) {
+                  return ParDoTranslation.translateSideInputs(pke.getSideInputs(), components);
+                }
 
-        @Override
-        public Map<String, StateSpec> translateStateSpecs(SdkComponents components) {
-          // SDFs don't have state.
-          return ImmutableMap.of();
-        }
+                @Override
+                public Map<String, StateSpec> translateStateSpecs(SdkComponents components) {
+                  // SDFs don't have state.
+                  return ImmutableMap.of();
+                }
 
-        @Override
-        public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
-          // SDFs don't have timers.
-          return ImmutableMap.of();
-        }
+                @Override
+                public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+                  // SDFs don't have timers.
+                  return ImmutableMap.of();
+                }
 
-        @Override
-        public boolean isSplittable() {
-          return true;
-        }
+                @Override
+                public boolean isSplittable() {
+                  return true;
+                }
 
-        @Override
-        public String translateRestrictionCoderId(SdkComponents newComponents) {
-          return restrictionCoderId;
-        }
-      }, components);
+                @Override
+                public String translateRestrictionCoderId(SdkComponents newComponents) {
+                  return restrictionCoderId;
+                }
+              },
+              components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(pke))
           .setPayload(payload.toByteString())
@@ -450,7 +453,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void processElement(final ProcessContext c) {
       final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element, c.element().getValue(), new OutputReceiver<RestrictionT>() {
+          element,
+          c.element().getValue(),
+          new OutputReceiver<RestrictionT>() {
             @Override
             public void output(RestrictionT part) {
               c.output(KV.of(element, part));
@@ -460,8 +465,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
               throw new UnsupportedOperationException();
             }
-          }
-      );
+          });
     }
   }
 }

@@ -31,25 +31,23 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 
-/**
- *  A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly.
- */
+/** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
 @Experimental
 public class RowCoder extends CustomCoder<Row> {
   // This contains a map of primitive types to their coders.
-   static final ImmutableMap<TypeName, Coder> CODER_MAP =
+  static final ImmutableMap<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
-      .put(TypeName.BYTE, ByteCoder.of())
-      .put(TypeName.INT16, BigEndianShortCoder.of())
-      .put(TypeName.INT32, BigEndianIntegerCoder.of())
-      .put(TypeName.INT64, BigEndianLongCoder.of())
-      .put(TypeName.DECIMAL, BigDecimalCoder.of())
-      .put(TypeName.FLOAT, FloatCoder.of())
-      .put(TypeName.DOUBLE, DoubleCoder.of())
-      .put(TypeName.STRING, StringUtf8Coder.of())
-      .put(TypeName.DATETIME, InstantCoder.of())
-      .put(TypeName.BOOLEAN, BooleanCoder.of())
-      .build();
+          .put(TypeName.BYTE, ByteCoder.of())
+          .put(TypeName.INT16, BigEndianShortCoder.of())
+          .put(TypeName.INT32, BigEndianIntegerCoder.of())
+          .put(TypeName.INT64, BigEndianLongCoder.of())
+          .put(TypeName.DECIMAL, BigDecimalCoder.of())
+          .put(TypeName.FLOAT, FloatCoder.of())
+          .put(TypeName.DOUBLE, DoubleCoder.of())
+          .put(TypeName.STRING, StringUtf8Coder.of())
+          .put(TypeName.DATETIME, InstantCoder.of())
+          .put(TypeName.BOOLEAN, BooleanCoder.of())
+          .build();
 
   private static final ImmutableMap<TypeName, Integer> ESTIMATED_FIELD_SIZES =
       ImmutableMap.<TypeName, Integer>builder()
@@ -66,13 +64,11 @@ public class RowCoder extends CustomCoder<Row> {
 
   private final Schema schema;
   private final UUID id;
-  @Nullable
-  private transient Coder<Row> delegateCoder = null;
+  @Nullable private transient Coder<Row> delegateCoder = null;
 
   public static RowCoder of(Schema schema) {
     return new RowCoder(schema, UUID.randomUUID());
   }
-
 
   private RowCoder(Schema schema, UUID id) {
     this.schema = schema;
@@ -105,19 +101,14 @@ public class RowCoder extends CustomCoder<Row> {
 
   @Override
   public void verifyDeterministic()
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-  }
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {}
 
-  /**
-   * Returns the coder used for a given primitive type.
-   */
+  /** Returns the coder used for a given primitive type. */
   public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
     return (Coder<T>) CODER_MAP.get(typeName);
   }
 
-  /**
-   * Return the estimated serialized size of a give row object.
-   */
+  /** Return the estimated serialized size of a give row object. */
   public static long estimatedSizeBytes(Row row) {
     Schema schema = row.getSchema();
     int fieldCount = schema.getFieldCount();

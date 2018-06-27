@@ -157,9 +157,7 @@ public class MetricsTranslationTest {
             })
         .add(
             new Object[] {
-              ImmutableMap.builder()
-                  .put(TRANSFORM1, ImmutableList.of(GAUGE1, GAUGE2))
-                  .build()
+              ImmutableMap.builder().put(TRANSFORM1, ImmutableList.of(GAUGE1, GAUGE2)).build()
             })
         .build();
   }

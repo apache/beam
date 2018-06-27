@@ -33,15 +33,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link StructuredCoder}.
- */
+/** Test case for {@link StructuredCoder}. */
 @RunWith(JUnit4.class)
 public class StructuredCoderTest {
 
-  /**
-   * A coder for nullable {@code Boolean} values that is consistent with equals.
-   */
+  /** A coder for nullable {@code Boolean} values that is consistent with equals. */
   private static class NullBooleanCoder extends StructuredCoder<Boolean> {
 
     private static final long serialVersionUID = 0L;
@@ -60,9 +56,7 @@ public class StructuredCoderTest {
 
     @Override
     @Nullable
-    public Boolean decode(
-        InputStream inStream)
-        throws CoderException, IOException {
+    public Boolean decode(InputStream inStream) throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {
         return false;
@@ -80,7 +74,7 @@ public class StructuredCoderTest {
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException { }
+    public void verifyDeterministic() throws NonDeterministicException {}
 
     @Override
     public boolean consistentWithEquals() {
@@ -88,11 +82,10 @@ public class StructuredCoderTest {
     }
   }
 
-  /**
-   * A boxed {@code int} with {@code equals()} that compares object identity.
-   */
+  /** A boxed {@code int} with {@code equals()} that compares object identity. */
   private static class ObjectIdentityBoolean {
     private final boolean value;
+
     public ObjectIdentityBoolean(boolean value) {
       this.value = value;
     }
@@ -102,16 +95,13 @@ public class StructuredCoderTest {
     }
   }
 
-  /**
-   * A coder for nullable boxed {@code Boolean} values that is not consistent with equals.
-   */
+  /** A coder for nullable boxed {@code Boolean} values that is not consistent with equals. */
   private static class ObjectIdentityBooleanCoder extends StructuredCoder<ObjectIdentityBoolean> {
 
     private static final long serialVersionUID = 0L;
 
     @Override
-    public void encode(
-        @Nullable ObjectIdentityBoolean value, OutputStream outStream)
+    public void encode(@Nullable ObjectIdentityBoolean value, OutputStream outStream)
         throws CoderException, IOException {
       if (value == null) {
         outStream.write(2);
@@ -124,9 +114,7 @@ public class StructuredCoderTest {
 
     @Override
     @Nullable
-    public ObjectIdentityBoolean decode(
-        InputStream inStream)
-        throws CoderException, IOException {
+    public ObjectIdentityBoolean decode(InputStream inStream) throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {
         return new ObjectIdentityBoolean(false);
@@ -144,7 +132,7 @@ public class StructuredCoderTest {
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException { }
+    public void verifyDeterministic() throws NonDeterministicException {}
 
     @Override
     public boolean consistentWithEquals() {
@@ -177,24 +165,25 @@ public class StructuredCoderTest {
     }
   }
 
-  /**
-   * Test for verifying {@link StructuredCoder#toString()}.
-   */
+  /** Test for verifying {@link StructuredCoder#toString()}. */
   @Test
   public void testToString() {
-    Assert.assertThat(new ObjectIdentityBooleanCoder().toString(),
+    Assert.assertThat(
+        new ObjectIdentityBooleanCoder().toString(),
         CoreMatchers.equalTo("StructuredCoderTest$ObjectIdentityBooleanCoder"));
 
-    ObjectIdentityBooleanCoder coderWithArgs = new ObjectIdentityBooleanCoder() {
-      @Override
-      public List<? extends Coder<?>> getCoderArguments() {
-        return ImmutableList.<Coder<?>>builder()
-            .add(BigDecimalCoder.of(), BigIntegerCoder.of())
-            .build();
-      }
-    };
+    ObjectIdentityBooleanCoder coderWithArgs =
+        new ObjectIdentityBooleanCoder() {
+          @Override
+          public List<? extends Coder<?>> getCoderArguments() {
+            return ImmutableList.<Coder<?>>builder()
+                .add(BigDecimalCoder.of(), BigIntegerCoder.of())
+                .build();
+          }
+        };
 
-    Assert.assertThat(coderWithArgs.toString(),
+    Assert.assertThat(
+        coderWithArgs.toString(),
         CoreMatchers.equalTo("StructuredCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
   }
 
@@ -207,21 +196,20 @@ public class StructuredCoderTest {
 
   @Test
   public void testGenericStandardCoder() throws Exception {
-    Assert.assertThat(new FooTwo().getEncodedTypeDescriptor(),
+    Assert.assertThat(
+        new FooTwo().getEncodedTypeDescriptor(),
         CoreMatchers.equalTo(TypeDescriptor.of(String.class)));
   }
 
   private static class Foo<T> extends StructuredCoder<T> {
 
     @Override
-    public void encode(T value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(T value, OutputStream outStream) throws CoderException, IOException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public T decode(InputStream inStream)
-        throws CoderException, IOException {
+    public T decode(InputStream inStream) throws CoderException, IOException {
       throw new UnsupportedOperationException();
     }
 
@@ -234,6 +222,5 @@ public class StructuredCoderTest {
     public void verifyDeterministic() throws Coder.NonDeterministicException {}
   }
 
-  private static class FooTwo extends Foo<String> {
-  }
+  private static class FooTwo extends Foo<String> {}
 }

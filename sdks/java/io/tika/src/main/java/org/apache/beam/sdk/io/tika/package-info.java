@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transform for reading and parsing files with Apache Tika.
- */
+/** Transform for reading and parsing files with Apache Tika. */
 package org.apache.beam.sdk.io.tika;

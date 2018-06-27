@@ -14,7 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
@@ -64,22 +64,24 @@ public class ElasticsearchIOIT {
   private static ConnectionConfiguration updateConnectionConfiguration;
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
-    readConnectionConfiguration = ElasticsearchIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchIOITCommon.IndexMode.READ);
-    writeConnectionConfiguration = ElasticsearchIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchIOITCommon.IndexMode.WRITE);
-    updateConnectionConfiguration = ElasticsearchIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchIOITCommon.IndexMode.WRITE_PARTIAL);
+    readConnectionConfiguration =
+        ElasticsearchIOITCommon.getConnectionConfiguration(
+            options, ElasticsearchIOITCommon.IndexMode.READ);
+    writeConnectionConfiguration =
+        ElasticsearchIOITCommon.getConnectionConfiguration(
+            options, ElasticsearchIOITCommon.IndexMode.WRITE);
+    updateConnectionConfiguration =
+        ElasticsearchIOITCommon.getConnectionConfiguration(
+            options, ElasticsearchIOITCommon.IndexMode.WRITE_PARTIAL);
     restClient = readConnectionConfiguration.createClient();
-    elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(readConnectionConfiguration,
-        restClient, true);
+    elasticsearchIOTestCommon =
+        new ElasticsearchIOTestCommon(readConnectionConfiguration, restClient, true);
   }
 
   @AfterClass
@@ -92,13 +94,13 @@ public class ElasticsearchIOIT {
   @Test
   public void testSplitsVolume() throws Exception {
     Read read = ElasticsearchIO.read().withConnectionConfiguration(readConnectionConfiguration);
-    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-        null);
+    BoundedElasticsearchSource initialSource =
+        new BoundedElasticsearchSource(read, null, null, null);
     // desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
     // as many bundles as ES shards and bundle size is shard size
     long desiredBundleSizeBytes = 0;
-    List<? extends BoundedSource<String>> splits = initialSource
-        .split(desiredBundleSizeBytes, options);
+    List<? extends BoundedSource<String>> splits =
+        initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     // this is the number of ES shards
     // (By default, each index in Elasticsearch is allocated 5 primary shards)
@@ -141,8 +143,8 @@ public class ElasticsearchIOIT {
   @Test
   public void testWriteVolumeWithFullAddressing() throws Exception {
     // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
-            writeConnectionConfiguration, restClient, true);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
+        new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
   }
@@ -159,8 +161,8 @@ public class ElasticsearchIOIT {
         readConnectionConfiguration.getIndex(),
         updateConnectionConfiguration.getIndex());
     // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonUpdate = new ElasticsearchIOTestCommon(
-        updateConnectionConfiguration, restClient, true);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonUpdate =
+        new ElasticsearchIOTestCommon(updateConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonUpdate.setPipeline(pipeline);
     elasticsearchIOTestCommonUpdate.testWritePartialUpdate();
   }

@@ -50,9 +50,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ArtifactServiceStager}.
- */
+/** Tests for {@link ArtifactServiceStager}. */
 @RunWith(JUnit4.class)
 public class ArtifactServiceStagerTest {
   @Rule public TemporaryFolder temp = new TemporaryFolder();

@@ -34,21 +34,15 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PDone.
- */
+/** Tests for PDone. */
 @RunWith(JUnit4.class)
 public class PDoneTest {
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  /**
-   * A PTransform that just returns a fresh PDone.
-   */
+  /** A PTransform that just returns a fresh PDone. */
   static class EmptyTransform extends PTransform<PBegin, PDone> {
     @Override
     public PDone expand(PBegin begin) {
@@ -56,9 +50,7 @@ public class PDoneTest {
     }
   }
 
-  /**
-   * A PTransform that's composed of something that returns a PDone.
-   */
+  /** A PTransform that's composed of something that returns a PDone. */
   static class SimpleTransform extends PTransform<PBegin, PDone> {
     private final String filename;
 
@@ -68,10 +60,7 @@ public class PDoneTest {
 
     @Override
     public PDone expand(PBegin begin) {
-      return
-          begin
-          .apply(Create.of(LINES))
-          .apply(TextIO.write().to(filename));
+      return begin.apply(Create.of(LINES)).apply(TextIO.write().to(filename));
     }
   }
 

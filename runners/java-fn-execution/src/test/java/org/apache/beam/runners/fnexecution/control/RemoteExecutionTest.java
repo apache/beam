@@ -132,20 +132,21 @@ public class RemoteExecutionTest implements Serializable {
 
     // Create the SDK harness, and wait until it connects
     sdkHarnessExecutor = Executors.newSingleThreadExecutor(threadFactory);
-    sdkHarnessExecutorFuture = sdkHarnessExecutor.submit(
-        () -> {
-          try {
-            FnHarness.main(
-                "id",
-                PipelineOptionsFactory.create(),
-                loggingServer.getApiServiceDescriptor(),
-                controlServer.getApiServiceDescriptor(),
-                InProcessManagedChannelFactory.create(),
-                OutboundObserverFactory.clientDirect());
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        });
+    sdkHarnessExecutorFuture =
+        sdkHarnessExecutor.submit(
+            () -> {
+              try {
+                FnHarness.main(
+                    "id",
+                    PipelineOptionsFactory.create(),
+                    loggingServer.getApiServiceDescriptor(),
+                    controlServer.getApiServiceDescriptor(),
+                    InProcessManagedChannelFactory.create(),
+                    OutboundObserverFactory.clientDirect());
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
         clientPool.getSource().take("", Duration.ofSeconds(2));

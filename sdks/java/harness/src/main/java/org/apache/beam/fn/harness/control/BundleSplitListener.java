@@ -24,8 +24,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplica
 
 /**
  * Listens to splits happening to a single bundle. See <a
- * href="https://s.apache.org/beam-breaking-fusion">Breaking the Fusion Barrier</a> for a
- * discussion of the design.
+ * href="https://s.apache.org/beam-breaking-fusion">Breaking the Fusion Barrier</a> for a discussion
+ * of the design.
  */
 public interface BundleSplitListener {
   /**

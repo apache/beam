@@ -17,8 +17,8 @@
 package org.apache.beam.sdk.io.kafka;
 
 /**
- * This is a copy of Kafka's {@link org.apache.kafka.common.record.TimestampType}. Included
- * here in order to support older Kafka versions (0.9.x).
+ * This is a copy of Kafka's {@link org.apache.kafka.common.record.TimestampType}. Included here in
+ * order to support older Kafka versions (0.9.x).
  */
 public enum KafkaTimestampType {
   NO_TIMESTAMP_TYPE(-1, "NoTimestampType"),

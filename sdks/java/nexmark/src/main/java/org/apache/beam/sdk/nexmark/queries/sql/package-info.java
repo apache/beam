@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * org.apache.beam.sdk.nexmark.queries.sql.
- */
+/** org.apache.beam.sdk.nexmark.queries.sql. */
 
-/**
- * Beam SQL Nexmark queries.
- */
+/** Beam SQL Nexmark queries. */
 package org.apache.beam.sdk.nexmark.queries.sql;

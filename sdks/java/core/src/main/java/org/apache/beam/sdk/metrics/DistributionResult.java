@@ -21,16 +21,17 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * The result of a {@link Distribution} metric.
- */
+/** The result of a {@link Distribution} metric. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class DistributionResult {
 
   public abstract long getSum();
+
   public abstract long getCount();
+
   public abstract long getMin();
+
   public abstract long getMax();
 
   public double getMean() {

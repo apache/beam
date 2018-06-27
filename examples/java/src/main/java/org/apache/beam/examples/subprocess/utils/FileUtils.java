@@ -36,9 +36,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Utilities for dealing with movement of files from object stores and workers.
- */
+/** Utilities for dealing with movement of files from object stores and workers. */
 public class FileUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
@@ -52,8 +50,8 @@ public class FileUtils {
     return (String.join(",", builder.command()));
   }
 
-  public static String copyFileFromWorkerToGCS(SubProcessConfiguration configuration,
-      Path fileToUpload) throws Exception {
+  public static String copyFileFromWorkerToGCS(
+      SubProcessConfiguration configuration, Path fileToUpload) throws Exception {
 
     Path fileName;
 
@@ -72,8 +70,8 @@ public class FileUtils {
     try {
       return copyFile(sourceFile, destinationFile);
     } catch (Exception ex) {
-      LOG.error(String.format("Error copying file from %s  to %s", sourceFile, destinationFile),
-          ex);
+      LOG.error(
+          String.format("Error copying file from %s  to %s", sourceFile, destinationFile), ex);
       throw ex;
     }
   }
@@ -85,14 +83,17 @@ public class FileUtils {
     ResourceId destinationFile =
         FileSystems.matchNewResource(execuableFile.getDestinationLocation(), false);
     try {
-      LOG.info(String.format("Moving File %s to %s ", execuableFile.getSourceGCSLocation(),
-          execuableFile.getDestinationLocation()));
+      LOG.info(
+          String.format(
+              "Moving File %s to %s ",
+              execuableFile.getSourceGCSLocation(), execuableFile.getDestinationLocation()));
       Path path = Paths.get(execuableFile.getDestinationLocation());
 
       if (path.toFile().exists()) {
-        LOG.warn(String.format(
-            "Overwriting file %s, should only see this once per worker.",
-            execuableFile.getDestinationLocation()));
+        LOG.warn(
+            String.format(
+                "Overwriting file %s, should only see this once per worker.",
+                execuableFile.getDestinationLocation()));
       }
       copyFile(sourceFile, destinationFile);
       path.toFile().setExecutable(true);
@@ -128,6 +129,7 @@ public class FileUtils {
 
   /**
    * Create directories needed based on configuration.
+   *
    * @param configuration
    * @throws IOException
    */
@@ -143,9 +145,11 @@ public class FileUtils {
         LOG.info(String.format("Created Folder %s ", path.toFile()));
       }
     } catch (FileAlreadyExistsException ex) {
-      LOG.warn(String.format(
-          " Tried to create folder %s which already existsed, this should not happen!",
-          configuration.getWorkerPath()), ex);
+      LOG.warn(
+          String.format(
+              " Tried to create folder %s which already existsed, this should not happen!",
+              configuration.getWorkerPath()),
+          ex);
     }
   }
 

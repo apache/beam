@@ -33,9 +33,7 @@ import org.apache.beam.runners.fnexecution.FnService;
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
-  /**
-   * Create a new {@link GrpcStateService}.
-   */
+  /** Create a new {@link GrpcStateService}. */
   public static GrpcStateService create() {
     return new GrpcStateService();
   }

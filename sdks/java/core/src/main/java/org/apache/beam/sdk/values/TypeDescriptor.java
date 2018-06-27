@@ -34,16 +34,15 @@ import javax.annotation.Nullable;
 /**
  * A description of a Java type, including actual generic parameters where possible.
  *
- * <p>To prevent losing actual type arguments due to erasure, create an anonymous subclass
- * with concrete types:
- * <pre>
- * {@code
- * TypeDecriptor<List<String>> = new TypeDescriptor<List<String>>() {};
- * }
- * </pre>
+ * <p>To prevent losing actual type arguments due to erasure, create an anonymous subclass with
+ * concrete types:
  *
- * <p>If the above were not an anonymous subclass, the type {@code List<String>}
- * would be erased and unavailable at run time.
+ * <pre>{@code
+ * TypeDecriptor<List<String>> = new TypeDescriptor<List<String>>() {};
+ * }</pre>
+ *
+ * <p>If the above were not an anonymous subclass, the type {@code List<String>} would be erased and
+ * unavailable at run time.
  *
  * @param <T> the type represented by this {@link TypeDescriptor}
  */
@@ -53,18 +52,17 @@ public abstract class TypeDescriptor<T> implements Serializable {
   private final TypeToken<T> token;
 
   /**
-   * Creates a {@link TypeDescriptor} wrapping the provided token.
-   * This constructor is private so Guava types do not leak.
+   * Creates a {@link TypeDescriptor} wrapping the provided token. This constructor is private so
+   * Guava types do not leak.
    */
   private TypeDescriptor(TypeToken<T> token) {
     this.token = token;
   }
 
   /**
-   * Creates a {@link TypeDescriptor} representing
-   * the type parameter {@code T}. To use this constructor
-   * properly, the type parameter must be a concrete type, for example
-   * {@code new TypeDescriptor<List<String>>(){}}.
+   * Creates a {@link TypeDescriptor} representing the type parameter {@code T}. To use this
+   * constructor properly, the type parameter must be a concrete type, for example {@code new
+   * TypeDescriptor<List<String>>(){}}.
    */
   protected TypeDescriptor() {
     token = new TypeToken<T>(getClass()) {};
@@ -145,9 +143,8 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Creates a {@link TypeDescriptor} representing the type parameter
-   * {@code T}, which should resolve to a concrete type in the context
-   * of the class {@code clazz}.
+   * Creates a {@link TypeDescriptor} representing the type parameter {@code T}, which should
+   * resolve to a concrete type in the context of the class {@code clazz}.
    */
   @SuppressWarnings("unchecked")
   protected TypeDescriptor(Class<?> clazz) {
@@ -155,69 +152,55 @@ public abstract class TypeDescriptor<T> implements Serializable {
     token = (TypeToken<T>) TypeToken.of(clazz).resolveType(unresolvedToken.getType());
   }
 
-  /**
-   * Returns a {@link TypeDescriptor} representing the given type.
-   */
+  /** Returns a {@link TypeDescriptor} representing the given type. */
   public static <T> TypeDescriptor<T> of(Class<T> type) {
     return new SimpleTypeDescriptor<>(TypeToken.of(type));
   }
 
-  /**
-   * Returns a {@link TypeDescriptor} representing the given type.
-   */
+  /** Returns a {@link TypeDescriptor} representing the given type. */
   @SuppressWarnings("unchecked")
   public static TypeDescriptor<?> of(Type type) {
     return new SimpleTypeDescriptor<>((TypeToken<Object>) TypeToken.of(type));
   }
 
-  /**
-   * Returns the {@link Type} represented by this {@link TypeDescriptor}.
-   */
+  /** Returns the {@link Type} represented by this {@link TypeDescriptor}. */
   public Type getType() {
     return token.getType();
   }
 
   /**
-   * Returns the {@link Class} underlying the {@link Type} represented by
-   * this {@link TypeDescriptor}.
+   * Returns the {@link Class} underlying the {@link Type} represented by this {@link
+   * TypeDescriptor}.
    */
   public Class<? super T> getRawType() {
     return token.getRawType();
   }
 
-  /**
-   * Returns the component type if this type is an array type,
-   * otherwise returns {@code null}.
-   */
+  /** Returns the component type if this type is an array type, otherwise returns {@code null}. */
   public TypeDescriptor<?> getComponentType() {
     return new SimpleTypeDescriptor<>(token.getComponentType());
   }
 
-  /**
-   * Returns the generic form of a supertype.
-   */
+  /** Returns the generic form of a supertype. */
   public final TypeDescriptor<? super T> getSupertype(Class<? super T> superclass) {
     return new SimpleTypeDescriptor<>(token.getSupertype(superclass));
   }
 
-  /**
-   * Returns true if this type is known to be an array type.
-   */
+  /** Returns true if this type is known to be an array type. */
   public final boolean isArray() {
     return token.isArray();
   }
 
   /**
-   * Returns a {@link TypeVariable} for the named type parameter. Throws
-   * {@link IllegalArgumentException} if a type variable by the requested type parameter is not
-   * found.
+   * Returns a {@link TypeVariable} for the named type parameter. Throws {@link
+   * IllegalArgumentException} if a type variable by the requested type parameter is not found.
    *
-   * <p>For example, {@code new TypeDescriptor<List>(){}.getTypeParameter("T")} returns a
-   * {@code TypeVariable<? super List>} representing the formal type parameter {@code T}.
+   * <p>For example, {@code new TypeDescriptor<List>(){}.getTypeParameter("T")} returns a {@code
+   * TypeVariable<? super List>} representing the formal type parameter {@code T}.
    *
-   * <p>Do not mistake the type parameters (formal type argument list) with the actual
-   * type arguments. For example, if a class {@code Foo} extends {@code List<String>}, it
-   * does not make sense to ask for a type parameter, because {@code Foo} does not have any.
+   * <p>Do not mistake the type parameters (formal type argument list) with the actual type
+   * arguments. For example, if a class {@code Foo} extends {@code List<String>}, it does not make
+   * sense to ask for a type parameter, because {@code Foo} does not have any.
    */
   public final TypeVariable<Class<? super T>> getTypeParameter(String paramName) {
     // Cannot convert TypeVariable<Class<? super T>>[] to TypeVariable<Class<? super T>>[]
@@ -231,28 +214,21 @@ public abstract class TypeDescriptor<T> implements Serializable {
         return typedParam;
       }
     }
-     throw new IllegalArgumentException(
-         "No type parameter named " + paramName + " found on " + getRawType());
+    throw new IllegalArgumentException(
+        "No type parameter named " + paramName + " found on " + getRawType());
   }
 
-  /**
-   * Returns true if this type is assignable from the given type.
-   */
+  /** Returns true if this type is assignable from the given type. */
   public final boolean isSupertypeOf(TypeDescriptor<?> source) {
     return token.isSupertypeOf(source.token);
   }
 
-  /**
-   * Return true if this type is a subtype of the given type.
-   */
+  /** Return true if this type is a subtype of the given type. */
   public final boolean isSubtypeOf(TypeDescriptor<?> parent) {
     return token.isSubtypeOf(parent.token);
   }
 
-  /**
-   * Returns a list of argument types for the given method, which must
-   * be a part of the class.
-   */
+  /** Returns a list of argument types for the given method, which must be a part of the class. */
   public List<TypeDescriptor<?>> getArgumentTypes(Method method) {
     Invokable<?, ?> typedMethod = token.method(method);
 
@@ -264,24 +240,22 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Returns a {@link TypeDescriptor} representing the given
-   * type, with type variables resolved according to the specialization
-   * in this type.
+   * Returns a {@link TypeDescriptor} representing the given type, with type variables resolved
+   * according to the specialization in this type.
    *
    * <p>For example, consider the following class:
-   * <pre>
-   * {@code
+   *
+   * <pre>{@code
    * class MyList implements List<String> { ... }
-   * }
-   * </pre>
+   * }</pre>
    *
    * <p>The {@link TypeDescriptor} returned by
-   * <pre>
-   * {@code
+   *
+   * <pre>{@code
    * TypeDescriptor.of(MyList.class)
    *     .resolveType(Mylist.class.getMethod("get", int.class).getGenericReturnType)
-   * }
-   * </pre>
+   * }</pre>
+   *
    * will represent the type {@code String}.
    */
   public TypeDescriptor<?> resolveType(Type type) {
@@ -289,8 +263,8 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Returns a set of {@link TypeDescriptor TypeDescriptor}, one for each
-   * superclass as well as each interface implemented by this class.
+   * Returns a set of {@link TypeDescriptor TypeDescriptor}, one for each superclass as well as each
+   * interface implemented by this class.
    */
   @SuppressWarnings("rawtypes")
   public Iterable<TypeDescriptor> getTypes() {
@@ -301,10 +275,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
     return interfaces;
   }
 
-  /**
-   * Returns a set of {@link TypeDescriptor}s, one for each
-   * interface implemented by this class.
-   */
+  /** Returns a set of {@link TypeDescriptor}s, one for each interface implemented by this class. */
   @SuppressWarnings("rawtypes")
   public Iterable<TypeDescriptor> getInterfaces() {
     List<TypeDescriptor> interfaces = Lists.newArrayList();
@@ -314,10 +285,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
     return interfaces;
   }
 
-  /**
-   * Returns a set of {@link TypeDescriptor}s, one for each
-   * superclass (including this class).
-   */
+  /** Returns a set of {@link TypeDescriptor}s, one for each superclass (including this class). */
   @SuppressWarnings("rawtypes")
   public Iterable<TypeDescriptor> getClasses() {
     List<TypeDescriptor> classes = Lists.newArrayList();
@@ -329,8 +297,8 @@ public abstract class TypeDescriptor<T> implements Serializable {
 
   /**
    * Returns a new {@code TypeDescriptor} where the type variable represented by {@code
-   * typeParameter} are substituted by {@code type}. For example, it can be used to
-   * construct {@code Map<K, V>} for any {@code K} and {@code V} type:
+   * typeParameter} are substituted by {@code type}. For example, it can be used to construct {@code
+   * Map<K, V>} for any {@code K} and {@code V} type:
    *
    * <pre>{@code
    * static <K, V> TypeDescriptor<Map<K, V>> mapOf(
@@ -367,19 +335,20 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * being a concrete type.
    *
    * <p>For example:
+   *
    * <pre>{@code
-   *   TypeDescriptor.of(new ArrayList<String>() {}.getClass()).hasUnresolvedTypeParameters()
-   *     => false, because the anonymous class is instantiated with a concrete type
+   * TypeDescriptor.of(new ArrayList<String>() {}.getClass()).hasUnresolvedTypeParameters()
+   *   => false, because the anonymous class is instantiated with a concrete type
    *
-   *   class TestUtils {
-   *     <T> ArrayList<T> createTypeErasedList() {
-   *       return new ArrayList<T>() {};
-   *     }
+   * class TestUtils {
+   *   <T> ArrayList<T> createTypeErasedList() {
+   *     return new ArrayList<T>() {};
    *   }
+   * }
    *
-   *   TypeDescriptor.of(TestUtils.<String>createTypeErasedList().getClass())
-   *     => true, because the type variable T got type-erased and the anonymous ArrayList class
-   *     is instantiated with an unresolved type variable T.
+   * TypeDescriptor.of(TestUtils.<String>createTypeErasedList().getClass())
+   *   => true, because the type variable T got type-erased and the anonymous ArrayList class
+   *   is instantiated with an unresolved type variable T.
    * }</pre>
    */
   public boolean hasUnresolvedParameters() {
@@ -391,10 +360,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
     return token.toString();
   }
 
-  /**
-   * Two type descriptor are equal if and only if they
-   * represent the same type.
-   */
+  /** Two type descriptor are equal if and only if they represent the same type. */
   @Override
   public boolean equals(Object other) {
     if (!(other instanceof TypeDescriptor)) {
@@ -412,8 +378,8 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * A non-abstract {@link TypeDescriptor} for construction directly from an existing
-   * {@link TypeToken}.
+   * A non-abstract {@link TypeDescriptor} for construction directly from an existing {@link
+   * TypeToken}.
    */
   private static final class SimpleTypeDescriptor<T> extends TypeDescriptor<T> {
     SimpleTypeDescriptor(TypeToken<T> typeToken) {

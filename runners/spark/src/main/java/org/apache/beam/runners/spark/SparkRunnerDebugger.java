@@ -34,12 +34,11 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Pipeline runner which translates a Beam pipeline into equivalent Spark operations, without
  * running them. Used for debugging purposes.
  *
- * <p>Example:</p>
+ * <p>Example:
  *
  * <pre>{@code
  * SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
@@ -85,7 +84,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
     SparkNativePipelineVisitor visitor;
     if (options.isStreaming()
         || (options instanceof TestSparkPipelineOptions
-        && ((TestSparkPipelineOptions) options).isForceStreaming())) {
+            && ((TestSparkPipelineOptions) options).isForceStreaming())) {
       SparkPipelineTranslator streamingTranslator =
           new StreamingTransformTranslator.Translator(translator);
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
@@ -105,9 +104,9 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
   }
 
   /**
-   * PipelineResult of running a {@link Pipeline} using {@link SparkRunnerDebugger}
-   * Use {@link #getDebugString} to get a {@link String} representation of the {@link Pipeline}
-   * translated into Spark native operations.
+   * PipelineResult of running a {@link Pipeline} using {@link SparkRunnerDebugger} Use {@link
+   * #getDebugString} to get a {@link String} representation of the {@link Pipeline} translated into
+   * Spark native operations.
    */
   public static class DebugSparkPipelineResult extends SparkPipelineResult {
     private final String debugString;
@@ -117,18 +116,18 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
       this.debugString = debugString;
     }
 
-    /**
-     * Returns Beam pipeline translated into Spark native operations.
-     */
+    /** Returns Beam pipeline translated into Spark native operations. */
     String getDebugString() {
       return debugString;
     }
 
-    @Override protected void stop() {
+    @Override
+    protected void stop() {
       // Empty implementation
     }
 
-    @Override protected State awaitTermination(Duration duration)
+    @Override
+    protected State awaitTermination(Duration duration)
         throws TimeoutException, ExecutionException, InterruptedException {
       return State.DONE;
     }

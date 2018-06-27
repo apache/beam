@@ -28,8 +28,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 
 /**
- * An execution-time only {@link PTransform} which represents an SDK harness reading from a
- * {@link RemoteGrpcPort}.
+ * An execution-time only {@link PTransform} which represents an SDK harness reading from a {@link
+ * RemoteGrpcPort}.
  */
 @AutoValue
 public abstract class RemoteGrpcPortRead {
@@ -64,5 +64,6 @@ public abstract class RemoteGrpcPortRead {
   }
 
   public abstract RemoteGrpcPort getPort();
+
   abstract String getOutputPCollectionId();
 }

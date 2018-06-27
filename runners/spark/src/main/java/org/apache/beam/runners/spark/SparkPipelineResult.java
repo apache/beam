@@ -107,8 +107,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return asAttemptedOnlyMetricResults(
-        MetricsAccumulator.getInstance().value());
+    return asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
   }
 
   @Override

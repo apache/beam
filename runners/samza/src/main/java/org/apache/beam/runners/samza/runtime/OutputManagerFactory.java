@@ -21,9 +21,7 @@ package org.apache.beam.runners.samza.runtime;
 import java.io.Serializable;
 import org.apache.beam.runners.core.DoFnRunners;
 
-/**
- * Factory class to create {@link DoFnRunners.OutputManager}.
- */
+/** Factory class to create {@link DoFnRunners.OutputManager}. */
 public interface OutputManagerFactory<OutT> extends Serializable {
   DoFnRunners.OutputManager create(OpEmitter<OutT> emitter);
 }

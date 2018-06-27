@@ -27,14 +27,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link SimpleFunction}.
- */
+/** Tests for {@link SimpleFunction}. */
 @RunWith(JUnit4.class)
 public class SimpleFunctionTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testFailureIfNotOverridden() {

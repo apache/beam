@@ -31,9 +31,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
-/**
- * A factory that produces bundles that perform no additional validation.
- */
+/** A factory that produces bundles that perform no additional validation. */
 class ImmutableListBundleFactory implements BundleFactory {
   private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();
 
@@ -59,9 +57,7 @@ class ImmutableListBundleFactory implements BundleFactory {
     return UncommittedImmutableListBundle.create(output, key);
   }
 
-  /**
-   * A {@link UncommittedBundle} that buffers elements in memory.
-   */
+  /** A {@link UncommittedBundle} that buffers elements in memory. */
   private static final class UncommittedImmutableListBundle<T> implements UncommittedBundle<T> {
     private final PCollection<T> pcollection;
     private final StructuralKey<?> key;
@@ -73,8 +69,7 @@ class ImmutableListBundleFactory implements BundleFactory {
      * Create a new {@link UncommittedImmutableListBundle} for the specified {@link PCollection}.
      */
     public static <T> UncommittedImmutableListBundle<T> create(
-        PCollection<T> pcollection,
-        StructuralKey<?> key) {
+        PCollection<T> pcollection, StructuralKey<?> key) {
       return new UncommittedImmutableListBundle<>(pcollection, key);
     }
 

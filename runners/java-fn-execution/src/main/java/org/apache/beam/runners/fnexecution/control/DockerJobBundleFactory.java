@@ -81,8 +81,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
-  public static DockerJobBundleFactory create(JobInfo jobInfo)
-      throws Exception {
+  public static DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
     ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
     ControlClientPool clientPool = MapControlClientPool.create();
@@ -251,7 +250,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
     @Override
     public RemoteBundle<InputT> getBundle(
-        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler,
+        OutputReceiverFactory outputReceiverFactory,
+        StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather

@@ -49,8 +49,7 @@ public class BeamFnDataInboundObserverTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDecodingElements() throws Exception {
@@ -61,8 +60,10 @@ public class BeamFnDataInboundObserverTest {
 
     // Test decoding multiple messages
     observer.accept(dataWith("ABC", "DEF", "GHI"));
-    assertThat(values, contains(
-        valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
+    assertThat(
+        values,
+        contains(
+            valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
     values.clear();
 
     // Test empty message signaling end of stream
@@ -97,12 +98,14 @@ public class BeamFnDataInboundObserverTest {
     }
   }
 
-  private BeamFnApi.Elements.Data dataWith(String ... values) throws Exception {
-    BeamFnApi.Elements.Data.Builder builder = BeamFnApi.Elements.Data.newBuilder()
-        .setInstructionReference("777L")
-        .setTarget(BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference("999L")
-            .setName("Test"));
+  private BeamFnApi.Elements.Data dataWith(String... values) throws Exception {
+    BeamFnApi.Elements.Data.Builder builder =
+        BeamFnApi.Elements.Data.newBuilder()
+            .setInstructionReference("777L")
+            .setTarget(
+                BeamFnApi.Target.newBuilder()
+                    .setPrimitiveTransformReference("999L")
+                    .setName("Test"));
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);

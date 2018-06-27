@@ -51,9 +51,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * {@link FileSystem} implementation for Google Cloud Storage.
- */
+/** {@link FileSystem} implementation for Google Cloud Storage. */
 class GcsFileSystem extends FileSystem<GcsResourceId> {
   private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystem.class);
 
@@ -104,8 +102,12 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
     if (createOptions instanceof GcsCreateOptions) {
-      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType(),
-          ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
+      return options
+          .getGcsUtil()
+          .create(
+              resourceId.getGcsPath(),
+              createOptions.mimeType(),
+              ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
     } else {
       return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
     }
@@ -117,9 +119,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   @Override
-  protected void rename(
-      List<GcsResourceId> srcResourceIds,
-      List<GcsResourceId> destResourceIds) throws IOException {
+  protected void rename(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
+      throws IOException {
     copy(srcResourceIds, destResourceIds);
     delete(srcResourceIds);
   }
@@ -180,8 +181,11 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     String prefix = GcsUtil.getNonWildcardPrefix(gcsPattern.getObject());
     Pattern p = Pattern.compile(GcsUtil.wildcardToRegexp(gcsPattern.getObject()));
 
-    LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
-        prefix, p.toString());
+    LOG.debug(
+        "matching files in bucket {}, prefix {} against pattern {}",
+        gcsPattern.getBucket(),
+        prefix,
+        p.toString());
 
     String pageToken = null;
     List<Metadata> results = new ArrayList<>();
@@ -208,8 +212,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   /**
    * Returns {@link MatchResult MatchResults} for the given {@link GcsPath GcsPaths}.
    *
-   *<p>The number of returned {@link MatchResult MatchResults} equals to the number of given
-   * {@link GcsPath GcsPaths}. Each {@link MatchResult} contains one {@link Metadata}.
+   * <p>The number of returned {@link MatchResult MatchResults} equals to the number of given {@link
+   * GcsPath GcsPaths}. Each {@link MatchResult} contains one {@link Metadata}.
    */
   @VisibleForTesting
   List<MatchResult> matchNonGlobs(List<GcsPath> gcsPaths) throws IOException {
@@ -238,9 +242,10 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   private Metadata toMetadata(StorageObject storageObject) {
     // TODO: Address https://issues.apache.org/jira/browse/BEAM-1494
     // It is incorrect to set IsReadSeekEfficient true for files with content encoding set to gzip.
-    Metadata.Builder ret = Metadata.builder()
-        .setIsReadSeekEfficient(true)
-        .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
+    Metadata.Builder ret =
+        Metadata.builder()
+            .setIsReadSeekEfficient(true)
+            .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
     return ret.build();

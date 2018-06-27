@@ -54,9 +54,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalFileSystem}.
- */
+/** Tests for {@link LocalFileSystem}. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -85,8 +83,7 @@ public class LocalFileSystemTest {
     // First with the path string
     createFileWithContent(path, expected);
     assertThat(
-        Files.readLines(path.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder(expected));
+        Files.readLines(path.toFile(), StandardCharsets.UTF_8), containsInAnyOrder(expected));
 
     // Delete the file before trying as URI
     assertTrue("Unable to delete file " + path, path.toFile().delete());
@@ -94,8 +91,7 @@ public class LocalFileSystemTest {
     // Second with the path URI
     createFileWithContent(Paths.get(path.toUri()), expected);
     assertThat(
-        Files.readLines(path.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder(expected));
+        Files.readLines(path.toFile(), StandardCharsets.UTF_8), containsInAnyOrder(expected));
   }
 
   @Test
@@ -104,11 +100,11 @@ public class LocalFileSystemTest {
     File existingFile = temporaryFolder.newFile();
     Files.write(expected, existingFile, StandardCharsets.UTF_8);
     String data;
-    try (Reader reader = Channels.newReader(
-        localFileSystem.open(LocalResourceId.fromPath(
-            existingFile.toPath(),
-            false /* isDirectory */)),
-        StandardCharsets.UTF_8.name())) {
+    try (Reader reader =
+        Channels.newReader(
+            localFileSystem.open(
+                LocalResourceId.fromPath(existingFile.toPath(), false /* isDirectory */)),
+            StandardCharsets.UTF_8.name())) {
       data = new LineReader(reader).readLine();
     }
     assertEquals(expected, data);
@@ -118,14 +114,14 @@ public class LocalFileSystemTest {
   public void testReadNonExistentFile() throws Exception {
     thrown.expect(FileNotFoundException.class);
     localFileSystem
-        .open(LocalResourceId.fromPath(
-            temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt"),
-            false /* isDirectory */))
+        .open(
+            LocalResourceId.fromPath(
+                temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt"),
+                false /* isDirectory */))
         .close();
   }
 
-  private void assertContents(List<Path> destFiles, List<String> contents)
-      throws Exception {
+  private void assertContents(List<Path> destFiles, List<String> contents) throws Exception {
     for (int i = 0; i < destFiles.size(); ++i) {
       assertThat(
           Files.readLines(destFiles.get(i).toFile(), StandardCharsets.UTF_8),
@@ -138,10 +134,8 @@ public class LocalFileSystemTest {
     Path srcPath1 = temporaryFolder.newFile().toPath();
     Path srcPath2 = temporaryFolder.newFile().toPath();
 
-    Path destPath1 =
-        temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
     Path destPath2 = srcPath2.resolveSibling("dest2");
-
 
     createFileWithContent(srcPath1, "content1");
     createFileWithContent(srcPath2, "content2");
@@ -151,8 +145,7 @@ public class LocalFileSystemTest {
         toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
 
     assertContents(
-        ImmutableList.of(destPath1, destPath2),
-        ImmutableList.of("content1", "content2"));
+        ImmutableList.of(destPath1, destPath2), ImmutableList.of("content1", "content2"));
   }
 
   @Test
@@ -160,8 +153,7 @@ public class LocalFileSystemTest {
     Path srcPath1 = temporaryFolder.newFile().toPath();
     Path srcPath2 = temporaryFolder.newFile().toPath();
 
-    Path destPath1 =
-        temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
     Path destPath2 = srcPath2.resolveSibling("dest2");
 
     createFileWithContent(srcPath1, "content1");
@@ -172,8 +164,7 @@ public class LocalFileSystemTest {
         toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
 
     assertContents(
-        ImmutableList.of(destPath1, destPath2),
-        ImmutableList.of("content1", "content2"));
+        ImmutableList.of(destPath1, destPath2), ImmutableList.of("content1", "content2"));
 
     assertFalse(srcPath1 + "exists", srcPath1.toFile().exists());
     assertFalse(srcPath2 + "exists", srcPath2.toFile().exists());
@@ -197,8 +188,9 @@ public class LocalFileSystemTest {
     temporaryFolder.newFile("aa");
     temporaryFolder.newFile("ab");
 
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    List<MatchResult> matchResults =
+        localFileSystem.match(
+            ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
@@ -220,18 +212,20 @@ public class LocalFileSystemTest {
   public void testMatchForNonExistentFile() throws Exception {
     temporaryFolder.newFile("aa");
 
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    List<MatchResult> matchResults =
+        localFileSystem.match(
+            ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
     assertEquals(1, matchResults.size());
     assertEquals(MatchResult.Status.NOT_FOUND, matchResults.get(0).status());
   }
 
   @Test
   public void testMatchMultipleWithFileExtension() throws Exception {
-    List<String> expected = ImmutableList.of(
-        temporaryFolder.newFile("a.txt").toString(),
-        temporaryFolder.newFile("aa.txt").toString(),
-        temporaryFolder.newFile("ab.txt").toString());
+    List<String> expected =
+        ImmutableList.of(
+            temporaryFolder.newFile("a.txt").toString(),
+            temporaryFolder.newFile("aa.txt").toString(),
+            temporaryFolder.newFile("ab.txt").toString());
     temporaryFolder.newFile("a.avro");
     temporaryFolder.newFile("ab.avro");
 
@@ -251,15 +245,14 @@ public class LocalFileSystemTest {
     String expectedFile = expected.get(0);
     int slashIndex = expectedFile.lastIndexOf('/');
     if (SystemUtils.IS_OS_WINDOWS) {
-        slashIndex = expectedFile.lastIndexOf('\\');
+      slashIndex = expectedFile.lastIndexOf('\\');
     }
     String directory = expectedFile.substring(0, slashIndex);
     String relative = expectedFile.substring(slashIndex + 1);
     System.setProperty("user.dir", directory);
     List<MatchResult> results = localFileSystem.match(ImmutableList.of(relative));
     assertThat(
-        toFilenames(results),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+        toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
@@ -271,8 +264,7 @@ public class LocalFileSystemTest {
     String file = "file:/" + temporaryFolder.getRoot().toPath().resolve("a").toString();
     List<MatchResult> results = localFileSystem.match(ImmutableList.of(file));
     assertThat(
-        toFilenames(results),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+        toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
@@ -284,8 +276,7 @@ public class LocalFileSystemTest {
     String file = "file:///" + temporaryFolder.getRoot().toPath().resolve("a").toString();
     List<MatchResult> results = localFileSystem.match(ImmutableList.of(file));
     assertThat(
-        toFilenames(results),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+        toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
@@ -293,8 +284,11 @@ public class LocalFileSystemTest {
     File unmatchedSubDir = temporaryFolder.newFolder("aaa");
     File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);
     unmatchedSubDirFile.deleteOnExit();
-    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString(),
-        temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
+    List<String> expected =
+        ImmutableList.of(
+            temporaryFolder.newFile("a").toString(),
+            temporaryFolder.newFile("aa").toString(),
+            temporaryFolder.newFile("ab").toString());
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
 
@@ -314,8 +308,11 @@ public class LocalFileSystemTest {
     File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);
     unmatchedSubDirFile.deleteOnExit();
 
-    List<String> expected = ImmutableList.of(matchedSubDirFile.toString(),
-        temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
+    List<String> expected =
+        ImmutableList.of(
+            matchedSubDirFile.toString(),
+            temporaryFolder.newFile("aa").toString(),
+            temporaryFolder.newFile("ab").toString());
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
 
@@ -340,41 +337,41 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
-    Path pattern = LocalResourceId
-        .fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
-        .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
-        .resolve("*", StandardResolveOptions.RESOLVE_FILE)
-        .getPath();
-    assertTrue(
-        toFilenames(localFileSystem.match(ImmutableList.of(pattern.toString()))).isEmpty());
+    Path pattern =
+        LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
+            .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("*", StandardResolveOptions.RESOLVE_FILE)
+            .getPath();
+    assertTrue(toFilenames(localFileSystem.match(ImmutableList.of(pattern.toString()))).isEmpty());
   }
 
   @Test
   public void testMatchNewResource() throws Exception {
     LocalResourceId fileResource =
-        localFileSystem
-            .matchNewResource("/some/test/resource/path", false /* isDirectory */);
+        localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
     LocalResourceId dirResource =
-        localFileSystem
-            .matchNewResource("/some/test/resource/path", true /* isDirectory */);
+        localFileSystem.matchNewResource("/some/test/resource/path", true /* isDirectory */);
     assertNotEquals(fileResource, dirResource);
     assertThat(
-        fileResource.getCurrentDirectory().resolve(
-            "path", StandardResolveOptions.RESOLVE_DIRECTORY),
+        fileResource
+            .getCurrentDirectory()
+            .resolve("path", StandardResolveOptions.RESOLVE_DIRECTORY),
         equalTo(dirResource.getCurrentDirectory()));
     assertThat(
-        fileResource.getCurrentDirectory().resolve(
-            "path", StandardResolveOptions.RESOLVE_DIRECTORY),
+        fileResource
+            .getCurrentDirectory()
+            .resolve("path", StandardResolveOptions.RESOLVE_DIRECTORY),
         equalTo(dirResource.getCurrentDirectory()));
     assertThat(dirResource.toString(), equalTo("/some/test/resource/path/"));
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {
-    try (Writer writer = Channels.newWriter(
-        localFileSystem.create(
-            LocalResourceId.fromPath(path, false /* isDirectory */),
-            StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
-        StandardCharsets.UTF_8.name())) {
+    try (Writer writer =
+        Channels.newWriter(
+            localFileSystem.create(
+                LocalResourceId.fromPath(path, false /* isDirectory */),
+                StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
+            StandardCharsets.UTF_8.name())) {
       writer.write(content);
     }
   }

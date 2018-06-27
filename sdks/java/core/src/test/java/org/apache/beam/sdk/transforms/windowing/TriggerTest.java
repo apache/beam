@@ -28,16 +28,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Trigger}.
- */
+/** Tests for {@link Trigger}. */
 @RunWith(JUnit4.class)
 public class TriggerTest {
 
   @Test
   public void testTriggerToString() throws Exception {
     assertEquals("AfterWatermark.pastEndOfWindow()", AfterWatermark.pastEndOfWindow().toString());
-    assertEquals("Repeatedly.forever(AfterWatermark.pastEndOfWindow())",
+    assertEquals(
+        "Repeatedly.forever(AfterWatermark.pastEndOfWindow())",
         Repeatedly.forever(AfterWatermark.pastEndOfWindow()).toString());
   }
 
@@ -61,8 +60,7 @@ public class TriggerTest {
     }
 
     @Override
-    protected Trigger getContinuationTrigger(
-        List<Trigger> continuationTriggers) {
+    protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return null;
     }
 
@@ -79,8 +77,7 @@ public class TriggerTest {
     }
 
     @Override
-    protected Trigger getContinuationTrigger(
-        List<Trigger> continuationTriggers) {
+    protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return null;
     }
 

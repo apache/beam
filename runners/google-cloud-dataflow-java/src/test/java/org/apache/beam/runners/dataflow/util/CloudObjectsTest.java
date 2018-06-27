@@ -64,13 +64,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link CloudObjects}.
- */
+/** Tests for {@link CloudObjects}. */
 public class CloudObjectsTest {
-  /**
-   * Tests that all of the Default Coders are tested.
-   */
+  /** Tests that all of the Default Coders are tested. */
   @RunWith(JUnit4.class)
   public static class DefaultsPresentTest {
     @Test
@@ -100,7 +96,6 @@ public class CloudObjectsTest {
       assertThat(defaultCoders, hasItem(CustomCoder.class));
     }
   }
-
 
   /**
    * Tests that all of the registered coders in {@link DefaultCoderCloudObjectTranslatorRegistrar}
@@ -147,11 +142,11 @@ public class CloudObjectsTest {
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());
       }
-      return dataBuilder
-          .build();
+      return dataBuilder.build();
     }
 
-    @Parameter(0) public Coder<?> coder;
+    @Parameter(0)
+    public Coder<?> coder;
 
     @Test
     public void toAndFromCloudObject() throws Exception {
@@ -167,13 +162,10 @@ public class CloudObjectsTest {
 
   private static class ObjectCoder extends CustomCoder<Object> {
     @Override
-    public void encode(Object value, OutputStream outStream)
-        throws CoderException, IOException {
-    }
+    public void encode(Object value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
-    public Object decode(InputStream inStream)
-        throws CoderException, IOException {
+    public Object decode(InputStream inStream) throws CoderException, IOException {
       return new Object();
     }
 
@@ -188,13 +180,10 @@ public class CloudObjectsTest {
     }
   }
 
-  /**
-   * A non-custom coder with no registered translator.
-   */
+  /** A non-custom coder with no registered translator. */
   private static class ArbitraryCoder extends StructuredCoder<Record> {
     @Override
-    public void encode(Record value, OutputStream outStream)
-        throws CoderException, IOException {}
+    public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
     public Record decode(InputStream inStream) throws CoderException, IOException {

@@ -27,8 +27,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
     implements Serializable,
-    HasDefaultTracker<
-                OffsetRange, org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker> {
+        HasDefaultTracker<
+            OffsetRange, org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker> {
   private final long from;
   private final long to;
 

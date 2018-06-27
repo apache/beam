@@ -39,8 +39,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link GroupByKeyOnly} {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link GroupByKeyOnly} {@link
+ * PTransform}.
  */
 class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -51,12 +51,9 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle) {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<InputT> evaluator =
-        createEvaluator(
-            (AppliedPTransform) application);
+    TransformEvaluator<InputT> evaluator = createEvaluator((AppliedPTransform) application);
     return evaluator;
   }
 
@@ -76,23 +73,20 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
    *
    * @see GroupByKeyViaGroupByKeyOnly
    */
-  private static class GroupByKeyOnlyEvaluator<K, V>
-      implements TransformEvaluator<KV<K, V>> {
+  private static class GroupByKeyOnlyEvaluator<K, V> implements TransformEvaluator<KV<K, V>> {
     private final EvaluationContext evaluationContext;
 
     private final AppliedPTransform<
-            PCollection<KV<K, V>>,
-            PCollection<KeyedWorkItem<K, V>>,
-            DirectGroupByKeyOnly<K, V>> application;
+            PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
+        application;
     private final Coder<K> keyCoder;
     private Map<StructuralKey<K>, List<WindowedValue<V>>> groupingMap;
 
     public GroupByKeyOnlyEvaluator(
         EvaluationContext evaluationContext,
         AppliedPTransform<
-            PCollection<KV<K, V>>,
-            PCollection<KeyedWorkItem<K, V>>,
-            DirectGroupByKeyOnly<K, V>> application) {
+                PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
+            application) {
       this.evaluationContext = evaluationContext;
       this.application = application;
       this.keyCoder =

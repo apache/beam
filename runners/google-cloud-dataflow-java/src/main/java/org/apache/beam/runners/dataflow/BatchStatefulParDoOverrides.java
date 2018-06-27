@@ -55,8 +55,8 @@ import org.joda.time.Instant;
  * stateful {@link ParDo} using window-unaware {@link GroupByKeyAndSortValuesOnly} to linearize
  * processing per key.
  *
- * <p>For the Fn API, the {@link PTransformOverrideFactory} is only required to perform
- * per key grouping and expansion.
+ * <p>For the Fn API, the {@link PTransformOverrideFactory} is only required to perform per key
+ * grouping and expansion.
  *
  * <p>This implementation relies on implementation details of the Dataflow runner, specifically
  * standard fusion behavior of {@link ParDo} tranforms following a {@link GroupByKey}.
@@ -76,8 +76,8 @@ public class BatchStatefulParDoOverrides {
   }
 
   /**
-   * Returns a {@link PTransformOverrideFactory} that replaces a multi-output
-   * {@link ParDo} with a composite transform specialized for the {@link DataflowRunner}.
+   * Returns a {@link PTransformOverrideFactory} that replaces a multi-output {@link ParDo} with a
+   * composite transform specialized for the {@link DataflowRunner}.
    */
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
@@ -98,6 +98,7 @@ public class BatchStatefulParDoOverrides {
           ParDo.SingleOutput<KV<K, InputT>, OutputT>> {
 
     private final boolean isFnApi;
+
     private SingleOutputOverrideFactory(boolean isFnApi) {
       this.isFnApi = isFnApi;
     }
@@ -126,6 +127,7 @@ public class BatchStatefulParDoOverrides {
           PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.MultiOutput<KV<K, InputT>, OutputT>> {
 
     private final boolean isFnApi;
+
     private MultiOutputOverrideFactory(boolean isFnApi) {
       this.isFnApi = isFnApi;
     }
@@ -155,8 +157,8 @@ public class BatchStatefulParDoOverrides {
     private final ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo;
     private final boolean isFnApi;
 
-    StatefulSingleOutputParDo(ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo,
-        boolean isFnApi) {
+    StatefulSingleOutputParDo(
+        ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo, boolean isFnApi) {
       this.originalParDo = originalParDo;
       this.isFnApi = isFnApi;
     }
@@ -195,8 +197,8 @@ public class BatchStatefulParDoOverrides {
     private final ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo;
     private final boolean isFnApi;
 
-    StatefulMultiOutputParDo(ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo,
-        boolean isFnApi) {
+    StatefulMultiOutputParDo(
+        ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo, boolean isFnApi) {
       this.originalParDo = originalParDo;
       this.isFnApi = isFnApi;
     }
@@ -289,8 +291,7 @@ public class BatchStatefulParDoOverrides {
    * A key preserving {@link DoFn} that expands the output of a GBK {@code KV<K, Iterable<V>>} into
    * individual KVs.
    */
-  static class ExpandGbkFn<K, V>
-      extends DoFn<KV<K, Iterable<V>>, KV<K, V>> {
+  static class ExpandGbkFn<K, V> extends DoFn<KV<K, Iterable<V>>, KV<K, V>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       K k = c.element().getKey();
@@ -351,4 +352,3 @@ public class BatchStatefulParDoOverrides {
         ParDo.class.getSimpleName());
   }
 }
-

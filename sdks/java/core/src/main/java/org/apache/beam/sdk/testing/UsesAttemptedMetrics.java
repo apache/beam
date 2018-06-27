@@ -22,7 +22,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Metrics}.
- * Tests tagged with {@link UsesAttemptedMetrics} should be run for runners which support
- * {@link MetricResult#getAttempted()}.
+ * Tests tagged with {@link UsesAttemptedMetrics} should be run for runners which support {@link
+ * MetricResult#getAttempted()}.
  */
 public class UsesAttemptedMetrics {}

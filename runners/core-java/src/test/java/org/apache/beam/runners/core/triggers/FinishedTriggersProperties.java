@@ -20,9 +20,7 @@ package org.apache.beam.runners.core.triggers;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Generalized tests for {@link FinishedTriggers} implementations.
- */
+/** Generalized tests for {@link FinishedTriggers} implementations. */
 public class FinishedTriggersProperties {
   /**
    * Tests that for the provided trigger and {@link FinishedTriggers}, when the trigger is set

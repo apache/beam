@@ -69,14 +69,14 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final boolean stateful;
 
   /**
-   * @param metricsAccum       The Spark {@link Accumulator} that backs the Beam metrics.
-   * @param doFn              The {@link DoFn} to be wrapped.
-   * @param options    The {@link SerializablePipelineOptions}.
-   * @param mainOutputTag     The main output {@link TupleTag}.
+   * @param metricsAccum The Spark {@link Accumulator} that backs the Beam metrics.
+   * @param doFn The {@link DoFn} to be wrapped.
+   * @param options The {@link SerializablePipelineOptions}.
+   * @param mainOutputTag The main output {@link TupleTag}.
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
-   * @param sideInputs        Side inputs used in this {@link DoFn}.
+   * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
-   * @param stateful          Stateful {@link DoFn}.
+   * @param stateful Stateful {@link DoFn}.
    */
   public MultiDoFnFunction(
       Accumulator<MetricsContainerStepMap> metricsAccum,
@@ -100,8 +100,8 @@ public class MultiDoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(
-      Iterator<WindowedValue<InputT>> iter) throws Exception {
+  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
+      throws Exception {
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
@@ -117,17 +117,18 @@ public class MultiDoFnFunction<InputT, OutputT>
       }
       final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
       timerInternals = new InMemoryTimerInternals();
-      context = new StepContext() {
-        @Override
-        public StateInternals stateInternals() {
-          return stateInternals;
-        }
+      context =
+          new StepContext() {
+            @Override
+            public StateInternals stateInternals() {
+              return stateInternals;
+            }
 
-        @Override
-        public TimerInternals timerInternals() {
-          return timerInternals;
-        }
-      };
+            @Override
+            public TimerInternals timerInternals() {
+              return timerInternals;
+            }
+          };
     } else {
       timerInternals = null;
       context = new SparkProcessContext.NoOpStepContext();
@@ -176,8 +177,7 @@ public class MultiDoFnFunction<InputT, OutputT>
           timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
           // Finally, advance the processing time to infinity to fire any timers.
           timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
-          timerInternals.advanceSynchronizedProcessingTime(
-              BoundedWindow.TIMESTAMP_MAX_VALUE);
+          timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
@@ -203,7 +203,6 @@ public class MultiDoFnFunction<InputT, OutputT>
     public void remove() {
       throw new RuntimeException("TimerDataIterator not support remove!");
     }
-
   }
 
   private class DoFnOutputManager

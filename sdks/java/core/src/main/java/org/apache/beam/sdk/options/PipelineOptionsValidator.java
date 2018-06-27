@@ -30,9 +30,7 @@ import java.util.Collection;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
-/**
- * Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria.
- */
+/** Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria. */
 public class PipelineOptionsValidator {
   /**
    * Validates that the passed {@link PipelineOptions} conforms to all the validation criteria from
@@ -50,8 +48,8 @@ public class PipelineOptionsValidator {
   }
 
   /**
-   * Validates that the passed {@link PipelineOptions} from command line interface (CLI)
-   * conforms to all the validation criteria from the passed in interface.
+   * Validates that the passed {@link PipelineOptions} from command line interface (CLI) conforms to
+   * all the validation criteria from the passed in interface.
    *
    * <p>Note that the interface requested must conform to the validation criteria specified on
    * {@link PipelineOptions#as(Class)}.
@@ -64,8 +62,8 @@ public class PipelineOptionsValidator {
     return validate(klass, options, true);
   }
 
-  private static <T extends PipelineOptions> T validate(Class<T> klass, PipelineOptions options,
-      boolean isCli) {
+  private static <T extends PipelineOptions> T validate(
+      Class<T> klass, PipelineOptions options, boolean isCli) {
     checkNotNull(klass);
     checkNotNull(options);
     checkArgument(Proxy.isProxyClass(options.getClass()));
@@ -77,8 +75,9 @@ public class PipelineOptionsValidator {
     ProxyInvocationHandler handler =
         (ProxyInvocationHandler) Proxy.getInvocationHandler(asClassOptions);
 
-    SortedSetMultimap<String, Method> requiredGroups = TreeMultimap.create(
-        Ordering.natural(), PipelineOptionsFactory.MethodNameComparator.INSTANCE);
+    SortedSetMultimap<String, Method> requiredGroups =
+        TreeMultimap.create(
+            Ordering.natural(), PipelineOptionsFactory.MethodNameComparator.INSTANCE);
     for (Method method : ReflectHelpers.getClosureOfMethodsOnInterface(klass)) {
       Required requiredAnnotation = method.getAnnotation(Validation.Required.class);
       if (requiredAnnotation != null) {
@@ -88,13 +87,17 @@ public class PipelineOptionsValidator {
           }
         } else {
           if (isCli) {
-            checkArgument(handler.invoke(asClassOptions, method, null) != null,
+            checkArgument(
+                handler.invoke(asClassOptions, method, null) != null,
                 "Missing required value for [--%s, \"%s\"]. ",
-                handler.getOptionName(method), getDescription(method));
+                handler.getOptionName(method),
+                getDescription(method));
           } else {
-            checkArgument(handler.invoke(asClassOptions, method, null) != null,
+            checkArgument(
+                handler.invoke(asClassOptions, method, null) != null,
                 "Missing required value for [%s, \"%s\"]. ",
-                method, getDescription(method));
+                method,
+                getDescription(method));
           }
         }
       }
@@ -102,19 +105,23 @@ public class PipelineOptionsValidator {
 
     for (String requiredGroup : requiredGroups.keySet()) {
       if (!verifyGroup(handler, asClassOptions, requiredGroups.get(requiredGroup))) {
-        throw new IllegalArgumentException("Missing required value for group [" + requiredGroup
-            + "]. At least one of the following properties "
-            + Collections2.transform(
-                requiredGroups.get(requiredGroup), ReflectHelpers.METHOD_FORMATTER)
-            + " required. Run with --help=" + klass.getSimpleName() + " for more information.");
+        throw new IllegalArgumentException(
+            "Missing required value for group ["
+                + requiredGroup
+                + "]. At least one of the following properties "
+                + Collections2.transform(
+                    requiredGroups.get(requiredGroup), ReflectHelpers.METHOD_FORMATTER)
+                + " required. Run with --help="
+                + klass.getSimpleName()
+                + " for more information.");
       }
     }
 
     return asClassOptions;
   }
 
-  private static boolean verifyGroup(ProxyInvocationHandler handler, PipelineOptions options,
-      Collection<Method> requiredGroup) {
+  private static boolean verifyGroup(
+      ProxyInvocationHandler handler, PipelineOptions options, Collection<Method> requiredGroup) {
     for (Method m : requiredGroup) {
       if (handler.invoke(options, m, null) != null) {
         return true;

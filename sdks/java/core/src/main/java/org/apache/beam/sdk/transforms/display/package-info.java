@@ -18,8 +18,8 @@
 
 /**
  * Defines {@link org.apache.beam.sdk.transforms.display.HasDisplayData} for annotating components
- * which provide {@link org.apache.beam.sdk.transforms.display.DisplayData display data} used
- * within UIs and diagnostic tools.
+ * which provide {@link org.apache.beam.sdk.transforms.display.DisplayData display data} used within
+ * UIs and diagnostic tools.
  *
  * @see org.apache.beam.sdk.transforms.display.HasDisplayData
  */

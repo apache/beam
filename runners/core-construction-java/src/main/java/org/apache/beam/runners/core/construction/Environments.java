@@ -32,9 +32,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 
-/**
- * Utilities for interacting with portability {@link Environment environments}.
- */
+/** Utilities for interacting with portability {@link Environment environments}. */
 public class Environments {
   private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
@@ -61,8 +59,7 @@ public class Environments {
 
   private Environments() {}
 
-  public static Optional<Environment> getEnvironment(
-      String ptransformId, Components components) {
+  public static Optional<Environment> getEnvironment(String ptransformId, Components components) {
     try {
       PTransform ptransform = components.getTransformsOrThrow(ptransformId);
       String envId =
@@ -119,8 +116,7 @@ public class Environments {
         .getEnvironmentId();
   }
 
-  private static String readExtractor(PTransform transform)
-      throws InvalidProtocolBufferException {
+  private static String readExtractor(PTransform transform) throws InvalidProtocolBufferException {
     return ReadPayload.parseFrom(transform.getSpec().getPayload()).getSource().getEnvironmentId();
   }
 

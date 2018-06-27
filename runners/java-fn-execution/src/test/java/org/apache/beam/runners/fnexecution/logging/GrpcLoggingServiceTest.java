@@ -84,9 +84,15 @@ public class GrpcLoggingServiceTest {
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
-      assertThat(logs,
-          containsInAnyOrder(createLogWithId(1L), createLogWithId(2L), createLogWithId(3L),
-              createLogWithId(-1L), createLogWithId(-2L), createLogWithId(-3L)));
+      assertThat(
+          logs,
+          containsInAnyOrder(
+              createLogWithId(1L),
+              createLogWithId(2L),
+              createLogWithId(3L),
+              createLogWithId(-1L),
+              createLogWithId(-2L),
+              createLogWithId(-3L)));
     }
   }
 
@@ -174,6 +180,7 @@ public class GrpcLoggingServiceTest {
     }
     return builder.build();
   }
+
   private BeamFnApi.LogEntry createLogWithId(long id) {
     return BeamFnApi.LogEntry.newBuilder().setInstructionReference(Long.toString(id)).build();
   }

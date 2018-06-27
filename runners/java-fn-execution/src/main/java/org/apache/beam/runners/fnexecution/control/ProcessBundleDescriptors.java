@@ -55,27 +55,27 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 
-/**
- * Utility methods for creating {@link ProcessBundleDescriptor} instances.
- */
+/** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
 // TODO: Rename to ExecutableStages?
 public class ProcessBundleDescriptors {
 
   /**
    * Note that the {@link ProcessBundleDescriptor} is constructed by:
+   *
    * <ul>
-   *   <li>Adding gRPC read and write nodes wiring them to the specified data endpoint.</li>
-   *   <li>Setting the state {@link ApiServiceDescriptor} to the specified state endpoint.</li>
+   *   <li>Adding gRPC read and write nodes wiring them to the specified data endpoint.
+   *   <li>Setting the state {@link ApiServiceDescriptor} to the specified state endpoint.
    *   <li>Modifying the coder on PCollections that are accessed as side inputs to be length
-   *   prefixed making them binary compatible with the coder chosen when that side input is
-   *   materialized.</li>
+   *       prefixed making them binary compatible with the coder chosen when that side input is
+   *       materialized.
    * </ul>
    */
   public static ExecutableProcessBundleDescriptor fromExecutableStage(
       String id,
       ExecutableStage stage,
       ApiServiceDescriptor dataEndpoint,
-      ApiServiceDescriptor stateEndpoint) throws IOException {
+      ApiServiceDescriptor stateEndpoint)
+      throws IOException {
     checkState(id != null, "id must be specified.");
     checkState(stage != null, "stage must be specified.");
     checkState(dataEndpoint != null, "dataEndpoint must be specified.");
@@ -95,7 +95,8 @@ public class ProcessBundleDescriptors {
       String id,
       ExecutableStage stage,
       ApiServiceDescriptor dataEndpoint,
-      @Nullable ApiServiceDescriptor stateEndpoint) throws IOException {
+      @Nullable ApiServiceDescriptor stateEndpoint)
+      throws IOException {
     // Create with all of the processing transforms, and all of the components.
     // TODO: Remove the unreachable subcomponents if the size of the descriptor matters.
     Map<String, PTransform> stageTransforms =
@@ -138,19 +139,21 @@ public class ProcessBundleDescriptors {
   }
 
   private static Map<Target, Coder<WindowedValue<?>>> addStageOutputs(
-      ApiServiceDescriptor dataEndpoint, Collection<PCollectionNode> outputPCollections,
-      Components.Builder components) throws IOException {
+      ApiServiceDescriptor dataEndpoint,
+      Collection<PCollectionNode> outputPCollections,
+      Components.Builder components)
+      throws IOException {
     Map<Target, Coder<WindowedValue<?>>> outputTargetCoders = new LinkedHashMap<>();
     for (PCollectionNode outputPCollection : outputPCollections) {
-      TargetEncoding targetEncoding =
-          addStageOutput(dataEndpoint, components, outputPCollection);
+      TargetEncoding targetEncoding = addStageOutput(dataEndpoint, components, outputPCollection);
       outputTargetCoders.put(targetEncoding.getTarget(), targetEncoding.getCoder());
     }
     return outputTargetCoders;
   }
 
   private static RemoteInputDestination<WindowedValue<?>> addStageInput(
-      ApiServiceDescriptor dataEndpoint, PCollectionNode inputPCollection,
+      ApiServiceDescriptor dataEndpoint,
+      PCollectionNode inputPCollection,
       Components.Builder components)
       throws IOException {
     String inputWireCoderId = WireCoders.addSdkWireCoder(inputPCollection, components);
@@ -165,8 +168,7 @@ public class ProcessBundleDescriptors {
             .build();
     String inputId =
         uniqueId(
-            String.format("fn/read/%s", inputPCollection.getId()),
-            components::containsTransforms);
+            String.format("fn/read/%s", inputPCollection.getId()), components::containsTransforms);
     PTransform inputTransform =
         RemoteGrpcPortRead.readFromPort(inputPort, inputPCollection.getId()).toPTransform();
     components.putTransforms(inputId, inputTransform);
@@ -214,8 +216,7 @@ public class ProcessBundleDescriptors {
   }
 
   private static Map<String, Map<String, MultimapSideInputSpec>> addMultimapSideInputs(
-      ExecutableStage stage,
-      Components.Builder components) throws IOException {
+      ExecutableStage stage, Components.Builder components) throws IOException {
     ImmutableTable.Builder<String, String, MultimapSideInputSpec> idsToSpec =
         ImmutableTable.builder();
     for (SideInputReference sideInputReference : stage.getSideInputs()) {
@@ -269,9 +270,13 @@ public class ProcessBundleDescriptors {
     }
 
     public abstract String transformId();
+
     public abstract String sideInputId();
+
     public abstract Coder<K> keyCoder();
+
     public abstract Coder<V> valueCoder();
+
     public abstract Coder<W> windowCoder();
   }
 
@@ -284,8 +289,8 @@ public class ProcessBundleDescriptors {
         Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders,
         Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs) {
       ImmutableTable.Builder copyOfMultimapSideInputSpecs = ImmutableTable.builder();
-      for (Map.Entry<String, Map<String, MultimapSideInputSpec>> outer
-          : multimapSideInputSpecs.entrySet()) {
+      for (Map.Entry<String, Map<String, MultimapSideInputSpec>> outer :
+          multimapSideInputSpecs.entrySet()) {
         for (Map.Entry<String, MultimapSideInputSpec> inner : outer.getValue().entrySet()) {
           copyOfMultimapSideInputSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
         }
@@ -310,7 +315,6 @@ public class ProcessBundleDescriptors {
      * java {@link Coder} for the wire format of that {@link BeamFnApi.Target}.
      */
     public abstract Map<BeamFnApi.Target, Coder<WindowedValue<?>>> getOutputTargetCoders();
-
 
     /**
      * Get a mapping from PTransform id to multimap side input id to {@link MultimapSideInputSpec

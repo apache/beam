@@ -887,8 +887,7 @@ public class GreedyStageFuserTest {
     PTransformNode readNode = PipelineNode.pTransform("read", readTransform);
     PCollectionNode readOutput = getOnlyElement(p.getOutputPCollections(readNode));
     ExecutableStage subgraph =
-        GreedyStageFuser.forGrpcPortRead(
-            p, impulseOutputNode, ImmutableSet.of(readNode));
+        GreedyStageFuser.forGrpcPortRead(p, impulseOutputNode, ImmutableSet.of(readNode));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
     assertThat(subgraph, hasSubtransforms(readNode.getId()));
   }
@@ -1007,8 +1006,7 @@ public class GreedyStageFuserTest {
     PTransformNode readNode = PipelineNode.pTransform("read", readTransform);
     PCollectionNode readOutput = getOnlyElement(p.getOutputPCollections(readNode));
     ExecutableStage subgraph =
-        GreedyStageFuser.forGrpcPortRead(
-            p, impulseOutputNode, ImmutableSet.of(readNode));
+        GreedyStageFuser.forGrpcPortRead(p, impulseOutputNode, ImmutableSet.of(readNode));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
     assertThat(subgraph, hasSubtransforms(readNode.getId()));
   }
@@ -1019,19 +1017,20 @@ public class GreedyStageFuserTest {
       @Override
       protected boolean matchesSafely(ExecutableStage executableStage) {
         // NOTE: Transform names must be unique, so it's fine to throw here if this does not hold.
-        Set<String> stageTransforms = executableStage.getTransforms().stream()
-            .map(PTransformNode::getId)
-            .collect(Collectors.toSet());
+        Set<String> stageTransforms =
+            executableStage
+                .getTransforms()
+                .stream()
+                .map(PTransformNode::getId)
+                .collect(Collectors.toSet());
         return stageTransforms.containsAll(expectedTransforms)
             && expectedTransforms.containsAll(stageTransforms);
       }
 
       @Override
       public void describeTo(Description description) {
-        description.appendText(
-            "ExecutableStage with subtransform ids: " + expectedTransforms);
+        description.appendText("ExecutableStage with subtransform ids: " + expectedTransforms);
       }
     };
   }
-
 }

@@ -22,26 +22,29 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
- * This shared set of options is used so that the full suite of IO tests can be run in one pass -
- * if a test tries to read TestPipelineOptions, it must be able to understand all the options
- * that were passed on the command line.
+ * This shared set of options is used so that the full suite of IO tests can be run in one pass - if
+ * a test tries to read TestPipelineOptions, it must be able to understand all the options that were
+ * passed on the command line.
  */
 public interface IOTestPipelineOptions extends TestPipelineOptions {
   /* Elasticsearch */
   @Description("Server name for Elasticsearch server (host name/ip address)")
   @Default.String("elasticsearch-server-name")
   String getElasticsearchServer();
+
   void setElasticsearchServer(String value);
 
   @Description("Http port for elasticsearch server")
   @Default.Integer(9200)
   Integer getElasticsearchHttpPort();
+
   void setElasticsearchHttpPort(Integer value);
 
   /* Solr */
   @Description("Address of Zookeeper server for Solr")
   @Default.String("zookeeper-server")
   String getSolrZookeeperServer();
+
   void setSolrZookeeperServer(String value);
 
   /* Used by most IOIT */

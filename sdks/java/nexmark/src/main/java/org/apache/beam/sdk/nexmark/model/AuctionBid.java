@@ -30,38 +30,33 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.queries.WinningBids;
 
-/**
- * Result of {@link WinningBids} transform.
- */
+/** Result of {@link WinningBids} transform. */
 public class AuctionBid implements KnownSize, Serializable {
-  public static final Coder<AuctionBid> CODER = new CustomCoder<AuctionBid>() {
-    @Override
-    public void encode(AuctionBid value, OutputStream outStream)
-        throws CoderException, IOException {
-      Auction.CODER.encode(value.auction, outStream);
-      Bid.CODER.encode(value.bid, outStream);
-    }
+  public static final Coder<AuctionBid> CODER =
+      new CustomCoder<AuctionBid>() {
+        @Override
+        public void encode(AuctionBid value, OutputStream outStream)
+            throws CoderException, IOException {
+          Auction.CODER.encode(value.auction, outStream);
+          Bid.CODER.encode(value.bid, outStream);
+        }
 
-    @Override
-    public AuctionBid decode(
-        InputStream inStream)
-        throws CoderException, IOException {
-      Auction auction = Auction.CODER.decode(inStream);
-      Bid bid = Bid.CODER.decode(inStream);
-      return new AuctionBid(auction, bid);
-    }
+        @Override
+        public AuctionBid decode(InputStream inStream) throws CoderException, IOException {
+          Auction auction = Auction.CODER.decode(inStream);
+          Bid bid = Bid.CODER.decode(inStream);
+          return new AuctionBid(auction, bid);
+        }
 
-    @Override
-    public Object structuralValue(AuctionBid v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(AuctionBid v) {
+          return v;
+        }
+      };
 
-  @JsonProperty
-  public final Auction auction;
+  @JsonProperty public final Auction auction;
 
-  @JsonProperty
-  public final Bid bid;
+  @JsonProperty public final Bid bid;
 
   // For Avro only.
   @SuppressWarnings("unused")

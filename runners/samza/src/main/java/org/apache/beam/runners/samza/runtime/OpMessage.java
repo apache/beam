@@ -22,20 +22,23 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /**
- * Actual message type used in Samza {@link org.apache.samza.operators.StreamGraph}.
- * It contains either an element of main inputs or the collection results from a view
- * (used as side input).
+ * Actual message type used in Samza {@link org.apache.samza.operators.StreamGraph}. It contains
+ * either an element of main inputs or the collection results from a view (used as side input).
  */
 public class OpMessage<T> {
   /**
    * Type of the element(s) in the message.
    *
    * <ul>
-   * <li>ELEMENT    - an element from main inputs.
-   * <li>SIDE_INPUT - a collection of elements from a view.
+   *   <li>ELEMENT - an element from main inputs.
+   *   <li>SIDE_INPUT - a collection of elements from a view.
    * </ul>
    */
-  public enum Type { ELEMENT, SIDE_INPUT, SIDE_INPUT_WATERMARK }
+  public enum Type {
+    ELEMENT,
+    SIDE_INPUT,
+    SIDE_INPUT_WATERMARK
+  }
 
   private final Type type;
   private final WindowedValue<T> element;
@@ -48,8 +51,7 @@ public class OpMessage<T> {
   }
 
   public static <T, ElemT> OpMessage<T> ofSideInput(
-      String viewId,
-      WindowedValue<? extends Iterable<ElemT>> elements) {
+      String viewId, WindowedValue<? extends Iterable<ElemT>> elements) {
     return new OpMessage<>(Type.SIDE_INPUT, null, viewId, elements, null);
   }
 
@@ -57,11 +59,12 @@ public class OpMessage<T> {
     return new OpMessage<>(Type.SIDE_INPUT_WATERMARK, null, null, null, watermark);
   }
 
-  private OpMessage(Type type,
-                    WindowedValue<T> element,
-                    String viewId,
-                    WindowedValue<? extends Iterable<?>> viewElements,
-                    Instant sideInputWatermark) {
+  private OpMessage(
+      Type type,
+      WindowedValue<T> element,
+      String viewId,
+      WindowedValue<? extends Iterable<?>> viewElements,
+      Instant sideInputWatermark) {
     this.type = type;
     this.element = element;
     this.viewId = viewId;
@@ -95,11 +98,7 @@ public class OpMessage<T> {
   private void ensureType(Type type, String method) {
     if (this.type != type) {
       throw new IllegalStateException(
-          String.format(
-              "Calling %s requires type %s, but was type %s",
-              method,
-              type,
-              this.type));
+          String.format("Calling %s requires type %s, but was type %s", method, type, this.type));
     }
   }
 
@@ -119,15 +118,11 @@ public class OpMessage<T> {
       return false;
     }
 
-    if (element != null
-        ? !element.equals(opMessage.element)
-        : opMessage.element != null) {
+    if (element != null ? !element.equals(opMessage.element) : opMessage.element != null) {
       return false;
     }
 
-    if (viewId != null
-        ? !viewId.equals(opMessage.viewId)
-        : opMessage.viewId != null) {
+    if (viewId != null ? !viewId.equals(opMessage.viewId) : opMessage.viewId != null) {
       return false;
     }
 
@@ -148,10 +143,15 @@ public class OpMessage<T> {
   @Override
   public String toString() {
     return "OpMessage{"
-        + "type=" + type
-        + ", element=" + element
-        + ", viewId='" + viewId + '\''
-        + ", viewElements=" + viewElements
+        + "type="
+        + type
+        + ", element="
+        + element
+        + ", viewId='"
+        + viewId
+        + '\''
+        + ", viewElements="
+        + viewElements
         + '}';
   }
 }

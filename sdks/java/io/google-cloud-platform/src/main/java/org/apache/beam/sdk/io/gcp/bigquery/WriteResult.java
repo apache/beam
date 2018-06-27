@@ -28,9 +28,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * The result of a {@link BigQueryIO.Write} transform.
- */
+/** The result of a {@link BigQueryIO.Write} transform. */
 public final class WriteResult implements POutput {
   private final Pipeline pipeline;
   private final TupleTag<TableRow> failedInsertsTag;

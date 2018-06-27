@@ -117,8 +117,7 @@ public class JAXBCoderTest {
     TestCoder nesting = new TestCoder(jaxbCoder);
 
     byte[] encoded = CoderUtils.encodeToByteArray(nesting, new TestType("abc", 9999));
-    assertEquals(
-        new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
+    assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
   }
 
   @Test
@@ -165,24 +164,21 @@ public class JAXBCoderTest {
     }
   }
 
-  /**
-   * A coder that surrounds the value with two values, to demonstrate nesting.
-   */
+  /** A coder that surrounds the value with two values, to demonstrate nesting. */
   private static class TestCoder extends StructuredCoder<TestType> {
     private final JAXBCoder<TestType> jaxbCoder;
+
     TestCoder(JAXBCoder<TestType> jaxbCoder) {
       this.jaxbCoder = jaxbCoder;
     }
 
     @Override
-    public void encode(TestType value, OutputStream outStream)
-        throws IOException {
+    public void encode(TestType value, OutputStream outStream) throws IOException {
       encode(value, outStream, Context.NESTED);
     }
 
     @Override
-    public void encode(TestType value, OutputStream outStream, Context context)
-        throws IOException {
+    public void encode(TestType value, OutputStream outStream, Context context) throws IOException {
       VarIntCoder.of().encode(3, outStream);
       jaxbCoder.encode(value, outStream);
       VarLongCoder.of().encode(22L, outStream, context);
@@ -194,8 +190,7 @@ public class JAXBCoderTest {
     }
 
     @Override
-    public TestType decode(InputStream inStream, Context context)
-        throws IOException {
+    public TestType decode(InputStream inStream, Context context) throws IOException {
       VarIntCoder.of().decode(inStream);
       TestType result = jaxbCoder.decode(inStream);
       VarLongCoder.of().decode(inStream, context);

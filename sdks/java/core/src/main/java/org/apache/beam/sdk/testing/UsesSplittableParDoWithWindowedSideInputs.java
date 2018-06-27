@@ -20,7 +20,7 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.transforms.ParDo;
 
 /**
- * Category tag for validation tests which utilize splittable {@link ParDo} and use
- * windowed side inputs.
+ * Category tag for validation tests which utilize splittable {@link ParDo} and use windowed side
+ * inputs.
  */
 public interface UsesSplittableParDoWithWindowedSideInputs {}

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Spark-specific transforms for I/O.
- */
+/** Spark-specific transforms for I/O. */
 package org.apache.beam.runners.spark.io;

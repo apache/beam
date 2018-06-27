@@ -22,8 +22,8 @@ import java.util.Arrays;
 import org.apache.beam.runners.core.TimerInternals;
 
 /**
- * {@link TimerInternals.TimerData} with key, used by {@link SamzaTimerInternalsFactory}.
- * Implements {@link Comparable} by first comparing the wrapped TimerData then the key.
+ * {@link TimerInternals.TimerData} with key, used by {@link SamzaTimerInternalsFactory}. Implements
+ * {@link Comparable} by first comparing the wrapped TimerData then the key.
  */
 public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   private final byte[] keyBytes;
@@ -47,7 +47,6 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   public TimerInternals.TimerData getTimerData() {
     return timerData;
   }
-
 
   @Override
   public int compareTo(KeyedTimerData<K> other) {
@@ -95,8 +94,7 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
 
     final KeyedTimerData<?> that = (KeyedTimerData<?>) o;
 
-    return Arrays.equals(keyBytes, that.keyBytes)
-        && timerData.equals(that.timerData);
+    return Arrays.equals(keyBytes, that.keyBytes) && timerData.equals(that.timerData);
   }
 
   @Override

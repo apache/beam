@@ -28,10 +28,10 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 /**
  * Tracks the current value (and delta) for a {@link Gauge} metric.
  *
- * <p>This class generally shouldn't be used directly. The only exception is within a runner where
- * a gauge is being reported for a specific step (rather than the gauge in the current
- * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
- * of indirection.
+ * <p>This class generally shouldn't be used directly. The only exception is within a runner where a
+ * gauge is being reported for a specific step (rather than the gauge in the current context). In
+ * that case retrieving the underlying cell and reporting directly to it avoids a step of
+ * indirection.
  */
 @Experimental(Experimental.Kind.METRICS)
 public class GaugeCell implements Gauge, MetricCell<GaugeData> {
@@ -41,9 +41,9 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   private final MetricName name;
 
   /**
-   * Generally, runners should construct instances using the methods in
-   * {@link MetricsContainerImpl}, unless they need to define their own version of
-   * {@link MetricsContainer}. These constructors are *only* public so runners can instantiate.
+   * Generally, runners should construct instances using the methods in {@link
+   * MetricsContainerImpl}, unless they need to define their own version of {@link
+   * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
   @Internal
   public GaugeCell(MetricName name) {

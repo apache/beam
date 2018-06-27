@@ -19,12 +19,11 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.io.DataInputStream;
 
-/**
- * This interface is used to restore key-groups state.
- */
+/** This interface is used to restore key-groups state. */
 public interface KeyGroupRestoringOperator {
   /**
    * Restore the state for a given {@code keyGroupIndex}.
+   *
    * @param keyGroupIndex the id of the key-group to be put in the snapshot.
    * @param in the stream to read from.
    */

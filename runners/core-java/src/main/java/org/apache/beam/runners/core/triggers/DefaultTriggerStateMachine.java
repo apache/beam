@@ -32,9 +32,7 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
     super(null);
   }
 
-  /**
-   * Returns the default trigger.
-   */
+  /** Returns the default trigger. */
   public static DefaultTriggerStateMachine of() {
     return new DefaultTriggerStateMachine();
   }
@@ -58,7 +56,7 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void clear(TriggerContext c) throws Exception { }
+  public void clear(TriggerContext c) throws Exception {}
 
   @Override
   public boolean isCompatible(TriggerStateMachine other) {
@@ -77,5 +75,5 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void onFire(TriggerStateMachine.TriggerContext context) throws Exception { }
+  public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {}
 }

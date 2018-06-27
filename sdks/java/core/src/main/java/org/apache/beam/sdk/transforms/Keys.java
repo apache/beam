@@ -21,48 +21,48 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@code Keys<K>} takes a {@code PCollection} of {@code KV<K, V>}s and
- * returns a {@code PCollection<K>} of the keys.
+ * {@code Keys<K>} takes a {@code PCollection} of {@code KV<K, V>}s and returns a {@code
+ * PCollection<K>} of the keys.
  *
  * <p>Example of use:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<KV<String, Long>> wordCounts = ...;
  * PCollection<String> words = wordCounts.apply(Keys.<String>create());
- * } </pre>
+ * }</pre>
  *
- * <p>Each output element has the same timestamp and is in the same windows
- * as its corresponding input element, and the output {@code PCollection}
- * has the same
- * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
- * associated with it as the input.
+ * <p>Each output element has the same timestamp and is in the same windows as its corresponding
+ * input element, and the output {@code PCollection} has the same {@link
+ * org.apache.beam.sdk.transforms.windowing.WindowFn} associated with it as the input.
  *
  * <p>See also {@link Values}.
  *
- * @param <K> the type of the keys in the input {@code PCollection},
- * and the type of the elements in the output {@code PCollection}
+ * @param <K> the type of the keys in the input {@code PCollection}, and the type of the elements in
+ *     the output {@code PCollection}
  */
-public class Keys<K> extends PTransform<PCollection<? extends KV<K, ?>>,
-                                        PCollection<K>> {
+public class Keys<K> extends PTransform<PCollection<? extends KV<K, ?>>, PCollection<K>> {
   /**
    * Returns a {@code Keys<K>} {@code PTransform}.
    *
-   * @param <K> the type of the keys in the input {@code PCollection},
-   * and the type of the elements in the output {@code PCollection}
+   * @param <K> the type of the keys in the input {@code PCollection}, and the type of the elements
+   *     in the output {@code PCollection}
    */
   public static <K> Keys<K> create() {
     return new Keys<>();
   }
 
-  private Keys() { }
+  private Keys() {}
 
   @Override
   public PCollection<K> expand(PCollection<? extends KV<K, ?>> in) {
-    return
-        in.apply("Keys", MapElements.via(new SimpleFunction<KV<K, ?>, K>() {
-          @Override
-          public K apply(KV<K, ?> kv) {
-            return kv.getKey();
-          }
-        }));
+    return in.apply(
+        "Keys",
+        MapElements.via(
+            new SimpleFunction<KV<K, ?>, K>() {
+              @Override
+              public K apply(KV<K, ?> kv) {
+                return kv.getKey();
+              }
+            }));
   }
 }

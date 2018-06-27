@@ -33,7 +33,8 @@ class SamzaAssignContext<InT, W extends BoundedWindow> extends WindowFn<InT, W>.
 
     if (value.getWindows().size() != 1) {
       throw new IllegalArgumentException(
-          String.format("Only single windowed value allowed for assignment. Windows: %s",
+          String.format(
+              "Only single windowed value allowed for assignment. Windows: %s",
               value.getWindows()));
     }
   }

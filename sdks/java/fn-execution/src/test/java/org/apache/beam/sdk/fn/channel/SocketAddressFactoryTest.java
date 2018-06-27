@@ -48,8 +48,8 @@ public class SocketAddressFactoryTest {
   @Test
   public void testDomainSocket() throws Exception {
     File tmpFile = tmpFolder.newFile();
-    SocketAddress socketAddress = SocketAddressFactory.createFrom(
-        "unix://" + tmpFile.getAbsolutePath());
+    SocketAddress socketAddress =
+        SocketAddressFactory.createFrom("unix://" + tmpFile.getAbsolutePath());
     assertThat(socketAddress, Matchers.instanceOf(DomainSocketAddress.class));
     assertEquals(tmpFile.getAbsolutePath(), ((DomainSocketAddress) socketAddress).path());
   }

@@ -35,9 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link MetricsMap}.
- */
+/** Tests for {@link MetricsMap}. */
 @RunWith(JUnit4.class)
 public class MetricsMapTest {
 
@@ -72,9 +70,8 @@ public class MetricsMapTest {
   public void testGetEntries() {
     AtomicLong foo = metricsMap.get("foo");
     AtomicLong bar = metricsMap.get("bar");
-    assertThat(metricsMap.entries(), containsInAnyOrder(
-        hasEntry("foo", foo),
-        hasEntry("bar", bar)));
+    assertThat(
+        metricsMap.entries(), containsInAnyOrder(hasEntry("foo", foo), hasEntry("bar", bar)));
   }
 
   private static Matcher<Map.Entry<String, AtomicLong>> hasEntry(
@@ -84,15 +81,16 @@ public class MetricsMapTest {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("Map.Entry{key=").appendValue(key)
-            .appendText(", value=").appendValue(value)
+            .appendText("Map.Entry{key=")
+            .appendValue(key)
+            .appendText(", value=")
+            .appendValue(value)
             .appendText("}");
       }
 
       @Override
       protected boolean matchesSafely(Entry<String, AtomicLong> item) {
-        return Objects.equals(key, item.getKey())
-            && Objects.equals(value, item.getValue());
+        return Objects.equals(key, item.getKey()) && Objects.equals(value, item.getValue());
       }
     };
   }

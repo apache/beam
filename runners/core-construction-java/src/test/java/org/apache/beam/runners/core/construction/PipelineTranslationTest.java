@@ -106,8 +106,7 @@ public class PipelineTranslationTest {
   @Test
   public void testProtoDirectly() {
     final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    pipeline.traverseTopologically(
-        new PipelineProtoVerificationVisitor(pipelineProto));
+    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto));
   }
 
   @Test
@@ -115,8 +114,7 @@ public class PipelineTranslationTest {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
     Pipeline rehydrated = PipelineTranslation.fromProto(pipelineProto);
 
-    rehydrated.traverseTopologically(
-        new PipelineProtoVerificationVisitor(pipelineProto));
+    rehydrated.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto));
   }
 
   private static class PipelineProtoVerificationVisitor extends PipelineVisitor.Defaults {

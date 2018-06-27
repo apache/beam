@@ -60,13 +60,12 @@ public final class PeekingReiterator<T> implements Reiterator<T> {
   /**
    * {@inheritDoc}
    *
-   * <p>If {@link #peek} is called, {@code remove} is disallowed until
-   * {@link #next} has been subsequently called.
+   * <p>If {@link #peek} is called, {@code remove} is disallowed until {@link #next} has been
+   * subsequently called.
    */
   @Override
   public void remove() {
-    checkState(!nextElementComputed,
-        "After peek(), remove() is disallowed until next() is called");
+    checkState(!nextElementComputed, "After peek(), remove() is disallowed until next() is called");
     iterator.remove();
   }
 
@@ -76,8 +75,9 @@ public final class PeekingReiterator<T> implements Reiterator<T> {
   }
 
   /**
-   * Returns the element that would be returned by {@link #next}, without
-   * actually consuming the element.
+   * Returns the element that would be returned by {@link #next}, without actually consuming the
+   * element.
+   *
    * @throws NoSuchElementException if there is no next element
    */
   public T peek() {

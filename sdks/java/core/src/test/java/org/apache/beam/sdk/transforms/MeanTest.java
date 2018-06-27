@@ -31,9 +31,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Mean.
- */
+/** Tests for Mean. */
 @RunWith(JUnit4.class)
 public class MeanTest {
 
@@ -45,10 +43,8 @@ public class MeanTest {
 
   private static final Coder<CountSum<Number>> TEST_CODER = new CountSumCoder<>();
 
-  private static final List<CountSum<Number>> TEST_VALUES = Arrays.asList(
-      new CountSum<>(1, 5.7),
-      new CountSum<>(42, 42.0),
-      new CountSum<>(29, 2.2));
+  private static final List<CountSum<Number>> TEST_VALUES =
+      Arrays.asList(new CountSum<>(1, 5.7), new CountSum<>(42, 42.0), new CountSum<>(29, 2.2));
 
   @Test
   public void testCountSumCoderEncodeDecode() throws Exception {

@@ -21,13 +21,11 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Sets;
 
-/**
- * Utilities for pipeline translation.
- */
+/** Utilities for pipeline translation. */
 public final class FlinkPipelineTranslatorUtils {
   private FlinkPipelineTranslatorUtils() {}
 
-  /**  Creates a mapping from PCollection id to output tag integer. */
+  /** Creates a mapping from PCollection id to output tag integer. */
   public static BiMap<String, Integer> createOutputMap(Iterable<String> localOutputs) {
     ImmutableBiMap.Builder<String, Integer> builder = ImmutableBiMap.builder();
     int outputIndex = 0;
@@ -38,5 +36,4 @@ public final class FlinkPipelineTranslatorUtils {
     }
     return builder.build();
   }
-
 }

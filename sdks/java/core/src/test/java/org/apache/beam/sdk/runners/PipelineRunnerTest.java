@@ -45,9 +45,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PipelineRunner}.
- */
+/** Tests for {@link PipelineRunner}. */
 @RunWith(JUnit4.class)
 public class PipelineRunnerTest {
   @Test
@@ -58,8 +56,7 @@ public class PipelineRunnerTest {
     assertTrue(runner instanceof CrashingRunner);
   }
 
-  private static class ScaleFn<T extends Number>
-      extends SimpleFunction<T, Double> {
+  private static class ScaleFn<T extends Number> extends SimpleFunction<T, Double> {
 
     private final double scalar;
     private final Counter counter;
@@ -98,12 +95,13 @@ public class PipelineRunnerTest {
 
     // Checking counters to verify the pipeline actually ran.
     assertThat(
-        result.metrics().queryMetrics(
-            MetricsFilter.builder()
-                .addNameFilter(MetricNameFilter.inNamespace(namespace))
-                .build()
-        ).getCounters(),
-        hasItem(metricsResult(namespace, "count", "ScaleByTwo", 4L, true))
-    );
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.inNamespace(namespace))
+                    .build())
+            .getCounters(),
+        hasItem(metricsResult(namespace, "count", "ScaleByTwo", 4L, true)));
   }
 }

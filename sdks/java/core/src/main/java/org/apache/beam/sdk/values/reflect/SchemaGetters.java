@@ -23,8 +23,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Helper class to hold {@link Schema} and {@link FieldValueGetter}s which were used to
- * create it.
+ * Helper class to hold {@link Schema} and {@link FieldValueGetter}s which were used to create it.
  *
  * <p>This is used in {@link RowFactory} to create instances of {@link Row}s.
  */
@@ -37,16 +36,14 @@ class SchemaGetters {
     this.fieldValueGetters = fieldValueGetters;
   }
 
-  /**
-   * Returns a {@link Schema}.
-   */
+  /** Returns a {@link Schema}. */
   Schema schema() {
     return schema;
   }
 
   /**
-   * Returns the list of {@link FieldValueGetter}s which
-   * were used to create {@link SchemaGetters#schema()}.
+   * Returns the list of {@link FieldValueGetter}s which were used to create {@link
+   * SchemaGetters#schema()}.
    */
   List<FieldValueGetter> valueGetters() {
     return fieldValueGetters;

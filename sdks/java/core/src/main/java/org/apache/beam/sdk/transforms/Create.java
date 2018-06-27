@@ -63,12 +63,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
 /**
- * {@code Create<T>} takes a collection of elements of type {@code T}
- * known when the pipeline is constructed and returns a
- * {@code PCollection<T>} containing the elements.
+ * {@code Create<T>} takes a collection of elements of type {@code T} known when the pipeline is
+ * constructed and returns a {@code PCollection<T>} containing the elements.
  *
  * <p>Example of use:
- * <pre> {@code
+ *
+ * <pre>{@code
  * Pipeline p = ...;
  *
  * PCollection<Integer> pc = p.apply(Create.of(3, 4, 5).withCoder(BigEndianIntegerCoder.of()));
@@ -78,19 +78,17 @@ import org.joda.time.Instant;
  *     p.apply(Create.of(map)
  *      .withCoder(KvCoder.of(StringUtf8Coder.of(),
  *                            BigEndianIntegerCoder.of())));
- * } </pre>
+ * }</pre>
  *
- * <p>{@code Create} can automatically determine the {@code Coder} to use
- * if all elements have the same run-time class, and a default coder is registered for that
- * class. See {@link CoderRegistry} for details on how defaults are determined.
+ * <p>{@code Create} can automatically determine the {@code Coder} to use if all elements have the
+ * same run-time class, and a default coder is registered for that class. See {@link CoderRegistry}
+ * for details on how defaults are determined.
  *
- * <p>If a coder can not be inferred, {@link Create.Values#withCoder} must be called
- * explicitly to set the encoding of the resulting
- * {@code PCollection}.
+ * <p>If a coder can not be inferred, {@link Create.Values#withCoder} must be called explicitly to
+ * set the encoding of the resulting {@code PCollection}.
  *
- * <p>A good use for {@code Create} is when a {@code PCollection}
- * needs to be created without dependencies on files or other external
- * entities.  This is especially useful during testing.
+ * <p>A good use for {@code Create} is when a {@code PCollection} needs to be created without
+ * dependencies on files or other external entities. This is especially useful during testing.
  *
  * <p>Caveat: {@code Create} only supports small in-memory datasets.
  *
@@ -99,9 +97,8 @@ import org.joda.time.Instant;
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class Create<T> {
   /**
-   * Returns a new {@code Create.Values} transform that produces a
-   * {@link PCollection} containing elements of the provided
-   * {@code Iterable}.
+   * Returns a new {@code Create.Values} transform that produces a {@link PCollection} containing
+   * elements of the provided {@code Iterable}.
    *
    * <p>The argument should not be modified after this is called.
    *
@@ -109,10 +106,9 @@ public class Create<T> {
    * see {@link Create#timestamped} for a way of creating a {@code PCollection} with timestamped
    * elements.
    *
-   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-   * if all elements have the same non-parameterized run-time class, and a default coder is
-   * registered for that class. See {@link CoderRegistry} for details on how defaults are
-   * determined.
+   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
+   * all elements have the same non-parameterized run-time class, and a default coder is registered
+   * for that class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <T> Values<T> of(Iterable<T> elems) {
@@ -120,19 +116,17 @@ public class Create<T> {
   }
 
   /**
-   * Returns a new {@code Create.Values} transform that produces a
-   * {@link PCollection} containing the specified elements.
+   * Returns a new {@code Create.Values} transform that produces a {@link PCollection} containing
+   * the specified elements.
    *
-   * <p>The elements will have a timestamp of negative infinity, see
-   * {@link Create#timestamped} for a way of creating a {@code PCollection}
-   * with timestamped elements.
+   * <p>The elements will have a timestamp of negative infinity, see {@link Create#timestamped} for
+   * a way of creating a {@code PCollection} with timestamped elements.
    *
    * <p>The arguments should not be modified after this is called.
    *
-   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-   * if all elements have the same non-parameterized run-time class, and a default coder is
-   * registered for that class. See {@link CoderRegistry} for details on how defaults are
-   * determined.
+   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
+   * all elements have the same non-parameterized run-time class, and a default coder is registered
+   * for that class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   @SafeVarargs
@@ -145,50 +139,42 @@ public class Create<T> {
   }
 
   /**
-   * Returns a new {@code Create.Values} transform that produces
-   * an empty {@link PCollection}.
+   * Returns a new {@code Create.Values} transform that produces an empty {@link PCollection}.
    *
-   * <p>The elements will have a timestamp of negative infinity, see
-   * {@link Create#timestamped} for a way of creating a {@code PCollection}
-   * with timestamped elements.
+   * <p>The elements will have a timestamp of negative infinity, see {@link Create#timestamped} for
+   * a way of creating a {@code PCollection} with timestamped elements.
    *
-   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
-   * Instead, the {@code Coder} is provided via the {@code coder} argument.
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined. Instead,
+   * the {@code Coder} is provided via the {@code coder} argument.
    */
   public static <T> Values<T> empty(Coder<T> coder) {
     return new Values<>(new ArrayList<>(), Optional.of(coder), Optional.absent());
   }
 
   /**
-   * Returns a new {@code Create.Values} transform that produces
-   * an empty {@link PCollection}.
+   * Returns a new {@code Create.Values} transform that produces an empty {@link PCollection}.
    *
-   * <p>The elements will have a timestamp of negative infinity, see
-   * {@link Create#timestamped} for a way of creating a {@code PCollection}
-   * with timestamped elements.
+   * <p>The elements will have a timestamp of negative infinity, see {@link Create#timestamped} for
+   * a way of creating a {@code PCollection} with timestamped elements.
    *
-   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
-   * Instead, the {@code Coder} is determined from given {@code TypeDescriptor<T>}.
-   * Note that a default coder must be registered for the class described in the
-   * {@code TypeDescriptor<T>}.
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined. Instead,
+   * the {@code Coder} is determined from given {@code TypeDescriptor<T>}. Note that a default coder
+   * must be registered for the class described in the {@code TypeDescriptor<T>}.
    */
   public static <T> Values<T> empty(TypeDescriptor<T> type) {
     return new Values<>(new ArrayList<>(), Optional.absent(), Optional.of(type));
   }
 
   /**
-   * Returns a new {@code Create.Values} transform that produces a
-   * {@link PCollection} of {@link KV}s corresponding to the keys and
-   * values of the specified {@code Map}.
+   * Returns a new {@code Create.Values} transform that produces a {@link PCollection} of {@link
+   * KV}s corresponding to the keys and values of the specified {@code Map}.
    *
-   * <p>The elements will have a timestamp of negative infinity, see
-   * {@link Create#timestamped} for a way of creating a {@code PCollection}
-   * with timestamped elements.
+   * <p>The elements will have a timestamp of negative infinity, see {@link Create#timestamped} for
+   * a way of creating a {@code PCollection} with timestamped elements.
    *
-   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-   * if all elements have the same non-parameterized run-time class, and a default coder is
-   * registered for that class. See {@link CoderRegistry} for details on how defaults are
-   * determined.
+   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
+   * all elements have the same non-parameterized run-time class, and a default coder is registered
+   * for that class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <K, V> Values<KV<K, V>> of(Map<K, V> elems) {
@@ -200,25 +186,24 @@ public class Create<T> {
   }
 
   /**
-   * Returns an {@link OfValueProvider} transform that produces a {@link PCollection}
-   * of a single element provided by the given {@link ValueProvider}.
+   * Returns an {@link OfValueProvider} transform that produces a {@link PCollection} of a single
+   * element provided by the given {@link ValueProvider}.
    */
   public static <T> OfValueProvider<T> ofProvider(ValueProvider<T> provider, Coder<T> coder) {
     return new OfValueProvider<>(provider, coder);
   }
 
   /**
-   * Returns a new {@link Create.TimestampedValues} transform that produces a
-   * {@link PCollection} containing the elements of the provided {@code Iterable}
-   * with the specified timestamps.
+   * Returns a new {@link Create.TimestampedValues} transform that produces a {@link PCollection}
+   * containing the elements of the provided {@code Iterable} with the specified timestamps.
    *
    * <p>The argument should not be modified after this is called.
    *
    * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
    * to use if all elements have the same non-parameterized run-time class, and a default coder is
    * registered for that class. See {@link CoderRegistry} for details on how defaults are
-   * determined.
-   * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
+   * determined. Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder
+   * explicitly.
    */
   public static <T> TimestampedValues<T> timestamped(Iterable<TimestampedValue<T>> elems) {
     return new TimestampedValues<>(elems, Optional.absent(), Optional.absent());
@@ -237,19 +222,18 @@ public class Create<T> {
   }
 
   /**
-   * Returns a new root transform that produces a {@link PCollection} containing
-   * the specified elements with the specified timestamps.
+   * Returns a new root transform that produces a {@link PCollection} containing the specified
+   * elements with the specified timestamps.
    *
    * <p>The arguments should not be modified after this is called.
    *
    * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
-   * to use if all elements have the same non-parameterized run-time class, and a default coder
-   * is registered for that class. See {@link CoderRegistry} for details on how defaults are
-   * determined.
-   * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
-
-   * @throws IllegalArgumentException if there are a different number of values
-   * and timestamps
+   * to use if all elements have the same non-parameterized run-time class, and a default coder is
+   * registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined. Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder
+   * explicitly.
+   *
+   * @throws IllegalArgumentException if there are a different number of values and timestamps
    */
   public static <T> TimestampedValues<T> timestamped(
       Iterable<T> values, Iterable<Long> timestamps) {
@@ -267,17 +251,14 @@ public class Create<T> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@code PTransform} that creates a {@code PCollection} from a set of in-memory objects.
-   */
+  /** A {@code PTransform} that creates a {@code PCollection} from a set of in-memory objects. */
   public static class Values<T> extends PTransform<PBegin, PCollection<T>> {
     /**
-     * Returns a {@link Create.Values} PTransform like this one that uses the given
-     * {@code Coder<T>} to decode each of the objects into a
-     * value of type {@code T}.
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Coder<T>}
+     * to decode each of the objects into a value of type {@code T}.
      *
-     * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-     * if all elements have the same non-parameterized run-time class, and a default coder is
+     * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
+     * all elements have the same non-parameterized run-time class, and a default coder is
      * registered for that class. See {@link CoderRegistry} for details on how defaults are
      * determined.
      *
@@ -288,13 +269,13 @@ public class Create<T> {
     }
 
     /**
-     * Returns a {@link Create.Values} PTransform like this one that uses the given
-     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
-     * objects into a value of type {@code T}. Note that a default coder must be registered for the
-     * class described in the {@code TypeDescriptor<T>}.
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code
+     * TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects into a
+     * value of type {@code T}. Note that a default coder must be registered for the class described
+     * in the {@code TypeDescriptor<T>}.
      *
-     * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-     * if all elements have the same non-parameterized run-time class, and a default coder is
+     * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
+     * all elements have the same non-parameterized run-time class, and a default coder is
      * registered for that class. See {@link CoderRegistry} for details on how defaults are
      * determined.
      *
@@ -320,8 +301,10 @@ public class Create<T> {
                     ? registry.getCoder(typeDescriptor.get())
                     : getDefaultCreateCoder(registry, elems);
       } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
-            + "Please set a coder by invoking Create.withCoder() explicitly.", e);
+        throw new IllegalArgumentException(
+            "Unable to infer a coder and no Coder was specified. "
+                + "Please set a coder by invoking Create.withCoder() explicitly.",
+            e);
       }
       try {
         CreateSource<T> source = CreateSource.fromIterable(elems, coder);
@@ -344,15 +327,13 @@ public class Create<T> {
     private final transient Optional<TypeDescriptor<T>> typeDescriptor;
 
     /**
-     * Constructs a {@code Create.Values} transform that produces a
-     * {@link PCollection} containing the specified elements.
+     * Constructs a {@code Create.Values} transform that produces a {@link PCollection} containing
+     * the specified elements.
      *
      * <p>The arguments should not be modified after this is called.
      */
     private Values(
-        Iterable<T> elems,
-        Optional<Coder<T>> coder,
-        Optional<TypeDescriptor<T>> typeDescriptor) {
+        Iterable<T> elems, Optional<Coder<T>> coder, Optional<TypeDescriptor<T>> typeDescriptor) {
       this.elems = elems;
       this.coder = coder;
       this.typeDescriptor = typeDescriptor;
@@ -516,22 +497,21 @@ public class Create<T> {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@code PTransform} that creates a {@code PCollection} whose elements have
-   * associated timestamps.
+   * A {@code PTransform} that creates a {@code PCollection} whose elements have associated
+   * timestamps.
    */
-  public static class TimestampedValues<T> extends PTransform<PBegin, PCollection<T>>{
+  public static class TimestampedValues<T> extends PTransform<PBegin, PCollection<T>> {
     /**
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
-     * {@code Coder<T>} to decode each of the objects into a
-     * value of type {@code T}.
+     * {@code Coder<T>} to decode each of the objects into a value of type {@code T}.
      *
-     * <p>By default, {@code Create.TimestampedValues} can automatically determine the
-     * {@code Coder} to use if all elements have the same non-parameterized run-time class,
-     * and a default coder is registered for that class. See {@link CoderRegistry} for details
-     * on how defaults are determined.
+     * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
+     * to use if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
      *
-     * <p>Note that for {@link Create.TimestampedValues with no elements}, the {@link VoidCoder}
-     * is used.
+     * <p>Note that for {@link Create.TimestampedValues with no elements}, the {@link VoidCoder} is
+     * used.
      */
     public TimestampedValues<T> withCoder(Coder<T> coder) {
       return new TimestampedValues<>(timestampedElements, Optional.of(coder), typeDescriptor);
@@ -539,9 +519,9 @@ public class Create<T> {
 
     /**
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
-     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
-     * objects into a value of type {@code T}. Note that a default coder must be registered for the
-     * class described in the {@code TypeDescriptor<T>}.
+     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects
+     * into a value of type {@code T}. Note that a default coder must be registered for the class
+     * described in the {@code TypeDescriptor<T>}.
      *
      * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
      * to use if all elements have the same non-parameterized run-time class, and a default coder is
@@ -569,15 +549,18 @@ public class Create<T> {
           coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
         }
 
-        PCollection<TimestampedValue<T>> intermediate = Pipeline.applyTransform(input,
-            Create.of(timestampedElements).withCoder(TimestampedValueCoder.of(coder)));
+        PCollection<TimestampedValue<T>> intermediate =
+            Pipeline.applyTransform(
+                input, Create.of(timestampedElements).withCoder(TimestampedValueCoder.of(coder)));
 
         PCollection<T> output = intermediate.apply(ParDo.of(new ConvertTimestamps<>()));
         output.setCoder(coder);
         return output;
       } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
-            + "Please set a coder by invoking CreateTimestamped.withCoder() explicitly.", e);
+        throw new IllegalArgumentException(
+            "Unable to infer a coder and no Coder was specified. "
+                + "Please set a coder by invoking CreateTimestamped.withCoder() explicitly.",
+            e);
       }
     }
 
@@ -614,9 +597,9 @@ public class Create<T> {
     checkArgument(
         !Iterables.isEmpty(elems),
         "Can not determine a default Coder for a 'Create' PTransform that "
-        + "has no elements.  Either add elements, call Create.empty(Coder),"
-        + " Create.empty(TypeDescriptor), or call 'withCoder(Coder)' or "
-        + "'withType(TypeDescriptor)' on the PTransform.");
+            + "has no elements.  Either add elements, call Create.empty(Coder),"
+            + " Create.empty(TypeDescriptor), or call 'withCoder(Coder)' or "
+            + "'withType(TypeDescriptor)' on the PTransform.");
     // First try to deduce a coder using the types of the elements.
     Class<?> elementClazz = Void.class;
     for (T elem : elems) {
@@ -653,8 +636,8 @@ public class Create<T> {
    * Attempts to infer the {@link Coder} of the elements ensuring that the returned coder is
    * equivalent for all elements.
    */
-  private static Coder<?> inferCoderFromObjects(
-      CoderRegistry registry, Iterable<?> elems) throws CannotProvideCoderException {
+  private static Coder<?> inferCoderFromObjects(CoderRegistry registry, Iterable<?> elems)
+      throws CannotProvideCoderException {
     Optional<Coder<?>> coder = Optional.absent();
     for (Object elem : elems) {
       Coder<?> c = inferCoderFromObject(registry, elem);
@@ -673,18 +656,19 @@ public class Create<T> {
       return coder.get();
     }
 
-    throw new CannotProvideCoderException("Cannot provide coder for elements of "
-        + Create.class.getSimpleName()
-        + ":"
-        + " For their common class, no coder could be provided."
-        + " Based on their values, no coder could be inferred.");
+    throw new CannotProvideCoderException(
+        "Cannot provide coder for elements of "
+            + Create.class.getSimpleName()
+            + ":"
+            + " For their common class, no coder could be provided."
+            + " Based on their values, no coder could be inferred.");
   }
 
   /**
    * Attempt to infer the type for some very common Apache Beam parameterized types.
    *
-   * <p>TODO: Instead, build a TypeDescriptor so that the {@link CoderRegistry} is invoked
-   * for the type instead of hard coding the coders for common types.
+   * <p>TODO: Instead, build a TypeDescriptor so that the {@link CoderRegistry} is invoked for the
+   * type instead of hard coding the coders for common types.
    */
   private static Coder<?> inferCoderFromObject(CoderRegistry registry, Object o)
       throws CannotProvideCoderException {

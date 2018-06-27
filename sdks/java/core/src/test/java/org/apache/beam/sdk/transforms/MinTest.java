@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-
 import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -29,9 +28,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Min.
- */
+/** Tests for Min. */
 @RunWith(JUnit4.class)
 public class MinTest {
   @Test
@@ -43,28 +40,20 @@ public class MinTest {
     assertEquals("Combine.perKey(MinDouble)", Min.doublesPerKey().getName());
     assertEquals("Combine.perKey(MinLong)", Min.longsPerKey().getName());
   }
+
   @Test
   public void testMinIntegerFn() {
-    testCombineFn(
-        Min.ofIntegers(),
-        Lists.newArrayList(1, 2, 3, 4),
-        1);
+    testCombineFn(Min.ofIntegers(), Lists.newArrayList(1, 2, 3, 4), 1);
   }
 
   @Test
   public void testMinLongFn() {
-    testCombineFn(
-        Min.ofLongs(),
-        Lists.newArrayList(1L, 2L, 3L, 4L),
-        1L);
+    testCombineFn(Min.ofLongs(), Lists.newArrayList(1L, 2L, 3L, 4L), 1L);
   }
 
   @Test
   public void testMinDoubleFn() {
-    testCombineFn(
-        Min.ofDoubles(),
-        Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
-        1.0);
+    testCombineFn(Min.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, 4.0), 1.0);
   }
 
   @Test

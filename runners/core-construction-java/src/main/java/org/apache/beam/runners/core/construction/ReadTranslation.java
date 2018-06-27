@@ -59,8 +59,7 @@ public class ReadTranslation {
         .build();
   }
 
-  public static ReadPayload toProto(
-      Unbounded<?> read, SdkComponents components) {
+  public static ReadPayload toProto(Unbounded<?> read, SdkComponents components) {
     return ReadPayload.newBuilder()
         .setIsBounded(IsBounded.Enum.UNBOUNDED)
         .setSource(toProto(read.getSource(), components))

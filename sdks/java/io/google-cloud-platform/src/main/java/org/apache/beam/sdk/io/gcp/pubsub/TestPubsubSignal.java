@@ -52,8 +52,8 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Test rule which observes elements of the {@link PCollection} and checks whether they
- * match the success criteria.
+ * Test rule which observes elements of the {@link PCollection} and checks whether they match the
+ * success criteria.
  *
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
@@ -73,8 +73,7 @@ public class TestPubsubSignal implements TestRule {
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
   public static TestPubsubSignal create() {
-    TestPubsubOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
+    TestPubsubOptions options = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
     return new TestPubsubSignal(options);
   }
 
@@ -90,8 +89,11 @@ public class TestPubsubSignal implements TestRule {
         if (TestPubsubSignal.this.pubsub != null) {
           throw new AssertionError(
               "Pubsub client was not shutdown in previous test. "
-              + "Topic path is'" + resultTopicPath + "'. "
-              + "Current test: " + description.getDisplayName());
+                  + "Topic path is'"
+                  + resultTopicPath
+                  + "'. "
+                  + "Current test: "
+                  + description.getDisplayName());
         }
 
         try {
@@ -105,8 +107,9 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
-    pubsub = PubsubGrpcClient.FACTORY.newClient(
-        NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
+    pubsub =
+        PubsubGrpcClient.FACTORY.newClient(
+            NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
 
     // Example topic name:
     //    integ-test-TestClassName-testMethodName-2018-12-11-23-32-333-<random-long>-result
@@ -137,34 +140,32 @@ public class TestPubsubSignal implements TestRule {
   /**
    * Outputs a success message when {@code successPredicate} is evaluated to true.
    *
-   * <p>{@code successPredicate} is a {@link SerializableFunction} that
-   * accepts a set of currently captured events and returns true when the set satisfies the success
-   * criteria.
+   * <p>{@code successPredicate} is a {@link SerializableFunction} that accepts a set of currently
+   * captured events and returns true when the set satisfies the success criteria.
    *
    * <p>If {@code successPredicate} is evaluated to false, then it will be re-evaluated when next
    * event becomes available.
    *
-   * <p>If {@code successPredicate} is evaluated to true, then a success will be signaled and
-   * {@link #waitForSuccess(Duration)} will unblock.
+   * <p>If {@code successPredicate} is evaluated to true, then a success will be signaled and {@link
+   * #waitForSuccess(Duration)} will unblock.
    *
-   * <p>If {@code successPredicate} throws, then failure will be signaled and
-   * {@link #waitForSuccess(Duration)} will unblock.
+   * <p>If {@code successPredicate} throws, then failure will be signaled and {@link
+   * #waitForSuccess(Duration)} will unblock.
    */
   public <T> PTransform<PCollection<? extends T>, POutput> signalSuccessWhen(
-      Coder<T> coder,
-      SerializableFunction<Set<T>, Boolean> successPredicate) {
+      Coder<T> coder, SerializableFunction<Set<T>, Boolean> successPredicate) {
 
     return new PublishSuccessWhen<>(coder, successPredicate, resultTopicPath);
   }
 
-  /**
-   * Wait for a success signal for {@code duration}.
-   */
+  /** Wait for a success signal for {@code duration}. */
   public void waitForSuccess(Duration duration) throws IOException {
-    SubscriptionPath resultSubscriptionPath = new SubscriptionPath(String.format(
-        SUBSCRIPTION_FORMAT,
-        pipelineOptions.getProject(),
-        "subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong())));
+    SubscriptionPath resultSubscriptionPath =
+        new SubscriptionPath(
+            String.format(
+                SUBSCRIPTION_FORMAT,
+                pipelineOptions.getProject(),
+                "subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong())));
 
     pubsub.createSubscription(
         new TopicPath(resultTopicPath),
@@ -179,8 +180,7 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private String pollForResultForDuration(
-      SubscriptionPath resultSubscriptionPath,
-      Duration duration) throws IOException {
+      SubscriptionPath resultSubscriptionPath, Duration duration) throws IOException {
 
     List<PubsubClient.IncomingMessage> result = null;
     DateTime endPolling = DateTime.now().plus(duration.getMillis());
@@ -198,8 +198,7 @@ public class TestPubsubSignal implements TestRule {
     } while (DateTime.now().isBefore(endPolling));
 
     if (result == null) {
-      throw new AssertionError(
-          "Did not receive success in " + duration.getStandardSeconds() + "s");
+      throw new AssertionError("Did not receive success in " + duration.getStandardSeconds() + "s");
     }
 
     return new String(result.get(0).elementBytes, UTF_8);
@@ -213,9 +212,7 @@ public class TestPubsubSignal implements TestRule {
     }
   }
 
-  /**
-   * {@link PTransform} that for validates whether elements seen so far match success criteria.
-   */
+  /** {@link PTransform} that for validates whether elements seen so far match success criteria. */
   static class PublishSuccessWhen<T> extends PTransform<PCollection<? extends T>, POutput> {
     private Coder<T> coder;
     private SerializableFunction<Set<T>, Boolean> successPredicate;
@@ -233,25 +230,22 @@ public class TestPubsubSignal implements TestRule {
 
     @Override
     public POutput expand(PCollection<? extends T> input) {
-      return
-          input
-              // assign a dummy key and global window,
-              // this is needed to accumulate all observed events in the same state cell
-              .apply(Window.into(new GlobalWindows()))
-              .apply(WithKeys.of("dummyKey"))
-              .apply(
-                  "checkAllEventsForSuccess",
-                  ParDo.of(new StatefulPredicateCheck<>(coder, successPredicate)))
-              // signal the success/failure to the result topic
-              .apply(
-                  "publishSuccess",
-                  PubsubIO.writeStrings().to(resultTopicPath));
+      return input
+          // assign a dummy key and global window,
+          // this is needed to accumulate all observed events in the same state cell
+          .apply(Window.into(new GlobalWindows()))
+          .apply(WithKeys.of("dummyKey"))
+          .apply(
+              "checkAllEventsForSuccess",
+              ParDo.of(new StatefulPredicateCheck<>(coder, successPredicate)))
+          // signal the success/failure to the result topic
+          .apply("publishSuccess", PubsubIO.writeStrings().to(resultTopicPath));
     }
   }
 
   /**
-   * Stateful {@link DoFn} which caches the elements it sees and checks whether they satisfy
-   * the predicate.
+   * Stateful {@link DoFn} which caches the elements it sees and checks whether they satisfy the
+   * predicate.
    *
    * <p>When predicate is satisfied outputs "SUCCESS". If predicate throws execption, outputs
    * "FAILURE".
@@ -263,17 +257,14 @@ public class TestPubsubSignal implements TestRule {
     @StateId("seenEvents")
     private final StateSpec<SetState<T>> seenEvents;
 
-    StatefulPredicateCheck(
-        Coder<T> coder,
-        SerializableFunction<Set<T>, Boolean> successPredicate) {
+    StatefulPredicateCheck(Coder<T> coder, SerializableFunction<Set<T>, Boolean> successPredicate) {
       this.seenEvents = StateSpecs.set(coder);
       this.successPredicate = successPredicate;
     }
 
     @ProcessElement
     public void processElement(
-        ProcessContext context,
-        @StateId("seenEvents") SetState<T> seenEvents) {
+        ProcessContext context, @StateId("seenEvents") SetState<T> seenEvents) {
 
       seenEvents.add(context.element().getValue());
       ImmutableSet<T> eventsSoFar = ImmutableSet.copyOf(seenEvents.read());

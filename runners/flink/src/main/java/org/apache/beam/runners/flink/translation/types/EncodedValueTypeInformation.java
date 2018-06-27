@@ -25,11 +25,10 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Flink {@link TypeInformation} for Beam values that have been encoded to byte data
- * by a {@link Coder}.
+ * Flink {@link TypeInformation} for Beam values that have been encoded to byte data by a {@link
+ * Coder}.
  */
-public class EncodedValueTypeInformation
-    extends TypeInformation<byte[]>
+public class EncodedValueTypeInformation extends TypeInformation<byte[]>
     implements AtomicType<byte[]> {
 
   private static final long serialVersionUID = 1L;
@@ -91,8 +90,7 @@ public class EncodedValueTypeInformation
 
   @Override
   public TypeComparator<byte[]> createComparator(
-      boolean sortOrderAscending,
-      ExecutionConfig executionConfig) {
+      boolean sortOrderAscending, ExecutionConfig executionConfig) {
     return new EncodedValueComparator(sortOrderAscending);
   }
 }

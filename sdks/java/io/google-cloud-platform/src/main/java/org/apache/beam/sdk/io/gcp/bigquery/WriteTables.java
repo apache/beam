@@ -78,8 +78,9 @@ import org.slf4j.LoggerFactory;
  * {@link KV} maps the final table to itself.
  */
 class WriteTables<DestinationT>
-  extends PTransform<PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
-    PCollection<KV<TableDestination, String>>> {
+    extends PTransform<
+        PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
+        PCollection<KV<TableDestination, String>>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
@@ -92,7 +93,6 @@ class WriteTables<DestinationT>
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final ValueProvider<String> loadJobProjectId;
-
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -138,15 +138,15 @@ class WriteTables<DestinationT>
           destination);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-        tableReference.setProjectId(
-            c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+        tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
         tableDestination = tableDestination.withTableReference(tableReference);
       }
 
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
-      String jobIdPrefix = BigQueryHelpers.createJobId(
-          c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
+      String jobIdPrefix =
+          BigQueryHelpers.createJobId(
+              c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (!singlePartition) {
         tableReference.setTableId(jobIdPrefix);
@@ -206,9 +206,11 @@ class WriteTables<DestinationT>
   @Override
   public PCollection<KV<TableDestination, String>> expand(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input) {
-    PCollectionTuple writeTablesOutputs = input.apply(ParDo.of(new WriteTablesDoFn())
-        .withSideInputs(sideInputs)
-        .withOutputTags(mainOutputTag, TupleTagList.of(temporaryFilesTag)));
+    PCollectionTuple writeTablesOutputs =
+        input.apply(
+            ParDo.of(new WriteTablesDoFn())
+                .withSideInputs(sideInputs)
+                .withOutputTags(mainOutputTag, TupleTagList.of(temporaryFilesTag)));
 
     // Garbage collect temporary files.
     // We mustn't start garbage collecting files until we are assured that the WriteTablesDoFn has
@@ -274,8 +276,7 @@ class WriteTables<DestinationT>
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
         case SUCCEEDED:
-          LOG.info(
-              "Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
+          LOG.info("Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
           if (tableDescription != null) {
             datasetService.patchTableDescription(
                 ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
@@ -283,8 +284,7 @@ class WriteTables<DestinationT>
           }
           return;
         case UNKNOWN:
-          LOG.info(
-              "Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
+          LOG.info("Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
           throw new RuntimeException(
               String.format(
                   "UNKNOWN status of load job [%s]: %s.",
@@ -316,7 +316,7 @@ class WriteTables<DestinationT>
   static void removeTemporaryFiles(Iterable<String> files) throws IOException {
     ImmutableList.Builder<ResourceId> fileResources = ImmutableList.builder();
     for (String file : files) {
-      fileResources.add(FileSystems.matchNewResource(file, false/* isDirectory */));
+      fileResources.add(FileSystems.matchNewResource(file, false /* isDirectory */));
     }
     FileSystems.delete(fileResources.build());
   }

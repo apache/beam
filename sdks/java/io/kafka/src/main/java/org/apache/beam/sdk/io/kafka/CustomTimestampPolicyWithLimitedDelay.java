@@ -27,10 +27,10 @@ import org.joda.time.Instant;
 
 /**
  * A policy for custom record timestamps where timestamps within a partition are expected to be
- * roughly monotonically increasing with a cap on out of order event delays (say 1 minute).
- * The watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
- * However, watermark is never set in future and capped to 'now - max delay'. In addition,
- * watermark advanced to 'now - max delay' when a partition is idle.
+ * roughly monotonically increasing with a cap on out of order event delays (say 1 minute). The
+ * watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
+ * However, watermark is never set in future and capped to 'now - max delay'. In addition, watermark
+ * advanced to 'now - max delay' when a partition is idle.
  */
 public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy<K, V> {
 
@@ -40,26 +40,25 @@ public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy
 
   /**
    * A policy for custom record timestamps where timestamps are expected to be roughly monotonically
-   * increasing with out of order event delays less than {@code maxDelay}. The watermark at any
-   * time is {@code Min(now(), max_event_timestamp) - maxDelay}.
+   * increasing with out of order event delays less than {@code maxDelay}. The watermark at any time
+   * is {@code Min(now(), max_event_timestamp) - maxDelay}.
+   *
    * @param timestampFunction A function to extract timestamp from the record
-   * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent
-   *                 record is expected to be after {@code current record timestamp - maxDelay}.
-   * @param previousWatermark Latest check-pointed watermark, see
-   *                {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)}
+   * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent record
+   *     is expected to be after {@code current record timestamp - maxDelay}.
+   * @param previousWatermark Latest check-pointed watermark, see {@link
+   *     TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)}
    */
   public CustomTimestampPolicyWithLimitedDelay(
-    SerializableFunction<KafkaRecord<K, V>, Instant> timestampFunction,
-    Duration maxDelay,
-    Optional<Instant> previousWatermark) {
+      SerializableFunction<KafkaRecord<K, V>, Instant> timestampFunction,
+      Duration maxDelay,
+      Optional<Instant> previousWatermark) {
     this.maxDelay = maxDelay;
     this.timestampFunction = timestampFunction;
 
     // 'previousWatermark' is not the same as maxEventTimestamp (e.g. it could have been in future).
     // Initialize it such that watermark before reading any event same as previousWatermark.
-    maxEventTimestamp = previousWatermark
-      .orElse(BoundedWindow.TIMESTAMP_MIN_VALUE)
-      .plus(maxDelay);
+    maxEventTimestamp = previousWatermark.orElse(BoundedWindow.TIMESTAMP_MIN_VALUE).plus(maxDelay);
   }
 
   @Override
@@ -88,11 +87,10 @@ public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy
   @VisibleForTesting
   Instant getWatermark(PartitionContext ctx, Instant now) {
     if (maxEventTimestamp.isAfter(now)) {
-      return now.minus(maxDelay);  // (a) above.
-    } else if (
-      ctx.getMessageBacklog() == 0
-      && ctx.getBacklogCheckTime().minus(maxDelay).isAfter(maxEventTimestamp) // Idle
-      && maxEventTimestamp.getMillis() > 0) { // Read at least one record with positive timestamp.
+      return now.minus(maxDelay); // (a) above.
+    } else if (ctx.getMessageBacklog() == 0
+        && ctx.getBacklogCheckTime().minus(maxDelay).isAfter(maxEventTimestamp) // Idle
+        && maxEventTimestamp.getMillis() > 0) { // Read at least one record with positive timestamp.
       return ctx.getBacklogCheckTime().minus(maxDelay);
     } else {
       return maxEventTimestamp.minus(maxDelay);

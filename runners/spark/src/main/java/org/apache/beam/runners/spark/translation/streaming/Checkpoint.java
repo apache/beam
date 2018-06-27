@@ -32,10 +32,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * Checkpoint data to make it available in future pipeline runs.
- */
+/** Checkpoint data to make it available in future pipeline runs. */
 public class Checkpoint {
   private static final String TEMP_FILE_SUFFIX = ".tmp";
   private static final String BACKUP_FILE_SUFFIX = ".bak";
@@ -65,8 +62,7 @@ public class Checkpoint {
     write(fileSystem, checkpointFilePath, bos.toByteArray());
   }
 
-  public static byte[] read(FileSystem fileSystem, Path checkpointFilePath)
-      throws IOException {
+  public static byte[] read(FileSystem fileSystem, Path checkpointFilePath) throws IOException {
     Path backupCheckpointPath = checkpointFilePath.suffix(".bak");
     FSDataInputStream is = null;
     if (fileSystem.exists(checkpointFilePath)) {
@@ -93,11 +89,11 @@ public class Checkpoint {
   /**
    * Checkpoint dir tree.
    *
-   * {@link SparkPipelineOptions} checkpointDir is used as a root directory under which one
+   * <p>{@link SparkPipelineOptions} checkpointDir is used as a root directory under which one
    * directory is created for Spark's checkpoint and another for Beam's Spark runner's fault
-   * checkpointing needs.
-   * Spark's checkpoint relies on Hadoop's {@link org.apache.hadoop.fs.FileSystem} and is used for
-   * Beam as well rather than {@link org.apache.beam.sdk.io.FileSystem} to be consistent with Spark.
+   * checkpointing needs. Spark's checkpoint relies on Hadoop's {@link
+   * org.apache.hadoop.fs.FileSystem} and is used for Beam as well rather than {@link
+   * org.apache.beam.sdk.io.FileSystem} to be consistent with Spark.
    */
   public static class CheckpointDir {
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointDir.class);
@@ -112,8 +108,10 @@ public class Checkpoint {
 
     public CheckpointDir(String rootCheckpointDir) {
       if (!rootCheckpointDir.matches(KNOWN_RELIABLE_FS_PATTERN)) {
-        LOG.warn("The specified checkpoint dir {} does not match a reliable filesystem so in case "
-            + "of failures this job may not recover properly or even at all.", rootCheckpointDir);
+        LOG.warn(
+            "The specified checkpoint dir {} does not match a reliable filesystem so in case "
+                + "of failures this job may not recover properly or even at all.",
+            rootCheckpointDir);
       }
       LOG.info("Checkpoint dir set to: {}", rootCheckpointDir);
 

@@ -28,22 +28,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.samza.operators.MessageStream;
 
 /**
- * Translates {@link org.apache.beam.sdk.transforms.windowing.Window.Assign} to Samza
- * {@link WindowAssignOp}.
+ * Translates {@link org.apache.beam.sdk.transforms.windowing.Window.Assign} to Samza {@link
+ * WindowAssignOp}.
  */
 class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {
   @Override
-  public void translate(Window.Assign<T> transform,
-                        TransformHierarchy.Node node,
-                        TranslationContext ctx) {
+  public void translate(
+      Window.Assign<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
 
     @SuppressWarnings("unchecked")
-    final WindowFn<T, ?> windowFn =
-        (WindowFn<T, ?>) output.getWindowingStrategy().getWindowFn();
+    final WindowFn<T, ?> windowFn = (WindowFn<T, ?>) output.getWindowingStrategy().getWindowFn();
 
-    final MessageStream<OpMessage<T>> inputStream =
-        ctx.getMessageStream(ctx.getInput(transform));
+    final MessageStream<OpMessage<T>> inputStream = ctx.getMessageStream(ctx.getInput(transform));
 
     final MessageStream<OpMessage<T>> outputStream =
         inputStream.flatMap(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));

@@ -159,22 +159,19 @@ class TransformEvaluatorRegistry {
   private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private TransformEvaluatorRegistry(
-      @SuppressWarnings("rawtypes")
-      Map<String, TransformEvaluatorFactory> factories) {
+      @SuppressWarnings("rawtypes") Map<String, TransformEvaluatorFactory> factories) {
     this.factories = factories;
   }
 
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
-      throws Exception {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
 
     String urn = PTransformTranslation.urnForTransform(application.getTransform());
 
     TransformEvaluatorFactory factory =
-        checkNotNull(
-            factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
+        checkNotNull(factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
     return factory.forApplication(application, inputBundle);
   }
 

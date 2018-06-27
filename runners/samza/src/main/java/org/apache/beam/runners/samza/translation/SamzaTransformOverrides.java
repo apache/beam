@@ -24,9 +24,7 @@ import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.runners.PTransformOverride;
 
-/**
- * {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner.
- */
+/** {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner. */
 public class SamzaTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides() {
     return ImmutableList.<PTransformOverride>builder()

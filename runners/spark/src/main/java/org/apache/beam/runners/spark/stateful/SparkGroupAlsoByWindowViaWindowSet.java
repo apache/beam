@@ -223,7 +223,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         return FluentIterable.from(timers).filter(eligibleForProcessing).toSet();
       }
 
-
       @Override
       protected Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
           computeNext() {
@@ -277,8 +276,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
               // multiple super interfacesof Seq<byte[]>
               byte[] headBytes = ((GenTraversable<byte[]>) encodedKeyedElements).head();
               final KV<Long, Iterable<WindowedValue<InputT>>> keyedElements =
-                  CoderHelpers.fromByteArray(
-                      headBytes, KvCoder.of(VarLongCoder.of(), itrWvCoder));
+                  CoderHelpers.fromByteArray(headBytes, KvCoder.of(VarLongCoder.of(), itrWvCoder));
 
               final Long rddTimestamp = keyedElements.getKey();
 
@@ -317,8 +315,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
           try {
             // advance the watermark to HWM to fire by timers.
             LOG.debug(
-                logPrefix + ": timerInternals before advance are {}",
-                timerInternals.toString());
+                logPrefix + ": timerInternals before advance are {}", timerInternals.toString());
 
             // store the highWatermark as the new inputWatermark to calculate triggers
             timerInternals.advanceWatermark();
@@ -364,8 +361,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             Not something we want to happen in production, but is very helpful
             when debugging - TRACE.
              */
-            LOG.trace(
-                logPrefix + ": output elements are {}", Joiner.on(", ").join(outputs));
+            LOG.trace(logPrefix + ": output elements are {}", Joiner.on(", ").join(outputs));
 
             // persist Spark's state by outputting.
             final List<byte[]> serOutput = CoderHelpers.toByteArrays(outputs, wvKvIterCoder);
@@ -477,10 +473,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     return TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
-  private static void
-      checkpointIfNeeded(
-          final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
-          final SerializablePipelineOptions options) {
+  private static void checkpointIfNeeded(
+      final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
+      final SerializablePipelineOptions options) {
 
     final Long checkpointDurationMillis = getBatchDuration(options);
 
@@ -508,8 +503,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             JavaSparkContext$.MODULE$.fakeClassTag())
         .filter(
             // filter output if defined.
-            t2 -> !t2._2()._2().isEmpty()
-            )
+            t2 -> !t2._2()._2().isEmpty())
         .flatMap(
             new FlatMapFunction<
                 Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>,
@@ -564,8 +558,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                         .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
                             // add the batch timestamp for visibility (e.g., debugging)
-                            values -> KV.of(time.milliseconds(), values)
-                            )
+                            values -> KV.of(time.milliseconds(), values))
                         // move to bytes representation and use coders for deserialization
                         // because of checkpointing.
                         .mapPartitionsToPair(
@@ -601,8 +594,10 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         new UpdateStateByKeyFunction<>(
             sourceIds,
             windowingStrategy,
-            (FullWindowedValueCoder<InputT>) wvCoder, keyCoder, options, transformFullName
-        );
+            (FullWindowedValueCoder<InputT>) wvCoder,
+            keyCoder,
+            options,
+            transformFullName);
 
     final DStream<
             Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>

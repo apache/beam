@@ -25,8 +25,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 
 /**
- * Provides a simple {@link org.apache.beam.sdk.Pipeline.PipelineVisitor}
- * that records the transformation tree.
+ * Provides a simple {@link org.apache.beam.sdk.Pipeline.PipelineVisitor} that records the
+ * transformation tree.
  */
 class RecordingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
 

@@ -40,8 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@code ArtifactStagingService} which stages files to a local temp directory.
- * TODO: refactor to use staging session tokens
+ * An {@code ArtifactStagingService} which stages files to a local temp directory. TODO: refactor to
+ * use staging session tokens
  */
 public class LocalFileSystemArtifactStagerService
     extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase implements FnService {

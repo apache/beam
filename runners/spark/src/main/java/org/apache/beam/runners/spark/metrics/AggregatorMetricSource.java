@@ -22,10 +22,9 @@ import com.codahale.metrics.MetricRegistry;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.spark.metrics.source.Source;
 
-
 /**
- * A Spark {@link Source} that is tailored to expose an {@link AggregatorMetric},
- * wrapping an underlying {@link NamedAggregators} instance.
+ * A Spark {@link Source} that is tailored to expose an {@link AggregatorMetric}, wrapping an
+ * underlying {@link NamedAggregators} instance.
  */
 public class AggregatorMetricSource implements Source {
   private static final String METRIC_NAME = "Aggregators";

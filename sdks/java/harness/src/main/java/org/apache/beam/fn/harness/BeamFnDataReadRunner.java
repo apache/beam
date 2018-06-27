@@ -53,21 +53,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data
- * to all receivers in a specified output map.
+ * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data to all
+ * receivers in a specified output map.
  *
- * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
- * For each request, call {@link #registerInputLocation()} to start and call
- * {@link #blockTillReadFinishes()} to finish.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
+ * {@link #registerInputLocation()} to start and call {@link #blockTillReadFinishes()} to finish.
  */
 public class BeamFnDataReadRunner<OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
 
-  /**
-   * A registrar which provides a factory to handle reading from the Fn Api Data
-   * Plane.
-   */
+  /** A registrar which provides a factory to handle reading from the Fn Api Data Plane. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements PTransformRunnerFactory.Registrar {
 
@@ -78,8 +74,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   /** A factory for {@link BeamFnDataReadRunner}s. */
-  static class Factory<OutputT>
-      implements PTransformRunnerFactory<BeamFnDataReadRunner<OutputT>> {
+  static class Factory<OutputT> implements PTransformRunnerFactory<BeamFnDataReadRunner<OutputT>> {
 
     @Override
     public BeamFnDataReadRunner<OutputT> createRunnerForPTransform(
@@ -95,27 +90,30 @@ public class BeamFnDataReadRunner<OutputT> {
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
-        BundleSplitListener splitListener) throws IOException {
+        BundleSplitListener splitListener)
+        throws IOException {
 
-      BeamFnApi.Target target = BeamFnApi.Target.newBuilder()
-          .setPrimitiveTransformReference(pTransformId)
-          .setName(getOnlyElement(pTransform.getOutputsMap().keySet()))
-          .build();
+      BeamFnApi.Target target =
+          BeamFnApi.Target.newBuilder()
+              .setPrimitiveTransformReference(pTransformId)
+              .setName(getOnlyElement(pTransform.getOutputsMap().keySet()))
+              .build();
       RunnerApi.Coder coderSpec =
           coders.get(
               pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection) pCollectionIdsToConsumers.get(
-              getOnlyElement(pTransform.getOutputsMap().values()));
+          (Collection)
+              pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
 
-      BeamFnDataReadRunner<OutputT> runner = new BeamFnDataReadRunner<>(
-          pTransform,
-          processBundleInstructionId,
-          target,
-          coderSpec,
-          coders,
-          beamFnDataClient,
-          consumers);
+      BeamFnDataReadRunner<OutputT> runner =
+          new BeamFnDataReadRunner<>(
+              pTransform,
+              processBundleInstructionId,
+              target,
+              coderSpec,
+              coders,
+              beamFnDataClient,
+              consumers);
       addStartFunction.accept(runner::registerInputLocation);
       addFinishFunction.accept(runner::blockTillReadFinishes);
       return runner;
@@ -157,26 +155,25 @@ public class BeamFnDataReadRunner<OutputT> {
               CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
     } else {
       // TODO: Remove this path once it is no longer used
-      coder =
-          (Coder<WindowedValue<OutputT>>)
-              CoderTranslation.fromProto(
-                  coderSpec,
-                  components);
+      coder = (Coder<WindowedValue<OutputT>>) CoderTranslation.fromProto(coderSpec, components);
     }
     this.coder = coder;
   }
 
   public void registerInputLocation() {
-    this.readFuture = beamFnDataClient.receive(
-        apiServiceDescriptor,
-        LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
-        coder,
-        receiver);
+    this.readFuture =
+        beamFnDataClient.receive(
+            apiServiceDescriptor,
+            LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
+            coder,
+            receiver);
   }
 
   public void blockTillReadFinishes() throws Exception {
-    LOG.debug("Waiting for process bundle instruction {} and target {} to close.",
-        processBundleInstructionIdSupplier.get(), inputTarget);
+    LOG.debug(
+        "Waiting for process bundle instruction {} and target {} to close.",
+        processBundleInstructionIdSupplier.get(),
+        inputTarget);
     readFuture.awaitCompletion();
   }
 }

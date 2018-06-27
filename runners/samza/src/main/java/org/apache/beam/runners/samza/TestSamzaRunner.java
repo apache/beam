@@ -31,9 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.commons.io.FileUtils;
 import org.apache.samza.config.JobConfig;
 
-/**
- * Test {@link SamzaRunner}.
- */
+/** Test {@link SamzaRunner}. */
 public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
   private final SamzaRunner delegate;
 
@@ -43,11 +41,11 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
 
   public static SamzaPipelineOptions createSamzaPipelineOptions(PipelineOptions options) {
     try {
-      final SamzaPipelineOptions samzaOptions = PipelineOptionsValidator
-          .validate(SamzaPipelineOptions.class, options);
+      final SamzaPipelineOptions samzaOptions =
+          PipelineOptionsValidator.validate(SamzaPipelineOptions.class, options);
       final Map<String, String> config = new HashMap<>(ConfigBuilder.localRunConfig());
-      final File storeDir = Paths.get(
-          System.getProperty("java.io.tmpdir"), "beam-samza-test").toFile();
+      final File storeDir =
+          Paths.get(System.getProperty("java.io.tmpdir"), "beam-samza-test").toFile();
       //  Re-create the folder for test stores
       FileUtils.deleteDirectory(storeDir);
       if (!storeDir.mkdir()) {

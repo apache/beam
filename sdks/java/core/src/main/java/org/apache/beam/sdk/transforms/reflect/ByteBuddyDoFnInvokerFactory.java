@@ -506,8 +506,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
       return new StackManipulation.Compound(
           Assigner.DEFAULT.assign(
-              targetMethod.getReturnType(),
-              instrumentedMethod.getReturnType(), Typing.STATIC),
+              targetMethod.getReturnType(), instrumentedMethod.getReturnType(), Typing.STATIC),
           MethodReturn.of(instrumentedMethod.getReturnType()));
     }
   }
@@ -601,8 +600,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        ELEMENT_PARAMETER_METHOD, DoFn.class)),
+                    getExtraContextFactoryMethodDescription(ELEMENT_PARAMETER_METHOD, DoFn.class)),
                 TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
           }
 
@@ -629,8 +627,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        OUTPUT_PARAMETER_METHOD, DoFn.class)));
+                    getExtraContextFactoryMethodDescription(OUTPUT_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

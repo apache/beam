@@ -38,8 +38,8 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   public static TestApexRunner fromOptions(PipelineOptions options) {
-    ApexPipelineOptions apexOptions = PipelineOptionsValidator
-        .validate(ApexPipelineOptions.class, options);
+    ApexPipelineOptions apexOptions =
+        PipelineOptionsValidator.validate(ApexPipelineOptions.class, options);
     return new TestApexRunner(apexOptions);
   }
 
@@ -65,5 +65,4 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
       }
     }
   }
-
 }

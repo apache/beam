@@ -53,7 +53,7 @@ public class ValueInSingleWindowCoderTest {
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(ValueInSingleWindow.Coder.of(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(
+        ValueInSingleWindow.Coder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 }

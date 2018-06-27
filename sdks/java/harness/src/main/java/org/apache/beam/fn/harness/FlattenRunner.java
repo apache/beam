@@ -41,22 +41,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /** Executes flatten PTransforms. */
-public class FlattenRunner<InputT>{
+public class FlattenRunner<InputT> {
   /** A registrar which provides a factory to handle flatten PTransforms. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
-  public static class Registrar implements
-      PTransformRunnerFactory.Registrar {
+  public static class Registrar implements PTransformRunnerFactory.Registrar {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(
-          PTransformTranslation.FLATTEN_TRANSFORM_URN, new Factory());
+      return ImmutableMap.of(PTransformTranslation.FLATTEN_TRANSFORM_URN, new Factory());
     }
   }
 
   /** A factory for {@link FlattenRunner}. */
-  static class Factory<InputT> implements
-      PTransformRunnerFactory<FlattenRunner<InputT>> {
+  static class Factory<InputT> implements PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
     public FlattenRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,

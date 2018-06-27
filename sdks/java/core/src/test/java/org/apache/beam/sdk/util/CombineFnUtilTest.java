@@ -38,14 +38,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link CombineFnUtil}.
- */
+/** Unit tests for {@link CombineFnUtil}. */
 @RunWith(JUnit4.class)
 public class CombineFnUtilTest {
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   CombineFnWithContext<Integer, Integer, Integer> mockCombineFn;
 
