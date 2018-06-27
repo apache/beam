@@ -636,6 +636,22 @@ class SetupOptions(PipelineOptions):
          'same order they were specified on the command line.'))
 
 
+class PortableOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--job_endpoint',
+                        default=None,
+                        help=
+                        ('Job service endpoint to use. Should be in the form '
+                         'of address and port, e.g. localhost:3000'))
+    parser.add_argument('--docker_image',
+                        default=None,
+                        help=
+                        ('Docker image to use for executing Python code '
+                         'in the pipeline.'))
+
+
 class TestOptions(PipelineOptions):
 
   @classmethod
