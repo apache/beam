@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import copy
 import inspect
-import itertools
 import random
 import re
 import types
@@ -650,9 +649,7 @@ class CallableWrapperCombineFn(CombineFn):
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     # It's (weakly) assumed that self._fn is associative.
-    return self._fn(
-        itertools.ifilter(lambda x: x is not self._EMPTY, accumulators),
-        *args, **kwargs)
+    return self._fn(accumulators, *args, **kwargs)
 
   def extract_output(self, accumulator, *args, **kwargs):
     return self._fn(()) if accumulator is self._EMPTY else accumulator
@@ -1144,7 +1141,7 @@ class CombineGlobally(PTransform):
 
     combine_per_key = CombinePerKey(self.fn, *self.args, **self.kwargs)
     if self.fanout:
-      combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
+      combine_per_key = combine_per_key.with_hot_key_fanout(fanout)
 
     combined = (pcoll
                 | 'KeyWithVoid' >> add_input_types(
@@ -1422,8 +1419,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     class PostCombineFn(CombineFn):
       @staticmethod
-      def add_input(accumulator, element):
-        is_accumulator, value = element
+      def add_input(accumulator, input):
+        is_accumulator, value = input
         if is_accumulator:
           return combine_fn.merge_accumulators([accumulator, value])
         else:
