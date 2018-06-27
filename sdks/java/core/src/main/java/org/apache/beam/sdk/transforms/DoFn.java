@@ -343,6 +343,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>The {@link PCollection} representing this tag must have a schema registered in order to
      * call this function.
      */
+    @Experimental(Kind.SCHEMAS)
     <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag);
   }
 

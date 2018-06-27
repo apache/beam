@@ -454,7 +454,7 @@ public class ParDo {
       // In this case, we expect to have a FieldAccessDescriptor defined in the class.
       FieldAccessDeclaration fieldAccessDeclaration = fieldAccessDeclarations.get(id);
       checkArgument(fieldAccessDeclaration != null,
-          "No FieldAccessDescriptor defined with id", id);
+          "No FieldAccessDeclaration  defined with id", id);
       checkArgument(fieldAccessDeclaration.field().getType().equals(
           FieldAccessDescriptor.class));
       try {
@@ -766,7 +766,7 @@ public class ParDo {
 
       DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
       RowParameter rowParameter = processElementMethod.getRowParameter();
-      // Can only as for a Row if a Schema was specified!
+      // Can only ask for a Row if a Schema was specified!
       if (rowParameter != null) {
         validateRowParameter(
             rowParameter, input.getCoder(), signature.fieldAccessDeclarations(), fn);
