@@ -17,10 +17,10 @@
  */
 
 import common_job_properties
-import JobBuilder
+import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Samza runner.
-JobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Samza_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Samza_Gradle',
   'Run Samza ValidatesRunner', 'Apache Samza Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Samza runner.')
 
