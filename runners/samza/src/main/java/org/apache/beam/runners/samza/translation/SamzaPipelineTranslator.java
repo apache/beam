@@ -84,8 +84,11 @@ public class SamzaPipelineTranslator {
   }
 
   public static void createConfig(
-      Pipeline pipeline, Map<PValue, String> idMap, ConfigBuilder configBuilder) {
-    final ConfigContext ctx = new ConfigContext(idMap);
+      Pipeline pipeline,
+      SamzaPipelineOptions options,
+      Map<PValue, String> idMap,
+      ConfigBuilder configBuilder) {
+    final ConfigContext ctx = new ConfigContext(idMap, options);
 
     final TransformVisitorFn configFn =
         new TransformVisitorFn() {
