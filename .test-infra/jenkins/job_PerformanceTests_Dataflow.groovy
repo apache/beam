@@ -27,10 +27,7 @@ job('beam_PerformanceTests_Dataflow'){
     // don't email individual committers.
     common_job_properties.setAutoJob(
         delegate,
-        'H */6 * * *',
-        false,
-        'commits@beam.apache.org',
-        false)
+        'H */6 * * *')
 
     def argMap = [
       benchmarks: 'dpb_wordcount_benchmark',

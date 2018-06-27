@@ -28,10 +28,7 @@ job(jobName) {
     // don't email individual committers.
     common_job_properties.setAutoJob(
             delegate,
-            'H */6 * * *',
-            false,
-            'commits@beam.apache.org',
-            false)
+            'H */6 * * *')
 
     common_job_properties.enablePhraseTriggeringFromPullRequest(
             delegate,
