@@ -23,21 +23,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
 
-/**
- * Utility functions for stream operations.
- */
+/** Utility functions for stream operations. */
 public class StreamUtils {
 
-  private StreamUtils() {
-  }
+  private StreamUtils() {}
 
   private static final int BUF_SIZE = 8192;
 
   private static ThreadLocal<SoftReference<byte[]>> threadLocalBuffer = new ThreadLocal<>();
 
-  /**
-   * Efficient converting stream to bytes.
-   */
+  /** Efficient converting stream to bytes. */
   public static byte[] getBytesWithoutClosing(InputStream stream) throws IOException {
     if (stream instanceof ExposedByteArrayInputStream) {
       // Fast path for the exposed version.
@@ -65,5 +60,4 @@ public class StreamUtils {
     }
     return outStream.toByteArray();
   }
-
 }

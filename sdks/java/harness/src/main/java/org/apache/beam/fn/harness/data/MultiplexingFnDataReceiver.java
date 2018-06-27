@@ -27,8 +27,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
  * FnDataReceiver receivers}.
  */
 public class MultiplexingFnDataReceiver<T> implements FnDataReceiver<T> {
-  public static <T> FnDataReceiver<T> forConsumers(
-      Collection<FnDataReceiver<T>> consumers) {
+  public static <T> FnDataReceiver<T> forConsumers(Collection<FnDataReceiver<T>> consumers) {
     if (consumers.size() == 1) {
       return Iterables.getOnlyElement(consumers);
     }

@@ -24,11 +24,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Methods and/or interfaces annotated with {@code @Hidden} will be suppressed from
- * being output when {@code --help} is specified on the command-line.
+ * Methods and/or interfaces annotated with {@code @Hidden} will be suppressed from being output
+ * when {@code --help} is specified on the command-line.
  */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Hidden {
-}
+public @interface Hidden {}

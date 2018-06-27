@@ -34,9 +34,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DedupingOperator}.
- */
+/** Tests for {@link DedupingOperator}. */
 @RunWith(JUnit4.class)
 public class DedupingOperatorTest {
 
@@ -44,9 +42,8 @@ public class DedupingOperatorTest {
   public void testDeduping() throws Exception {
 
     KeyedOneInputStreamOperatorTestHarness<
-        ByteBuffer,
-        WindowedValue<ValueWithRecordId<String>>,
-        WindowedValue<String>> harness = getDebupingHarness();
+            ByteBuffer, WindowedValue<ValueWithRecordId<String>>, WindowedValue<String>>
+        harness = getDebupingHarness();
 
     harness.open();
 
@@ -70,8 +67,7 @@ public class DedupingOperatorTest {
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),
-        contains(WindowedValue.valueInGlobalWindow(key1),
-            WindowedValue.valueInGlobalWindow(key2)));
+        contains(WindowedValue.valueInGlobalWindow(key1), WindowedValue.valueInGlobalWindow(key2)));
 
     OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 
@@ -101,9 +97,9 @@ public class DedupingOperatorTest {
     harness.close();
   }
 
-  private KeyedOneInputStreamOperatorTestHarness<ByteBuffer,
-      WindowedValue<ValueWithRecordId<String>>,
-      WindowedValue<String>> getDebupingHarness() throws Exception {
+  private KeyedOneInputStreamOperatorTestHarness<
+          ByteBuffer, WindowedValue<ValueWithRecordId<String>>, WindowedValue<String>>
+      getDebupingHarness() throws Exception {
     DedupingOperator<String> operator = new DedupingOperator<>();
 
     return new KeyedOneInputStreamOperatorTestHarness<>(

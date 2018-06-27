@@ -30,8 +30,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link Window.Assign} primitive {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Window.Assign}
+ * primitive {@link PTransform}.
  */
 class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -42,7 +42,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      PTransformNode application, @Nullable CommittedBundle<?> inputBundle)  {
+      PTransformNode application, @Nullable CommittedBundle<?> inputBundle) {
     return createTransformEvaluator(application);
   }
 
@@ -93,9 +93,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public TransformResult<InputT> finishBundle() throws Exception {
-      return StepTransformResult.<InputT>withoutHold(transform)
-          .addOutput(outputBundle)
-          .build();
+      return StepTransformResult.<InputT>withoutHold(transform).addOutput(outputBundle).build();
     }
   }
 
@@ -122,6 +120,5 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     public BoundedWindow window() {
       return Iterables.getOnlyElement(value.getWindows());
     }
-
   }
 }

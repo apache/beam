@@ -67,8 +67,8 @@ public class SdkComponents {
 
   /**
    * Registers the provided {@link AppliedPTransform} into this {@link SdkComponents}, returning a
-   * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same
-   * {@link AppliedPTransform} will return the same unique ID.
+   * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same {@link
+   * AppliedPTransform} will return the same unique ID.
    *
    * <p>All of the children must already be registered within this {@link SdkComponents}.
    */
@@ -82,8 +82,8 @@ public class SdkComponents {
       return name;
     }
     checkNotNull(children, "child nodes may not be null");
-    componentsBuilder.putTransforms(name, PTransformTranslation
-        .toProto(appliedPTransform, children, this));
+    componentsBuilder.putTransforms(
+        name, PTransformTranslation.toProto(appliedPTransform, children, this));
     return name;
   }
 
@@ -165,8 +165,8 @@ public class SdkComponents {
 
   /**
    * Registers the provided {@link Coder} into this {@link SdkComponents}, returning a unique ID for
-   * the {@link Coder}. Multiple registrations of the same {@link Coder} will return the same
-   * unique ID.
+   * the {@link Coder}. Multiple registrations of the same {@link Coder} will return the same unique
+   * ID.
    *
    * <p>Coders are stored by identity to ensure that coders with implementations of {@link
    * #equals(Object)} and {@link #hashCode()} but incompatible binary formats are not considered the

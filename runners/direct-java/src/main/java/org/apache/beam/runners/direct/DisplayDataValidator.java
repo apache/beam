@@ -24,8 +24,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 
 /**
- * Validate correct implementation of {@link DisplayData} by evaluating
- * {@link HasDisplayData#populateDisplayData(DisplayData.Builder)} during pipeline construction.
+ * Validate correct implementation of {@link DisplayData} by evaluating {@link
+ * HasDisplayData#populateDisplayData(DisplayData.Builder)} during pipeline construction.
  */
 class DisplayDataValidator {
   // Do not instantiate

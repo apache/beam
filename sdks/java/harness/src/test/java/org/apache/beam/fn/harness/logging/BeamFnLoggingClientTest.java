@@ -116,35 +116,37 @@ public class BeamFnLoggingClientTest {
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-            .addService(new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
-              @Override
-              public StreamObserver<BeamFnApi.LogEntry.List> logging(
-                  StreamObserver<BeamFnApi.LogControl> outboundObserver) {
-                outboundServerObserver.set(outboundObserver);
-                return inboundServerObserver;
-              }
-            })
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.LogEntry.List> logging(
+                      StreamObserver<BeamFnApi.LogControl> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    return inboundServerObserver;
+                  }
+                })
             .build();
     server.start();
 
-    ManagedChannel channel =
-        InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+    ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
     try {
 
-      BeamFnLoggingClient client = new BeamFnLoggingClient(
-          PipelineOptionsFactory.fromArgs(new String[] {
-              "--defaultSdkHarnessLogLevel=OFF",
-              "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
-          }).create(),
-          apiServiceDescriptor,
-          (Endpoints.ApiServiceDescriptor descriptor) -> channel);
+      BeamFnLoggingClient client =
+          new BeamFnLoggingClient(
+              PipelineOptionsFactory.fromArgs(
+                      new String[] {
+                        "--defaultSdkHarnessLogLevel=OFF",
+                        "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
+                      })
+                  .create(),
+              apiServiceDescriptor,
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
       // Ensure that log levels were correctly set.
-      assertEquals(Level.OFF,
-          LogManager.getLogManager().getLogger("").getLevel());
-      assertEquals(Level.FINE,
-          LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.OFF, LogManager.getLogManager().getLogger("").getLevel());
+      assertEquals(Level.FINE, LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
 
       // Should be filtered because the default log level override is OFF
       LogManager.getLogManager().getLogger("").log(FILTERED_RECORD);
@@ -170,37 +172,44 @@ public class BeamFnLoggingClientTest {
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
-    CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver = TestStreams.withOnNext(
-        (BeamFnApi.LogEntry.List logEntries) -> values.addAll(logEntries.getLogEntriesList()))
-        .build();
+    CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
+        TestStreams.withOnNext(
+                (BeamFnApi.LogEntry.List logEntries) ->
+                    values.addAll(logEntries.getLogEntriesList()))
+            .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-        .addService(new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
-          @Override
-          public StreamObserver<BeamFnApi.LogEntry.List> logging(
-              StreamObserver<BeamFnApi.LogControl> outboundObserver) {
-            outboundServerObserver.set(outboundObserver);
-            outboundObserver.onError(Status.INTERNAL.withDescription("TEST ERROR").asException());
-            return inboundServerObserver;
-          }
-        })
-        .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.LogEntry.List> logging(
+                      StreamObserver<BeamFnApi.LogControl> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    outboundObserver.onError(
+                        Status.INTERNAL.withDescription("TEST ERROR").asException());
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
     server.start();
 
-    ManagedChannel channel =
-        InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+    ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
     try {
-      BeamFnLoggingClient client = new BeamFnLoggingClient(
-          PipelineOptionsFactory.fromArgs(new String[] {
-              "--defaultSdkHarnessLogLevel=OFF",
-              "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
-          }).create(),
-          apiServiceDescriptor,
-          (Endpoints.ApiServiceDescriptor descriptor) -> channel);
+      BeamFnLoggingClient client =
+          new BeamFnLoggingClient(
+              PipelineOptionsFactory.fromArgs(
+                      new String[] {
+                        "--defaultSdkHarnessLogLevel=OFF",
+                        "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
+                      })
+                  .create(),
+              apiServiceDescriptor,
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
       thrown.expectMessage("TEST ERROR");
       client.close();
@@ -222,36 +231,41 @@ public class BeamFnLoggingClientTest {
         new AtomicReference<>();
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
         TestStreams.withOnNext(
-            (BeamFnApi.LogEntry.List logEntries) -> values.addAll(logEntries.getLogEntriesList()))
+                (BeamFnApi.LogEntry.List logEntries) ->
+                    values.addAll(logEntries.getLogEntriesList()))
             .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-        .addService(new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
-          @Override
-          public StreamObserver<BeamFnApi.LogEntry.List> logging(
-              StreamObserver<BeamFnApi.LogControl> outboundObserver) {
-            outboundServerObserver.set(outboundObserver);
-            outboundObserver.onCompleted();
-            return inboundServerObserver;
-          }
-        })
-        .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.LogEntry.List> logging(
+                      StreamObserver<BeamFnApi.LogControl> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    outboundObserver.onCompleted();
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
     server.start();
 
-    ManagedChannel channel =
-        InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+    ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
     try {
-      BeamFnLoggingClient client = new BeamFnLoggingClient(
-          PipelineOptionsFactory.fromArgs(new String[] {
-              "--defaultSdkHarnessLogLevel=OFF",
-              "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
-          }).create(),
-          apiServiceDescriptor,
-          (Endpoints.ApiServiceDescriptor descriptor) -> channel);
+      BeamFnLoggingClient client =
+          new BeamFnLoggingClient(
+              PipelineOptionsFactory.fromArgs(
+                      new String[] {
+                        "--defaultSdkHarnessLogLevel=OFF",
+                        "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
+                      })
+                  .create(),
+              apiServiceDescriptor,
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
       client.close();
     } finally {

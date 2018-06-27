@@ -17,18 +17,12 @@
  */
 package org.apache.beam.sdk.io.fs;
 
-/**
- * An object that configures {@link ResourceId#resolve}.
- */
+/** An object that configures {@link ResourceId#resolve}. */
 public interface ResolveOptions {
 
-  /**
-   * Defines the standard resolve options.
-   */
+  /** Defines the standard resolve options. */
   enum StandardResolveOptions implements ResolveOptions {
-    /**
-     * Resolve a file.
-     */
+    /** Resolve a file. */
     RESOLVE_FILE,
 
     /**

@@ -23,15 +23,14 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
-/**
- * Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes.
- */
+/** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 public class DoFnOutputReceivers {
   private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
     DoFn<?, ?>.WindowedContext context;
     @Nullable TupleTag<T> outputTag;
-    public WindowedContextOutputReceiver(DoFn<?, ?>.WindowedContext context,
-                                         @Nullable TupleTag<T> outputTag) {
+
+    public WindowedContextOutputReceiver(
+        DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
       this.context = context;
       this.outputTag = outputTag;
     }
@@ -57,6 +56,7 @@ public class DoFnOutputReceivers {
 
   private static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
     DoFn<?, ?>.WindowedContext context;
+
     public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context) {
       this.context = context;
     }
@@ -67,17 +67,13 @@ public class DoFnOutputReceivers {
     }
   }
 
-  /**
-   * Returns a {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   */
-  public static <T> OutputReceiver<T> windowedReceiver(DoFn<?, ?>.WindowedContext context,
-                                                       @Nullable TupleTag<T> outputTag) {
+  /** Returns a {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
+  public static <T> OutputReceiver<T> windowedReceiver(
+      DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
     return new WindowedContextOutputReceiver<>(context, outputTag);
   }
 
-  /**
-   * Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   */
+  /** Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
   public static <T> MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
     return new WindowedContextMultiOutputReceiver(context);
   }

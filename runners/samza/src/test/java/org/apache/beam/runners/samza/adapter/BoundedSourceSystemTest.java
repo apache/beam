@@ -49,22 +49,17 @@ import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/**
- * Tests for {@link BoundedSourceSystem}.
- */
+/** Tests for {@link BoundedSourceSystem}. */
 public class BoundedSourceSystemTest {
   private static final SystemStreamPartition DEFAULT_SSP =
       new SystemStreamPartition("default-system", "default-system", new Partition(0));
-
-
 
   // A reasonable time to wait to get all messages from the bounded source assuming no blocking.
   private static final long DEFAULT_TIMEOUT_MILLIS = 1000;
 
   @Test
   public void testConsumerStartStop() throws IOException, InterruptedException {
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .build();
+    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder().build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
@@ -80,9 +75,8 @@ public class BoundedSourceSystemTest {
 
   @Test
   public void testConsumeOneMessage() throws IOException, InterruptedException {
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .addElements("test")
-        .build();
+    final TestBoundedSource<String> source =
+        TestBoundedSource.<String>createBuilder().addElements("test").build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
@@ -101,11 +95,12 @@ public class BoundedSourceSystemTest {
   public void testAdvanceTimestamp() throws InterruptedException {
     final Instant timestamp = Instant.now();
 
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .addElements("before")
-        .setTimestamp(timestamp)
-        .addElements("after")
-        .build();
+    final TestBoundedSource<String> source =
+        TestBoundedSource.<String>createBuilder()
+            .addElements("before")
+            .setTimestamp(timestamp)
+            .addElements("after")
+            .build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
@@ -123,9 +118,10 @@ public class BoundedSourceSystemTest {
 
   @Test
   public void testConsumeMultipleMessages() throws IOException, InterruptedException {
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .addElements("test", "a", "few", "messages")
-        .build();
+    final TestBoundedSource<String> source =
+        TestBoundedSource.<String>createBuilder()
+            .addElements("test", "a", "few", "messages")
+            .build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
@@ -147,16 +143,15 @@ public class BoundedSourceSystemTest {
   public void testReaderThrowsAtStart() throws Exception {
     final IOException exception = new IOException("Expected exception");
 
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .addException(exception)
-        .build();
+    final TestBoundedSource<String> source =
+        TestBoundedSource.<String>createBuilder().addException(exception).build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
     consumer.register(DEFAULT_SSP, "0");
     consumer.start();
-    expectWrappedException(exception,
-        () -> consumeUntilTimeoutOrEos(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    expectWrappedException(
+        exception, () -> consumeUntilTimeoutOrEos(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
     consumer.stop();
   }
 
@@ -164,17 +159,18 @@ public class BoundedSourceSystemTest {
   public void testReaderThrowsAtAdvance() throws Exception {
     final IOException exception = new IOException("Expected exception");
 
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .addElements("test", "a", "few", "good", "messages", "then", "...")
-        .addException(exception)
-        .build();
+    final TestBoundedSource<String> source =
+        TestBoundedSource.<String>createBuilder()
+            .addElements("test", "a", "few", "good", "messages", "then", "...")
+            .addException(exception)
+            .build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
     consumer.register(DEFAULT_SSP, "0");
     consumer.start();
-    expectWrappedException(exception,
-        () -> consumeUntilTimeoutOrEos(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    expectWrappedException(
+        exception, () -> consumeUntilTimeoutOrEos(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
     consumer.stop();
   }
 
@@ -182,11 +178,12 @@ public class BoundedSourceSystemTest {
   public void testTimeout() throws Exception {
     final CountDownLatch advanceLatch = new CountDownLatch(1);
 
-    final TestBoundedSource<String> source = TestBoundedSource.<String>createBuilder()
-        .addElements("before")
-        .addLatch(advanceLatch)
-        .addElements("after")
-        .build();
+    final TestBoundedSource<String> source =
+        TestBoundedSource.<String>createBuilder()
+            .addElements("before")
+            .addLatch(advanceLatch)
+            .addElements("after")
+            .build();
 
     final BoundedSourceSystem.Consumer<String> consumer = createConsumer(source);
 
@@ -227,12 +224,12 @@ public class BoundedSourceSystemTest {
     final Set<String> offsets = new HashSet<>();
 
     // check split0
-    List<IncomingMessageEnvelope> envelopes = consumeUntilTimeoutOrEos(
-        consumer, ssp(0), DEFAULT_TIMEOUT_MILLIS);
+    List<IncomingMessageEnvelope> envelopes =
+        consumeUntilTimeoutOrEos(consumer, ssp(0), DEFAULT_TIMEOUT_MILLIS);
     assertEquals(
         Arrays.asList(
-            createElementMessage(ssp(0), envelopes.get(0).getOffset(), "split-0",
-                BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createElementMessage(
+                ssp(0), envelopes.get(0).getOffset(), "split-0", BoundedWindow.TIMESTAMP_MIN_VALUE),
             createWatermarkMessage(ssp(0), BoundedWindow.TIMESTAMP_MAX_VALUE),
             createEndOfStreamMessage(ssp(0))),
         envelopes);
@@ -242,8 +239,8 @@ public class BoundedSourceSystemTest {
     envelopes = consumeUntilTimeoutOrEos(consumer, ssp(1), DEFAULT_TIMEOUT_MILLIS);
     assertEquals(
         Arrays.asList(
-            createElementMessage(ssp(1), envelopes.get(0).getOffset(), "split-1",
-                BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createElementMessage(
+                ssp(1), envelopes.get(0).getOffset(), "split-1", BoundedWindow.TIMESTAMP_MIN_VALUE),
             createWatermarkMessage(ssp(1), BoundedWindow.TIMESTAMP_MAX_VALUE),
             createEndOfStreamMessage(ssp(1))),
         envelopes);
@@ -253,24 +250,20 @@ public class BoundedSourceSystemTest {
     envelopes = consumeUntilTimeoutOrEos(consumer, ssp(2), DEFAULT_TIMEOUT_MILLIS);
     assertEquals(
         Arrays.asList(
-            createElementMessage(ssp(2), envelopes.get(0).getOffset(), "split-2",
-                BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createElementMessage(
+                ssp(2), envelopes.get(0).getOffset(), "split-2", BoundedWindow.TIMESTAMP_MIN_VALUE),
             createWatermarkMessage(ssp(2), BoundedWindow.TIMESTAMP_MAX_VALUE),
             createEndOfStreamMessage(ssp(2))),
         envelopes);
     offsets.add(envelopes.get(0).getOffset());
 
     // check offsets
-    assertEquals(
-        Sets.newHashSet("0", "1", "2"),
-        offsets
-    );
+    assertEquals(Sets.newHashSet("0", "1", "2"), offsets);
     consumer.stop();
   }
 
-  private static List<IncomingMessageEnvelope> consumeUntilTimeoutOrEos(SystemConsumer consumer,
-                                                                        SystemStreamPartition ssp,
-                                                                        long timeoutMillis)
+  private static List<IncomingMessageEnvelope> consumeUntilTimeoutOrEos(
+      SystemConsumer consumer, SystemStreamPartition ssp, long timeoutMillis)
       throws InterruptedException {
     assertTrue("Expected timeoutMillis (" + timeoutMillis + ") >= 0", timeoutMillis >= 0);
 
@@ -287,9 +280,8 @@ public class BoundedSourceSystemTest {
     return accumulator;
   }
 
-  private static List<IncomingMessageEnvelope> pollOnce(SystemConsumer consumer,
-                                                        SystemStreamPartition ssp,
-                                                        long timeoutMillis)
+  private static List<IncomingMessageEnvelope> pollOnce(
+      SystemConsumer consumer, SystemStreamPartition ssp, long timeoutMillis)
       throws InterruptedException {
     final Set<SystemStreamPartition> sspSet = Collections.singleton(ssp);
     final Map<SystemStreamPartition, List<IncomingMessageEnvelope>> pollResult =
@@ -308,8 +300,8 @@ public class BoundedSourceSystemTest {
       BoundedSource<String> source, int splitNum) {
     SamzaPipelineOptions pipelineOptions = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
     pipelineOptions.setMaxSourceParallelism(splitNum);
-    return new BoundedSourceSystem.Consumer<>(source, pipelineOptions,
-        new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
+    return new BoundedSourceSystem.Consumer<>(
+        source, pipelineOptions, new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
   }
 
   private static SystemStreamPartition ssp(int partition) {

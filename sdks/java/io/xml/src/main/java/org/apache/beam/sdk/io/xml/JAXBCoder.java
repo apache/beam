@@ -36,8 +36,8 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms
- * to encode/decode the objects. Users must provide the {@code Class} of the JAXB annotated object.
+ * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms to
+ * encode/decode the objects. Users must provide the {@code Class} of the JAXB annotated object.
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
@@ -54,28 +54,30 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private JAXBCoder(Class<T> jaxbClass) {
     this.jaxbClass = jaxbClass;
-    this.jaxbMarshaller = new EmptyOnDeserializationThreadLocal<Marshaller>() {
-      @Override
-      protected Marshaller initialValue() {
-        try {
-          JAXBContext jaxbContext = getContext();
-          return jaxbContext.createMarshaller();
-        } catch (JAXBException e) {
-          throw new RuntimeException("Error when creating marshaller from JAXB Context.", e);
-        }
-      }
-    };
-    this.jaxbUnmarshaller = new EmptyOnDeserializationThreadLocal<Unmarshaller>() {
-      @Override
-      protected Unmarshaller initialValue() {
-        try {
-          JAXBContext jaxbContext = getContext();
-          return jaxbContext.createUnmarshaller();
-        } catch (Exception e) {
-          throw new RuntimeException("Error when creating unmarshaller from JAXB Context.", e);
-        }
-      }
-    };
+    this.jaxbMarshaller =
+        new EmptyOnDeserializationThreadLocal<Marshaller>() {
+          @Override
+          protected Marshaller initialValue() {
+            try {
+              JAXBContext jaxbContext = getContext();
+              return jaxbContext.createMarshaller();
+            } catch (JAXBException e) {
+              throw new RuntimeException("Error when creating marshaller from JAXB Context.", e);
+            }
+          }
+        };
+    this.jaxbUnmarshaller =
+        new EmptyOnDeserializationThreadLocal<Unmarshaller>() {
+          @Override
+          protected Unmarshaller initialValue() {
+            try {
+              JAXBContext jaxbContext = getContext();
+              return jaxbContext.createUnmarshaller();
+            } catch (Exception e) {
+              throw new RuntimeException("Error when creating unmarshaller from JAXB Context.", e);
+            }
+          }
+        };
   }
 
   /**
@@ -93,8 +95,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
-      throws IOException {
+  public void encode(T value, OutputStream outStream, Context context) throws IOException {
     if (context.isWholeStream) {
       try {
         jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));

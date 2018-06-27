@@ -50,13 +50,10 @@ public class DataflowRunnerInfoTest {
         version.matches("\\d+"));
 
     // Validate container version does not contain a $ (indicating it was not filled in).
-    assertThat(
-        "container version invalid",
-        info.getContainerVersion(),
-        not(containsString("$")));
+    assertThat("container version invalid", info.getContainerVersion(), not(containsString("$")));
 
-    for (String property
-        : new String[]{ "java.vendor", "java.version", "os.arch", "os.name", "os.version"}) {
+    for (String property :
+        new String[] {"java.vendor", "java.version", "os.arch", "os.name", "os.version"}) {
       assertEquals(System.getProperty(property), info.getProperties().get(property));
     }
   }

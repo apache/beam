@@ -50,14 +50,12 @@ public class CoderPropertiesTest {
   /** A coder that says it is not deterministic but actually is. */
   public static class NonDeterministicCoder extends AtomicCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream);
     }
 
@@ -72,7 +70,8 @@ public class CoderPropertiesTest {
     try {
       CoderProperties.coderDeterministic(new NonDeterministicCoder(), "TestData", "TestData");
     } catch (AssertionError error) {
-      assertThat(error.getMessage(),
+      assertThat(
+          error.getMessage(),
           CoreMatchers.containsString("Expected that the coder is deterministic"));
       // success!
       return;
@@ -89,30 +88,26 @@ public class CoderPropertiesTest {
       error = e;
     }
     assertNotNull("Expected AssertionError", error);
-    assertThat(error.getMessage(),
-        CoreMatchers.containsString("Expected that the passed in values"));
-
+    assertThat(
+        error.getMessage(), CoreMatchers.containsString("Expected that the passed in values"));
   }
 
   /** A coder that is non-deterministic because it adds a string to the value. */
   private static class BadDeterminsticCoder extends AtomicCoder<String> {
-    public BadDeterminsticCoder() {
-    }
+    public BadDeterminsticCoder() {}
 
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws IOException, CoderException {
+    public void encode(String value, OutputStream outStream) throws IOException, CoderException {
       StringUtf8Coder.of().encode(value + System.nanoTime(), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream);
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException { }
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   @Test
@@ -124,8 +119,7 @@ public class CoderPropertiesTest {
       error = e;
     }
     assertNotNull("Expected AssertionError", error);
-    assertThat(error.getMessage(),
-        CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
+    assertThat(error.getMessage(), CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
   }
 
   @Test
@@ -142,15 +136,13 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       changedState += 1;
       StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       String decodedValue = StringUtf8Coder.of().decode(inStream);
       return decodedValue.substring(0, decodedValue.length() - changedState);
     }
@@ -189,8 +181,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       if (lostState == 0) {
         throw new RuntimeException("I forgot something...");
       }
@@ -198,8 +189,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream);
     }
 
@@ -273,7 +263,7 @@ public class CoderPropertiesTest {
     }
 
     assertNotNull("Expected Assertion Error", error);
-    assertThat(error.getMessage(),
-        CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
+    assertThat(
+        error.getMessage(), CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
   }
 }

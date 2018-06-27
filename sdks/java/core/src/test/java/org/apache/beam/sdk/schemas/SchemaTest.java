@@ -28,26 +28,25 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link Schema}.
- */
+/** Unit tests for {@link Schema}. */
 public class SchemaTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testCreate() {
-    Schema schema = Schema.builder()
-        .addByteField("f_byte")
-        .addInt16Field("f_int16")
-        .addInt32Field("f_int32")
-        .addInt64Field("f_int64")
-        .addDecimalField("f_decimal")
-        .addFloatField("f_float")
-        .addDoubleField("f_double")
-        .addStringField("f_string")
-        .addDateTimeField("f_datetime")
-        .addBooleanField("f_boolean").build();
+    Schema schema =
+        Schema.builder()
+            .addByteField("f_byte")
+            .addInt16Field("f_int16")
+            .addInt32Field("f_int32")
+            .addInt64Field("f_int64")
+            .addDecimalField("f_decimal")
+            .addFloatField("f_float")
+            .addDoubleField("f_double")
+            .addStringField("f_string")
+            .addDateTimeField("f_datetime")
+            .addBooleanField("f_boolean")
+            .build();
     assertEquals(10, schema.getFieldCount());
 
     assertEquals(0, schema.indexOf("f_byte"));
@@ -68,8 +67,7 @@ public class SchemaTest {
 
     assertEquals(4, schema.indexOf("f_decimal"));
     assertEquals("f_decimal", schema.getField(4).getName());
-    assertEquals(FieldType.DECIMAL,
-        schema.getField(4).getType());
+    assertEquals(FieldType.DECIMAL, schema.getField(4).getType());
 
     assertEquals(5, schema.indexOf("f_float"));
     assertEquals("f_float", schema.getField(5).getName());
@@ -85,8 +83,7 @@ public class SchemaTest {
 
     assertEquals(8, schema.indexOf("f_datetime"));
     assertEquals("f_datetime", schema.getField(8).getName());
-    assertEquals(FieldType.DATETIME,
-        schema.getField(8).getType());
+    assertEquals(FieldType.DATETIME, schema.getField(8).getType());
 
     assertEquals(9, schema.indexOf("f_boolean"));
     assertEquals("f_boolean", schema.getField(9).getName());
@@ -113,8 +110,7 @@ public class SchemaTest {
 
   @Test
   public void testArrayOfRowSchema() {
-    Schema nestedSchema = Schema.of(
-        Field.of("f1_str", FieldType.STRING));
+    Schema nestedSchema = Schema.of(Field.of("f1_str", FieldType.STRING));
     FieldType arrayType = FieldType.array(FieldType.row(nestedSchema));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
@@ -140,19 +136,15 @@ public class SchemaTest {
 
   @Test
   public void testWrongIndex() {
-    Schema schema = Schema.of(
-        Field.of("f_byte", FieldType.BYTE));
+    Schema schema = Schema.of(Field.of("f_byte", FieldType.BYTE));
     thrown.expect(IndexOutOfBoundsException.class);
     schema.getField(1);
   }
 
-
-
   @Test
   public void testCollector() {
     Schema schema =
-        Stream
-            .of(
+        Stream.of(
                 Schema.Field.of("f_int", FieldType.INT32),
                 Schema.Field.of("f_string", FieldType.STRING))
             .collect(toSchema());

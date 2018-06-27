@@ -52,9 +52,7 @@ public class MetricsMap<K, T> implements Serializable {
     this.factory = factory;
   }
 
-  /**
-   * Get or create the value associated with the given key.
-   */
+  /** Get or create the value associated with the given key. */
   public T get(K key) {
     T metric = metrics.get(key);
     if (metric == null) {
@@ -64,24 +62,18 @@ public class MetricsMap<K, T> implements Serializable {
     return metric;
   }
 
-  /**
-   * Get the value associated with the given key, if it exists.
-   */
+  /** Get the value associated with the given key, if it exists. */
   @Nullable
   public T tryGet(K key) {
     return metrics.get(key);
   }
 
-  /**
-   * Return an iterable over the entries in the current {@link  MetricsMap}.
-   */
+  /** Return an iterable over the entries in the current {@link MetricsMap}. */
   public Iterable<Map.Entry<K, T>> entries() {
     return Iterables.unmodifiableIterable(metrics.entrySet());
   }
 
-  /**
-   * Return an iterable over the values in the current {@link MetricsMap}.
-   */
+  /** Return an iterable over the values in the current {@link MetricsMap}. */
   public Iterable<T> values() {
     return Iterables.unmodifiableIterable(metrics.values());
   }

@@ -68,7 +68,7 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(ExecutableGraphBuilder.class)
             .pruningPattern(
                 "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
-                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */)
+                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */ )
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")

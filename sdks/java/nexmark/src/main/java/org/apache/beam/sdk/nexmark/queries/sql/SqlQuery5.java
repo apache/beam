@@ -50,39 +50,39 @@ import org.apache.beam.sdk.values.TupleTag;
  *                   GROUP BY B2.auction);
  * }</pre>
  *
- * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and
- * we'll also preserve the bid counts.</p>
+ * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and we'll
+ * also preserve the bid counts.
  */
 public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<AuctionCount>> {
 
-  private static final String QUERY_TEMPLATE = ""
-      + " SELECT auction, num "
-      + "    FROM (SELECT B1.auction, count(*) AS num, "
-      + "       HOP_START(B1.dateTime, INTERVAL '%1$d' SECOND, "
-      + "          INTERVAL '%2$d' SECOND) AS starttime "
-      + "    FROM Bid B1 "
-      + "    GROUP BY B1.auction, "
-      + "       HOP(B1.dateTime, INTERVAL '%1$d' SECOND, "
-      + "          INTERVAL '%2$d' SECOND)) B1 "
-      + " JOIN (SELECT max(B2.num) AS maxnum, B2.starttime "
-      + "    FROM (SELECT count(*) AS num, "
-      + "       HOP_START(B2.dateTime, INTERVAL '%1$d' SECOND, "
-      + "          INTERVAL '%2$d' SECOND) AS starttime "
-      + "    FROM Bid B2 "
-      + "    GROUP BY B2.auction, "
-      + "       HOP(B2.dateTime, INTERVAL '%1$d' SECOND, "
-      + "          INTERVAL '%2$d' SECOND)) B2 "
-      + "    GROUP BY B2.starttime) B2 "
-      + " ON B1.starttime = B2.starttime AND B1.num >= B2.maxnum ";
+  private static final String QUERY_TEMPLATE =
+      ""
+          + " SELECT auction, num "
+          + "    FROM (SELECT B1.auction, count(*) AS num, "
+          + "       HOP_START(B1.dateTime, INTERVAL '%1$d' SECOND, "
+          + "          INTERVAL '%2$d' SECOND) AS starttime "
+          + "    FROM Bid B1 "
+          + "    GROUP BY B1.auction, "
+          + "       HOP(B1.dateTime, INTERVAL '%1$d' SECOND, "
+          + "          INTERVAL '%2$d' SECOND)) B1 "
+          + " JOIN (SELECT max(B2.num) AS maxnum, B2.starttime "
+          + "    FROM (SELECT count(*) AS num, "
+          + "       HOP_START(B2.dateTime, INTERVAL '%1$d' SECOND, "
+          + "          INTERVAL '%2$d' SECOND) AS starttime "
+          + "    FROM Bid B2 "
+          + "    GROUP BY B2.auction, "
+          + "       HOP(B2.dateTime, INTERVAL '%1$d' SECOND, "
+          + "          INTERVAL '%2$d' SECOND)) B2 "
+          + "    GROUP BY B2.starttime) B2 "
+          + " ON B1.starttime = B2.starttime AND B1.num >= B2.maxnum ";
 
   private final PTransform<PInput, PCollection<Row>> query;
 
   public SqlQuery5(NexmarkConfiguration configuration) {
     super("SqlQuery5");
 
-    String queryString = String.format(QUERY_TEMPLATE,
-        configuration.windowPeriodSec,
-        configuration.windowSizeSec);
+    String queryString =
+        String.format(QUERY_TEMPLATE, configuration.windowPeriodSec, configuration.windowSizeSec);
     query = SqlTransform.query(queryString);
   }
 
@@ -90,18 +90,16 @@ public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Auctio
   public PCollection<AuctionCount> expand(PCollection<Event> allEvents) {
     RowCoder bidRecordCoder = getBidRowCoder();
 
-    PCollection<Row> bids = allEvents
-        .apply(Filter.by(IS_BID))
-        .apply(getName() + ".ToRow", ToRow.parDo())
-        .setCoder(bidRecordCoder);
+    PCollection<Row> bids =
+        allEvents
+            .apply(Filter.by(IS_BID))
+            .apply(getName() + ".ToRow", ToRow.parDo())
+            .setCoder(bidRecordCoder);
 
     PCollection<Row> queryResultsRows =
-        PCollectionTuple.of(new TupleTag<>("Bid"), bids)
-            .apply(query);
+        PCollectionTuple.of(new TupleTag<>("Bid"), bids).apply(query);
 
-    return queryResultsRows
-        .apply(auctionCountParDo())
-        .setCoder(AuctionCount.CODER);
+    return queryResultsRows.apply(auctionCountParDo()).setCoder(AuctionCount.CODER);
   }
 
   private RowCoder getBidRowCoder() {

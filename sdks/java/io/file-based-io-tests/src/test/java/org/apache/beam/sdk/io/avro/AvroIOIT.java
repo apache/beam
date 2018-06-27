@@ -49,6 +49,7 @@ import org.junit.runners.JUnit4;
  * An integration test for {@link AvroIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
@@ -58,28 +59,29 @@ import org.junit.runners.JUnit4;
  *  --tests org.apache.beam.sdk.io.avro.AvroIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
- * </p>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class AvroIOIT {
 
-  private static final Schema AVRO_SCHEMA = new Schema.Parser().parse("{\n"
-      + " \"namespace\": \"ioitavro\",\n"
-      + " \"type\": \"record\",\n"
-      + " \"name\": \"TestAvroLine\",\n"
-      + " \"fields\": [\n"
-      + "     {\"name\": \"row\", \"type\": \"string\"}\n"
-      + " ]\n"
-      + "}");
+  private static final Schema AVRO_SCHEMA =
+      new Schema.Parser()
+          .parse(
+              "{\n"
+                  + " \"namespace\": \"ioitavro\",\n"
+                  + " \"type\": \"record\",\n"
+                  + " \"name\": \"TestAvroLine\",\n"
+                  + " \"fields\": [\n"
+                  + "     {\"name\": \"row\", \"type\": \"string\"}\n"
+                  + " ]\n"
+                  + "}");
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
@@ -92,27 +94,36 @@ public class AvroIOIT {
   @Test
   public void writeThenReadAll() {
 
-    PCollection<String> testFilenames = pipeline
-      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-      .apply("Produce text lines",
-        ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-      .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
-      .setCoder(AvroCoder.of(AVRO_SCHEMA))
-      .apply("Write Avro records to files",
-        AvroIO.writeGenericRecords(AVRO_SCHEMA).to(filenamePrefix).withOutputFilenames()
-          .withSuffix(".avro")).getPerDestinationOutputFilenames()
-      .apply(Values.create());
+    PCollection<String> testFilenames =
+        pipeline
+            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+            .apply(
+                "Produce text lines",
+                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+            .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
+            .setCoder(AvroCoder.of(AVRO_SCHEMA))
+            .apply(
+                "Write Avro records to files",
+                AvroIO.writeGenericRecords(AVRO_SCHEMA)
+                    .to(filenamePrefix)
+                    .withOutputFilenames()
+                    .withSuffix(".avro"))
+            .getPerDestinationOutputFilenames()
+            .apply(Values.create());
 
-    PCollection<String> consolidatedHashcode = testFilenames
-      .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
-      .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
-      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode =
+        testFilenames
+            .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
+            .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply("Delete test files",
-      ParDo.of(new DeleteFileFn()).withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+    testFilenames.apply(
+        "Delete test files",
+        ParDo.of(new DeleteFileFn())
+            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }

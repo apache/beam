@@ -92,9 +92,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link UnboundedReadEvaluatorFactory}.
- */
+/** Tests for {@link UnboundedReadEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class UnboundedReadEvaluatorFactoryTest {
   private PCollection<Long> longs;
@@ -196,8 +194,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     for (long i = 0L; i < 20L; i++) {
       outputs[(int) i] = i % 5L;
     }
-    TestUnboundedSource<Long> source =
-        new TestUnboundedSource<>(BigEndianLongCoder.of(), outputs);
+    TestUnboundedSource<Long> source = new TestUnboundedSource<>(BigEndianLongCoder.of(), outputs);
     source.dedupes = true;
 
     PCollection<Long> pcollection = p.apply(Read.from(source));
@@ -291,16 +288,15 @@ public class UnboundedReadEvaluatorFactoryTest {
   @Test
   public void evaluatorReusesReaderAndClosesAtTheEnd() throws Exception {
     int numElements = 1000;
-    ContiguousSet<Long> elems = ContiguousSet.create(
-      Range.openClosed(0L, (long) numElements), DiscreteDomain.longs());
+    ContiguousSet<Long> elems =
+        ContiguousSet.create(Range.openClosed(0L, (long) numElements), DiscreteDomain.longs());
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
     source.advanceWatermarkToInfinity = true;
 
     PCollection<Long> pcollection = p.apply(Read.from(source));
     DirectGraph graph = DirectGraphs.getGraph(p);
-    AppliedPTransform<?, ?, ?> sourceTransform =
-        graph.getProducer(pcollection);
+    AppliedPTransform<?, ?, ?> sourceTransform = graph.getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     UncommittedBundle<Long> output = mock(UncommittedBundle.class);
@@ -323,13 +319,14 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     do {
       TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
-        factory.forApplication(sourceTransform, residual);
+          factory.forApplication(sourceTransform, residual);
       evaluator.processElement(Iterables.getOnlyElement(residual.getElements()));
       TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
-        evaluator.finishBundle();
-      residual = inputBundle.withElements(
-        (Iterable<WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>>)
-          result.getUnprocessedElements());
+          evaluator.finishBundle();
+      residual =
+          inputBundle.withElements(
+              (Iterable<WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>>)
+                  result.getUnprocessedElements());
     } while (!Iterables.isEmpty(residual.getElements()));
 
     verify(output, times((numElements))).add(any());
@@ -344,8 +341,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
 
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform =
-        DirectGraphs.getGraph(p).getProducer(pcollection);
+    AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getGraph(p).getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
@@ -391,8 +387,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             .throwsOnClose();
 
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform =
-        DirectGraphs.getGraph(p).getProducer(pcollection);
+    AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getGraph(p).getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
@@ -434,13 +429,14 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   private void processElement(final TestUnboundedSource<String> source) throws Exception {
-    final EvaluationContext context = EvaluationContext.create(
-        MockClock.fromInstant(Instant.now()),
-        CloningBundleFactory.create(),
-        DirectGraph.create(
-            emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap()),
-        emptySet(),
-        Executors.newCachedThreadPool());
+    final EvaluationContext context =
+        EvaluationContext.create(
+            MockClock.fromInstant(Instant.now()),
+            CloningBundleFactory.create(),
+            DirectGraph.create(
+                emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap()),
+            emptySet(),
+            Executors.newCachedThreadPool());
     final UnboundedReadEvaluatorFactory factory =
         new UnboundedReadEvaluatorFactory(context, options);
 
@@ -448,24 +444,27 @@ public class UnboundedReadEvaluatorFactoryTest {
     final Pipeline pipeline = Pipeline.create(options);
     final PCollection<String> pCollection = pipeline.apply(unbounded);
     final AppliedPTransform<PBegin, PCollection<String>, Read.Unbounded<String>> application =
-      AppliedPTransform.of(
-        "test", new HashMap<>(), singletonMap(new TupleTag(), pCollection),
-              unbounded, pipeline);
+        AppliedPTransform.of(
+            "test",
+            new HashMap<>(),
+            singletonMap(new TupleTag(), pCollection),
+            unbounded,
+            pipeline);
     final TransformEvaluator<UnboundedSourceShard<String, TestCheckpointMark>> evaluator =
-      factory.forApplication(application, null);
+        factory.forApplication(application, null);
     final UnboundedSource.UnboundedReader<String> reader = source.createReader(options, null);
-    final UnboundedSourceShard<String, TestCheckpointMark> shard = UnboundedSourceShard.of(
-      source, new NeverDeduplicator(), reader, null);
+    final UnboundedSourceShard<String, TestCheckpointMark> shard =
+        UnboundedSourceShard.of(source, new NeverDeduplicator(), reader, null);
     final WindowedValue<UnboundedSourceShard<String, TestCheckpointMark>> value =
-      WindowedValue.of(
-        shard, BoundedWindow.TIMESTAMP_MAX_VALUE, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+        WindowedValue.of(
+            shard, BoundedWindow.TIMESTAMP_MAX_VALUE, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
     TestUnboundedSource.readerClosedCount = 0;
     evaluator.processElement(value);
   }
 
   /**
-   * A terse alias for producing timestamped longs in the {@link GlobalWindow}, where
-   * the timestamp is the epoch offset by the value of the element.
+   * A terse alias for producing timestamped longs in the {@link GlobalWindow}, where the timestamp
+   * is the epoch offset by the value of the element.
    */
   private static WindowedValue<Long> tgw(Long elem) {
     return WindowedValue.timestampedValueInGlobalWindow(elem, new Instant(elem));
@@ -567,8 +566,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       @Override
       public Instant getWatermark() {
         getWatermarkCalls++;
-        if (index + 1 == elems.size()
-            && TestUnboundedSource.this.advanceWatermarkToInfinity) {
+        if (index + 1 == elems.size() && TestUnboundedSource.this.advanceWatermarkToInfinity) {
           return BoundedWindow.TIMESTAMP_MAX_VALUE;
         } else {
           return new Instant(index + getWatermarkCalls);
@@ -647,17 +645,12 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     public static class Coder extends AtomicCoder<TestCheckpointMark> {
       @Override
-      public void encode(
-          TestCheckpointMark value,
-          OutputStream outStream)
-          throws IOException {
+      public void encode(TestCheckpointMark value, OutputStream outStream) throws IOException {
         VarInt.encode(value.index, outStream);
       }
 
       @Override
-      public TestCheckpointMark decode(
-          InputStream inStream)
-          throws IOException {
+      public TestCheckpointMark decode(InputStream inStream) throws IOException {
         TestCheckpointMark decoded = new TestCheckpointMark(VarInt.decodeInt(inStream));
         decoded.decoded = true;
         return decoded;

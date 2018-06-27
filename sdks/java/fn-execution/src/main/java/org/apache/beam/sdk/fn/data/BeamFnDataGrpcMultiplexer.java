@@ -54,8 +54,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   @Nullable private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
-  private final ConcurrentMap<
-            LogicalEndpoint, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
+  private final ConcurrentMap<LogicalEndpoint, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
@@ -116,12 +115,12 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   }
 
   /**
-   * A multiplexing {@link StreamObserver} that selects the inbound {@link Consumer} to
-   * pass the elements to.
+   * A multiplexing {@link StreamObserver} that selects the inbound {@link Consumer} to pass the
+   * elements to.
    *
-   * <p>The inbound observer blocks until the {@link Consumer} is bound allowing for the
-   * sending harness to initiate transmitting data without needing for the receiving harness to
-   * signal that it is ready to consume that data.
+   * <p>The inbound observer blocks until the {@link Consumer} is bound allowing for the sending
+   * harness to initiate transmitting data without needing for the receiving harness to signal that
+   * it is ready to consume that data.
    */
   private final class InboundObserver implements StreamObserver<BeamFnApi.Elements> {
     @Override
@@ -132,17 +131,19 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
               LogicalEndpoint.of(data.getInstructionReference(), data.getTarget());
           CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = receiverFuture(key);
           if (!consumer.isDone()) {
-            LOG.debug("Received data for key {} without consumer ready. "
-                + "Waiting for consumer to be registered.", key);
+            LOG.debug(
+                "Received data for key {} without consumer ready. "
+                    + "Waiting for consumer to be registered.",
+                key);
           }
           consumer.get().accept(data);
           if (data.getData().isEmpty()) {
             consumers.remove(key);
           }
-        /*
-         * TODO: On failure we should fail any bundles that were impacted eagerly
-         * instead of relying on the Runner harness to do all the failure handling.
-         */
+          /*
+           * TODO: On failure we should fail any bundles that were impacted eagerly
+           * instead of relying on the Runner harness to do all the failure handling.
+           */
         } catch (ExecutionException | InterruptedException e) {
           LOG.error(
               "Client interrupted during handling of data for instruction {} and target {}",

@@ -62,6 +62,7 @@ public abstract class RemoteGrpcPortWrite {
   }
 
   abstract String getInputPCollectionId();
+
   public abstract RemoteGrpcPort getPort();
 
   public PTransform toPTransform() {

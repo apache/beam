@@ -49,8 +49,8 @@ import org.joda.time.Duration;
  *                   GROUP BY B2.auction);
  * }</pre>
  *
- * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and
- * we'll also preserve the bid counts.
+ * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and we'll
+ * also preserve the bid counts.
  */
 public class Query5 extends NexmarkQuery {
   public Query5(NexmarkConfiguration configuration) {

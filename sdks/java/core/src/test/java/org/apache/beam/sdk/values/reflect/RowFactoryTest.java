@@ -32,15 +32,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Unit tests for {@link RowFactory}.
- */
+/** Unit tests for {@link RowFactory}. */
 @RunWith(Parameterized.class)
 public class RowFactoryTest {
 
-  /**
-   * Test pojo.
-   */
+  /** Test pojo. */
   public static final class SomePojo {
     private String someStringField;
     private Integer someIntegerField;
@@ -59,9 +55,7 @@ public class RowFactoryTest {
     }
   }
 
-  /**
-   * Getters factories to test the record factory with.
-   */
+  /** Getters factories to test the record factory with. */
   @Parameterized.Parameters
   public static Iterable<GetterFactory> gettersFactories() {
     return ImmutableList.of(
@@ -84,9 +78,7 @@ public class RowFactoryTest {
     Row row = factory.create(pojo);
 
     assertEquals(2, row.getFieldCount());
-    assertThat(
-        row.getValues(),
-        containsInAnyOrder((Object) "someString", 42));
+    assertThat(row.getValues(), containsInAnyOrder((Object) "someString", 42));
   }
 
   @Test
@@ -96,8 +88,8 @@ public class RowFactoryTest {
 
     Row row = factory.create(pojo);
 
-    assertThat(row.getSchema().getFieldNames(),
-        containsInAnyOrder("someStringField", "someIntegerField"));
+    assertThat(
+        row.getSchema().getFieldNames(), containsInAnyOrder("someStringField", "someIntegerField"));
   }
 
   @Test
@@ -129,16 +121,12 @@ public class RowFactoryTest {
 
     Row row = factory.create(pojo);
 
-    assertThat(
-        row.getValues(),
-        containsInAnyOrder((Object) "someString", 42));
+    assertThat(row.getValues(), containsInAnyOrder((Object) "someString", 42));
 
     pojo.someIntegerField = 23;
     pojo.someStringField = "hello";
 
-    assertThat(
-        row.getValues(),
-        containsInAnyOrder((Object) "someString", 42));
+    assertThat(row.getValues(), containsInAnyOrder((Object) "someString", 42));
   }
 
   private RowFactory newFactory() {

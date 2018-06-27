@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Utilities for runners to implement metrics.
- */
+/** Utilities for runners to implement metrics. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core.construction.metrics;
 

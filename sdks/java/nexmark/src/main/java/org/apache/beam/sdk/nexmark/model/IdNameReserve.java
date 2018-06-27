@@ -31,49 +31,44 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * Result type of Query8.
- */
+/** Result type of Query8. */
 public class IdNameReserve implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  public static final Coder<IdNameReserve> CODER = new CustomCoder<IdNameReserve>() {
-    @Override
-    public void encode(IdNameReserve value, OutputStream outStream)
-        throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream);
-      STRING_CODER.encode(value.name, outStream);
-      LONG_CODER.encode(value.reserve, outStream);
-    }
+  public static final Coder<IdNameReserve> CODER =
+      new CustomCoder<IdNameReserve>() {
+        @Override
+        public void encode(IdNameReserve value, OutputStream outStream)
+            throws CoderException, IOException {
+          LONG_CODER.encode(value.id, outStream);
+          STRING_CODER.encode(value.name, outStream);
+          LONG_CODER.encode(value.reserve, outStream);
+        }
 
-    @Override
-    public IdNameReserve decode(
-        InputStream inStream)
-        throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream);
-      String name = STRING_CODER.decode(inStream);
-      long reserve = LONG_CODER.decode(inStream);
-      return new IdNameReserve(id, name, reserve);
-    }
+        @Override
+        public IdNameReserve decode(InputStream inStream) throws CoderException, IOException {
+          long id = LONG_CODER.decode(inStream);
+          String name = STRING_CODER.decode(inStream);
+          long reserve = LONG_CODER.decode(inStream);
+          return new IdNameReserve(id, name, reserve);
+        }
 
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
 
-    @Override
-    public Object structuralValue(IdNameReserve v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(IdNameReserve v) {
+          return v;
+        }
+      };
 
-  @JsonProperty
-  private final long id;
+  @JsonProperty private final long id;
 
-  @JsonProperty
-  private final String name;
+  @JsonProperty private final String name;
 
   /** Reserve price in cents. */
-  @JsonProperty
-  private final long reserve;
+  @JsonProperty private final long reserve;
 
   // For Avro only.
   @SuppressWarnings("unused")

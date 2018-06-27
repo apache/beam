@@ -35,9 +35,7 @@ import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
 
-/**
- * Helper classes and functions to build source for testing.
- */
+/** Helper classes and functions to build source for testing. */
 public class TestSourceHelpers {
 
   private TestSourceHelpers() {}
@@ -78,12 +76,9 @@ public class TestSourceHelpers {
     }
   }
 
-  static class NoElementEvent<T> implements Event<T> {
-  }
+  static class NoElementEvent<T> implements Event<T> {}
 
-  /**
-   * A builder used to populate the events emitted by {@link TestBoundedSource}.
-   */
+  /** A builder used to populate the events emitted by {@link TestBoundedSource}. */
   abstract static class SourceBuilder<T, W extends Source<T>> {
     private final List<Event<T>> events = new ArrayList<>();
     private Instant currentTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -107,7 +102,8 @@ public class TestSourceHelpers {
     }
 
     public SourceBuilder<T, W> setTimestamp(Instant timestamp) {
-      assertTrue("Expected " + timestamp + " to be greater than or equal to " + currentTimestamp,
+      assertTrue(
+          "Expected " + timestamp + " to be greater than or equal to " + currentTimestamp,
           timestamp.isEqual(currentTimestamp) || timestamp.isAfter(currentTimestamp));
       currentTimestamp = timestamp;
       return this;
@@ -130,10 +126,8 @@ public class TestSourceHelpers {
     public abstract W build();
   }
 
-  static IncomingMessageEnvelope createElementMessage(SystemStreamPartition ssp,
-      String offset,
-      String element,
-      Instant timestamp) {
+  static IncomingMessageEnvelope createElementMessage(
+      SystemStreamPartition ssp, String offset, String element, Instant timestamp) {
     return new IncomingMessageEnvelope(
         ssp,
         offset,
@@ -141,8 +135,8 @@ public class TestSourceHelpers {
         OpMessage.ofElement(WindowedValue.timestampedValueInGlobalWindow(element, timestamp)));
   }
 
-  static IncomingMessageEnvelope createWatermarkMessage(SystemStreamPartition ssp,
-      Instant watermark) {
+  static IncomingMessageEnvelope createWatermarkMessage(
+      SystemStreamPartition ssp, Instant watermark) {
     return IncomingMessageEnvelope.buildWatermarkEnvelope(ssp, watermark.getMillis());
   }
 
@@ -151,7 +145,7 @@ public class TestSourceHelpers {
   }
 
   static <T> void expectWrappedException(Exception expectedException, Callable<T> callable)
-      throws Exception{
+      throws Exception {
     try {
       callable.call();
       fail("Expected exception (" + expectedException + "), but no exception was thrown");

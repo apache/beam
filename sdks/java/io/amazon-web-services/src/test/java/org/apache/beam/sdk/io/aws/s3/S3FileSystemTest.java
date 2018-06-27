@@ -220,8 +220,7 @@ public class S3FileSystemTest {
             .getSSECustomerKeyMd5());
 
     ObjectMetadata sourceObjectMetadata = new ObjectMetadata();
-    sourceObjectMetadata.setContentLength(
-        (long) (options.getS3UploadBufferSizeBytes() * 1.5));
+    sourceObjectMetadata.setContentLength((long) (options.getS3UploadBufferSizeBytes() * 1.5));
     sourceObjectMetadata.setContentEncoding("read-seek-efficient");
     if (getSSECustomerKeyMd5(options) != null) {
       sourceObjectMetadata.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));

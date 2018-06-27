@@ -29,9 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TupleTag}.
- */
+/** Tests for {@link TupleTag}. */
 @RunWith(JUnit4.class)
 public class TupleTagTest {
 
@@ -50,6 +48,7 @@ public class TupleTagTest {
 
   private static class AnotherClass {
     private static TupleTag<Object> anotherTag = new TupleTag<>();
+
     private TupleTag<Object> createAnotherTag() {
       return new TupleTag<>();
     }
@@ -62,8 +61,7 @@ public class TupleTagTest {
     assertEquals("org.apache.beam.sdk.values.TupleTagTest#1", staticMethodTag.getId());
     assertEquals("org.apache.beam.sdk.values.TupleTagTest#2", instanceMethodTag.getId());
     assertEquals(
-        "org.apache.beam.sdk.values.TupleTagTest$AnotherClass#0",
-        AnotherClass.anotherTag.getId());
+        "org.apache.beam.sdk.values.TupleTagTest$AnotherClass#0", AnotherClass.anotherTag.getId());
   }
 
   private TupleTag<Object> createNonstaticTupleTag() {
@@ -78,15 +76,17 @@ public class TupleTagTest {
     TupleTag<Object> tag = createNonstaticTupleTag();
 
     // Check that the name is derived from the method it is created in.
-    assertThat(Iterables.get(Splitter.on('#').split(tag.getId()), 0),
+    assertThat(
+        Iterables.get(Splitter.on('#').split(tag.getId()), 0),
         startsWith("org.apache.beam.sdk.values.TupleTagTest.createNonstaticTupleTag"));
 
     // Check that after the name there is a ':' followed by a line number, and just make
     // sure the line number is big enough to be reasonable, so superficial changes don't break
     // the test.
-    assertThat(Integer.parseInt(
-        Iterables.get(Splitter.on(':').split(
-            Iterables.get(Splitter.on('#').split(tag.getId()), 0)), 1)),
+    assertThat(
+        Integer.parseInt(
+            Iterables.get(
+                Splitter.on(':').split(Iterables.get(Splitter.on('#').split(tag.getId()), 0)), 1)),
         greaterThan(15));
   }
 }

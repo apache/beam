@@ -59,8 +59,8 @@ public class BeamFnStateGrpcClientCache {
     this.cache = new ConcurrentHashMap<>();
   }
 
-  /**(
-   * Creates or returns an existing {@link BeamFnStateClient} depending on whether the passed in
+  /**
+   * ( Creates or returns an existing {@link BeamFnStateClient} depending on whether the passed in
    * {@link ApiServiceDescriptor} currently has a {@link BeamFnStateClient} bound to the same
    * channel.
    */
@@ -73,9 +73,7 @@ public class BeamFnStateGrpcClientCache {
     return new GrpcStateClient(apiServiceDescriptor);
   }
 
-  /**
-   * A {@link BeamFnStateClient} for a given {@link ApiServiceDescriptor}.
-   */
+  /** A {@link BeamFnStateClient} for a given {@link ApiServiceDescriptor}. */
   private class GrpcStateClient implements BeamFnStateClient {
     private final ApiServiceDescriptor apiServiceDescriptor;
     private final ConcurrentMap<String, CompletableFuture<StateResponse>> outstandingRequests;
@@ -87,8 +85,9 @@ public class BeamFnStateGrpcClientCache {
       this.apiServiceDescriptor = apiServiceDescriptor;
       this.outstandingRequests = new ConcurrentHashMap<>();
       this.channel = channelFactory.apply(apiServiceDescriptor);
-      this.outboundObserver = outboundObserverFactory.outboundObserverFor(
-          BeamFnStateGrpc.newStub(channel)::state, new InboundObserver());
+      this.outboundObserver =
+          outboundObserverFactory.outboundObserverFor(
+              BeamFnStateGrpc.newStub(channel)::state, new InboundObserver());
     }
 
     @Override
@@ -150,9 +149,8 @@ public class BeamFnStateGrpcClientCache {
 
       @Override
       public void onError(Throwable t) {
-        closeAndCleanUp(t instanceof RuntimeException
-            ? (RuntimeException) t
-            : new RuntimeException(t));
+        closeAndCleanUp(
+            t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t));
       }
 
       @Override

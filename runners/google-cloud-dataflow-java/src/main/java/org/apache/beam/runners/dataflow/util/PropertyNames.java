@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-/**
- * Constant property names used by the SDK in CloudWorkflow specifications.
- */
+/** Constant property names used by the SDK in CloudWorkflow specifications. */
 public class PropertyNames {
   public static final String CO_GBK_RESULT_SCHEMA = "co_gbk_result_schema";
   public static final String COMPONENT_ENCODINGS = "component_encodings";

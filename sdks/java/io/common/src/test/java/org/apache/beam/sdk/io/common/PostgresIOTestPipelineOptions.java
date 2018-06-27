@@ -27,11 +27,13 @@ public interface PostgresIOTestPipelineOptions extends IOTestPipelineOptions {
   @Description("Server name for postgres server (host name/ip address)")
   @Validation.Required
   String getPostgresServerName();
+
   void setPostgresServerName(String value);
 
   @Description("Username for postgres server")
   @Validation.Required
   String getPostgresUsername();
+
   void setPostgresUsername(String value);
 
   // Note that passwords are not as secure an authentication as other methods, and used here for
@@ -39,20 +41,24 @@ public interface PostgresIOTestPipelineOptions extends IOTestPipelineOptions {
   @Description("Password for postgres server")
   @Validation.Required
   String getPostgresPassword();
+
   void setPostgresPassword(String value);
 
   @Description("Database name for postgres server")
   @Validation.Required
   String getPostgresDatabaseName();
+
   void setPostgresDatabaseName(String value);
 
   @Description("Port for postgres server")
   @Default.Integer(5432)
   Integer getPostgresPort();
+
   void setPostgresPort(Integer value);
 
   @Description("Whether the postgres server uses SSL")
   @Default.Boolean(true)
   Boolean getPostgresSsl();
+
   void setPostgresSsl(Boolean value);
 }

@@ -77,16 +77,18 @@ public class BeamFnStateGrpcClientCacheTest {
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    testServer = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-        .addService(new BeamFnStateGrpc.BeamFnStateImplBase() {
-          @Override
-          public StreamObserver<StateRequest> state(
-              StreamObserver<StateResponse> outboundObserver) {
-            Uninterruptibles.putUninterruptibly(outboundServerObservers, outboundObserver);
-            return inboundServerObserver;
-          }
-        })
-        .build();
+    testServer =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnStateGrpc.BeamFnStateImplBase() {
+                  @Override
+                  public StreamObserver<StateRequest> state(
+                      StreamObserver<StateResponse> outboundObserver) {
+                    Uninterruptibles.putUninterruptibly(outboundServerObservers, outboundObserver);
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
     testServer.start();
 
     testChannel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
@@ -106,11 +108,12 @@ public class BeamFnStateGrpcClientCacheTest {
 
   @Test
   public void testCachingOfClient() throws Exception {
-    assertSame(clientCache.forApiServiceDescriptor(apiServiceDescriptor),
+    assertSame(
+        clientCache.forApiServiceDescriptor(apiServiceDescriptor),
         clientCache.forApiServiceDescriptor(apiServiceDescriptor));
-    assertNotSame(clientCache.forApiServiceDescriptor(apiServiceDescriptor),
-        clientCache.forApiServiceDescriptor(
-            Endpoints.ApiServiceDescriptor.getDefaultInstance()));
+    assertNotSame(
+        clientCache.forApiServiceDescriptor(apiServiceDescriptor),
+        clientCache.forApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()));
   }
 
   @Test
@@ -120,10 +123,8 @@ public class BeamFnStateGrpcClientCacheTest {
     CompletableFuture<StateResponse> successfulResponse = new CompletableFuture<>();
     CompletableFuture<StateResponse> unsuccessfulResponse = new CompletableFuture<>();
 
-    client.handle(
-        StateRequest.newBuilder().setInstructionReference(SUCCESS), successfulResponse);
-    client.handle(
-        StateRequest.newBuilder().setInstructionReference(FAIL), unsuccessfulResponse);
+    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), successfulResponse);
+    client.handle(StateRequest.newBuilder().setInstructionReference(FAIL), unsuccessfulResponse);
 
     // Wait for the client to connect.
     StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
@@ -214,10 +215,8 @@ public class BeamFnStateGrpcClientCacheTest {
         outboundObserver.onNext(StateResponse.newBuilder().setId(value.getId()).build());
         return;
       case FAIL:
-        outboundObserver.onNext(StateResponse.newBuilder()
-            .setId(value.getId())
-            .setError(TEST_ERROR)
-            .build());
+        outboundObserver.onNext(
+            StateResponse.newBuilder().setId(value.getId()).setError(TEST_ERROR).build());
         return;
       default:
         outboundObserver.onNext(StateResponse.newBuilder().setId(value.getId()).build());

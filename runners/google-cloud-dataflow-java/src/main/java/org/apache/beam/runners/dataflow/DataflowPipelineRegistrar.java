@@ -26,15 +26,13 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 /**
- * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the
- * {@link DataflowRunner}.
+ * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the {@link
+ * DataflowRunner}.
  */
 public class DataflowPipelineRegistrar {
-  private DataflowPipelineRegistrar() { }
+  private DataflowPipelineRegistrar() {}
 
-  /**
-   * Register the {@link DataflowPipelineOptions}.
-   */
+  /** Register the {@link DataflowPipelineOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override
@@ -43,9 +41,7 @@ public class DataflowPipelineRegistrar {
     }
   }
 
-  /**
-   * Register the {@link DataflowRunner}.
-   */
+  /** Register the {@link DataflowRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override

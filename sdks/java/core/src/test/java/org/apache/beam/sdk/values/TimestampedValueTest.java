@@ -32,13 +32,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link TimestampedValue}.
- */
+/** Unit tests for {@link TimestampedValue}. */
 @RunWith(JUnit4.class)
 public class TimestampedValueTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testValues() {
@@ -87,8 +84,8 @@ public class TimestampedValueTest {
 
   @Test
   public void testCoderEncodeDecodeEquals() throws Exception {
-    CoderProperties.coderDecodeEncodeEqual(CODER,
-        TimestampedValue.of(GlobalWindow.INSTANCE, Instant.now()));
+    CoderProperties.coderDecodeEncodeEqual(
+        CODER, TimestampedValue.of(GlobalWindow.INSTANCE, Instant.now()));
   }
 
   @Test

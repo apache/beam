@@ -35,16 +35,12 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
     this.cause = cause;
   }
 
-  /**
-   * Returns the reason that this {@link WindowFn} is invalid.
-   */
+  /** Returns the reason that this {@link WindowFn} is invalid. */
   public String getCause() {
     return cause;
   }
 
-  /**
-   * Returns the original windowFn that this InvalidWindows replaced.
-   */
+  /** Returns the original windowFn that this InvalidWindows replaced. */
   public WindowFn<?, W> getOriginalWindowFn() {
     return originalWindowFn;
   }
@@ -64,14 +60,11 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
     return originalWindowFn.windowCoder();
   }
 
-  /**
-   * {@code InvalidWindows} objects with the same {@code originalWindowFn} are compatible.
-   */
+  /** {@code InvalidWindows} objects with the same {@code originalWindowFn} are compatible. */
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
     return getClass() == other.getClass()
-        && getOriginalWindowFn().isCompatible(
-            ((InvalidWindows<?>) other).getOriginalWindowFn());
+        && getOriginalWindowFn().isCompatible(((InvalidWindows<?>) other).getOriginalWindowFn());
   }
 
   @Override

@@ -21,22 +21,20 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.joda.time.Instant;
 
-/**
- * Interface for interacting with time.
- */
+/** Interface for interacting with time. */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timers {
   /**
-   * Sets a timer to fire when the event time watermark, the current processing time, or
-   * the synchronized processing time watermark surpasses a given timestamp.
+   * Sets a timer to fire when the event time watermark, the current processing time, or the
+   * synchronized processing time watermark surpasses a given timestamp.
    *
    * <p>See {@link TimeDomain} for details on the time domains available.
    *
    * <p>Timers are not guaranteed to fire immediately, but will be delivered at some time
    * afterwards.
    *
-   * <p>An implementation of {@link Timers} implicitly scopes timers that are set - they may
-   * be scoped to a key and window, or a key, window, and trigger, etc.
+   * <p>An implementation of {@link Timers} implicitly scopes timers that are set - they may be
+   * scoped to a key and window, or a key, window, and trigger, etc.
    *
    * @param timestamp the time at which the timer should be delivered
    * @param timeDomain the domain that the {@code timestamp} applies to

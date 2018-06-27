@@ -45,9 +45,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link ForwardingPTransform}.
- */
+/** Tests for {@link ForwardingPTransform}. */
 @RunWith(JUnit4.class)
 public class ForwardingPTransformTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -114,11 +112,12 @@ public class ForwardingPTransformTest {
             PCollection.IsBounded.BOUNDED,
             null /* coder */);
     @SuppressWarnings("unchecked")
-    PCollection<String> output = PCollection.createPrimitiveOutputInternal(
-        null /* pipeline */,
-        WindowingStrategy.globalDefault(),
-        PCollection.IsBounded.BOUNDED,
-        null /* coder */);
+    PCollection<String> output =
+        PCollection.createPrimitiveOutputInternal(
+            null /* pipeline */,
+            WindowingStrategy.globalDefault(),
+            PCollection.IsBounded.BOUNDED,
+            null /* coder */);
     @SuppressWarnings("unchecked")
     Coder<String> outputCoder = mock(Coder.class);
 

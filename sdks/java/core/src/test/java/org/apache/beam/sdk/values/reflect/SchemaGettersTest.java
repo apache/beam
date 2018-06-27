@@ -25,9 +25,7 @@ import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link SchemaGetters}.
- */
+/** Unit tests for {@link SchemaGetters}. */
 public class SchemaGettersTest {
 
   @Test

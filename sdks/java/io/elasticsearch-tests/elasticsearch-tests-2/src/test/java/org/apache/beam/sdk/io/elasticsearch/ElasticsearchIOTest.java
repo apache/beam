@@ -55,7 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ElasticsearchIO} version 2.x. */
-
 @RunWith(JUnit4.class)
 public class ElasticsearchIOTest implements Serializable {
 
@@ -69,11 +68,9 @@ public class ElasticsearchIOTest implements Serializable {
   //cannot use inheritance because ES5 test already extends ESIntegTestCase.
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
-  @ClassRule
-  public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void beforeClass() throws IOException {
@@ -98,15 +95,16 @@ public class ElasticsearchIOTest implements Serializable {
     node = new Node(settingsBuilder.build());
     LOG.info("Elasticsearch node created");
     node.start();
-    connectionConfiguration = ConnectionConfiguration
-        .create(new String[] { "http://" + ES_IP + ":" + esHttpPort }, ES_INDEX, ES_TYPE);
+    connectionConfiguration =
+        ConnectionConfiguration.create(
+            new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
     restClient = connectionConfiguration.createClient();
-    elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration, restClient,
-        false);
+    elasticsearchIOTestCommon =
+        new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
   }
 
   @AfterClass
-  public static void afterClass() throws IOException{
+  public static void afterClass() throws IOException {
     restClient.close();
     node.close();
   }
@@ -139,8 +137,7 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testWrite();
   }
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testWriteWithErrors() throws Exception {
@@ -160,13 +157,12 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testSplit() throws Exception {
-    ElasticSearchIOTestUtils
-        .insertTestDocuments(connectionConfiguration, NUM_DOCS_UTESTS, restClient);
+    ElasticSearchIOTestUtils.insertTestDocuments(
+        connectionConfiguration, NUM_DOCS_UTESTS, restClient);
     PipelineOptions options = PipelineOptionsFactory.create();
-    Read read =
-        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-        null);
+    Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
+    BoundedElasticsearchSource initialSource =
+        new BoundedElasticsearchSource(read, null, null, null);
     //desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
     // as many bundles as ES shards and bundle size is shard size
     int desiredBundleSizeBytes = 0;

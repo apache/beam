@@ -56,8 +56,7 @@ public class TestPubsub implements TestRule {
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
   public static TestPubsub create() {
-    TestPubsubOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
+    TestPubsubOptions options = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
     return new TestPubsub(options);
   }
 
@@ -73,8 +72,11 @@ public class TestPubsub implements TestRule {
         if (TestPubsub.this.pubsub != null) {
           throw new AssertionError(
               "Pubsub client was not shutdown in previous test. "
-              + "Topic path is'" + eventsTopicPath + "'. "
-              + "Current test: " + description.getDisplayName());
+                  + "Topic path is'"
+                  + eventsTopicPath
+                  + "'. "
+                  + "Current test: "
+                  + description.getDisplayName());
         }
 
         try {
@@ -88,8 +90,9 @@ public class TestPubsub implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
-    pubsub = PubsubGrpcClient.FACTORY.newClient(
-        NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
+    pubsub =
+        PubsubGrpcClient.FACTORY.newClient(
+            NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
     String eventsTopicPathTmp =
         String.format(TOPIC_FORMAT, pipelineOptions.getProject(), createTopicName(description));
 
@@ -117,17 +120,14 @@ public class TestPubsub implements TestRule {
   /**
    * Generates randomized topic name.
    *
-   * <p>Example:
-   * 'TestClassName-testMethodName-2018-12-11-23-32-333-&lt;random-long&gt;'
+   * <p>Example: 'TestClassName-testMethodName-2018-12-11-23-32-333-&lt;random-long&gt;'
    */
   static String createTopicName(Description description) throws IOException {
     StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
 
     if (description.getClassName() != null) {
       try {
-        topicName
-            .append(Class.forName(description.getClassName()).getSimpleName())
-            .append("-");
+        topicName.append(Class.forName(description.getClassName()).getSimpleName()).append("-");
       } catch (ClassNotFoundException e) {
         throw new RuntimeException(e);
       }
@@ -142,30 +142,20 @@ public class TestPubsub implements TestRule {
     return topicName.toString() + "-" + String.valueOf(ThreadLocalRandom.current().nextLong());
   }
 
-  /**
-   * Topic path where events will be published to.
-   */
+  /** Topic path where events will be published to. */
   public String topicPath() {
     return eventsTopicPath;
   }
 
-  /**
-   * Publish messages to {@link #topicPath()}.
-   */
+  /** Publish messages to {@link #topicPath()}. */
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
-        messages
-            .stream()
-            .map(this::toOutgoingMessage)
-            .collect(toList());
+        messages.stream().map(this::toOutgoingMessage).collect(toList());
     pubsub.publish(new TopicPath(eventsTopicPath), outgoingMessages);
   }
 
   private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
     return new PubsubClient.OutgoingMessage(
-        message.getPayload(),
-        message.getAttributeMap(),
-        DateTime.now().getMillis(),
-        null);
+        message.getPayload(), message.getAttributeMap(), DateTime.now().getMillis(), null);
   }
 }

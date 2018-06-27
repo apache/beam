@@ -46,17 +46,21 @@ public class BeamFnDataGrpcMultiplexerTest {
               .setName("name")
               .setPrimitiveTransformReference("888L")
               .build());
-  private static final BeamFnApi.Elements ELEMENTS = BeamFnApi.Elements.newBuilder()
-      .addData(BeamFnApi.Elements.Data.newBuilder()
-          .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-          .setTarget(OUTPUT_LOCATION.getTarget())
-          .setData(ByteString.copyFrom(new byte[1])))
-      .build();
-  private static final BeamFnApi.Elements TERMINAL_ELEMENTS = BeamFnApi.Elements.newBuilder()
-      .addData(BeamFnApi.Elements.Data.newBuilder()
-          .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-          .setTarget(OUTPUT_LOCATION.getTarget()))
-      .build();
+  private static final BeamFnApi.Elements ELEMENTS =
+      BeamFnApi.Elements.newBuilder()
+          .addData(
+              BeamFnApi.Elements.Data.newBuilder()
+                  .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                  .setTarget(OUTPUT_LOCATION.getTarget())
+                  .setData(ByteString.copyFrom(new byte[1])))
+          .build();
+  private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
+      BeamFnApi.Elements.newBuilder()
+          .addData(
+              BeamFnApi.Elements.Data.newBuilder()
+                  .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                  .setTarget(OUTPUT_LOCATION.getTarget()))
+          .build();
 
   @Test
   public void testOutboundObserver() {
@@ -80,12 +84,14 @@ public class BeamFnDataGrpcMultiplexerTest {
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
     ExecutorService executorService = Executors.newCachedThreadPool();
-    executorService.submit(
-        () -> {
-          // Purposefully sleep to simulate a delay in a consumer connecting.
-          Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-          multiplexer.registerConsumer(OUTPUT_LOCATION, inboundValues::add);
-        }).get();
+    executorService
+        .submit(
+            () -> {
+              // Purposefully sleep to simulate a delay in a consumer connecting.
+              Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+              multiplexer.registerConsumer(OUTPUT_LOCATION, inboundValues::add);
+            })
+        .get();
     multiplexer.getInboundObserver().onNext(ELEMENTS);
     assertTrue(multiplexer.hasConsumer(OUTPUT_LOCATION));
     // Ensure that when we see a terminal Elements object, we remove the consumer

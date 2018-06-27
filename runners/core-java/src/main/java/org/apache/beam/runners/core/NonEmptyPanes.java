@@ -48,24 +48,16 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
    */
   public abstract void recordContent(StateAccessor<K> context);
 
-  /**
-   * Record that the given pane is empty.
-   */
+  /** Record that the given pane is empty. */
   public abstract void clearPane(StateAccessor<K> state);
 
-  /**
-   * Return true if the current pane for the window in {@code context} is empty.
-   */
+  /** Return true if the current pane for the window in {@code context} is empty. */
   public abstract ReadableState<Boolean> isEmpty(StateAccessor<K> context);
 
-  /**
-   * Prefetch in preparation for merging.
-   */
+  /** Prefetch in preparation for merging. */
   public abstract void prefetchOnMerge(MergingStateAccessor<K, W> state);
 
-  /**
-   * Eagerly merge backing state.
-   */
+  /** Eagerly merge backing state. */
   public abstract void onMerge(MergingStateAccessor<K, W> context);
 
   /**
@@ -107,16 +99,13 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
     }
   }
 
-  /**
-   * An implementation of {@code NonEmptyPanes} for general use.
-   */
+  /** An implementation of {@code NonEmptyPanes} for general use. */
   private static class GeneralNonEmptyPanes<K, W extends BoundedWindow>
       extends NonEmptyPanes<K, W> {
 
-    private static final StateTag<CombiningState<Long, long[], Long>>
-        PANE_ADDITIONS_TAG =
-        StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-            "count", VarLongCoder.of(), Sum.ofLongs()));
+    private static final StateTag<CombiningState<Long, long[], Long>> PANE_ADDITIONS_TAG =
+        StateTags.makeSystemTagInternal(
+            StateTags.combiningValueFromInputInternal("count", VarLongCoder.of(), Sum.ofLongs()));
 
     @Override
     public void recordContent(StateAccessor<K> state) {

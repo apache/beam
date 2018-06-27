@@ -32,9 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
  */
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface CoderTranslator<T extends Coder<?>> {
-  /**
-  * Extract all component {@link Coder coders} within a coder.
-   */
+  /** Extract all component {@link Coder coders} within a coder. */
   List<? extends Coder<?>> getComponents(T from);
 
   /**

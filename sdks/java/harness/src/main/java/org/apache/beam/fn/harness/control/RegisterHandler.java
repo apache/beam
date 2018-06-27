@@ -33,9 +33,8 @@ import org.slf4j.LoggerFactory;
 /**
  * A handler and datastore for types that be can be registered via the Fn API.
  *
- * <p>Allows for {@link BeamFnApi.RegisterRequest}s to occur in parallel with
- * subsequent requests that may lookup registered values by blocking lookups until registration
- * occurs.
+ * <p>Allows for {@link BeamFnApi.RegisterRequest}s to occur in parallel with subsequent requests
+ * that may lookup registered values by blocking lookups until registration occurs.
  */
 public class RegisterHandler {
   private static final Logger LOG = LoggerFactory.getLogger(RegisterHandler.class);
@@ -68,21 +67,21 @@ public class RegisterHandler {
   }
 
   public BeamFnApi.InstructionResponse.Builder register(BeamFnApi.InstructionRequest request) {
-    BeamFnApi.InstructionResponse.Builder response = BeamFnApi.InstructionResponse.newBuilder()
-        .setRegister(RegisterResponse.getDefaultInstance());
+    BeamFnApi.InstructionResponse.Builder response =
+        BeamFnApi.InstructionResponse.newBuilder()
+            .setRegister(RegisterResponse.getDefaultInstance());
 
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
-    for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor
-        : registerRequest.getProcessBundleDescriptorList()) {
-      LOG.debug("Registering {} with type {}",
+    for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor :
+        registerRequest.getProcessBundleDescriptorList()) {
+      LOG.debug(
+          "Registering {} with type {}",
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
-      for (Map.Entry<String, RunnerApi.Coder> entry
-          : processBundleDescriptor.getCodersMap().entrySet()) {
-        LOG.debug("Registering {} with type {}",
-            entry.getKey(),
-            entry.getValue().getClass());
+      for (Map.Entry<String, RunnerApi.Coder> entry :
+          processBundleDescriptor.getCodersMap().entrySet()) {
+        LOG.debug("Registering {} with type {}", entry.getKey(), entry.getValue().getClass());
         computeIfAbsent(entry.getKey()).complete(entry.getValue());
       }
     }

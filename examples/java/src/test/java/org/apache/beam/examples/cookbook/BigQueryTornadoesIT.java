@@ -28,20 +28,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests of BigQueryTornadoes.
- */
+/** End-to-end tests of BigQueryTornadoes. */
 @RunWith(JUnit4.class)
 public class BigQueryTornadoesIT {
 
   private static final String DEFAULT_OUTPUT_CHECKSUM = "1ab4c7ec460b94bbb3c3885b178bf0e6bed56e1f";
 
-  /**
-   * Options for the BigQueryTornadoes Integration Test.
-   */
+  /** Options for the BigQueryTornadoes Integration Test. */
   public interface BigQueryTornadoesITOptions
-      extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {
-  }
+      extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {}
 
   @BeforeClass
   public static void setUp() {
@@ -52,11 +47,11 @@ public class BigQueryTornadoesIT {
   public void testE2EBigQueryTornadoes() throws Exception {
     BigQueryTornadoesITOptions options =
         TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
-    options.setOutput(String.format("%s.%s",
-        "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
+    options.setOutput(
+        String.format(
+            "%s.%s", "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
 
-    String query =
-        String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
+    String query = String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
             options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));

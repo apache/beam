@@ -121,9 +121,7 @@ public class SolrIOTestUtils {
     return data;
   }
 
-  /**
-   * A strategy that will accept to retry on any SolrException.
-   */
+  /** A strategy that will accept to retry on any SolrException. */
   static class LenientRetryPredicate implements SolrIO.RetryConfiguration.RetryPredicate {
     @Override
     public boolean test(Throwable throwable) {

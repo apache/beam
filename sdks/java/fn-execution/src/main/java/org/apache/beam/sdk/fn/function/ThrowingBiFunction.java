@@ -23,8 +23,8 @@ import java.util.function.BiFunction;
 /**
  * A {@link BiFunction} which can throw {@link Exception}s.
  *
- * <p>Used to expand the allowed set of method references to be used by Java 8
- * functional interfaces.
+ * <p>Used to expand the allowed set of method references to be used by Java 8 functional
+ * interfaces.
  */
 @FunctionalInterface
 public interface ThrowingBiFunction<T1, T2, T3> {

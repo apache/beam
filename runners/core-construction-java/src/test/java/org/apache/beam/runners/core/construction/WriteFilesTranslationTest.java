@@ -72,8 +72,7 @@ public class WriteFilesTranslationTest {
     assertThat(
         payload.getRunnerDeterminedSharding(),
         equalTo(
-            writeFiles.getNumShardsProvider() == null
-                && writeFiles.getComputeNumShards() == null));
+            writeFiles.getNumShardsProvider() == null && writeFiles.getComputeNumShards() == null));
 
     assertThat(payload.getWindowedWrites(), equalTo(writeFiles.getWindowedWrites()));
 
@@ -88,16 +87,14 @@ public class WriteFilesTranslationTest {
     PCollection<String> input = p.apply(Create.of("hello"));
     WriteFilesResult<Void> output = input.apply(writeFiles);
 
-    AppliedPTransform<
-            PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
+    AppliedPTransform<PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
         appliedPTransform =
             AppliedPTransform.of("foo", input.expand(), output.expand(), writeFiles, p);
 
     assertThat(
         WriteFilesTranslation.isRunnerDeterminedSharding(appliedPTransform),
         equalTo(
-            writeFiles.getNumShardsProvider() == null
-                && writeFiles.getComputeNumShards() == null));
+            writeFiles.getNumShardsProvider() == null && writeFiles.getComputeNumShards() == null));
 
     assertThat(
         WriteFilesTranslation.isWindowedWrites(appliedPTransform),

@@ -32,26 +32,23 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.junit.Test;
 
-/**
- * Tests {@link CoderTypeSerializer}.
- */
+/** Tests {@link CoderTypeSerializer}. */
 public class CoderTypeSerializerTest {
 
   @Test
   public void shouldWriteAndReadSnapshotForAnonymousClassCoder() throws Exception {
-    AtomicCoder<String> anonymousClassCoder = new AtomicCoder<String>() {
+    AtomicCoder<String> anonymousClassCoder =
+        new AtomicCoder<String>() {
 
-      @Override
-      public void encode(String value, OutputStream outStream)
-          throws CoderException, IOException {
+          @Override
+          public void encode(String value, OutputStream outStream)
+              throws CoderException, IOException {}
 
-      }
-
-      @Override
-      public String decode(InputStream inStream) throws CoderException, IOException {
-        return "";
-      }
-    };
+          @Override
+          public String decode(InputStream inStream) throws CoderException, IOException {
+            return "";
+          }
+        };
 
     testWriteAndReadConfigSnapshot(anonymousClassCoder);
   }
@@ -75,4 +72,3 @@ public class CoderTypeSerializerTest {
     assertThat(readSnapshot, is(writtenSnapshot));
   }
 }
-

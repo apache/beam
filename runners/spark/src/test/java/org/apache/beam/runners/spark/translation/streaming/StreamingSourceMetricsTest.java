@@ -38,15 +38,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-/**
- * Verify metrics support for {@link Source Sources} in streaming pipelines.
- */
+/** Verify metrics support for {@link Source Sources} in streaming pipelines. */
 public class StreamingSourceMetricsTest implements Serializable {
   private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   // Force streaming pipeline using pipeline rule.
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(StreamingTest.class)
@@ -69,11 +66,13 @@ public class StreamingSourceMetricsTest implements Serializable {
                             ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
                     .build());
 
-    assertThat(metrics.getCounters(), hasItem(
-        attemptedMetricsResult(
-            ELEMENTS_READ.getNamespace(),
-            ELEMENTS_READ.getName(),
-            "Read(UnboundedCountingSource)",
-            1000L)));
+    assertThat(
+        metrics.getCounters(),
+        hasItem(
+            attemptedMetricsResult(
+                ELEMENTS_READ.getNamespace(),
+                ELEMENTS_READ.getName(),
+                "Read(UnboundedCountingSource)",
+                1000L)));
   }
 }

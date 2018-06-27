@@ -42,12 +42,11 @@ import org.apache.hadoop.io.Writable;
  * A {@code WritableCoder} is a {@link Coder} for a Java class that implements {@link Writable}.
  *
  * <p>To use, specify the coder type on a PCollection:
- * <pre>
- * {@code
- *   PCollection<MyRecord> records =
- *       foo.apply(...).setCoder(WritableCoder.of(MyRecord.class));
- * }
- * </pre>
+ *
+ * <pre>{@code
+ * PCollection<MyRecord> records =
+ *     foo.apply(...).setCoder(WritableCoder.of(MyRecord.class));
+ * }</pre>
  *
  * @param <T> the type of elements handled by this coder.
  */
@@ -56,6 +55,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
 
   /**
    * Returns a {@code WritableCoder} instance for the provided element class.
+   *
    * @param <T> the element type
    */
   public static <T extends Writable> WritableCoder<T> of(Class<T> clazz) {
@@ -100,8 +100,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "Hadoop Writable may be non-deterministic.");
+    throw new NonDeterministicException(this, "Hadoop Writable may be non-deterministic.");
   }
 
   @Override
@@ -122,8 +121,8 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a {@link CoderProvider} which uses the {@link WritableCoder} for Hadoop
-   * {@link Writable writable types}.
+   * Returns a {@link CoderProvider} which uses the {@link WritableCoder} for Hadoop {@link Writable
+   * writable types}.
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
@@ -145,22 +144,19 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
     }
   }
 
-  /**
-   * A {@link CoderProvider} for Hadoop {@link Writable writable types}.
-   */
+  /** A {@link CoderProvider} for Hadoop {@link Writable writable types}. */
   private static class WritableCoderProvider extends CoderProvider {
     private static final TypeDescriptor<Writable> WRITABLE_TYPE = new TypeDescriptor<Writable>() {};
 
     @Override
-    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
-        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+    public <T> Coder<T> coderFor(
+        TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+        throws CannotProvideCoderException {
       if (!typeDescriptor.isSubtypeOf(WRITABLE_TYPE)) {
         throw new CannotProvideCoderException(
             String.format(
                 "Cannot provide %s because %s does not implement the interface %s",
-                WritableCoder.class.getSimpleName(),
-                typeDescriptor,
-                Writable.class.getName()));
+                WritableCoder.class.getSimpleName(), typeDescriptor, Writable.class.getName()));
       }
 
       try {

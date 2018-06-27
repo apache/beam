@@ -37,67 +37,54 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link SqlQuery5}.
- */
+/** Unit tests for {@link SqlQuery5}. */
 public class SqlQuery5Test {
 
   private static final NexmarkConfiguration config = new NexmarkConfiguration();
 
   private static final ModelFieldsAdapter<Bid> BID_ADAPTER = ADAPTERS.get(Bid.class);
 
-  private static final List<Bid> BIDS = ImmutableList.of(
-      newBid(1L, 1L),
-      newBid(1L, 3L),
-      newBid(1L, 4L),
-      newBid(2L, 4L));
+  private static final List<Bid> BIDS =
+      ImmutableList.of(newBid(1L, 1L), newBid(1L, 3L), newBid(1L, 4L), newBid(2L, 4L));
 
-  private static final List<Event> BIDS_EVENTS = ImmutableList.of(
-      new Event(BIDS.get(0)),
-      new Event(BIDS.get(1)),
-      new Event(BIDS.get(2)),
-      new Event(BIDS.get(3)));
+  private static final List<Event> BIDS_EVENTS =
+      ImmutableList.of(
+          new Event(BIDS.get(0)),
+          new Event(BIDS.get(1)),
+          new Event(BIDS.get(2)),
+          new Event(BIDS.get(3)));
 
-  public static final List<AuctionCount> RESULTS = ImmutableList.of(
-      new AuctionCount(1L, 1L),
-      new AuctionCount(1L, 1L),
-      new AuctionCount(1L, 1L),
-      new AuctionCount(1L, 2L),
-      new AuctionCount(1L, 1L),
-      new AuctionCount(2L, 1L));
+  public static final List<AuctionCount> RESULTS =
+      ImmutableList.of(
+          new AuctionCount(1L, 1L),
+          new AuctionCount(1L, 1L),
+          new AuctionCount(1L, 1L),
+          new AuctionCount(1L, 2L),
+          new AuctionCount(1L, 1L),
+          new AuctionCount(2L, 1L));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   @Test
   public void testBids() throws Exception {
-    assertEquals(Long.valueOf(config.windowSizeSec),
-        Long.valueOf(config.windowPeriodSec * 2));
+    assertEquals(Long.valueOf(config.windowSizeSec), Long.valueOf(config.windowPeriodSec * 2));
 
     PCollection<Event> bids =
-        PBegin
-            .in(testPipeline)
-            .apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
 
-    PAssert
-        .that(bids.apply(new SqlQuery5(config)))
-        .containsInAnyOrder(RESULTS);
+    PAssert.that(bids.apply(new SqlQuery5(config))).containsInAnyOrder(RESULTS);
 
     testPipeline.run();
   }
 
   private static Bid newBid(long auction, long index) {
-    return new Bid(auction,
-        3L,
-        100L,
-        432342L + index * config.windowPeriodSec * 1000,
-        "extra_" + auction);
+    return new Bid(
+        auction, 3L, 100L, 432342L + index * config.windowPeriodSec * 1000, "extra_" + auction);
   }
 
   private static Row newBidRow(Bid bid) {
-    return
-        Row
-            .withSchema(BID_ADAPTER.getSchema())
-            .addValues(BID_ADAPTER.getFieldsValues(bid))
-            .build();
+    return Row.withSchema(BID_ADAPTER.getSchema())
+        .addValues(BID_ADAPTER.getFieldsValues(bid))
+        .build();
   }
 }

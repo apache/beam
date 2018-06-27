@@ -23,11 +23,10 @@ import java.util.function.BiConsumer;
 /**
  * A {@link BiConsumer} which can throw {@link Exception}s.
  *
- * <p>Used to expand the allowed set of method references to be used by Java 8
- * functional interfaces.
+ * <p>Used to expand the allowed set of method references to be used by Java 8 functional
+ * interfaces.
  */
 @FunctionalInterface
 public interface ThrowingBiConsumer<T1, T2> {
   void accept(T1 t1, T2 t2) throws Exception;
 }
-

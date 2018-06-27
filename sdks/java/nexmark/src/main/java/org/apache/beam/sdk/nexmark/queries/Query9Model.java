@@ -23,9 +23,7 @@ import java.util.Iterator;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-/**
- * A direct implementation of {@link Query9}.
- */
+/** A direct implementation of {@link Query9}. */
 public class Query9Model extends NexmarkQueryModel implements Serializable {
   public Query9Model(NexmarkConfiguration configuration) {
     super(configuration);

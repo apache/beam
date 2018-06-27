@@ -26,9 +26,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Base64;
 
-/**
- * A utility class for serializing and deserializing Java objects into a Base64 string.
- */
+/** A utility class for serializing and deserializing Java objects into a Base64 string. */
 public class Base64Serializer {
   private Base64Serializer() {}
 

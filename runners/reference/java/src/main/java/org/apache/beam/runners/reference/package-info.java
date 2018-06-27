@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Support for executing a pipeline locally over the Beam fn API.
- */
+/** Support for executing a pipeline locally over the Beam fn API. */
 package org.apache.beam.runners.reference;

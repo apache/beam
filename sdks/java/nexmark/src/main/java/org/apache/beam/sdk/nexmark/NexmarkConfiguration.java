@@ -25,27 +25,23 @@ import java.util.Objects;
 
 /**
  * Configuration controlling how a query is run. May be supplied by command line or
- * programmatically. We only capture properties which may influence the resulting
- * pipeline performance, as captured by {@link NexmarkPerf}.
+ * programmatically. We only capture properties which may influence the resulting pipeline
+ * performance, as captured by {@link NexmarkPerf}.
  */
 public class NexmarkConfiguration implements Serializable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
 
   /** If {@literal true}, include additional debugging and monitoring stats. */
-  @JsonProperty
-  public boolean debug = true;
+  @JsonProperty public boolean debug = true;
 
   /** Which query to run, in [0,9]. */
-  @JsonProperty
-  public int query = 0;
+  @JsonProperty public int query = 0;
 
   /** Where events come from. */
-  @JsonProperty
-  public NexmarkUtils.SourceType sourceType = NexmarkUtils.SourceType.DIRECT;
+  @JsonProperty public NexmarkUtils.SourceType sourceType = NexmarkUtils.SourceType.DIRECT;
 
   /** Where results go to. */
-  @JsonProperty
-  public NexmarkUtils.SinkType sinkType = NexmarkUtils.SinkType.DEVNULL;
+  @JsonProperty public NexmarkUtils.SinkType sinkType = NexmarkUtils.SinkType.DEVNULL;
 
   /**
    * If false, the summary is only output to the console. If true the summary is output to the
@@ -55,198 +51,136 @@ public class NexmarkConfiguration implements Serializable {
   @JsonProperty public boolean exportSummaryToBigQuery = false;
 
   /**
-   * Control whether pub/sub publishing is done in a stand-alone pipeline or is integrated
-   * into the overall query pipeline.
+   * Control whether pub/sub publishing is done in a stand-alone pipeline or is integrated into the
+   * overall query pipeline.
    */
-  @JsonProperty
-  public NexmarkUtils.PubSubMode pubSubMode = NexmarkUtils.PubSubMode.COMBINED;
+  @JsonProperty public NexmarkUtils.PubSubMode pubSubMode = NexmarkUtils.PubSubMode.COMBINED;
 
   /**
    * Number of events to generate. If zero, generate as many as possible without overflowing
    * internal counters etc.
    */
-  @JsonProperty
-  public long numEvents = 100000;
+  @JsonProperty public long numEvents = 100000;
 
-  /**
-   * Number of event generators to use. Each generates events in its own timeline.
-   */
-  @JsonProperty
-  public int numEventGenerators = 100;
+  /** Number of event generators to use. Each generates events in its own timeline. */
+  @JsonProperty public int numEventGenerators = 100;
 
-  /**
-   * Shape of event rate curve.
-   */
-  @JsonProperty
-  public NexmarkUtils.RateShape rateShape = NexmarkUtils.RateShape.SINE;
+  /** Shape of event rate curve. */
+  @JsonProperty public NexmarkUtils.RateShape rateShape = NexmarkUtils.RateShape.SINE;
 
-  /**
-   * Initial overall event rate (in {@link #rateUnit}).
-   */
-  @JsonProperty
-  public int firstEventRate = 10000;
+  /** Initial overall event rate (in {@link #rateUnit}). */
+  @JsonProperty public int firstEventRate = 10000;
 
-  /**
-   * Next overall event rate (in {@link #rateUnit}).
-   */
-  @JsonProperty
-  public int nextEventRate = 10000;
+  /** Next overall event rate (in {@link #rateUnit}). */
+  @JsonProperty public int nextEventRate = 10000;
 
-  /**
-   * Unit for rates.
-   */
-  @JsonProperty
-  public NexmarkUtils.RateUnit rateUnit = NexmarkUtils.RateUnit.PER_SECOND;
+  /** Unit for rates. */
+  @JsonProperty public NexmarkUtils.RateUnit rateUnit = NexmarkUtils.RateUnit.PER_SECOND;
 
-  /**
-   * Overall period of rate shape, in seconds.
-   */
-  @JsonProperty
-  public int ratePeriodSec = 600;
+  /** Overall period of rate shape, in seconds. */
+  @JsonProperty public int ratePeriodSec = 600;
 
   /**
    * Time in seconds to preload the subscription with data, at the initial input rate of the
    * pipeline.
    */
-  @JsonProperty
-  public int preloadSeconds = 0;
+  @JsonProperty public int preloadSeconds = 0;
 
-  /**
-   * Timeout for stream pipelines to stop in seconds.
-   */
-  @JsonProperty
-  public int streamTimeout = 240;
+  /** Timeout for stream pipelines to stop in seconds. */
+  @JsonProperty public int streamTimeout = 240;
 
   /**
    * If true, and in streaming mode, generate events only when they are due according to their
    * timestamp.
    */
-  @JsonProperty
-  public boolean isRateLimited = false;
+  @JsonProperty public boolean isRateLimited = false;
 
   /**
-   * If true, use wallclock time as event time. Otherwise, use a deterministic
-   * time in the past so that multiple runs will see exactly the same event streams
-   * and should thus have exactly the same results.
+   * If true, use wallclock time as event time. Otherwise, use a deterministic time in the past so
+   * that multiple runs will see exactly the same event streams and should thus have exactly the
+   * same results.
    */
-  @JsonProperty
-  public boolean useWallclockEventTime = false;
+  @JsonProperty public boolean useWallclockEventTime = false;
 
   /** Average idealized size of a 'new person' event, in bytes. */
-  @JsonProperty
-  public int avgPersonByteSize = 200;
+  @JsonProperty public int avgPersonByteSize = 200;
 
   /** Average idealized size of a 'new auction' event, in bytes. */
-  @JsonProperty
-  public int avgAuctionByteSize = 500;
+  @JsonProperty public int avgAuctionByteSize = 500;
 
   /** Average idealized size of a 'bid' event, in bytes. */
-  @JsonProperty
-  public int avgBidByteSize = 100;
+  @JsonProperty public int avgBidByteSize = 100;
 
   /** Ratio of bids to 'hot' auctions compared to all other auctions. */
-  @JsonProperty
-  public int hotAuctionRatio = 2;
+  @JsonProperty public int hotAuctionRatio = 2;
 
   /** Ratio of auctions for 'hot' sellers compared to all other people. */
-  @JsonProperty
-  public int hotSellersRatio = 4;
+  @JsonProperty public int hotSellersRatio = 4;
 
   /** Ratio of bids for 'hot' bidders compared to all other people. */
-  @JsonProperty
-  public int hotBiddersRatio = 4;
+  @JsonProperty public int hotBiddersRatio = 4;
 
   /** Window size, in seconds, for queries 3, 5, 7 and 8. */
-  @JsonProperty
-  public long windowSizeSec = 10;
+  @JsonProperty public long windowSizeSec = 10;
 
   /** Sliding window period, in seconds, for query 5. */
-  @JsonProperty
-  public long windowPeriodSec = 5;
+  @JsonProperty public long windowPeriodSec = 5;
 
   /** Number of seconds to hold back events according to their reported timestamp. */
-  @JsonProperty
-  public long watermarkHoldbackSec = 0;
+  @JsonProperty public long watermarkHoldbackSec = 0;
 
   /** Average number of auction which should be inflight at any time, per generator. */
-  @JsonProperty
-  public int numInFlightAuctions = 100;
+  @JsonProperty public int numInFlightAuctions = 100;
 
   /** Maximum number of people to consider as active for placing auctions or bids. */
-  @JsonProperty
-  public int numActivePeople = 1000;
+  @JsonProperty public int numActivePeople = 1000;
 
   /** Coder strategy to follow. */
-  @JsonProperty
-  public NexmarkUtils.CoderStrategy coderStrategy = NexmarkUtils.CoderStrategy.HAND;
+  @JsonProperty public NexmarkUtils.CoderStrategy coderStrategy = NexmarkUtils.CoderStrategy.HAND;
 
   /**
-   * Delay, in milliseconds, for each event. This will peg one core for this number
-   * of milliseconds to simulate CPU-bound computation.
+   * Delay, in milliseconds, for each event. This will peg one core for this number of milliseconds
+   * to simulate CPU-bound computation.
    */
-  @JsonProperty
-  public long cpuDelayMs = 0;
+  @JsonProperty public long cpuDelayMs = 0;
 
   /**
-   * Extra data, in bytes, to save to persistent state for each event. This will force
-   * i/o all the way to durable storage to simulate an I/O-bound computation.
+   * Extra data, in bytes, to save to persistent state for each event. This will force i/o all the
+   * way to durable storage to simulate an I/O-bound computation.
    */
-  @JsonProperty
-  public long diskBusyBytes = 0;
+  @JsonProperty public long diskBusyBytes = 0;
+
+  /** Skip factor for query 2. We select bids for every {@code auctionSkip}'th auction. */
+  @JsonProperty public int auctionSkip = 123;
+
+  /** Fanout for queries 4 (groups by category id), 5 and 7 (find a global maximum). */
+  @JsonProperty public int fanout = 5;
 
   /**
-   * Skip factor for query 2. We select bids for every {@code auctionSkip}'th auction.
+   * Maximum waiting time to clean personState in query3 (ie maximum waiting of the auctions related
+   * to person in state in seconds in event time).
    */
-  @JsonProperty
-  public int auctionSkip = 123;
+  @JsonProperty public int maxAuctionsWaitingTime = 600;
+
+  /** Length of occasional delay to impose on events (in seconds). */
+  @JsonProperty public long occasionalDelaySec = 3;
+
+  /** Probability that an event will be delayed by delayS. */
+  @JsonProperty public double probDelayedEvent = 0.1;
+
+  /** Maximum size of each log file (in events). For Query10 only. */
+  @JsonProperty public int maxLogEvents = 100_000;
+
+  /** If true, use pub/sub publish time instead of event time. */
+  @JsonProperty public boolean usePubsubPublishTime = false;
 
   /**
-   * Fanout for queries 4 (groups by category id), 5 and 7 (find a global maximum).
+   * Number of events in out-of-order groups. 1 implies no out-of-order events. 1000 implies every
+   * 1000 events per generator are emitted in pseudo-random order.
    */
-  @JsonProperty
-  public int fanout = 5;
+  @JsonProperty public long outOfOrderGroupSize = 1;
 
-  /**
-   * Maximum waiting time to clean personState in query3
-   * (ie maximum waiting of the auctions related to person in state in seconds in event time).
-   */
-  @JsonProperty
-  public int maxAuctionsWaitingTime = 600;
-
-  /**
-   * Length of occasional delay to impose on events (in seconds).
-   */
-  @JsonProperty
-  public long occasionalDelaySec = 3;
-
-  /**
-   * Probability that an event will be delayed by delayS.
-   */
-  @JsonProperty
-  public double probDelayedEvent = 0.1;
-
-  /**
-   * Maximum size of each log file (in events). For Query10 only.
-   */
-  @JsonProperty
-  public int maxLogEvents = 100_000;
-
-  /**
-   * If true, use pub/sub publish time instead of event time.
-   */
-  @JsonProperty
-  public boolean usePubsubPublishTime = false;
-
-  /**
-   * Number of events in out-of-order groups. 1 implies no out-of-order events. 1000 implies
-   * every 1000 events per generator are emitted in pseudo-random order.
-   */
-  @JsonProperty
-  public long outOfOrderGroupSize = 1;
-
-  /**
-   * Replace any properties of this configuration which have been supplied by the command line.
-   */
+  /** Replace any properties of this configuration which have been supplied by the command line. */
   public void overrideFromOptions(NexmarkOptions options) {
     if (options.getDebug() != null) {
       debug = options.getDebug();
@@ -367,9 +301,7 @@ public class NexmarkConfiguration implements Serializable {
     }
   }
 
-  /**
-   * Return copy of configuration with given label.
-   */
+  /** Return copy of configuration with given label. */
   public NexmarkConfiguration copy() {
     NexmarkConfiguration result;
     result = new NexmarkConfiguration();
@@ -416,8 +348,8 @@ public class NexmarkConfiguration implements Serializable {
   }
 
   /**
-   * Return short description of configuration (suitable for use in logging). We only render
-   * the core fields plus those which do not have default values.
+   * Return short description of configuration (suitable for use in logging). We only render the
+   * core fields plus those which do not have default values.
    */
   public String toShortString() {
     StringBuilder sb = new StringBuilder();
@@ -537,9 +469,7 @@ public class NexmarkConfiguration implements Serializable {
     return sb.toString();
   }
 
-  /**
-   * Return full description as a string.
-   */
+  /** Return full description as a string. */
   @Override
   public String toString() {
     try {
@@ -549,9 +479,7 @@ public class NexmarkConfiguration implements Serializable {
     }
   }
 
-  /**
-   * Parse an object from {@code string}.
-   */
+  /** Parse an object from {@code string}. */
   public static NexmarkConfiguration fromString(String string) {
     try {
       return NexmarkUtils.MAPPER.readValue(string, NexmarkConfiguration.class);

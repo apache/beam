@@ -25,8 +25,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- *  Samza {@link PTransform} that creates a primitive output {@link PCollection}, as the results
- *  of a {@link PCollectionView}.
+ * Samza {@link PTransform} that creates a primitive output {@link PCollection}, as the results of a
+ * {@link PCollectionView}.
  */
 class SamzaPublishView<ElemT, ViewT>
     extends PTransform<PCollection<List<ElemT>>, PCollection<List<ElemT>>> {
@@ -41,10 +41,7 @@ class SamzaPublishView<ElemT, ViewT>
   @Override
   public PCollection<List<ElemT>> expand(PCollection<List<ElemT>> input) {
     return PCollection.<List<ElemT>>createPrimitiveOutputInternal(
-        input.getPipeline(),
-        input.getWindowingStrategy(),
-        input.isBounded(),
-        input.getCoder());
+        input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
   }
 
   public PCollectionView<ViewT> getView() {
@@ -56,8 +53,9 @@ class SamzaPublishView<ElemT, ViewT>
     return view.getName();
   }
 
-  static class SamzaPublishViewPayloadTranslator extends
-      PTransformTranslation.TransformPayloadTranslator.NotSerializable<SamzaPublishView<?, ?>> {
+  static class SamzaPublishViewPayloadTranslator
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
+          SamzaPublishView<?, ?>> {
 
     SamzaPublishViewPayloadTranslator() {}
 

@@ -46,12 +46,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 
-/**
- * Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}.
- */
+/** Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}. */
 @SuppressWarnings("unchecked")
-public class DoFnFunction<InputT, OutputT> extends
-    FlatMapFunction<List<RawUnionValue>, RawUnionValue> {
+public class DoFnFunction<InputT, OutputT>
+    extends FlatMapFunction<List<RawUnionValue>, RawUnionValue> {
 
   private static final long serialVersionUID = -5701440128544343353L;
   private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
@@ -76,16 +74,16 @@ public class DoFnFunction<InputT, OutputT> extends
       List<TupleTag<?>> sideOutputs) {
     this.doFn = doFn;
     this.outputManager = new DoFnOutputManager();
-    this.doFnRunnerFactory = new DoFnRunnerFactory<>(
-        pipelineOptions,
-        doFn,
-        sideInputs,
-        outputManager,
-        mainOutput,
-        sideOutputs,
-        new NoOpStepContext(),
-        windowingStrategy
-    );
+    this.doFnRunnerFactory =
+        new DoFnRunnerFactory<>(
+            pipelineOptions,
+            doFn,
+            sideInputs,
+            outputManager,
+            mainOutput,
+            sideOutputs,
+            new NoOpStepContext(),
+            windowingStrategy);
     this.sideInputs = sideInputs;
     this.tagsToSideInputs = sideInputTagMapping;
     this.mainOutput = mainOutput;
@@ -94,8 +92,7 @@ public class DoFnFunction<InputT, OutputT> extends
 
   @Override
   public void setup() {
-    sideInputReader = new SideInputHandler(sideInputs,
-        InMemoryStateInternals.<Void>forKey(null));
+    sideInputReader = new SideInputHandler(sideInputs, InMemoryStateInternals.<Void>forKey(null));
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
 
@@ -116,7 +113,7 @@ public class DoFnFunction<InputT, OutputT> extends
 
     doFnRunner.startBundle();
 
-    for (RawUnionValue unionValue: inputs) {
+    for (RawUnionValue unionValue : inputs) {
       final String tag = unionValue.getUnionTag();
       if ("0".equals(tag)) {
         // main input
@@ -130,14 +127,14 @@ public class DoFnFunction<InputT, OutputT> extends
       }
     }
 
-    for (PCollectionView<?> sideInput: sideInputs) {
+    for (PCollectionView<?> sideInput : sideInputs) {
       for (WindowedValue<InputT> value : pushedBackValues) {
-        for (BoundedWindow win: value.getWindows()) {
-          BoundedWindow sideInputWindow =
-              sideInput.getWindowMappingFn().getSideInputWindow(win);
+        for (BoundedWindow win : value.getWindows()) {
+          BoundedWindow sideInputWindow = sideInput.getWindowMappingFn().getSideInputWindow(win);
           if (!sideInputReader.isReady(sideInput, sideInputWindow)) {
-            Object emptyValue = WindowedValue.of(
-                new ArrayList<>(), value.getTimestamp(), sideInputWindow, value.getPane());
+            Object emptyValue =
+                WindowedValue.of(
+                    new ArrayList<>(), value.getTimestamp(), sideInputWindow, value.getPane());
             sideInputReader.addSideInputValue(sideInput, (WindowedValue<Iterable<?>>) emptyValue);
           }
         }

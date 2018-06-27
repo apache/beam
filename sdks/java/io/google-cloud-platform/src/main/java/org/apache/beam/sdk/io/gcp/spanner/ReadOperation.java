@@ -32,7 +32,9 @@ public abstract class ReadOperation implements Serializable {
 
   public static ReadOperation create() {
     return new AutoValue_ReadOperation.Builder()
-        .setPartitionOptions(PartitionOptions.getDefaultInstance()).setKeySet(KeySet.all()).build();
+        .setPartitionOptions(PartitionOptions.getDefaultInstance())
+        .setKeySet(KeySet.all())
+        .build();
   }
 
   @Nullable

@@ -33,9 +33,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
 
-/**
- * A bounded source that can be used for test purposes.
- */
+/** A bounded source that can be used for test purposes. */
 public class TestBoundedSource<T> extends BoundedSource<T> {
   // each list of events is a split
   private final List<List<Event<T>>> events;
@@ -53,9 +51,10 @@ public class TestBoundedSource<T> extends BoundedSource<T> {
   }
 
   @Override
-  public List<? extends BoundedSource<T>> split(long desiredBundleSizeBytes,
-                                                PipelineOptions options) throws Exception {
-    return events.stream()
+  public List<? extends BoundedSource<T>> split(
+      long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+    return events
+        .stream()
         .map(ev -> new TestBoundedSource<>(Collections.singletonList(ev)))
         .collect(Collectors.toList());
   }
@@ -75,21 +74,21 @@ public class TestBoundedSource<T> extends BoundedSource<T> {
   @Override
   public void validate() {}
 
-  /**
-   * A builder used to populate the events emitted by {@link TestBoundedSource}.
-   */
+  /** A builder used to populate the events emitted by {@link TestBoundedSource}. */
   public static class Builder<T> extends SourceBuilder<T, TestBoundedSource<T>> {
-    @Override public TestBoundedSource<T> build() {
+    @Override
+    public TestBoundedSource<T> build() {
       return new TestBoundedSource<>(Collections.singletonList(getEvents()));
     }
   }
 
   /**
-   * A SplittableBuilder supports multiple splits and each split {@link TestUnboundedSource}
-   * can be built separately from the above Builder.
+   * A SplittableBuilder supports multiple splits and each split {@link TestUnboundedSource} can be
+   * built separately from the above Builder.
    */
   public static class SplittableBuilder<T> extends SourceBuilder<T, TestBoundedSource<T>> {
     private final List<Builder<T>> builders = new ArrayList<>();
+
     private SplittableBuilder(int splits) {
       while (splits != 0) {
         builders.add(new Builder<T>());
@@ -181,9 +180,7 @@ public class TestBoundedSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 
     @Override
     public BoundedSource<T> getCurrentSource() {

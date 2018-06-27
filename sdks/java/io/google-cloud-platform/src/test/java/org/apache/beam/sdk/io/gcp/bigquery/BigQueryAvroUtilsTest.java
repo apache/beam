@@ -44,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link BigQueryAvroUtils}.
- */
+/** Tests for {@link BigQueryAvroUtils}. */
 @RunWith(JUnit4.class)
 public class BigQueryAvroUtilsTest {
   private List<TableFieldSchema> subFields =
@@ -70,12 +68,20 @@ public class BigQueryAvroUtilsTest {
           new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
           new TableFieldSchema().setName("sound").setType("BYTES").setMode("NULLABLE"),
           new TableFieldSchema().setName("anniversaryDate").setType("DATE").setMode("NULLABLE"),
-          new TableFieldSchema().setName("anniversaryDatetime")
-              .setType("DATETIME").setMode("NULLABLE"),
+          new TableFieldSchema()
+              .setName("anniversaryDatetime")
+              .setType("DATETIME")
+              .setMode("NULLABLE"),
           new TableFieldSchema().setName("anniversaryTime").setType("TIME").setMode("NULLABLE"),
-          new TableFieldSchema().setName("scion").setType("RECORD").setMode("NULLABLE")
+          new TableFieldSchema()
+              .setName("scion")
+              .setType("RECORD")
+              .setMode("NULLABLE")
               .setFields(subFields),
-          new TableFieldSchema().setName("associates").setType("RECORD").setMode("REPEATED")
+          new TableFieldSchema()
+              .setName("associates")
+              .setType("RECORD")
+              .setMode("REPEATED")
               .setFields(subFields));
 
   @Test
@@ -89,9 +95,7 @@ public class BigQueryAvroUtilsTest {
       GenericRecord record = new GenericData.Record(avroSchema);
       record.put("number", 5L);
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
-      TableRow row = new TableRow()
-          .set("number", "5")
-          .set("associates", new ArrayList<TableRow>());
+      TableRow row = new TableRow().set("number", "5").set("associates", new ArrayList<TableRow>());
       assertEquals(row, convertedRow);
     }
     {
@@ -110,16 +114,17 @@ public class BigQueryAvroUtilsTest {
       record.put("anniversaryDatetime", new String("2000-01-01 00:00:00.000005"));
       record.put("anniversaryTime", new Utf8("00:00:00.000005"));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
-      TableRow row = new TableRow()
-          .set("number", "5")
-          .set("birthday", "1970-01-01 00:00:00.000005 UTC")
-          .set("quality", 5.0)
-          .set("associates", new ArrayList<TableRow>())
-          .set("flighted", Boolean.TRUE)
-          .set("sound", BaseEncoding.base64().encode(soundBytes))
-          .set("anniversaryDate", "2000-01-01")
-          .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
-          .set("anniversaryTime", "00:00:00.000005");
+      TableRow row =
+          new TableRow()
+              .set("number", "5")
+              .set("birthday", "1970-01-01 00:00:00.000005 UTC")
+              .set("quality", 5.0)
+              .set("associates", new ArrayList<TableRow>())
+              .set("flighted", Boolean.TRUE)
+              .set("sound", BaseEncoding.base64().encode(soundBytes))
+              .set("anniversaryDate", "2000-01-01")
+              .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
+              .set("anniversaryTime", "00:00:00.000005");
       assertEquals(row, convertedRow);
     }
     {
@@ -210,17 +215,15 @@ public class BigQueryAvroUtilsTest {
                             (Object) null))))));
   }
 
-  /**
-   * Pojo class used as the record type in tests.
-   */
+  /** Pojo class used as the record type in tests. */
   @DefaultCoder(AvroCoder.class)
-  @SuppressWarnings("unused")  // Used by Avro reflection.
+  @SuppressWarnings("unused") // Used by Avro reflection.
   static class Bird {
     long number;
     @Nullable String species;
     @Nullable Double quality;
     @Nullable Long quantity;
-    @Nullable Long birthday;  // Exercises TIMESTAMP.
+    @Nullable Long birthday; // Exercises TIMESTAMP.
     @Nullable Boolean flighted;
     @Nullable ByteBuffer sound;
     @Nullable Utf8 anniversaryDate;

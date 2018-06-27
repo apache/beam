@@ -84,31 +84,33 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     final ApplicationRunner runner = ApplicationRunner.fromConfig(new MapConfig(config));
 
-    final StreamApplication app = new StreamApplication() {
-      @Override
-      public void init(StreamGraph streamGraph, Config config) {
-        // TODO: we should probably not be creating the execution context this early since it needs
-        // to be shipped off to various tasks.
-        streamGraph.withContextManager(new ContextManager() {
+    final StreamApplication app =
+        new StreamApplication() {
           @Override
-          public void init(Config config, TaskContext context) {
-            if (executionContext.getMetricsContainer() == null) {
-              final MetricsRegistryMap metricsRegistry = (MetricsRegistryMap)
-                  context.getSamzaContainerContext().metricsRegistry;
-              executionContext.setMetricsContainer(new SamzaMetricsContainer(metricsRegistry));
-            }
+          public void init(StreamGraph streamGraph, Config config) {
+            // TODO: we should probably not be creating the execution context this early since it needs
+            // to be shipped off to various tasks.
+            streamGraph.withContextManager(
+                new ContextManager() {
+                  @Override
+                  public void init(Config config, TaskContext context) {
+                    if (executionContext.getMetricsContainer() == null) {
+                      final MetricsRegistryMap metricsRegistry =
+                          (MetricsRegistryMap) context.getSamzaContainerContext().metricsRegistry;
+                      executionContext.setMetricsContainer(
+                          new SamzaMetricsContainer(metricsRegistry));
+                    }
 
-            context.setUserContext(executionContext);
+                    context.setUserContext(executionContext);
+                  }
+
+                  @Override
+                  public void close() {}
+                });
+
+            SamzaPipelineTranslator.translate(pipeline, options, streamGraph, idMap, dummySource);
           }
-
-          @Override
-          public void close() {
-          }
-        });
-
-        SamzaPipelineTranslator.translate(pipeline, options, streamGraph, idMap, dummySource);
-      }
-    };
+        };
 
     final SamzaPipelineResult result = new SamzaPipelineResult(app, runner, executionContext);
     runner.run(app);

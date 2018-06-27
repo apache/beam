@@ -30,8 +30,8 @@ import org.apache.beam.runners.fnexecution.FnService;
 /**
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.
  */
-public class StaticGrpcProvisionService
-    extends ProvisionServiceGrpc.ProvisionServiceImplBase implements FnService {
+public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionServiceImplBase
+    implements FnService {
   public static StaticGrpcProvisionService create(ProvisionInfo info) {
     return new StaticGrpcProvisionService(info);
   }

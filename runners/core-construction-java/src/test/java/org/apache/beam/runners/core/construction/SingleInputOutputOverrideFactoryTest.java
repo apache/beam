@@ -67,12 +67,13 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
             }
           };
 
-  private SimpleFunction<Integer, Integer> fn = new SimpleFunction<Integer, Integer>() {
-      @Override
-      public Integer apply(Integer input) {
-        return input - 1;
-      }
-    };
+  private SimpleFunction<Integer, Integer> fn =
+      new SimpleFunction<Integer, Integer>() {
+        @Override
+        public Integer apply(Integer input) {
+          return input - 1;
+        }
+      };
 
   @Test
   public void testMapOutputs() {

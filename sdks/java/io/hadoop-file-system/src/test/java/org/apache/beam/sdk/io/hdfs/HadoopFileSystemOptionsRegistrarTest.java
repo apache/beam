@@ -28,18 +28,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link HadoopFileSystemOptionsRegistrar}.
- */
+/** Tests for {@link HadoopFileSystemOptionsRegistrar}. */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemOptionsRegistrarTest {
 
   @Test
   public void testServiceLoader() {
-    for (PipelineOptionsRegistrar registrar
-        : Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class).iterator())) {
+    for (PipelineOptionsRegistrar registrar :
+        Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemOptionsRegistrar) {
-        assertThat(registrar.getPipelineOptions(),
+        assertThat(
+            registrar.getPipelineOptions(),
             Matchers.<Class<?>>contains(HadoopFileSystemOptions.class));
         return;
       }

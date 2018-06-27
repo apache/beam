@@ -147,9 +147,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     LOG.info("Using job server endpoint: {}", endpoint);
     ManagedChannel jobServiceChannel =
-        channelFactory.forDescriptor(
-            ApiServiceDescriptor.newBuilder()
-                .setUrl(endpoint).build());
+        channelFactory.forDescriptor(ApiServiceDescriptor.newBuilder().setUrl(endpoint).build());
 
     JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(jobServiceChannel);
     try (CloseableResource<JobServiceBlockingStub> wrappedJobService =

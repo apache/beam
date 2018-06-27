@@ -27,17 +27,11 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.qpid.proton.message.Message;
 
-/**
- * A coder for AMQP message.
- */
+/** A coder for AMQP message. */
 public class AmqpMessageCoder extends CustomCoder<Message> {
 
-  private static final int[] MESSAGE_SIZES = new int[]{
-      8 * 1024,
-      64 * 1024,
-      1 * 1024 * 1024,
-      64 * 1024 * 1024
-  };
+  private static final int[] MESSAGE_SIZES =
+      new int[] {8 * 1024, 64 * 1024, 1 * 1024 * 1024, 64 * 1024 * 1024};
 
   static AmqpMessageCoder of() {
     return new AmqpMessageCoder();
@@ -56,8 +50,8 @@ public class AmqpMessageCoder extends CustomCoder<Message> {
     throw new CoderException("Message is larger than the max size supported by the coder");
   }
 
-  private void encode(Message value, OutputStream outStream, int messageSize) throws
-      IOException, BufferOverflowException {
+  private void encode(Message value, OutputStream outStream, int messageSize)
+      throws IOException, BufferOverflowException {
     byte[] data = new byte[messageSize];
     int bytesWritten = value.encode(data, 0, data.length);
     VarInt.encode(bytesWritten, outStream);
@@ -73,5 +67,4 @@ public class AmqpMessageCoder extends CustomCoder<Message> {
     message.decode(encodedMessage, 0, encodedMessage.length);
     return message;
   }
-
 }

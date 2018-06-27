@@ -259,8 +259,8 @@ public class SolrIO {
     public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
       checkArgument(
-              maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-              "maxDuration must be greater than 0");
+          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+          "maxDuration must be greater than 0");
       return new AutoValue_SolrIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
@@ -277,8 +277,8 @@ public class SolrIO {
 
     /**
      * An interface used to control if we retry the Solr call when a {@link Throwable} occurs. If
-     * {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend the
-     * requests to the Solr server if the {@link RetryConfiguration} permits it.
+     * {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend the requests
+     * to the Solr server if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
@@ -670,7 +670,6 @@ public class SolrIO {
     }
   }
 
-
   /** A {@link PTransform} writing data to Solr. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
@@ -845,7 +844,7 @@ public class SolrIO {
               if (spec.getRetryConfiguration() == null
                   || !spec.getRetryConfiguration().getRetryPredicate().test(exception)) {
                 throw new IOException(
-                        "Error writing to Solr (no attempt made to retry)", exception);
+                    "Error writing to Solr (no attempt made to retry)", exception);
               }
 
               // see if we can pause and try again

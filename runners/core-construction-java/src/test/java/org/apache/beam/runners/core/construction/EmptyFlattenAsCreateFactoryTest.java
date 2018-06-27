@@ -43,9 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link EmptyFlattenAsCreateFactory}.
- */
+/** Tests for {@link EmptyFlattenAsCreateFactory}. */
 @RunWith(JUnit4.class)
 public class EmptyFlattenAsCreateFactoryTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();

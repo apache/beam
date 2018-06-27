@@ -51,14 +51,13 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DirectGraphVisitor}.
- */
+/** Tests for {@link DirectGraphVisitor}. */
 @RunWith(JUnit4.class)
 public class DirectGraphVisitorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient TestPipeline p = TestPipeline.create()
-                                                      .enableAbandonedNodeEnforcement(false);
+
+  @Rule
+  public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   private transient DirectGraphVisitor visitor = new DirectGraphVisitor();
 
@@ -95,9 +94,11 @@ public class DirectGraphVisitorTest implements Serializable {
     assertThat(graph.getRootTransforms(), hasSize(3));
     assertThat(
         graph.getRootTransforms(),
-        Matchers.containsInAnyOrder(new Object[] {
-            graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)}));
-    for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms())  {
+        Matchers.containsInAnyOrder(
+            new Object[] {
+              graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)
+            }));
+    for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
       // Root transforms will have no inputs
       assertThat(root.getInputs().entrySet(), emptyIterable());
       assertThat(
@@ -114,8 +115,9 @@ public class DirectGraphVisitorTest implements Serializable {
     empty.setCoder(StringUtf8Coder.of());
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
-    assertThat(graph.getRootTransforms(),
-               Matchers.containsInAnyOrder(new Object[] {graph.getProducer(empty)}));
+    assertThat(
+        graph.getRootTransforms(),
+        Matchers.containsInAnyOrder(new Object[] {graph.getProducer(empty)}));
     AppliedPTransform<?, ?, ?> onlyRoot = Iterables.getOnlyElement(graph.getRootTransforms());
     assertThat((Object) onlyRoot.getTransform(), equalTo(flatten));
     assertThat(onlyRoot.getInputs().entrySet(), emptyIterable());
@@ -142,10 +144,8 @@ public class DirectGraphVisitorTest implements Serializable {
     p.traverseTopologically(visitor);
 
     DirectGraph graph = visitor.getGraph();
-    AppliedPTransform<?, ?, ?> transformedProducer =
-        graph.getProducer(transformed);
-    AppliedPTransform<?, ?, ?> flattenedProducer =
-        graph.getProducer(flattened);
+    AppliedPTransform<?, ?, ?> transformedProducer = graph.getProducer(transformed);
+    AppliedPTransform<?, ?, ?> flattenedProducer = graph.getProducer(flattened);
 
     assertThat(
         graph.getPerElementConsumers(created),

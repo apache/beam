@@ -40,9 +40,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link TimerInternalsFactory} that creates Samza {@link TimerInternals}.
- * This class keeps track of the {@link org.apache.beam.runners.core.TimerInternals.TimerData}
- * added to the sorted timer set, and removes the ready timers when the watermark is advanced.
+ * {@link TimerInternalsFactory} that creates Samza {@link TimerInternals}. This class keeps track
+ * of the {@link org.apache.beam.runners.core.TimerInternals.TimerData} added to the sorted timer
+ * set, and removes the ready timers when the watermark is advanced.
  */
 public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaTimerInternalsFactory.class);
@@ -57,8 +57,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private Instant inputWatermark = new Instant(Long.MIN_VALUE);
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  public SamzaTimerInternalsFactory(Coder<K> keyCoder,
-      TimerRegistry<TimerKey<K>> timerRegistry) {
+  public SamzaTimerInternalsFactory(Coder<K> keyCoder, TimerRegistry<TimerKey<K>> timerRegistry) {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
   }
@@ -70,8 +69,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     if (keyCoder == null) {
       if (key != null) {
         throw new IllegalArgumentException(
-            String.format("Received non-null key for unkeyed timer factory. Key: %s",
-                key));
+            String.format("Received non-null key for unkeyed timer factory. Key: %s", key));
       }
       keyBytes = null;
     } else {
@@ -116,11 +114,12 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       final KeyedTimerData<K> keyedTimerData = eventTimeTimers.pollFirst();
       final TimerInternals.TimerData timerData = keyedTimerData.getTimerData();
 
-      final TimerKey<K> timerKey = new TimerKey<>(
-          keyedTimerData.getKey(),
-          keyedTimerData.getKeyBytes(),
-          timerData.getNamespace(),
-          timerData.getTimerId());
+      final TimerKey<K> timerKey =
+          new TimerKey<>(
+              keyedTimerData.getKey(),
+              keyedTimerData.getKeyBytes(),
+              timerData.getNamespace(),
+              timerData.getTimerId());
 
       timerMap.remove(timerKey);
 
@@ -148,21 +147,16 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     }
 
     @Override
-    public void setTimer(StateNamespace namespace,
-                         String timerId,
-                         Instant target,
-                         TimeDomain timeDomain) {
+    public void setTimer(
+        StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
       setTimer(TimerData.of(timerId, namespace, target, timeDomain));
     }
 
     @Override
     public void setTimer(TimerData timerData) {
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
-      final TimerKey<K> timerKey = new TimerKey<>(
-          key,
-          keyBytes,
-          timerData.getNamespace(),
-          timerData.getTimerId());
+      final TimerKey<K> timerKey =
+          new TimerKey<>(key, keyBytes, timerData.getNamespace(), timerData.getTimerId());
 
       switch (timerData.getDomain()) {
         case EVENT_TIME:
@@ -171,7 +165,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           if (oldTimer != null) {
             if (!oldTimer.getTimerData().getDomain().equals(timerData.getDomain())) {
               throw new IllegalArgumentException(
-                  String.format("Attempt to set %s for time domain %s, "
+                  String.format(
+                      "Attempt to set %s for time domain %s, "
                           + "but it is already set for time domain %s",
                       timerData.getTimerId(),
                       timerData.getDomain(),
@@ -189,8 +184,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
         default:
           throw new UnsupportedOperationException(
-              String.format("%s currently only supports even time or processing time",
-                  SamzaRunner.class));
+              String.format(
+                  "%s currently only supports even time or processing time", SamzaRunner.class));
       }
     }
 
@@ -206,11 +201,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void deleteTimer(TimerData timerData) {
-      final TimerKey<K> timerKey = new TimerKey<>(
-          key,
-          keyBytes,
-          timerData.getNamespace(),
-          timerData.getTimerId());
+      final TimerKey<K> timerKey =
+          new TimerKey<>(key, keyBytes, timerData.getNamespace(), timerData.getTimerId());
 
       switch (timerData.getDomain()) {
         case EVENT_TIME:
@@ -239,8 +231,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     public Instant currentSynchronizedProcessingTime() {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support synchronized processing time",
-              SamzaRunner.class));
+              "%s does not currently support synchronized processing time", SamzaRunner.class));
     }
 
     @Override

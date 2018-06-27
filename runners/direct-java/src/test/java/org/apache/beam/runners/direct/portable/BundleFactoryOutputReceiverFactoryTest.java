@@ -206,8 +206,7 @@ public class BundleFactoryOutputReceiverFactoryTest {
 
     Components.Builder builder = baseComponents.toBuilder();
     String sdkWireCoderId = WireCoders.addSdkWireCoder(fooPC, builder);
-    String barSdkWireCoderId =
-        WireCoders.addSdkWireCoder(barPC, builder);
+    String barSdkWireCoderId = WireCoders.addSdkWireCoder(barPC, builder);
     Components components = builder.build();
 
     Coder<WindowedValue<String>> fooSdkCoder =

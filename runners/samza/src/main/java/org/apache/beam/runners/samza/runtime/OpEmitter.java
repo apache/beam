@@ -21,9 +21,7 @@ package org.apache.beam.runners.samza.runtime;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
-/**
- * Output emitter for Samza {@link Op}.
- */
+/** Output emitter for Samza {@link Op}. */
 public interface OpEmitter<OutT> {
   void emitElement(WindowedValue<OutT> element);
 

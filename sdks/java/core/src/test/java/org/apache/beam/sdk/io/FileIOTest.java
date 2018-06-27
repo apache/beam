@@ -238,8 +238,9 @@ public class FileIOTest implements Serializable {
     final String path = tmpFolder.newFile("file").getAbsolutePath();
     final String pathGZ = tmpFolder.newFile("file.gz").getAbsolutePath();
     Files.write(new File(path).toPath(), "Hello world".getBytes(Charsets.UTF_8));
-    try (Writer writer = new OutputStreamWriter(new GZIPOutputStream(
-        new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
+    try (Writer writer =
+        new OutputStreamWriter(
+            new GZIPOutputStream(new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
       writer.write("Hello world");
     }
 

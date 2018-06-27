@@ -34,8 +34,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * Configurable. This validates if setConf() method is called before getSplits(). Known InputFormats
  * which implement Configurable are DBInputFormat, TableInputFormat etc.
  */
-class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implements
-    Configurable {
+class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implements Configurable {
   public boolean isConfSet = false;
 
   public ConfigurableEmployeeInputFormat() {}
@@ -45,23 +44,21 @@ class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implem
     return null;
   }
 
-  /**
-   * Set configuration properties such as number of splits and number of records in each split.
-   */
+  /** Set configuration properties such as number of splits and number of records in each split. */
   @Override
   public void setConf(Configuration conf) {
     isConfSet = true;
   }
 
   @Override
-  public RecordReader<Text, Employee> createRecordReader(InputSplit split,
-      TaskAttemptContext context) {
+  public RecordReader<Text, Employee> createRecordReader(
+      InputSplit split, TaskAttemptContext context) {
     return new ConfigurableEmployeeRecordReader();
   }
 
   /**
-   * Returns InputSPlit list of {@link ConfigurableEmployeeInputSplit}. Throws exception if
-   * {@link #setConf()} is not called.
+   * Returns InputSPlit list of {@link ConfigurableEmployeeInputSplit}. Throws exception if {@link
+   * #setConf()} is not called.
    */
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException {
@@ -73,9 +70,7 @@ class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implem
     return splits;
   }
 
-  /**
-   * InputSplit implementation for ConfigurableEmployeeInputFormat.
-   */
+  /** InputSplit implementation for ConfigurableEmployeeInputFormat. */
   static class ConfigurableEmployeeInputSplit extends InputSplit implements Writable {
 
     @Override
@@ -95,9 +90,7 @@ class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implem
     }
   }
 
-  /**
-   * RecordReader for ConfigurableEmployeeInputFormat.
-   */
+  /** RecordReader for ConfigurableEmployeeInputFormat. */
   static class ConfigurableEmployeeRecordReader extends RecordReader<Text, Employee> {
 
     @Override

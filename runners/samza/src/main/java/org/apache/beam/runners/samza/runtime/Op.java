@@ -26,25 +26,25 @@ import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 
 /**
- * Interface of Samza operator for BEAM. This interface demultiplexes messages from BEAM
- * so that elements and side inputs can be handled separately in Samza. Watermark propagation
- * can be overridden so we can hold watermarks for side inputs. The output values and watermark
- * will be collected via {@link OpEmitter}.
+ * Interface of Samza operator for BEAM. This interface demultiplexes messages from BEAM so that
+ * elements and side inputs can be handled separately in Samza. Watermark propagation can be
+ * overridden so we can hold watermarks for side inputs. The output values and watermark will be
+ * collected via {@link OpEmitter}.
  */
 public interface Op<InT, OutT, K> extends Serializable {
   /**
    * A hook that allows initialization for any non-serializable operator state, such as getting
    * stores.
    *
-   * <p>While an emitter is supplied to this function it is not usable except in the methods
-   * {@link #processElement(WindowedValue, OpEmitter)},
-   * {@link #processWatermark(Instant, OpEmitter)}, and
+   * <p>While an emitter is supplied to this function it is not usable except in the methods {@link
+   * #processElement(WindowedValue, OpEmitter)}, {@link #processWatermark(Instant, OpEmitter)}, and
    * {@link #processSideInput(String, WindowedValue, OpEmitter)}.
    */
-  default void open(Config config,
-                    TaskContext taskContext,
-                    TimerRegistry<TimerKey<K>> timerRegistry,
-                    OpEmitter<OutT> emitter) {}
+  default void open(
+      Config config,
+      TaskContext taskContext,
+      TimerRegistry<TimerKey<K>> timerRegistry,
+      OpEmitter<OutT> emitter) {}
 
   void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);
 
@@ -52,9 +52,8 @@ public interface Op<InT, OutT, K> extends Serializable {
     emitter.emitWatermark(watermark);
   }
 
-  default void processSideInput(String id,
-                                WindowedValue<? extends Iterable<?>> elements,
-                                OpEmitter<OutT> emitter) {
+  default void processSideInput(
+      String id, WindowedValue<? extends Iterable<?>> elements, OpEmitter<OutT> emitter) {
     throw new UnsupportedOperationException("Side inputs not supported for: " + this.getClass());
   }
 

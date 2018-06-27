@@ -23,12 +23,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 /**
- * {@link DefaultValueFactory} for getting a default value for the parallelism option
- * on {@link FlinkPipelineOptions}.
+ * {@link DefaultValueFactory} for getting a default value for the parallelism option on {@link
+ * FlinkPipelineOptions}.
  *
- * <p>This will return either the default value from {@link GlobalConfiguration} or {@code 1}.
- * A valid {@link GlobalConfiguration} is only available if the program is executed by the Flink
- * run scripts.
+ * <p>This will return either the default value from {@link GlobalConfiguration} or {@code 1}. A
+ * valid {@link GlobalConfiguration} is only available if the program is executed by the Flink run
+ * scripts.
  */
 public class DefaultParallelismFactory implements DefaultValueFactory<Integer> {
   @Override

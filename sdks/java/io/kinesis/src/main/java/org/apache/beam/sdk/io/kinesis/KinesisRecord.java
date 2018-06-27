@@ -26,9 +26,7 @@ import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 
-/**
- * {@link UserRecord} enhanced with utility methods.
- */
+/** {@link UserRecord} enhanced with utility methods. */
 public class KinesisRecord {
 
   private Instant readTime;
@@ -41,17 +39,26 @@ public class KinesisRecord {
   private String partitionKey;
 
   public KinesisRecord(UserRecord record, String streamName, String shardId) {
-    this(record.getData(), record.getSequenceNumber(), record.getSubSequenceNumber(),
+    this(
+        record.getData(),
+        record.getSequenceNumber(),
+        record.getSubSequenceNumber(),
         record.getPartitionKey(),
         new Instant(record.getApproximateArrivalTimestamp()),
         Instant.now(),
-        streamName, shardId);
+        streamName,
+        shardId);
   }
 
-  public KinesisRecord(ByteBuffer data, String sequenceNumber, long subSequenceNumber,
-      String partitionKey, Instant approximateArrivalTimestamp,
+  public KinesisRecord(
+      ByteBuffer data,
+      String sequenceNumber,
+      long subSequenceNumber,
+      String partitionKey,
+      Instant approximateArrivalTimestamp,
       Instant readTime,
-      String streamName, String shardId) {
+      String streamName,
+      String shardId) {
     this.data = data;
     this.sequenceNumber = sequenceNumber;
     this.subSequenceNumber = subSequenceNumber;
@@ -66,7 +73,9 @@ public class KinesisRecord {
     return new ExtendedSequenceNumber(getSequenceNumber(), getSubSequenceNumber());
   }
 
-  /***
+  /**
+   * *
+   *
    * @return unique id of the record based on its position in the stream
    */
   public byte[] getUniqueId() {

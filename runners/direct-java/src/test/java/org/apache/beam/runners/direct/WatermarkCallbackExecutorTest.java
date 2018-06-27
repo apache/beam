@@ -42,9 +42,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WatermarkCallbackExecutor}.
- */
+/** Tests for {@link WatermarkCallbackExecutor}. */
 @RunWith(JUnit4.class)
 public class WatermarkCallbackExecutorTest {
   private WatermarkCallbackExecutor executor =
@@ -52,8 +50,7 @@ public class WatermarkCallbackExecutorTest {
   private AppliedPTransform<?, ?, ?> create;
   private AppliedPTransform<?, ?, ?> sum;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {

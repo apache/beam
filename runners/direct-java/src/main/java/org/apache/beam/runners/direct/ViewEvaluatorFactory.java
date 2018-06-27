@@ -47,11 +47,9 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <T> TransformEvaluator<T> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle) {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<T> evaluator = createEvaluator(
-            (AppliedPTransform) application);
+    TransformEvaluator<T> evaluator = createEvaluator((AppliedPTransform) application);
     return evaluator;
   }
 
@@ -87,5 +85,4 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       }
     };
   }
-
 }

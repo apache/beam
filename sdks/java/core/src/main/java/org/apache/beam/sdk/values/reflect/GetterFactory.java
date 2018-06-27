@@ -21,13 +21,11 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Interface for factories generating getter wrappers.
- * See {@link GeneratedGetterFactory} or {@link ReflectionGetterFactory}.
+ * Interface for factories generating getter wrappers. See {@link GeneratedGetterFactory} or {@link
+ * ReflectionGetterFactory}.
  */
 interface GetterFactory extends Serializable {
 
-  /**
-   * Generates getters for {@code clazz}.
-   */
+  /** Generates getters for {@code clazz}. */
   List<FieldValueGetter> generateGetters(Class clazz);
 }

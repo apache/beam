@@ -62,9 +62,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link PCollectionTranslation}.
- */
+/** Tests for {@link PCollectionTranslation}. */
 @RunWith(Parameterized.class)
 public class PCollectionTranslationTest {
   // Each spec activates tests of all subsets of its fields
@@ -88,8 +86,7 @@ public class PCollectionTranslationTest {
     pipeline
         .apply(
             "intsWithCustomCoder",
-            Create.of(1, 2)
-                .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
+            Create.of(1, 2).withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
         .apply(
             "into custom windows",
             Window.into(new CustomWindows())
@@ -133,8 +130,8 @@ public class PCollectionTranslationTest {
   @Test
   public void testEncodeDecodeFields() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.PCollection protoCollection = PCollectionTranslation
-        .toProto(testCollection, sdkComponents);
+    RunnerApi.PCollection protoCollection =
+        PCollectionTranslation.toProto(testCollection, sdkComponents);
     RehydratedComponents protoComponents =
         RehydratedComponents.forComponents(sdkComponents.toComponents());
     Coder<?> decodedCoder = protoComponents.getCoder(protoCollection.getCoderId());
@@ -143,8 +140,7 @@ public class PCollectionTranslationTest {
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
     assertThat(decodedCoder, equalTo(testCollection.getCoder()));
-    assertThat(
-        decodedStrategy, equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+    assertThat(decodedStrategy, equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 
@@ -192,11 +188,11 @@ public class PCollectionTranslationTest {
     @Override
     public Coder<BoundedWindow> windowCoder() {
       return new AtomicCoder<BoundedWindow>() {
-        @Override public void verifyDeterministic() {}
+        @Override
+        public void verifyDeterministic() {}
 
         @Override
-        public void encode(BoundedWindow value, OutputStream outStream)
-            throws IOException {
+        public void encode(BoundedWindow value, OutputStream outStream) throws IOException {
           VarInt.encode(value.maxTimestamp().getMillis(), outStream);
         }
 

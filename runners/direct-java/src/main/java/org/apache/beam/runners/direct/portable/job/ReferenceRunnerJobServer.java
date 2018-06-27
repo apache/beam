@@ -80,9 +80,10 @@ public class ReferenceRunnerJobServer {
 
   private static class ServerConfiguration {
     @Option(
-        name = "-p",
-        aliases = {"--port"},
-        usage = "The local port to expose the server on")
+      name = "-p",
+      aliases = {"--port"},
+      usage = "The local port to expose the server on"
+    )
     private int port = -1;
   }
 }

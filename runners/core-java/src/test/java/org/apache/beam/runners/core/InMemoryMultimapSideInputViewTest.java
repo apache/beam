@@ -33,19 +33,21 @@ import org.junit.runners.JUnit4;
 public class InMemoryMultimapSideInputViewTest {
   @Test
   public void testStructuralKeyEquality() {
-    MultimapView<byte[], Integer> view = InMemoryMultimapSideInputView.fromIterable(
-        ByteArrayCoder.of(),
-        ImmutableList.of(KV.of(new byte[]{ 0x00 }, 0), KV.of(new byte[]{ 0x01 }, 1)));
-    assertEquals(view.get(new byte[]{ 0x00 }), ImmutableList.of(0));
-    assertEquals(view.get(new byte[]{ 0x01 }), ImmutableList.of(1));
-    assertEquals(view.get(new byte[]{ 0x02 }), ImmutableList.of());
+    MultimapView<byte[], Integer> view =
+        InMemoryMultimapSideInputView.fromIterable(
+            ByteArrayCoder.of(),
+            ImmutableList.of(KV.of(new byte[] {0x00}, 0), KV.of(new byte[] {0x01}, 1)));
+    assertEquals(view.get(new byte[] {0x00}), ImmutableList.of(0));
+    assertEquals(view.get(new byte[] {0x01}), ImmutableList.of(1));
+    assertEquals(view.get(new byte[] {0x02}), ImmutableList.of());
   }
 
   @Test
   public void testValueGrouping() {
-    MultimapView<String, String> view = InMemoryMultimapSideInputView.fromIterable(
-        StringUtf8Coder.of(),
-        ImmutableList.of(KV.of("A", "a1"), KV.of("A", "a2"), KV.of("B", "b1")));
+    MultimapView<String, String> view =
+        InMemoryMultimapSideInputView.fromIterable(
+            StringUtf8Coder.of(),
+            ImmutableList.of(KV.of("A", "a1"), KV.of("A", "a2"), KV.of("B", "b1")));
     assertEquals(view.get("A"), ImmutableList.of("a1", "a2"));
     assertEquals(view.get("B"), ImmutableList.of("b1"));
     assertEquals(view.get("C"), ImmutableList.of());

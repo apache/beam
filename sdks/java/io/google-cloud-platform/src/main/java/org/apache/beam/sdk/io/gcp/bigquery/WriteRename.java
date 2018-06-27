@@ -101,8 +101,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
 
     // Make sure each destination table gets a unique job id.
     String jobIdPrefix =
-        BigQueryHelpers.createJobId(c.sideInput(jobIdToken), finalTableDestination, -1,
-    c.pane().getIndex());
+        BigQueryHelpers.createJobId(
+            c.sideInput(jobIdToken), finalTableDestination, -1, c.pane().getIndex());
 
     copy(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
@@ -127,20 +127,20 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
       List<TableReference> tempTables,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      @Nullable String tableDescription) throws InterruptedException, IOException {
-    JobConfigurationTableCopy copyConfig = new JobConfigurationTableCopy()
-        .setSourceTables(tempTables)
-        .setDestinationTable(ref)
-        .setWriteDisposition(writeDisposition.name())
-        .setCreateDisposition(createDisposition.name());
+      @Nullable String tableDescription)
+      throws InterruptedException, IOException {
+    JobConfigurationTableCopy copyConfig =
+        new JobConfigurationTableCopy()
+            .setSourceTables(tempTables)
+            .setDestinationTable(ref)
+            .setWriteDisposition(writeDisposition.name())
+            .setCreateDisposition(createDisposition.name());
 
     String projectId = ref.getProjectId();
     Job lastFailedCopyJob = null;
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
-      JobReference jobRef = new JobReference()
-          .setProjectId(projectId)
-          .setJobId(jobId);
+      JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
       jobService.startCopyJob(jobRef, copyConfig);
       Job copyJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
       Status jobStatus = BigQueryHelpers.parseStatus(copyJob);
@@ -151,28 +151,30 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
           }
           return;
         case UNKNOWN:
-          throw new RuntimeException(String.format(
-              "UNKNOWN status of copy job [%s]: %s.", jobId,
-              BigQueryHelpers.jobToPrettyString(copyJob)));
+          throw new RuntimeException(
+              String.format(
+                  "UNKNOWN status of copy job [%s]: %s.",
+                  jobId, BigQueryHelpers.jobToPrettyString(copyJob)));
         case FAILED:
           lastFailedCopyJob = copyJob;
           continue;
         default:
-          throw new IllegalStateException(String.format(
-              "Unexpected status [%s] of load job: %s.",
-              jobStatus, BigQueryHelpers.jobToPrettyString(copyJob)));
+          throw new IllegalStateException(
+              String.format(
+                  "Unexpected status [%s] of load job: %s.",
+                  jobStatus, BigQueryHelpers.jobToPrettyString(copyJob)));
       }
     }
-    throw new RuntimeException(String.format(
-        "Failed to create copy job with id prefix %s, "
-            + "reached max retries: %d, last failed copy job: %s.",
-        jobIdPrefix,
-        BatchLoads.MAX_RETRY_JOBS,
-        BigQueryHelpers.jobToPrettyString(lastFailedCopyJob)));
+    throw new RuntimeException(
+        String.format(
+            "Failed to create copy job with id prefix %s, "
+                + "reached max retries: %d, last failed copy job: %s.",
+            jobIdPrefix,
+            BatchLoads.MAX_RETRY_JOBS,
+            BigQueryHelpers.jobToPrettyString(lastFailedCopyJob)));
   }
 
-  static void removeTemporaryTables(DatasetService tableService,
-      List<TableReference> tempTables) {
+  static void removeTemporaryTables(DatasetService tableService, List<TableReference> tempTables) {
     for (TableReference tableRef : tempTables) {
       try {
         LOG.debug("Deleting table {}", BigQueryHelpers.toJsonString(tableRef));

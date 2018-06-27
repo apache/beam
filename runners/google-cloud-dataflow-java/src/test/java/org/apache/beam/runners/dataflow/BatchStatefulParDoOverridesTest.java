@@ -108,9 +108,10 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
   }
 
   @Test
-  @Ignore("TODO: BEAM-2902 Add support for user state in a ParDo.Multi once PTransformMatcher "
-      + "exposes a way to know when the replacement is not required by checking that the "
-      + "preceding ParDos to a GBK are key preserving.")
+  @Ignore(
+      "TODO: BEAM-2902 Add support for user state in a ParDo.Multi once PTransformMatcher "
+          + "exposes a way to know when the replacement is not required by checking that the "
+          + "preceding ParDos to a GBK are key preserving.")
   public void testFnApiMultiOutputOverrideNonCrashing() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
     options.setRunner(DataflowRunner.class);
@@ -181,7 +182,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     }
   }
 
-  private static DataflowPipelineOptions buildPipelineOptions(String ... args) throws IOException {
+  private static DataflowPipelineOptions buildPipelineOptions(String... args) throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));

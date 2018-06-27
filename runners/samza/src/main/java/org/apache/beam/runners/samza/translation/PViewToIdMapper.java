@@ -27,8 +27,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 
 /**
- * This class generates an ID for each {@link PValue} during a topological traversal
- * of the BEAM {@link Pipeline}.
+ * This class generates an ID for each {@link PValue} during a topological traversal of the BEAM
+ * {@link Pipeline}.
  */
 public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
   private final Map<PValue, String> idMap = new HashMap<>();
@@ -44,8 +44,7 @@ public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    final String valueDesc = value.toString()
-        .replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
+    final String valueDesc = value.toString().replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
 
     final String samzaSafeValueDesc = valueDesc.replaceAll("[^A-Za-z0-9_-]", "_");
 

@@ -24,9 +24,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricName;
 
-/**
- * Metrics are keyed by the step name they are associated with and the name of the metric.
- */
+/** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricKey implements Serializable {

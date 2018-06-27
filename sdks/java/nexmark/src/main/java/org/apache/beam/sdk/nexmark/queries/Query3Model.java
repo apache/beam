@@ -33,13 +33,9 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
-/**
- * A direct implementation of {@link Query3}.
- */
+/** A direct implementation of {@link Query3}. */
 public class Query3Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 3.
-   */
+  /** Simulator for query 3. */
   private static class Simulator extends AbstractSimulator<Event, NameCityStateId> {
     /** Auctions, indexed by seller id. */
     private final Multimap<Long, Auction> newAuctions;
@@ -53,12 +49,11 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
       newAuctions = ArrayListMultimap.create();
     }
 
-    /**
-     * Capture new result.
-     */
+    /** Capture new result. */
     private void addResult(Auction auction, Person person, Instant timestamp) {
-      TimestampedValue<NameCityStateId> result = TimestampedValue.of(
-          new NameCityStateId(person.name, person.city, person.state, auction.id), timestamp);
+      TimestampedValue<NameCityStateId> result =
+          TimestampedValue.of(
+              new NameCityStateId(person.name, person.city, person.state, auction.id), timestamp);
       addResult(result);
     }
 
@@ -91,7 +86,8 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
         }
       } else {
         // Only want people in OR, ID or CA.
-        if ("OR".equals(event.newPerson.state) || "ID".equals(event.newPerson.state)
+        if ("OR".equals(event.newPerson.state)
+            || "ID".equals(event.newPerson.state)
             || "CA".equals(event.newPerson.state)) {
           // Join new person with existing auctions.
           for (Auction auction : newAuctions.get(event.newPerson.id)) {

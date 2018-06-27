@@ -28,18 +28,20 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
  * maximum of the values associated with each key in a {@code PCollection} of {@code KV}s.
  *
  * <p>Example 1: get the maximum of a {@code PCollection} of {@code Double}s.
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<Double> input = ...;
  * PCollection<Double> max = input.apply(Max.doublesGlobally());
- * } </pre>
+ * }</pre>
  *
- * <p>Example 2: calculate the maximum of the {@code Integer}s
- * associated with each unique key (which is of type {@code String}).
- * <pre> {@code
+ * <p>Example 2: calculate the maximum of the {@code Integer}s associated with each unique key
+ * (which is of type {@code String}).
+ *
+ * <pre>{@code
  * PCollection<KV<String, Integer>> input = ...;
  * PCollection<KV<String, Integer>> maxPerKey = input
  *     .apply(Max.<String>integersPerKey());
- * } </pre>
+ * }</pre>
  */
 public class Max {
 
@@ -136,13 +138,13 @@ public class Max {
 
   /**
    * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
-   * using an arbitrary {@link Comparator} and {@code identity},
-   * useful as an argument to {@link Combine#globally} or {@link Combine#perKey}.
+   * using an arbitrary {@link Comparator} and {@code identity}, useful as an argument to {@link
+   * Combine#globally} or {@link Combine#perKey}.
    *
    * @param <T> the type of the values being compared
    */
-  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-  BinaryCombineFn<T> of(final T identity, final ComparatorT comparator) {
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable> BinaryCombineFn<T> of(
+      final T identity, final ComparatorT comparator) {
     return new MaxFn<>(identity, comparator);
   }
 
@@ -153,8 +155,8 @@ public class Max {
    *
    * @param <T> the type of the values being compared
    */
-  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-  BinaryCombineFn<T> of(final ComparatorT comparator) {
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable> BinaryCombineFn<T> of(
+      final ComparatorT comparator) {
     return new MaxFn<>(null, comparator);
   }
 
@@ -168,11 +170,10 @@ public class Max {
 
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<T>} and returns a {@code
-   * PCollection<T>} whose contents is the maximum according to the natural ordering of {@code T}
-   * of the input {@code PCollection}'s elements, or {@code null} if there are no elements.
+   * PCollection<T>} whose contents is the maximum according to the natural ordering of {@code T} of
+   * the input {@code PCollection}'s elements, or {@code null} if there are no elements.
    */
-  public static <T extends Comparable<? super T>>
-  Combine.Globally<T, T> globally() {
+  public static <T extends Comparable<? super T>> Combine.Globally<T, T> globally() {
     return Combine.globally(Max.<T>naturalOrder());
   }
 
@@ -184,8 +185,7 @@ public class Max {
    *
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
-  public static <K, T extends Comparable<? super T>>
-  Combine.PerKey<K, T, T> perKey() {
+  public static <K, T extends Comparable<? super T>> Combine.PerKey<K, T, T> perKey() {
     return Combine.perKey(Max.<T>naturalOrder());
   }
 
@@ -195,19 +195,19 @@ public class Max {
    * {@code null} if there are no elements.
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-  Combine.Globally<T, T> globally(ComparatorT comparator) {
+      Combine.Globally<T, T> globally(ComparatorT comparator) {
     return Combine.globally(Max.of(comparator));
   }
 
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<KV<K, T>>} and returns a
-   * {@code PCollection<KV<K, T>>} that contains one output element per key mapping each
-   * to the maximum of the values associated with that key in the input {@code PCollection}.
+   * {@code PCollection<KV<K, T>>} that contains one output element per key mapping each to the
+   * maximum of the values associated with that key in the input {@code PCollection}.
    *
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
-  Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
+      Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
     return Combine.perKey(Max.of(comparator));
   }
 
@@ -237,8 +237,7 @@ public class Max {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("comparer", comparator.getClass())
-        .withLabel("Record Comparer"));
+      builder.add(DisplayData.item("comparer", comparator.getClass()).withLabel("Record Comparer"));
     }
   }
 

@@ -49,8 +49,7 @@ import org.junit.rules.ExpectedException;
 
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
-  @Rule
-  public transient ExpectedException e = ExpectedException.none();
+  @Rule public transient ExpectedException e = ExpectedException.none();
 
   private static class SomeFn extends DoFn<Void, String> {
     private final Duration sleepBeforeFirstClaim;
@@ -187,35 +186,37 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
 
   @Test
   public void testInvokeProcessElementOutputDisallowedBeforeTryClaim() throws Exception {
-    DoFn<Void, String> brokenFn = new DoFn<Void, String>() {
-      @ProcessElement
-      public void process(ProcessContext c, OffsetRangeTracker tracker) {
-        c.output("foo");
-      }
+    DoFn<Void, String> brokenFn =
+        new DoFn<Void, String>() {
+          @ProcessElement
+          public void process(ProcessContext c, OffsetRangeTracker tracker) {
+            c.output("foo");
+          }
 
-      @GetInitialRestriction
-      public OffsetRange getInitialRestriction(Void element) {
-        throw new UnsupportedOperationException("Should not be called in this test");
-      }
-    };
+          @GetInitialRestriction
+          public OffsetRange getInitialRestriction(Void element) {
+            throw new UnsupportedOperationException("Should not be called in this test");
+          }
+        };
     e.expectMessage("Output is not allowed before tryClaim()");
     runTest(brokenFn, new OffsetRange(0, 5));
   }
 
   @Test
   public void testInvokeProcessElementOutputDisallowedAfterFailedTryClaim() throws Exception {
-    DoFn<Void, String> brokenFn = new DoFn<Void, String>() {
-      @ProcessElement
-      public void process(ProcessContext c, OffsetRangeTracker tracker) {
-        assertFalse(tracker.tryClaim(6L));
-        c.output("foo");
-      }
+    DoFn<Void, String> brokenFn =
+        new DoFn<Void, String>() {
+          @ProcessElement
+          public void process(ProcessContext c, OffsetRangeTracker tracker) {
+            assertFalse(tracker.tryClaim(6L));
+            c.output("foo");
+          }
 
-      @GetInitialRestriction
-      public OffsetRange getInitialRestriction(Void element) {
-        throw new UnsupportedOperationException("Should not be called in this test");
-      }
-    };
+          @GetInitialRestriction
+          public OffsetRange getInitialRestriction(Void element) {
+            throw new UnsupportedOperationException("Should not be called in this test");
+          }
+        };
     e.expectMessage("Output is not allowed after a failed tryClaim()");
     runTest(brokenFn, new OffsetRange(0, 5));
   }

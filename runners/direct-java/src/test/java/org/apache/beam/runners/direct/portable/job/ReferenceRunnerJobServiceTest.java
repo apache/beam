@@ -54,9 +54,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ReferenceRunnerJobService}.
- */
+/** Tests for {@link ReferenceRunnerJobService}. */
 @RunWith(JUnit4.class)
 public class ReferenceRunnerJobServiceTest {
   @Rule public TemporaryFolder runnerTemp = new TemporaryFolder();

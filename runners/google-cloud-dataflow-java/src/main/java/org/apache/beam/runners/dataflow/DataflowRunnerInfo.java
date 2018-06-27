@@ -28,9 +28,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Populates versioning and other information for {@link DataflowRunner}.
- */
+/** Populates versioning and other information for {@link DataflowRunner}. */
 public final class DataflowRunnerInfo extends ReleaseInfo {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerInfo.class);
 
@@ -46,6 +44,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
 
   private static class LazyInit {
     private static final DataflowRunnerInfo INSTANCE;
+
     static {
       Properties properties;
       try {
@@ -81,9 +80,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
     }
   }
 
-  /**
-   * Returns an instance of {@link DataflowRunnerInfo}.
-   */
+  /** Returns an instance of {@link DataflowRunnerInfo}. */
   public static DataflowRunnerInfo getDataflowRunnerInfo() {
     return LazyInit.INSTANCE;
   }
@@ -106,9 +103,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
 
   /** Provides the container version that will be used for constructing harness image paths. */
   public String getContainerVersion() {
-    checkState(
-        properties.containsKey(CONTAINER_VERSION_KEY),
-        "Unknown container version");
+    checkState(properties.containsKey(CONTAINER_VERSION_KEY), "Unknown container version");
     return properties.get(CONTAINER_VERSION_KEY);
   }
 
@@ -118,6 +113,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
   }
 
   private final Map<String, String> properties;
+
   private DataflowRunnerInfo(Map<String, String> properties) {
     this.properties = properties;
   }

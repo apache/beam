@@ -37,8 +37,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * Helper for {@link FlinkBatchPipelineTranslator} and translators in
- * {@link FlinkBatchTransformTranslators}.
+ * Helper for {@link FlinkBatchPipelineTranslator} and translators in {@link
+ * FlinkBatchTransformTranslators}.
  */
 class FlinkBatchTranslationContext {
 
@@ -46,9 +46,8 @@ class FlinkBatchTranslationContext {
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 
   /**
-   * For keeping track about which DataSets don't have a successor. We
-   * need to terminate these with a discarding sink because the Beam
-   * model allows dangling operations.
+   * For keeping track about which DataSets don't have a successor. We need to terminate these with
+   * a discarding sink because the Beam model allows dangling operations.
    */
   private final Map<PValue, DataSet<?>> danglingDataSets;
 
@@ -98,6 +97,7 @@ class FlinkBatchTranslationContext {
 
   /**
    * Sets the AppliedPTransform which carries input/output.
+   *
    * @param currentTransform
    */
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -114,8 +114,7 @@ class FlinkBatchTranslationContext {
   }
 
   public <ViewT, ElemT> void setSideInputDataSet(
-      PCollectionView<ViewT> value,
-      DataSet<WindowedValue<ElemT>> set) {
+      PCollectionView<ViewT> value, DataSet<WindowedValue<ElemT>> set) {
     if (!broadcastDataSets.containsKey(value)) {
       broadcastDataSets.put(value, set);
     }
@@ -128,12 +127,9 @@ class FlinkBatchTranslationContext {
 
   @SuppressWarnings("unchecked")
   public <T> TypeInformation<WindowedValue<T>> getTypeInfo(
-      Coder<T> coder,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-        WindowedValue.getFullCoder(
-            coder,
-            windowingStrategy.getWindowFn().windowCoder());
+        WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder);
   }

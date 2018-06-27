@@ -98,7 +98,8 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
     public Collection<CommittedBundle<ImpulseShard>> getInitialInputs(
         PTransformNode transform, int targetParallelism) {
       return Collections.singleton(
-          bundleFactory.<ImpulseShard>createRootBundle()
+          bundleFactory
+              .<ImpulseShard>createRootBundle()
               .add(WindowedValue.valueInGlobalWindow(new ImpulseShard()))
               .commit(BoundedWindow.TIMESTAMP_MIN_VALUE));
     }

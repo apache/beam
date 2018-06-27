@@ -22,35 +22,31 @@ import java.util.List;
 import java.util.Observer;
 
 /**
- * An abstract class used for iterables that notify observers about size in
- * bytes of their elements, as they are being iterated over.
+ * An abstract class used for iterables that notify observers about size in bytes of their elements,
+ * as they are being iterated over.
  *
  * @param <V> the type of elements returned by this iterable
  * @param <InputT> type type of iterator returned by this iterable
  */
 public abstract class ElementByteSizeObservableIterable<
-    V, InputT extends ElementByteSizeObservableIterator<V>>
+        V, InputT extends ElementByteSizeObservableIterator<V>>
     implements Iterable<V> {
   private List<Observer> observers = new ArrayList<>();
 
-  /**
-   * Derived classes override this method to return an iterator for this
-   * iterable.
-   */
+  /** Derived classes override this method to return an iterator for this iterable. */
   protected abstract InputT createIterator();
 
   /**
-   * Sets the observer, which will observe the iterator returned in
-   * the next call to iterator() method. Future calls to iterator()
-   * won't be observed, unless an observer is set again.
+   * Sets the observer, which will observe the iterator returned in the next call to iterator()
+   * method. Future calls to iterator() won't be observed, unless an observer is set again.
    */
   public void addObserver(Observer observer) {
     observers.add(observer);
   }
 
   /**
-   * Returns a new iterator for this iterable. If an observer was set in
-   * a previous call to setObserver(), it will observe the iterator returned.
+   * Returns a new iterator for this iterable. If an observer was set in a previous call to
+   * setObserver(), it will observe the iterator returned.
    */
   @Override
   public InputT iterator() {

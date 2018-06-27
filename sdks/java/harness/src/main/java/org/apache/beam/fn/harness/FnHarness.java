@@ -131,7 +131,8 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
-      OutboundObserverFactory outboundObserverFactory) throws Exception {
+      OutboundObserverFactory outboundObserverFactory)
+      throws Exception {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
@@ -149,8 +150,7 @@ public class FnHarness {
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
-          new BeamFnDataGrpcClient(
-              options, channelFactory::forDescriptor, outboundObserverFactory);
+          new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(

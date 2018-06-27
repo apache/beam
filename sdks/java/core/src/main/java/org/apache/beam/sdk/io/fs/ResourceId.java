@@ -28,23 +28,22 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 /**
  * An identifier which represents a file-like resource.
  *
- * <p>{@link ResourceId} is hierarchical and composed of a sequence of directory
- * and file name elements separated by a special separator or delimiter.
+ * <p>{@link ResourceId} is hierarchical and composed of a sequence of directory and file name
+ * elements separated by a special separator or delimiter.
  *
  * <p>{@link ResourceId ResourceIds} are created using {@link FileSystems}. The two primary
  * mechanisms are:
  *
  * <ul>
  *   <li>{@link FileSystems#match(java.util.List)}, which takes a list of {@link String} resource
- *   names or globs, queries the {@link FileSystem} for resources matching these specifications,
- *   and returns a {@link MatchResult} for each glob. This is typically used when reading from
- *   files.
- *
+ *       names or globs, queries the {@link FileSystem} for resources matching these specifications,
+ *       and returns a {@link MatchResult} for each glob. This is typically used when reading from
+ *       files.
  *   <li>{@link FileSystems#matchNewResource(String, boolean)}, which takes a {@link String} full
- *   resource name and type (file or directory) and generates a {@link FileSystem}-specific
- *   {@code ResourceId} for that resource. This call does not verify the presence or absence of that
- *   resource in the file system. This call is typically used when creating new directories or files
- *   to generate {@link ResourceId ResourceIds} for resources that may not yet exist.
+ *       resource name and type (file or directory) and generates a {@link FileSystem}-specific
+ *       {@code ResourceId} for that resource. This call does not verify the presence or absence of
+ *       that resource in the file system. This call is typically used when creating new directories
+ *       or files to generate {@link ResourceId ResourceIds} for resources that may not yet exist.
  * </ul>
  */
 @Experimental(Kind.FILESYSTEM)
@@ -53,9 +52,9 @@ public interface ResourceId extends Serializable {
   /**
    * Returns a child {@code ResourceId} under {@code this}.
    *
-   * <p>In order to write file system agnostic code, callers should not include delimiters
-   * in {@code other}, and should use {@link StandardResolveOptions} to specify
-   * whether to resolve a file or a directory.
+   * <p>In order to write file system agnostic code, callers should not include delimiters in {@code
+   * other}, and should use {@link StandardResolveOptions} to specify whether to resolve a file or a
+   * directory.
    *
    * <p>For example:
    *
@@ -71,26 +70,26 @@ public interface ResourceId extends Serializable {
    * <p>It is up to each file system to resolve in their own way.
    *
    * <p>Resolving special characters:
+   *
    * <ul>
-   *   <li>{@code resourceId.resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)} returns
-   *   the parent directory of this {@code ResourceId}.
-   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_FILE)} returns
-   *   a {@code ResourceId} which matches all files in this {@code ResourceId}.
+   *   <li>{@code resourceId.resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)} returns the
+   *       parent directory of this {@code ResourceId}.
+   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_FILE)} returns a
+   *       {@code ResourceId} which matches all files in this {@code ResourceId}.
    *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_DIRECTORY)}
-   *   returns a {@code ResourceId} which matches all directories in this {@code ResourceId}.
+   *       returns a {@code ResourceId} which matches all directories in this {@code ResourceId}.
    * </ul>
    *
    * @throws IllegalStateException if this {@link ResourceId} is not a directory.
-   *
-   * @throws IllegalArgumentException if {@code other} contains illegal characters
-   * or is an illegal name. It is recommended that callers use common characters,
-   * such as {@code [_a-zA-Z0-9.-]}, in {@code other}.
+   * @throws IllegalArgumentException if {@code other} contains illegal characters or is an illegal
+   *     name. It is recommended that callers use common characters, such as {@code [_a-zA-Z0-9.-]},
+   *     in {@code other}.
    */
   ResourceId resolve(String other, ResolveOptions resolveOptions);
 
   /**
-   * Returns the {@code ResourceId} that represents the current directory of
-   * this {@code ResourceId}.
+   * Returns the {@code ResourceId} that represents the current directory of this {@code
+   * ResourceId}.
    *
    * <p>If it is already a directory, trivially returns this.
    */
@@ -99,24 +98,22 @@ public interface ResourceId extends Serializable {
   /**
    * Get the scheme which defines the namespace of the {@link ResourceId}.
    *
-   * <p>The scheme is required to follow URI scheme syntax. See
-   * <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
+   * <p>The scheme is required to follow URI scheme syntax. See <a
+   * href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
   String getScheme();
 
-
   /**
-   * Returns the name of the file or directory denoted by this {@code ResourceId}. The file name
-   * is the farthest element from the root in the directory hierarchy.
+   * Returns the name of the file or directory denoted by this {@code ResourceId}. The file name is
+   * the farthest element from the root in the directory hierarchy.
    *
    * @return a string representing the name of file or directory, or null if there are zero
-   * components.
+   *     components.
    */
-  @Nullable String getFilename();
+  @Nullable
+  String getFilename();
 
-  /**
-   * Returns {@code true} if this {@link ResourceId} represents a directory, false otherwise.
-   */
+  /** Returns {@code true} if this {@link ResourceId} represents a directory, false otherwise. */
   boolean isDirectory();
 
   /**

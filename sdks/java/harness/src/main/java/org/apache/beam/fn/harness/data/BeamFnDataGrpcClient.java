@@ -81,7 +81,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
-    LOG.debug("Registering consumer for instruction {} and target {}",
+    LOG.debug(
+        "Registering consumer for instruction {} and target {}",
         inputLocation.getInstructionId(),
         inputLocation.getTarget());
 
@@ -97,8 +98,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    *
    * <p>The provided coder is used to encode elements on the outbound stream.
    *
-   * <p>On closing the returned consumer, an empty data block is sent as a signal of the
-   * logical data stream finishing.
+   * <p>On closing the returned consumer, an empty data block is sent as a signal of the logical
+   * data stream finishing.
    *
    * <p>The returned closeable consumer is not thread safe.
    */
@@ -123,9 +124,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     }
   }
 
-  /**
-   * Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set.
-   */
+  /** Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set. */
   private static Optional<Integer> getBufferLimit(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {

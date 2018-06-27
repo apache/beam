@@ -32,14 +32,12 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
 
-/**
- * A utility to test {@link ResourceId} implementations.
- */
+/** A utility to test {@link ResourceId} implementations. */
 @Experimental(Kind.FILESYSTEM)
 public final class ResourceIdTester {
   /**
-   * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the
-   * {@link ResourceId} spec.
+   * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the {@link
+   * ResourceId} spec.
    */
   public static void runResourceIdBattery(ResourceId baseDirectory) {
     checkArgument(
@@ -133,8 +131,7 @@ public final class ResourceIdTester {
       } else {
         cloned = FileSystems.matchNewResource(resourceId.toString(), false /* isDirectory */);
       }
-      assertThat(
-          "ResourceId equals clone of itself", cloned, equalTo(resourceId));
+      assertThat("ResourceId equals clone of itself", cloned, equalTo(resourceId));
       // .. and clones have consistent toString.
       assertThat(
           "ResourceId toString consistency", cloned.toString(), equalTo(resourceId.toString()));

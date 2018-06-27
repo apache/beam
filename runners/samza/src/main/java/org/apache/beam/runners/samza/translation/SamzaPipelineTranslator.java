@@ -36,9 +36,7 @@ import org.apache.samza.operators.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * This class knows all the translators from a primitive BEAM transform to a Samza operator.
- */
+/** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
 public class SamzaPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineTranslator.class);
 
@@ -55,12 +53,12 @@ public class SamzaPipelineTranslator {
 
   private SamzaPipelineTranslator() {}
 
-  public static void translate(Pipeline pipeline,
-                               SamzaPipelineOptions options,
-                               StreamGraph graph,
-                               Map<PValue, String> idMap,
-                               PValue dummySource) {
-
+  public static void translate(
+      Pipeline pipeline,
+      SamzaPipelineOptions options,
+      StreamGraph graph,
+      Map<PValue, String> idMap,
+      PValue dummySource) {
 
     final TranslationContext ctx = new TranslationContext(graph, idMap, options, dummySource);
     final TranslationVisitor visitor = new TranslationVisitor(ctx);
@@ -90,16 +88,15 @@ public class SamzaPipelineTranslator {
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       final PTransform<?, ?> transform = node.getTransform();
       final String urn = getUrnForTransform(transform);
-      checkArgument(canTranslate(urn, transform),
+      checkArgument(
+          canTranslate(urn, transform),
           String.format("Unsupported transform class: %s. Node: %s", transform, node));
 
       applyTransform(transform, node, TRANSLATORS.get(urn));
     }
 
     private <T extends PTransform<?, ?>> void applyTransform(
-        T transform,
-        TransformHierarchy.Node node,
-        TransformTranslator<?> translator) {
+        T transform, TransformHierarchy.Node node, TransformTranslator<?> translator) {
 
       ctx.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
       ctx.setCurrentTopologicalId(topologicalId++);
@@ -131,11 +128,12 @@ public class SamzaPipelineTranslator {
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class SamzaTransformsRegistrar implements TransformPayloadTranslatorRegistrar {
     @Override
-    public Map<? extends Class<? extends PTransform>,
-               ? extends PTransformTranslation.TransformPayloadTranslator>
-    getTransformPayloadTranslators() {
-      return ImmutableMap.of(SamzaPublishView.class,
-          new SamzaPublishView.SamzaPublishViewPayloadTranslator());
+    public Map<
+            ? extends Class<? extends PTransform>,
+            ? extends PTransformTranslation.TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.of(
+          SamzaPublishView.class, new SamzaPublishView.SamzaPublishViewPayloadTranslator());
     }
 
     @Override

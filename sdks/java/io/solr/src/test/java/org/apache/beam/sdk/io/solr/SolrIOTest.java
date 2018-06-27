@@ -84,8 +84,7 @@ public class SolrIOTest extends SolrCloudTestCase {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SolrIO.class);
+  @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SolrIO.class);
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -333,9 +332,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     fail("Pipeline should not have run to completion");
   }
 
-  /**
-   * Tests predicate performs as documented.
-   */
+  /** Tests predicate performs as documented. */
   @Test
   public void testDefaultRetryPredicate() {
     assertTrue(DEFAULT_RETRY_PREDICATE.test(new IOException("test")));

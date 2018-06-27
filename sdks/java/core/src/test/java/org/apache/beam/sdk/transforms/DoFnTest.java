@@ -35,13 +35,11 @@ public class DoFnTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDefaultPopulateDisplayDataImplementation() {
-    DoFn<String, String> fn = new DoFn<String, String>() {
-    };
+    DoFn<String, String> fn = new DoFn<String, String>() {};
     DisplayData displayData = DisplayData.from(fn);
     assertThat(displayData.items(), empty());
   }

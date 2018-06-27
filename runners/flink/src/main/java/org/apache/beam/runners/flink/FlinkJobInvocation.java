@@ -44,9 +44,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Invocation of a Flink Job via {@link FlinkRunner}.
- */
+/** Invocation of a Flink Job via {@link FlinkRunner}. */
 public class FlinkJobInvocation implements JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvocation.class);
 
@@ -67,8 +65,7 @@ public class FlinkJobInvocation implements JobInvocation {
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
 
-  @Nullable
-  private ListenableFuture<PipelineResult> invocationFuture;
+  @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
   private FlinkJobInvocation(
       String id,
@@ -138,7 +135,8 @@ public class FlinkJobInvocation implements JobInvocation {
           @Override
           public void onSuccess(@Nullable PipelineResult pipelineResult) {
             if (pipelineResult != null) {
-              checkArgument(pipelineResult.getState() == PipelineResult.State.DONE,
+              checkArgument(
+                  pipelineResult.getState() == PipelineResult.State.DONE,
                   "Success on non-Done state: " + pipelineResult.getState());
               setState(JobState.Enum.DONE);
             } else {
@@ -181,7 +179,7 @@ public class FlinkJobInvocation implements JobInvocation {
             }
 
             @Override
-            public void onFailure(Throwable throwable) { }
+            public void onFailure(Throwable throwable) {}
           },
           executorService);
     }
@@ -213,11 +211,11 @@ public class FlinkJobInvocation implements JobInvocation {
   /** Indicates whether the given pipeline has any unbounded PCollections. */
   private static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
     checkNotNull(pipeline);
-    Collection<RunnerApi.PCollection> pCollecctions = pipeline.getComponents()
-        .getPcollectionsMap().values();
+    Collection<RunnerApi.PCollection> pCollecctions =
+        pipeline.getComponents().getPcollectionsMap().values();
     // Assume that all PCollections are consumed at some point in the pipeline.
-    return pCollecctions.stream()
+    return pCollecctions
+        .stream()
         .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
   }
-
 }
