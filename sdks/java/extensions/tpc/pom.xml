@@ -327,17 +327,29 @@
             <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>net.hydromatic</groupId>
-            <artifactId>tpcds</artifactId>
-            <version>0.4</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>net.hydromatic</groupId>-->
+            <!--<artifactId>tpcds</artifactId>-->
+            <!--<version>0.4</version>-->
+        <!--</dependency>-->
 
-        <dependency>
-            <groupId>org.apache.calcite</groupId>
-            <artifactId>calcite-plus</artifactId>
-            <version>1.16.0</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.apache.calcite</groupId>-->
+            <!--<artifactId>calcite-plus</artifactId>-->
+            <!--<version>1.16.0</version>-->
+        <!--</dependency>-->
+
+        <!--<dependency>-->
+            <!--<groupId>org.apache.calcite</groupId>-->
+            <!--<artifactId>calcite-core</artifactId>-->
+            <!--<version>1.16.0</version>-->
+        <!--</dependency>-->
+
+        <!--<dependency>-->
+            <!--<groupId>org.apache.calcite.avatica</groupId>-->
+            <!--<artifactId>avatica-core</artifactId>-->
+            <!--<version>1.11.0</version>-->
+        <!--</dependency>-->
 
         <!-- Dependencies below this line are specific dependencies needed by the examples code. -->
         <dependency>
