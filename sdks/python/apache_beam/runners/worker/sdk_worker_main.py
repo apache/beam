@@ -93,6 +93,7 @@ def main(unused_argv):
     # TODO(vikasrk): This should be picked up from pipeline options.
     logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().addHandler(fn_log_handler)
+    logging.info('Logging handler created.')
   else:
     fn_log_handler = None
 
