@@ -130,6 +130,12 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
     </module>
 
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="SuppressFBWarnings" />
+      <property name="ignoreComments" value="true" />
+      <property name="message" value="SuppressFBWarnings annotation is distributed under LGPL and should not appear in Apache Beam. See: https://github.com/apache/beam/pull/5772" />
+    </module>
+
     <!--
          Require static importing from Preconditions.
     -->
