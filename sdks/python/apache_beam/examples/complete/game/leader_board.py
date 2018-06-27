@@ -306,10 +306,10 @@ def run(argv=None):
 
     # Read from PubSub into a PCollection.
     if args.subscription:
-      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           subscription=args.subscription)
     else:
-      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           topic=args.topic)
 
     events = (

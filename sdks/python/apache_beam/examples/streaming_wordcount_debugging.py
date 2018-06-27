@@ -105,10 +105,10 @@ def run(argv=None):
 
   # Read from PubSub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadStringsFromPubSub(
+    lines = p | beam.io.ReadFromPubSub(
         subscription=known_args.input_subscription)
   else:
-    lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
+    lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
 
   # Count the occurrences of each word.
   def count_ones(word_ones):

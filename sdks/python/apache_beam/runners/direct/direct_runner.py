@@ -44,6 +44,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import CombineValuesDoFn
+from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
@@ -173,22 +174,6 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-class _DirectReadFromPubSub(PTransform):
-  def __init__(self, source):
-    self._source = source
-
-  def _infer_output_coder(self, unused_input_type=None,
-                          unused_input_coder=None):
-    return coders.BytesCoder()
-
-  def get_windowing(self, inputs):
-    return beam.Windowing(beam.window.GlobalWindows())
-
-  def expand(self, pvalue):
-    # This is handled as a native transform.
-    return PCollection(self.pipeline)
-
-
 def _get_transform_overrides(pipeline_options):
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DirectRunner.
@@ -259,8 +244,67 @@ def _get_transform_overrides(pipeline_options):
   return overrides
 
 
+class _DirectReadFromPubSub(PTransform):
+  def __init__(self, source):
+    self._source = source
+
+  def _infer_output_coder(self, unused_input_type=None,
+                          unused_input_coder=None):
+    return coders.BytesCoder()
+
+  def get_windowing(self, inputs):
+    return beam.Windowing(beam.window.GlobalWindows())
+
+  def expand(self, pvalue):
+    # This is handled as a native transform.
+    return PCollection(self.pipeline)
+
+
+class _DirectWriteToPubSubFn(DoFn):
+  _topic = None
+
+  def __init__(self, sink):
+    self.project = sink.project
+    self.topic_name = sink.topic_name
+    self.id_label = sink.id_label
+    self.timestamp_attribute = sink.timestamp_attribute
+    self.with_attributes = sink.with_attributes
+
+    # TODO(BEAM-4275): Add support for id_label and timestamp_attribute.
+    if sink.id_label:
+      raise NotImplementedError('id_label is not supported in Direct Runner')
+    if sink.timestamp_attribute:
+      raise NotImplementedError('timestamp_attribute is not supported in Direct'
+                                ' Runner')
+
+  def start_bundle(self):
+    from google.cloud import pubsub
+
+    if self._topic is None:
+      self._topic = pubsub.Client(project=self.project).topic(
+          self.topic_name)
+    self._buffer = []
+
+  def process(self, elem):
+    self._buffer.append(elem)
+    if len(self._buffer) >= 100:
+      self._flush()
+
+  def finish_bundle(self):
+    self._flush()
+
+  def _flush(self):
+    if self._buffer:
+      with self._topic.batch() as batch:
+        for elem in self._buffer:
+          if self.with_attributes:
+            batch.publish(elem.data, **elem.attributes)
+          else:
+            batch.publish(elem)
+      self._buffer = []
+
+
 def _get_pubsub_transform_overrides(pipeline_options):
-  from google.cloud import pubsub
   from apache_beam.io.gcp import pubsub as beam_pubsub
   from apache_beam.pipeline import PTransformOverride
 
@@ -275,49 +319,19 @@ def _get_pubsub_transform_overrides(pipeline_options):
                         '(use the --streaming flag).')
       return _DirectReadFromPubSub(transform._source)
 
-  class WriteStringsToPubSubOverride(PTransformOverride):
+  class WriteToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
-      return isinstance(applied_ptransform.transform,
-                        beam_pubsub.WriteStringsToPubSub)
+      return isinstance(
+          applied_ptransform.transform,
+          (beam_pubsub.WriteToPubSub, beam_pubsub._WriteStringsToPubSub))
 
     def get_replacement_transform(self, transform):
       if not pipeline_options.view_as(StandardOptions).streaming:
         raise Exception('PubSub I/O is only available in streaming mode '
                         '(use the --streaming flag).')
+      return beam.ParDo(_DirectWriteToPubSubFn(transform._sink))
 
-      class _DirectWriteToPubSub(beam.DoFn):
-        _topic = None
-
-        def __init__(self, project, topic_name):
-          self.project = project
-          self.topic_name = topic_name
-
-        def start_bundle(self):
-          if self._topic is None:
-            self._topic = pubsub.Client(project=self.project).topic(
-                self.topic_name)
-          self._buffer = []
-
-        def process(self, elem):
-          self._buffer.append(elem.encode('utf-8'))
-          if len(self._buffer) >= 100:
-            self._flush()
-
-        def finish_bundle(self):
-          self._flush()
-
-        def _flush(self):
-          if self._buffer:
-            with self._topic.batch() as batch:
-              for datum in self._buffer:
-                batch.publish(datum)
-            self._buffer = []
-
-      project = transform._sink.project
-      topic_name = transform._sink.topic_name
-      return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
-
-  return [ReadFromPubSubOverride(), WriteStringsToPubSubOverride()]
+  return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
 
 
 class BundleBasedDirectRunner(PipelineRunner):
