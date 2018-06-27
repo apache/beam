@@ -575,13 +575,29 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
-    // Components: None
-    TIMESTAMP = 4 [(beam_urn) = "beam:coder:timestamp:v1"];
+    // Encodes a timer containing a timestamp and a user specified payload.
+    // The encoding is represented as: timestamp payload
+    //   timestamp - a big endian 8 byte integer representing millis-since-epoch.
+    //     The encoded representation is shifted so that the byte representation of
+    //     negative values are lexicographically ordered before the byte representation
+    //     of positive values. This is typically done by subtracting -9223372036854775808
+    //     from the value and encoding it as a signed big endian integer. Example values:
+    //
+    //     -9223372036854775808: 00 00 00 00 00 00 00 00
+    //                     -255: 7F FF FF FF FF FF FF 01
+    //                       -1: 7F FF FF FF FF FF FF FF
+    //                        0: 80 00 00 00 00 00 00 00
+    //                        1: 80 00 00 00 00 00 00 01
+    //                      256: 80 00 00 00 00 00 01 00
+    //      9223372036854775807: FF FF FF FF FF FF FF FF
+    //   payload - user defined data, uses the component coder
+    // Components: Coder for the payload.
+    TIMER = 4 [(beam_urn) = "beam:coder:timer:v1"];
+
     /*
-     * The following coders are typically not specified by manually by the user,
+     * The following coders are typically not specified manually by the user,
      * but are used at runtime and must be supported by every SDK.
      */
-
     // Components: None
     INTERVAL_WINDOW = 5 [(beam_urn) = "beam:coder:interval_window:v1"];
 
