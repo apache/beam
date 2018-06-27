@@ -65,6 +65,7 @@ public class CoderTranslationTest {
           .add(VarLongCoder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
+          .add(Timer.Coder.of(ByteArrayCoder.of()))
           .add(LengthPrefixCoder.of(IterableCoder.of(VarLongCoder.of())))
           .add(GlobalWindow.Coder.INSTANCE)
           .add(
