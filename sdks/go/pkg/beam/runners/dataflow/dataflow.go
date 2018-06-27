@@ -337,7 +337,6 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 		return "", fmt.Errorf("failed to open worker binary %s: %v", worker, err)
 	}
 	defer fd.Close()
-	defer os.Remove(worker)
 
 	return gcsx.Upload(client, project, bucket, obj, fd)
 }
