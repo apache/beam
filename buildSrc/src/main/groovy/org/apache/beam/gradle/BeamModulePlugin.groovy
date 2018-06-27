@@ -599,8 +599,12 @@ class BeamModulePlugin implements Plugin<Project> {
         testApt auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
-        // also to include the annotations to supress warnings.
-        def findbugs_annotations = "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1"
+        // also to include the annotations to suppress warnings.
+        //
+        // findbugs-annotations artifact is licensed under LGPL and cannot be included in the
+        // Apache Beam distribution, but may be relied on during build.
+        // See: https://www.apache.org/legal/resolved.html#prohibited
+        def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
         apt findbugs_annotations
         testCompileOnly findbugs_annotations
