@@ -219,16 +219,13 @@ public class Pipeline {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
             if (!node.isRootNode()) {
-              for (PTransformOverride override : overrides) {
-                if (override.getMatcher().matches(node.toAppliedPTransform(getPipeline()))) {
-                  matched.put(node, override);
-                }
-              }
+              checkForMatches(node);
             }
-            if (!matched.containsKey(node)) {
+            if (matched.containsKey(node)) {
+              return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+            } else {
               return CompositeBehavior.ENTER_TRANSFORM;
             }
-            return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
           }
 
           @Override
@@ -241,8 +238,13 @@ public class Pipeline {
 
           @Override
           public void visitPrimitiveTransform(Node node) {
+            checkForMatches(node);
+          }
+
+          private void checkForMatches(Node node) {
             for (PTransformOverride override : overrides) {
-              if (override.getMatcher().matches(node.toAppliedPTransform(getPipeline()))) {
+              if (override.getMatcher()
+                  .matchesDuringValidation(node.toAppliedPTransform(getPipeline()))) {
                 matched.put(node, override);
               }
             }
