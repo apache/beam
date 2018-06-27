@@ -87,7 +87,7 @@ func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []str
 		a := stage(ctx, scl, t, key, size+7*i, 97+i, st)
 		artifacts = append(artifacts, a)
 	}
-	token, err := Commit(ctx, scl, artifacts, st); 
+	token, err := Commit(ctx, scl, artifacts, st)
 	if err != nil {
 		t.Fatalf("failed to commit manifest: %v", err)
 		return "", nil
@@ -108,8 +108,8 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	hash := base64.StdEncoding.EncodeToString(md5W.Sum(nil))
 	md := makeArtifact(key, hash)
 	pmd := &pb.PutArtifactMetadata{
-	  Metadata           : md,
-	  StagingSessionToken: st,
+		Metadata:            md,
+		StagingSessionToken: st,
 	}
 
 	stream, err := scl.PutArtifact(ctx)
