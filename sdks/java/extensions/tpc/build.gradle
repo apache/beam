@@ -104,6 +104,6 @@ test {
 task run(type: JavaExec) {
     main = "org.apache.beam.sdk.extensions.tpc.BeamTpc"
     classpath = configurations.gradleRun
-    args "--inputFile=/Users/jiangkai/data/"
+    args = ["--inputFile=/Users/jiangkai/data/", "--output=tpcoutput"]
 //  jvmArgs '-ea'
 }

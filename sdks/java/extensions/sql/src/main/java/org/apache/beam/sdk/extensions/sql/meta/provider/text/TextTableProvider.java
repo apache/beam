@@ -27,10 +27,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
-
 import java.io.Serializable;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
@@ -63,142 +61,132 @@ import org.apache.commons.csv.CSVFormat;
 @AutoService(TableProvider.class)
 public class TextTableProvider extends InMemoryMetaTableProvider {
 
+  @Override
+  public String getTableType() {
+    return "text";
+  }
+
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    Schema schema = table.getSchema();
+
+    String filePattern = table.getLocation();
+    JSONObject properties = table.getProperties();
+    String format = MoreObjects.firstNonNull(properties.getString("format"), "csv");
+
+    // Backwards compatibility: previously "type": "text" meant CSV and "format" was where the
+    // CSV format went. So assume that any other format is the CSV format.
+    @Nullable String legacyCsvFormat = null;
+    if (!ImmutableSet.of("csv", "lines").contains(format)) {
+      legacyCsvFormat = format;
+      format = "csv";
+    }
+
+    switch (format) {
+      case "csv":
+        String specifiedCsvFormat = properties.getString("csvformat");
+        CSVFormat csvFormat =
+            specifiedCsvFormat != null
+                ? CSVFormat.valueOf(specifiedCsvFormat)
+                : (legacyCsvFormat != null
+                    ? CSVFormat.valueOf(legacyCsvFormat)
+                    : CSVFormat.DEFAULT);
+        return new TextTable(
+            schema, filePattern, new CsvToRow(schema, csvFormat), new RowToCsv(csvFormat));
+      case "lines":
+        checkArgument(
+            schema.getFieldCount() == 1
+                && schema.getField(0).getType().equals(Schema.FieldType.STRING),
+            "Table with type 'text' and format 'lines' "
+                + "must have exactly one STRING/VARCHAR/CHAR column");
+        return new TextTable(
+            schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
+      default:
+        throw new IllegalArgumentException(
+            "Table with type 'text' must have format 'csv' or 'lines'");
+    }
+  }
+
+  /** Write-side converter for for {@link TextTable} with format {@code 'lines'}. */
+  public static class LinesWriteConverter extends PTransform<PCollection<Row>, PCollection<String>>
+      implements Serializable {
+    private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
+
+    public LinesWriteConverter() {}
+
     @Override
-    public String getTableType() {
-        return "text";
+    public PCollection<String> expand(PCollection<Row> input) {
+      return input.apply(
+          "rowsToLines",
+          MapElements.into(TypeDescriptors.strings()).via((Row row) -> row.getString(0) + "\n"));
+    }
+  }
+
+  /** Read-side converter for {@link TextTable} with format {@code 'lines'}. */
+  public static class LinesReadConverter extends PTransform<PCollection<String>, PCollection<Row>>
+      implements Serializable {
+
+    private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
+
+    public LinesReadConverter() {}
+
+    @Override
+    public PCollection<Row> expand(PCollection<String> input) {
+      return input.apply(
+          "linesToRows",
+          MapElements.into(TypeDescriptors.rows())
+              .via(s -> Row.withSchema(SCHEMA).addValue(s).build()));
+    }
+  }
+
+  /** Write-side converter for {@link TextTable} with format {@code 'csv'}. */
+  @VisibleForTesting
+  public static class RowToCsv extends PTransform<PCollection<Row>, PCollection<String>>
+      implements Serializable {
+
+    private CSVFormat csvFormat;
+
+    public RowToCsv(CSVFormat csvFormat) {
+      this.csvFormat = csvFormat;
+    }
+
+    @VisibleForTesting
+    public CSVFormat getCsvFormat() {
+      return csvFormat;
     }
 
     @Override
-    public BeamSqlTable buildBeamSqlTable(Table table) {
-        Schema schema = table.getSchema();
-
-        String filePattern = table.getLocation();
-        JSONObject properties = table.getProperties();
-        String format = MoreObjects.firstNonNull(properties.getString("format"), "csv");
-
-        // Backwards compatibility: previously "type": "text" meant CSV and "format" was where the
-        // CSV format went. So assume that any other format is the CSV format.
-        @Nullable String legacyCsvFormat = null;
-        if (!ImmutableSet.of("csv", "lines").contains(format)) {
-            legacyCsvFormat = format;
-            format = "csv";
-        }
-
-        switch (format) {
-            case "csv":
-                String specifiedCsvFormat = properties.getString("csvformat");
-                CSVFormat csvFormat =
-                        specifiedCsvFormat != null
-                                ? CSVFormat.valueOf(specifiedCsvFormat)
-                                : (legacyCsvFormat != null
-                                ? CSVFormat.valueOf(legacyCsvFormat)
-                                : CSVFormat.DEFAULT);
-                return new TextTable(
-                        schema, filePattern, new CsvToRow(schema, csvFormat), new RowToCsv(csvFormat));
-            case "lines":
-                checkArgument(
-                        schema.getFieldCount() == 1
-                                && schema.getField(0).getType().equals(Schema.FieldType.STRING),
-                        "Table with type 'text' and format 'lines' "
-                                + "must have exactly one STRING/VARCHAR/CHAR column");
-                return new TextTable(
-                        schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
-            default:
-                throw new IllegalArgumentException(
-                        "Table with type 'text' must have format 'csv' or 'lines'");
-        }
+    public PCollection<String> expand(PCollection<Row> input) {
+      return input.apply(
+          "rowToCsv",
+          MapElements.into(TypeDescriptors.strings()).via(row -> beamRow2CsvLine(row, csvFormat)));
     }
+  }
 
-    /**
-     * Write-side converter for for {@link TextTable} with format {@code 'lines'}.
-     */
-    public static class LinesWriteConverter extends PTransform<PCollection<Row>, PCollection<String>>
-            implements Serializable {
-        private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
+  /** Read-side converter for {@link TextTable} with format {@code 'csv'}. */
+  @VisibleForTesting
+  public static class CsvToRow extends PTransform<PCollection<String>, PCollection<Row>>
+      implements Serializable {
 
-        public LinesWriteConverter() {
-        }
+    private Schema schema;
+    private CSVFormat csvFormat;
 
-        @Override
-        public PCollection<String> expand(PCollection<Row> input) {
-            return input.apply(
-                    "rowsToLines",
-                    MapElements.into(TypeDescriptors.strings()).via((Row row) -> row.getString(0) + "\n"));
-        }
-    }
-
-    /**
-     * Read-side converter for {@link TextTable} with format {@code 'lines'}.
-     */
-    public static class LinesReadConverter extends PTransform<PCollection<String>, PCollection<Row>>
-            implements Serializable {
-
-        private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
-
-        public LinesReadConverter() {
-        }
-
-        @Override
-        public PCollection<Row> expand(PCollection<String> input) {
-            return input.apply(
-                    "linesToRows",
-                    MapElements.into(TypeDescriptors.rows())
-                            .via(s -> Row.withSchema(SCHEMA).addValue(s).build()));
-        }
-    }
-
-    /**
-     * Write-side converter for {@link TextTable} with format {@code 'csv'}.
-     */
     @VisibleForTesting
-    public static class RowToCsv extends PTransform<PCollection<Row>, PCollection<String>>
-            implements Serializable {
-
-        private CSVFormat csvFormat;
-
-        public RowToCsv(CSVFormat csvFormat) {
-            this.csvFormat = csvFormat;
-        }
-
-        @VisibleForTesting
-        public CSVFormat getCsvFormat() {
-            return csvFormat;
-        }
-
-        @Override
-        public PCollection<String> expand(PCollection<Row> input) {
-            return input.apply(
-                    "rowToCsv",
-                    MapElements.into(TypeDescriptors.strings()).via(row -> beamRow2CsvLine(row, csvFormat)));
-        }
+    public CSVFormat getCsvFormat() {
+      return csvFormat;
     }
 
-    /**
-     * Read-side converter for {@link TextTable} with format {@code 'csv'}.
-     */
-    @VisibleForTesting
-    public static class CsvToRow extends PTransform<PCollection<String>, PCollection<Row>>
-            implements Serializable {
-
-        private Schema schema;
-        private CSVFormat csvFormat;
-
-        @VisibleForTesting
-        public CSVFormat getCsvFormat() {
-            return csvFormat;
-        }
-
-        public CsvToRow(Schema schema, CSVFormat csvFormat) {
-            this.schema = schema;
-            this.csvFormat = csvFormat;
-        }
-
-        @Override
-        public PCollection<Row> expand(PCollection<String> input) {
-            return input.apply(
-                    "csvToRow",
-                    FlatMapElements.into(TypeDescriptors.rows())
-                            .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
-        }
+    public CsvToRow(Schema schema, CSVFormat csvFormat) {
+      this.schema = schema;
+      this.csvFormat = csvFormat;
     }
+
+    @Override
+    public PCollection<Row> expand(PCollection<String> input) {
+      return input.apply(
+          "csvToRow",
+          FlatMapElements.into(TypeDescriptors.rows())
+              .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
+    }
+  }
 }

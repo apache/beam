@@ -34,10 +34,10 @@
     <packaging>jar</packaging>
 
     <properties>
-        <beam.version>2.4.0</beam.version>
+        <beam.version>2.6.0-SNAPSHOT</beam.version>
 
         <bigquery.version>v2-rev374-1.22.0</bigquery.version>
-        <google-clients.version>1.22.0</google-clients.version>
+        <google-clients.version>1.23.0</google-clients.version>
         <guava.version>20.0</guava.version>
         <hamcrest.version>1.3</hamcrest.version>
         <jackson.version>2.8.9</jackson.version>
@@ -105,6 +105,15 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>${maven-jar-plugin.version}</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <mainClass>org.apache.beam.sdk.extensions.tpc.BeamTpc</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
             </plugin>
 
             <!--
@@ -174,51 +183,51 @@
             </dependencies>
         </profile>
 
-        <profile>
-            <id>apex-runner</id>
-            <!-- Makes the ApexRunner available when running a pipeline. -->
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-apex</artifactId>
-                    <version>${beam.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-                <!--
-                  Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from
-                  google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
-                  can be removed when the project no longer has a dependency on a different httpclient version.
-                -->
-                <dependency>
-                    <groupId>org.apache.httpcomponents</groupId>
-                    <artifactId>httpclient</artifactId>
-                    <version>4.3.6</version>
-                    <scope>runtime</scope>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>commons-codec</groupId>
-                            <artifactId>commons-codec</artifactId>
-                        </exclusion>
-                    </exclusions>
-                </dependency>
-                <!--
-                  Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match
-                  what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.
-                -->
-                <dependency>
-                    <groupId>org.apache.hadoop</groupId>
-                    <artifactId>hadoop-yarn-client</artifactId>
-                    <version>${hadoop.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-                <dependency>
-                    <groupId>org.apache.hadoop</groupId>
-                    <artifactId>hadoop-common</artifactId>
-                    <version>${hadoop.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-            </dependencies>
-        </profile>
+        <!--<profile>-->
+            <!--<id>apex-runner</id>-->
+            <!--&lt;!&ndash; Makes the ApexRunner available when running a pipeline. &ndash;&gt;-->
+            <!--<dependencies>-->
+                <!--<dependency>-->
+                    <!--<groupId>org.apache.beam</groupId>-->
+                    <!--<artifactId>beam-runners-apex</artifactId>-->
+                    <!--<version>${beam.version}</version>-->
+                    <!--<scope>runtime</scope>-->
+                <!--</dependency>-->
+                <!--&lt;!&ndash;-->
+                  <!--Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from-->
+                  <!--google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This-->
+                  <!--can be removed when the project no longer has a dependency on a different httpclient version.-->
+                <!--&ndash;&gt;-->
+                <!--<dependency>-->
+                    <!--<groupId>org.apache.httpcomponents</groupId>-->
+                    <!--<artifactId>httpclient</artifactId>-->
+                    <!--<version>4.3.6</version>-->
+                    <!--<scope>runtime</scope>-->
+                    <!--<exclusions>-->
+                        <!--<exclusion>-->
+                            <!--<groupId>commons-codec</groupId>-->
+                            <!--<artifactId>commons-codec</artifactId>-->
+                        <!--</exclusion>-->
+                    <!--</exclusions>-->
+                <!--</dependency>-->
+                <!--&lt;!&ndash;-->
+                  <!--Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match-->
+                  <!--what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.-->
+                <!--&ndash;&gt;-->
+                <!--<dependency>-->
+                    <!--<groupId>org.apache.hadoop</groupId>-->
+                    <!--<artifactId>hadoop-yarn-client</artifactId>-->
+                    <!--<version>${hadoop.version}</version>-->
+                    <!--<scope>runtime</scope>-->
+                <!--</dependency>-->
+                <!--<dependency>-->
+                    <!--<groupId>org.apache.hadoop</groupId>-->
+                    <!--<artifactId>hadoop-common</artifactId>-->
+                    <!--<version>${hadoop.version}</version>-->
+                    <!--<scope>runtime</scope>-->
+                <!--</dependency>-->
+            <!--</dependencies>-->
+        <!--</profile>-->
 
         <profile>
             <id>dataflow-runner</id>
@@ -398,6 +407,48 @@
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-pubsub</artifactId>
             <version>${pubsub.version}</version>
+            <exclusions>
+                <!-- Exclude an old version of guava that is being pulled
+                     in by a transitive dependency of google-api-client -->
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava-jdk5</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>0.9.1</version>
+            <exclusions>
+                <!-- Exclude an old version of guava that is being pulled
+                     in by a transitive dependency of google-api-client -->
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava-jdk5</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.api</groupId>
+            <artifactId>gax</artifactId>
+            <version>1.28.0</version>
+            <exclusions>
+                <!-- Exclude an old version of guava that is being pulled
+                     in by a transitive dependency of google-api-client -->
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava-jdk5</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.api</groupId>
+            <artifactId>gax-grpc</artifactId>
+            <version>1.28.0</version>
             <exclusions>
                 <!-- Exclude an old version of guava that is being pulled
                      in by a transitive dependency of google-api-client -->

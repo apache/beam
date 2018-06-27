@@ -4,13 +4,15 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.commons.csv.CSVFormat;
 //import org.apache.beam.sdk.extensions.tpc.CsvToRow;
 //import org.apache.beam.sdk.extensions.tpc.RowToCsv;
@@ -38,7 +40,7 @@ public class BeamTpc {
 
     String rootPath = tpcOptions.getInputFile();
 
-    String storeSalesFilePath = rootPath + "store_sales_c.dat";
+    String storeSalesFilePath = rootPath + "store_sales.dat";
     String dateDimFilePath = rootPath + "date_dim.dat";
     String itemFilePath = rootPath + "item.dat";
     String nationFilePath = rootPath + "nation.tbl";
@@ -46,9 +48,9 @@ public class BeamTpc {
     //      String itemFilePath = rootPath + "item.dat";
     //      String storeFilePath = rootPath + "store.dat";
     //      String storeReturnFilePath = rootPath + "store_returns.dat";
-    String customerFilePath = rootPath + "customer_c.tbl";
-    String lineitemFilePath = rootPath + "lineitem_c.tbl";
-    String orderFilePath = rootPath + "orders_c.tbl";
+    String customerFilePath = rootPath + "customer.tbl";
+    String lineitemFilePath = rootPath + "lineitem.tbl";
+    String orderFilePath = rootPath + "orders.tbl";
     //      String catalogSalesFilePath = rootPath + "catalog_sales.dat";
     //      String catalogReturnsFilePath = rootPath + "catalog_returns.dat";
     //      String inventoryFilePath = rootPath + "inventory.dat";
@@ -317,22 +319,34 @@ public class BeamTpc {
             + "order by\n"
             + "\trevenue desc,\n"
             + "\to_orderdate\n"
-            + "limit 10";
+            + "limit 100";
+
+//    String queryh =
+//        "select * \n"
+//            + "from\n"
+//            + "\torders\n"
+//            + "\twhere o_orderdate < date '1995-03-15'\n"
+//            + "limit 100";
+
+    String outputPath = tpcOptions.getOutput();
+    System.out.println(tpcOptions.getInputFile());
+    System.out.println(outputPath);
 
     tables
         .apply(SqlTransform.query(queryh))
         .apply(
             "exp_table",
-            MapElements.via(
-                new SimpleFunction<Row, Void>() {
+            MapElements.into(TypeDescriptors.strings()).via(
+                new SerializableFunction<Row, String>() {
                   @Override
-                  public @Nullable Void apply(Row input) {
+                  public @Nullable String apply(Row input) {
                     // expect output:
                     //  PCOLLECTION: [3, row, 3.0]
                     System.out.println("row: " + input.getValues());
-                    return null;
+                    return "row: " + input.getValues();
                   }
-                }));
+                }))
+            .apply(TextIO.write().to(outputPath));
 
     pipeline.run().waitUntilFinish();
 
