@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.protobuf.Struct;
 import java.io.IOException;
@@ -35,14 +37,17 @@ import org.slf4j.LoggerFactory;
 public class FlinkJobInvoker implements JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
-  public static FlinkJobInvoker create(ListeningExecutorService executorService) {
-    return new FlinkJobInvoker(executorService);
+  public static FlinkJobInvoker create(ListeningExecutorService executorService,
+      String flinkMasterUrl) {
+    return new FlinkJobInvoker(executorService, firstNonNull(flinkMasterUrl, "[auto]"));
   }
 
   private final ListeningExecutorService executorService;
+  private final String flinkMasterUrl;
 
-  private FlinkJobInvoker(ListeningExecutorService executorService) {
+  private FlinkJobInvoker(ListeningExecutorService executorService, String flinkMasterUrl) {
     this.executorService = executorService;
+    this.flinkMasterUrl = flinkMasterUrl;
   }
 
   @Override
@@ -58,10 +63,7 @@ public class FlinkJobInvoker implements JobInvoker {
         "%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
     LOG.info("Invoking job {}", invocationId);
 
-    // Set Flink Master to [auto] if no option was specified.
-    if (flinkOptions.getFlinkMaster() == null) {
-      flinkOptions.setFlinkMaster("[auto]");
-    }
+    flinkOptions.setFlinkMaster(firstNonNull(flinkOptions.getFlinkMaster(), flinkMasterUrl));
 
     flinkOptions.setRunner(null);
 
