@@ -55,13 +55,13 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   /**
    * Early results will be triggered periodically until the window is finally closed.
    *
-   * @param <T> the type of elements dealt with
+   * @param <ElemT> the type of elements dealt with
    * @param timeout the period after which to periodically trigger windows
    * @return this instance (for method chaining purposes)
    */
   @Experimental("https://github.com/seznam/euphoria/issues/43")
   @SuppressWarnings("unchecked")
-  public <T> Session<T> earlyTriggering(Duration timeout) {
+  public <ElemT> Session<ElemT> earlyTriggering(Duration timeout) {
     this.earlyTriggeringPeriod = Objects.requireNonNull(timeout);
     // ~ the cast is safe, this windowing implementation is self contained,
     // i.e. cannot be subclasses, and is not dependent the actual <T> at all
@@ -147,8 +147,8 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   public boolean equals(Object obj) {
     if (obj instanceof Session) {
       Session other = (Session) obj;
-      return other.earlyTriggeringPeriod == earlyTriggeringPeriod
-          && other.gapDurationMillis == gapDurationMillis;
+      return Objects.equals(other.earlyTriggeringPeriod, earlyTriggeringPeriod)
+          && Objects.equals(other.gapDurationMillis, gapDurationMillis);
     }
     return false;
   }

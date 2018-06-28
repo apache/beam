@@ -321,6 +321,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       this.params = params;
     }
 
+    @Override
     public AccumulatorModeBuilder<InputT, K, W> triggeredBy(Trigger trigger) {
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
@@ -340,6 +341,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       this.params = params;
     }
 
+    @Override
     public OutputBuilder<InputT, K, W> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
 
