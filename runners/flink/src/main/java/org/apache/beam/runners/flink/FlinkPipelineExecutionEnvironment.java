@@ -93,12 +93,14 @@ class FlinkPipelineExecutionEnvironment {
 
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
-      this.flinkStreamEnv = FlinkExecutionEnvironments
-          .createStreamExecutionEnvironment(options, options.getFilesToStage());
+      this.flinkStreamEnv =
+          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+              options, options.getFilesToStage());
       translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
     } else {
-      this.flinkBatchEnv = FlinkExecutionEnvironments
-          .createBatchExecutionEnvironment(options, options.getFilesToStage());
+      this.flinkBatchEnv =
+          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+              options, options.getFilesToStage());
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 

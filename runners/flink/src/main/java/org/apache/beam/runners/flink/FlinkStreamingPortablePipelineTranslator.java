@@ -88,8 +88,8 @@ public class FlinkStreamingPortablePipelineTranslator
    * Creates a streaming translation context. The resulting Flink execution dag will live in a new
    * {@link StreamExecutionEnvironment}.
    */
-  public static StreamingTranslationContext createTranslationContext(JobInfo jobInfo,
-      List<String> filesToStage) {
+  public static StreamingTranslationContext createTranslationContext(
+      JobInfo jobInfo, List<String> filesToStage) {
     PipelineOptions pipelineOptions;
     try {
       pipelineOptions = PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
@@ -97,8 +97,8 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException(e);
     }
     StreamExecutionEnvironment executionEnvironment =
-            FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-                    pipelineOptions.as(FlinkPipelineOptions.class), filesToStage);
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            pipelineOptions.as(FlinkPipelineOptions.class), filesToStage);
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 
