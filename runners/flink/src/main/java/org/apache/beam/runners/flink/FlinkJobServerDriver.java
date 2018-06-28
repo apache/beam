@@ -20,15 +20,18 @@ package org.apache.beam.runners.flink;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.protobuf.Struct;
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.sdk.io.FileSystems;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -55,7 +58,7 @@ public class FlinkJobServerDriver implements Runnable {
     private String flinkMasterUrl = "[auto]";
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     ServerConfiguration configuration = new ServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -65,6 +68,10 @@ public class FlinkJobServerDriver implements Runnable {
       printUsage(parser);
       return;
     }
+    //TODO: Expose the fileSystem related options.
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(
+        PipelineOptionsTranslation.fromProto(Struct.newBuilder().build()));
     FlinkJobServerDriver driver = fromConfig(configuration);
     driver.run();
   }
