@@ -181,14 +181,17 @@ public class GreedyPipelineFuser {
   private DescendantConsumers getRootConsumers(PTransformNode rootNode) {
     checkArgument(
         rootNode.getTransform().getInputsCount() == 0,
-        "%s is not at the root of the graph (consumes %s)",
-        PTransformNode.class.getSimpleName(),
+        "Transform %s is not at the root of the graph (consumes %s)",
+        rootNode.getId(),
         rootNode.getTransform().getInputsMap());
     checkArgument(
         !pipeline.getEnvironment(rootNode).isPresent(),
-        "%s requires all root nodes to be runner-implemented %s primitives",
+        "%s requires all root nodes to be runner-implemented %s primitives, "
+            + "but transform %s executes in environment %s",
         GreedyPipelineFuser.class.getSimpleName(),
-        PTransformTranslation.IMPULSE_TRANSFORM_URN);
+        PTransformTranslation.IMPULSE_TRANSFORM_URN,
+        rootNode.getId(),
+        pipeline.getEnvironment(rootNode));
     Set<PTransformNode> unfused = new HashSet<>();
     unfused.add(rootNode);
     NavigableSet<CollectionConsumer> environmentNodes = new TreeSet<>();
