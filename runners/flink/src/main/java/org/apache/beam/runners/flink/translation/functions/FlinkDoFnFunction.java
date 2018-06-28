@@ -98,18 +98,19 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
     List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
 
-    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        serializedOptions.get(), doFn,
-        new FlinkSideInputReader(sideInputs, runtimeContext),
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        new FlinkNoOpStepContext(),
-        null,
-        windowingStrategy);
+    DoFnRunner<InputT, OutputT> doFnRunner =
+        DoFnRunners.simpleRunner(
+            serializedOptions.get(),
+            doFn,
+            new FlinkSideInputReader(sideInputs, runtimeContext),
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            new FlinkNoOpStepContext(),
+            null,
+            windowingStrategy);
 
-    if ((serializedOptions.get().as(FlinkPipelineOptions.class))
-        .getEnableMetrics()) {
+    if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 

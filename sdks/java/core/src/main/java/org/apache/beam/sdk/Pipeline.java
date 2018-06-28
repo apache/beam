@@ -320,11 +320,11 @@ public class Pipeline {
     return coderRegistry;
   }
 
-   public SchemaRegistry getSchemaRegistry() {
+  public SchemaRegistry getSchemaRegistry() {
     if (schemaRegistry == null) {
       schemaRegistry = SchemaRegistry.createDefault();
-      }
-      return schemaRegistry;
+    }
+    return schemaRegistry;
   }
 
   /////////////////////////////////////////////////////////////////////////////

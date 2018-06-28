@@ -435,9 +435,11 @@ public class ParDo {
       Coder<?> inputCoder,
       Map<String, FieldAccessDeclaration> fieldAccessDeclarations,
       DoFn<?, ?> fn) {
-    checkArgument(inputCoder instanceof SchemaCoder,
+    checkArgument(
+        inputCoder instanceof SchemaCoder,
         "Cannot access object as a row if the input PCollection does not have a schema ."
-            + " Coder " + inputCoder.getClass().getSimpleName());
+            + " Coder "
+            + inputCoder.getClass().getSimpleName());
 
     // Resolve the FieldAccessDescriptor against the Schema.
     // This will be resolved anyway by the runner, however we want any resolution errors
@@ -453,10 +455,9 @@ public class ParDo {
     } else {
       // In this case, we expect to have a FieldAccessDescriptor defined in the class.
       FieldAccessDeclaration fieldAccessDeclaration = fieldAccessDeclarations.get(id);
-      checkArgument(fieldAccessDeclaration != null,
-          "No FieldAccessDeclaration  defined with id", id);
-      checkArgument(fieldAccessDeclaration.field().getType().equals(
-          FieldAccessDescriptor.class));
+      checkArgument(
+          fieldAccessDeclaration != null, "No FieldAccessDeclaration  defined with id", id);
+      checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
       try {
         fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
       } catch (IllegalAccessException e) {
@@ -464,8 +465,7 @@ public class ParDo {
       }
     }
     fieldAccessDescriptor.resolve(((SchemaCoder<?>) inputCoder).getSchema());
-}
-
+  }
 
   /**
    * Try to provide coders for as many of the type arguments of given {@link

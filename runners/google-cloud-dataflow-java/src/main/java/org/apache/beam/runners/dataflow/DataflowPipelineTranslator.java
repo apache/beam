@@ -838,9 +838,13 @@ public class DataflowPipelineTranslator {
               ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
-                context.getOutputs(transform).entrySet().stream()
-                .collect(Collectors.toMap(
-                    Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
+                context
+                    .getOutputs(transform)
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             translateOutputs(context.getOutputs(transform), stepContext);
@@ -872,9 +876,13 @@ public class DataflowPipelineTranslator {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
-                context.getOutputs(transform).entrySet().stream()
-                    .collect(Collectors.toMap(
-                        Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
+                context
+                    .getOutputs(transform)
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
 
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
@@ -939,9 +947,13 @@ public class DataflowPipelineTranslator {
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
             Map<TupleTag<?>, Coder<?>> outputCoders =
-                context.getOutputs(transform).entrySet().stream()
-                    .collect(Collectors.toMap(
-                        Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
+                context
+                    .getOutputs(transform)
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             translateOutputs(context.getOutputs(transform), stepContext);
@@ -1019,12 +1031,7 @@ public class DataflowPipelineTranslator {
           byteArrayToJsonString(
               serializeToByteArray(
                   DoFnInfo.forFn(
-                      fn,
-                      windowingStrategy,
-                      sideInputs,
-                      inputCoder,
-                      outputCoders,
-                      mainOutput))));
+                      fn, windowingStrategy, sideInputs, inputCoder, outputCoders, mainOutput))));
     }
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works

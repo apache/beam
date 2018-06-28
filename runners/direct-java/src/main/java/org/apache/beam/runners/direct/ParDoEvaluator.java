@@ -111,9 +111,11 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
 
-    Map<TupleTag<?>, Coder<?>> outputCoders = outputs.entrySet().stream()
-        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getCoder()));
-
+    Map<TupleTag<?>, Coder<?>> outputCoders =
+        outputs
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getCoder()));
 
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         runnerFactory.createRunner(

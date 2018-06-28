@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -26,32 +25,31 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.junit.Test;
 
 public class FieldAccessDescriptorTest {
-  private static final Schema SIMPLE_SCHEMA = Schema.builder()
-      .addStringField("field0")
-      .addStringField("field1")
-      .addInt32Field("field2")
-      .addInt32Field("field3")
-      .build();
+  private static final Schema SIMPLE_SCHEMA =
+      Schema.builder()
+          .addStringField("field0")
+          .addStringField("field1")
+          .addInt32Field("field2")
+          .addInt32Field("field3")
+          .build();
 
-  private static final Schema NESTED_SCHEMA1 = Schema.builder()
-      .addStringField("field0")
-      .addRowField("field1", SIMPLE_SCHEMA)
-      .build();
+  private static final Schema NESTED_SCHEMA1 =
+      Schema.builder().addStringField("field0").addRowField("field1", SIMPLE_SCHEMA).build();
 
-  private static Schema NESTED_SCHEMA2 = Schema.builder()
-      .addStringField("field0")
-      .addRowField("field1", NESTED_SCHEMA1)
-      .build();
+  private static Schema NESTED_SCHEMA2 =
+      Schema.builder().addStringField("field0").addRowField("field1", NESTED_SCHEMA1).build();
 
-  private static Schema NESTED_ARRAY_SCHEMA = Schema.builder()
-      .addStringField("field0")
-      .addArrayField("field1", FieldType.row(SIMPLE_SCHEMA))
-      .build();
+  private static Schema NESTED_ARRAY_SCHEMA =
+      Schema.builder()
+          .addStringField("field0")
+          .addArrayField("field1", FieldType.row(SIMPLE_SCHEMA))
+          .build();
 
-  private static Schema NESTED_MAP_SCHEMA = Schema.builder()
-      .addStringField("field0")
-      .addMapField("field1", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
-      .build();
+  private static Schema NESTED_MAP_SCHEMA =
+      Schema.builder()
+          .addStringField("field0")
+          .addMapField("field1", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
+          .build();
 
   // test all fields
   @Test
@@ -75,12 +73,11 @@ public class FieldAccessDescriptorTest {
     assertEquals(Sets.newHashSet(1, 3), fieldAccessDescriptor.fieldIdsAccessed());
   }
 
-
   @Test
   public void testNestedFieldByName() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("field1")
-        .withNestedField("field1", FieldAccessDescriptor.withAllFields());
+            .withNestedField("field1", FieldAccessDescriptor.withAllFields());
     fieldAccessDescriptor = fieldAccessDescriptor.resolve(NESTED_SCHEMA2);
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFields().size());
@@ -103,10 +100,10 @@ public class FieldAccessDescriptorTest {
   @Test
   public void testPartialAccessNestedField() {
     FieldAccessDescriptor level1 = FieldAccessDescriptor.withFieldNames("field2");
-    FieldAccessDescriptor level2 = FieldAccessDescriptor.withFieldNames("field1")
-        .withNestedField("field1", level1);
-    FieldAccessDescriptor level3 = FieldAccessDescriptor.withFieldNames("field1")
-        .withNestedField("field1", level2);
+    FieldAccessDescriptor level2 =
+        FieldAccessDescriptor.withFieldNames("field1").withNestedField("field1", level1);
+    FieldAccessDescriptor level3 =
+        FieldAccessDescriptor.withFieldNames("field1").withNestedField("field1", level2);
 
     FieldAccessDescriptor resolved = level3.resolve(NESTED_SCHEMA2);
     assertTrue(resolved.fieldIdsAccessed().isEmpty());
@@ -121,8 +118,8 @@ public class FieldAccessDescriptorTest {
   @Test
   public void testArrayNestedField() {
     FieldAccessDescriptor level1 = FieldAccessDescriptor.withFieldNames("field2");
-    FieldAccessDescriptor level2 = FieldAccessDescriptor.withFieldNames("field1")
-        .withNestedField("field1", level1);
+    FieldAccessDescriptor level2 =
+        FieldAccessDescriptor.withFieldNames("field1").withNestedField("field1", level1);
 
     FieldAccessDescriptor resolved = level2.resolve(NESTED_ARRAY_SCHEMA);
     assertTrue(resolved.fieldIdsAccessed().isEmpty());
@@ -134,8 +131,8 @@ public class FieldAccessDescriptorTest {
   @Test
   public void testMapNestedField() {
     FieldAccessDescriptor level1 = FieldAccessDescriptor.withFieldNames("field2");
-    FieldAccessDescriptor level2 = FieldAccessDescriptor.withFieldNames("field1")
-        .withNestedField("field1", level1);
+    FieldAccessDescriptor level2 =
+        FieldAccessDescriptor.withFieldNames("field1").withNestedField("field1", level1);
 
     FieldAccessDescriptor resolved = level2.resolve(NESTED_MAP_SCHEMA);
     assertTrue(resolved.fieldIdsAccessed().isEmpty());

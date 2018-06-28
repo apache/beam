@@ -335,10 +335,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /** Receives tagged output for a multi-output function. */
   public interface MultiOutputReceiver {
-    /** Returns an {@link OutputReceiver} for the given tag. **/
+    /** Returns an {@link OutputReceiver} for the given tag. * */
     <T> OutputReceiver<T> get(TupleTag<T> tag);
 
-    /** Returns a {@link OutputReceiver} for publishing {@link Row} objects to the given tag.
+    /**
+     * Returns a {@link OutputReceiver} for publishing {@link Row} objects to the given tag.
      *
      * <p>The {@link PCollection} representing this tag must have a schema registered in order to
      * call this function.
@@ -434,9 +435,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
-  /**
-   * Annotation for specifying specific fields that are accessed in a Schema PCollection.
-   */
+  /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.SCHEMAS)

@@ -391,7 +391,7 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
-    public static RowParameter rowParameter(@Nullable  String id) {
+    public static RowParameter rowParameter(@Nullable String id) {
       return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
     }
 
@@ -492,15 +492,14 @@ public abstract class DoFnSignature {
       public abstract TypeDescriptor<?> elementT();
     }
 
-
     /**
      * Descriptor for a {@link Parameter} of Row type.
      *
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class RowParameter extends  Parameter {
-      RowParameter() { }
+    public abstract static class RowParameter extends Parameter {
+      RowParameter() {}
 
       @Nullable
       public abstract String fieldAccessId();
@@ -685,27 +684,27 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a
-     * {@link org.apache.beam.sdk.values.Row} object.
+     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a {@link
+     * org.apache.beam.sdk.values.Row} object.
      */
     @Nullable
     public RowParameter getRowParameter() {
-      Optional<Parameter> parameter = extraParameters()
-          .stream()
-          .filter(Predicates.instanceOf(RowParameter.class)::apply)
-          .findFirst();
+      Optional<Parameter> parameter =
+          extraParameters()
+              .stream()
+              .filter(Predicates.instanceOf(RowParameter.class)::apply)
+              .findFirst();
       return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
     }
 
-    /**
-     * The {@link OutputReceiverParameter} for a main output, or null if there is none.
-     */
+    /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
     @Nullable
     public OutputReceiverParameter getMainOutputReceiver() {
-      Optional<Parameter> parameter = extraParameters()
-          .stream()
-          .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
-          .findFirst();
+      Optional<Parameter> parameter =
+          extraParameters()
+              .stream()
+              .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
+              .findFirst();
       return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
     }
 
@@ -815,11 +814,12 @@ public abstract class DoFnSignature {
   @AutoValue
   public abstract static class FieldAccessDeclaration {
     public abstract String id();
+
     public abstract Field field();
 
     static FieldAccessDeclaration create(String id, Field field) {
-     field.setAccessible(true);
-     return new AutoValue_DoFnSignature_FieldAccessDeclaration(id, field);
+      field.setAccessible(true);
+      return new AutoValue_DoFnSignature_FieldAccessDeclaration(id, field);
     }
   }
 

@@ -28,29 +28,29 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link SchemaRegistry}.
- */
+/** Unit tests for {@link SchemaRegistry}. */
 public class SchemaRegistryTest {
   static final Schema STRING_SCHEMA = Schema.builder().addStringField("string").build();
   static final Schema INTEGER_SCHEMA = Schema.builder().addInt32Field("integer").build();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private void tryGetters(SchemaRegistry registry) throws NoSuchSchemaException {
     assertEquals(STRING_SCHEMA, registry.getSchema(String.class));
     assertEquals(STRING_SCHEMA, registry.getSchema(TypeDescriptors.strings()));
-    assertEquals(Row.withSchema(STRING_SCHEMA).addValue("foobar").build(),
+    assertEquals(
+        Row.withSchema(STRING_SCHEMA).addValue("foobar").build(),
         registry.getToRowFunction(String.class).apply("foobar"));
-    assertEquals(Row.withSchema(STRING_SCHEMA).addValue("foobar").build(),
+    assertEquals(
+        Row.withSchema(STRING_SCHEMA).addValue("foobar").build(),
         registry.getToRowFunction(TypeDescriptors.strings()).apply("foobar"));
-
 
     assertEquals(INTEGER_SCHEMA, registry.getSchema(Integer.class));
     assertEquals(INTEGER_SCHEMA, registry.getSchema(TypeDescriptors.integers()));
-    assertEquals(Row.withSchema(INTEGER_SCHEMA).addValue(42).build(),
+    assertEquals(
+        Row.withSchema(INTEGER_SCHEMA).addValue(42).build(),
         registry.getToRowFunction(Integer.class).apply(42));
-    assertEquals(Row.withSchema(INTEGER_SCHEMA).addValue(42).build(),
+    assertEquals(
+        Row.withSchema(INTEGER_SCHEMA).addValue(42).build(),
         registry.getToRowFunction(TypeDescriptors.integers()).apply(42));
 
     thrown.expect(NoSuchSchemaException.class);
@@ -60,10 +60,14 @@ public class SchemaRegistryTest {
   @Test
   public void testRegisterForClass() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    registry.registerSchemaForClass(String.class, STRING_SCHEMA,
+    registry.registerSchemaForClass(
+        String.class,
+        STRING_SCHEMA,
         s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
         r -> r.getString("string"));
-    registry.registerSchemaForClass(Integer.class, INTEGER_SCHEMA,
+    registry.registerSchemaForClass(
+        Integer.class,
+        INTEGER_SCHEMA,
         s -> Row.withSchema(INTEGER_SCHEMA).addValue(s).build(),
         r -> r.getInt32("integer"));
     tryGetters(registry);
@@ -72,10 +76,14 @@ public class SchemaRegistryTest {
   @Test
   public void testRegisterForType() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    registry.registerSchemaForType(TypeDescriptors.strings(), STRING_SCHEMA,
+    registry.registerSchemaForType(
+        TypeDescriptors.strings(),
+        STRING_SCHEMA,
         s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
         r -> r.getString("string"));
-    registry.registerSchemaForType(TypeDescriptors.integers(), INTEGER_SCHEMA,
+    registry.registerSchemaForType(
+        TypeDescriptors.integers(),
+        INTEGER_SCHEMA,
         s -> Row.withSchema(INTEGER_SCHEMA).addValue(s).build(),
         r -> r.getInt32("integer"));
     tryGetters(registry);
@@ -83,7 +91,7 @@ public class SchemaRegistryTest {
 
   static final class Provider extends SchemaProvider {
     @Override
-    public <T>  Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptors.strings())) {
         return STRING_SCHEMA;
       } else if (typeDescriptor.equals(TypeDescriptors.integers())) {
@@ -94,12 +102,12 @@ public class SchemaRegistryTest {
     }
 
     @Override
-    public  <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
       return v -> Row.withSchema(schemaFor(typeDescriptor)).addValue(v).build();
     }
 
     @Override
-    public  <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       return r -> r.getValue(0);
     }
   }

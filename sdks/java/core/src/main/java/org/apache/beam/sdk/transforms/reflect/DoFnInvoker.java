@@ -137,26 +137,21 @@ public interface DoFnInvoker<InputT, OutputT> {
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
     /**
-     * Provides a link to the input element converted to a {@link Row} object. The input
-     * collection must have a schema registered for this to be called.
+     * Provides a link to the input element converted to a {@link Row} object. The input collection
+     * must have a schema registered for this to be called.
      */
     Row asRow(@Nullable String id);
 
-    /** Provide a link to the time domain for a timer firing.
-     */
+    /** Provide a link to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link OutputReceiver} for outputting to the default output. */
     OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a {@link OutputReceiver} for outputting rows to the default output.
-     */
+    /** Provide a {@link OutputReceiver} for outputting rows to the default output. */
     OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a {@link MultiOutputReceiver} for outputing to the default output.
-     */
+    /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
 
     /**

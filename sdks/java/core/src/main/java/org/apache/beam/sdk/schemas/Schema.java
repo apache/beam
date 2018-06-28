@@ -38,10 +38,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * {@link Schema} describes the fields in {@link Row}.
- *
- */
+/** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // A mapping between field names an indices.
@@ -530,8 +527,8 @@ public class Schema implements Serializable {
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
     if (index == null) {
-      throw new IllegalArgumentException(String.format("Cannot find field %s in schema %s",
-          fieldName, this));
+      throw new IllegalArgumentException(
+          String.format("Cannot find field %s in schema %s", fieldName, this));
     }
     return index;
   }

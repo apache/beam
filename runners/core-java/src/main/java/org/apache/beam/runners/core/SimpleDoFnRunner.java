@@ -100,16 +100,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   // Because of setKey(Object), we really must refresh stateInternals() at each access
   private final StepContext stepContext;
 
-  @Nullable
-  private final SchemaCoder<InputT> schemaCoder;
+  @Nullable private final SchemaCoder<InputT> schemaCoder;
 
   @Nullable final SchemaCoder<OutputT> mainOutputSchemaCoder;
 
-  @Nullable
-  private Map<TupleTag<?>, Coder<?>> outputCoders;
+  @Nullable private Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  @Nullable
-  private final FieldAccessDescriptor fieldAccessDescriptor;
+  @Nullable private final FieldAccessDescriptor fieldAccessDescriptor;
 
   public SimpleDoFnRunner(
       PipelineOptions options,
@@ -128,13 +125,15 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
-    this.schemaCoder = (inputCoder != null && inputCoder instanceof SchemaCoder)
-        ? (SchemaCoder<InputT>) inputCoder : null;
+    this.schemaCoder =
+        (inputCoder != null && inputCoder instanceof SchemaCoder)
+            ? (SchemaCoder<InputT>) inputCoder
+            : null;
     this.outputCoders = outputCoders;
     if (outputCoders != null) {
       Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
-      mainOutputSchemaCoder = (outputCoder instanceof SchemaCoder)
-          ? (SchemaCoder<OutputT>) outputCoder : null;
+      mainOutputSchemaCoder =
+          (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
     } else {
       mainOutputSchemaCoder = null;
     }
@@ -151,9 +150,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     RowParameter rowParameter = processElementMethod.getRowParameter();
     FieldAccessDescriptor fieldAccessDescriptor = null;
     if (rowParameter != null) {
-      checkArgument(schemaCoder != null,
+      checkArgument(
+          schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
-      + "DoFn " + fn.getClass() + " Coder " + inputCoder.getClass().getSimpleName());
+              + "DoFn "
+              + fn.getClass()
+              + " Coder "
+              + inputCoder.getClass().getSimpleName());
       String id = rowParameter.fieldAccessId();
       if (id == null) {
         // This is the case where no FieldId is defined, just an @Element Row row. Default to all
@@ -163,8 +166,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         // In this case, we expect to have a FieldAccessDescriptor defined in the class.
         FieldAccessDeclaration fieldAccessDeclaration =
             doFnSignature.fieldAccessDeclarations().get(id);
-        checkArgument(fieldAccessDeclaration != null,
-            "No FieldAccessDeclaration defined with id", id);
+        checkArgument(
+            fieldAccessDeclaration != null, "No FieldAccessDeclaration defined with id", id);
         checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
         try {
           fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
@@ -558,8 +561,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return elem.getValue();
     }
 
-
-
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       checkNotNull(view, "View passed to sideInput cannot be null");
@@ -669,7 +670,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Row asRow(@Nullable String id) {
       checkState(fieldAccessDescriptor.allFields());
-     return schemaCoder.getToRowFunction().apply(element());
+      return schemaCoder.getToRowFunction().apply(element());
     }
 
     @Override
