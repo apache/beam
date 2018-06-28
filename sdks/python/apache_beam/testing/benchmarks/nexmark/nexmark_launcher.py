@@ -74,6 +74,8 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
+from apache_beam.testing.benchmarks.nexmark.queries import query1
+from apache_beam.testing.benchmarks.nexmark.queries import query2
 
 
 class NexmarkLauncher(object):
@@ -181,11 +183,11 @@ class NexmarkLauncher(object):
 
     return raw_events
 
-  def run_query(self, query, query_errors):
+  def run_query(self, query, query_args, query_errors):
     try:
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       raw_events = self.generate_events()
-      query.load(raw_events)
+      query.load(raw_events, query_args)
       result = self.pipeline.run()
       job_duration = (
           self.pipeline_options.view_as(TestOptions).wait_until_finish_duration
@@ -211,7 +213,16 @@ class NexmarkLauncher(object):
   def run(self):
     queries = {
         0: query0,
+        1: query1,
+        2: query2,
         # TODO(mariagh): Add more queries.
+    }
+
+    # TODO put this in a config file like Java
+    query_args = {
+      2: {
+        'auction_id': 'a1003'
+      }
     }
 
     query_errors = []
@@ -225,7 +236,8 @@ class NexmarkLauncher(object):
           StandardOptions).runner in [None, 'DirectRunner']
 
       if launch_from_direct_runner:
-        command = Command(self.run_query, args=[queries[i], query_errors])
+        command = Command(self.run_query, args=[
+          queries[i], query_args.get(i), query_errors])
         query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
         command.run(timeout=query_duration // 1000)
       else:
