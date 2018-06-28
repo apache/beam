@@ -1013,6 +1013,10 @@ public class KafkaIO {
       );
     }
 
+    public PTransform<PCollection<ProducerRecord<K, V>>, PDone> writeRecords() {
+      return new ProducerRecordWrite<>(this);
+    }
+
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
       checkArgument(
@@ -1131,6 +1135,20 @@ public class KafkaIO {
     }
   }
 
+  private static class ProducerRecordWrite<K, V> extends
+      PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
+
+    private final Write<K, V> kvWriteTransform;
+
+    ProducerRecordWrite(Write<K, V> kvWriteTransform){
+      this.kvWriteTransform = kvWriteTransform;
+    }
+
+    @Override public PDone expand(PCollection<ProducerRecord<K, V>> input) {
+      input.apply(ParDo.of(new ProducerRecordWriter<>(kvWriteTransform)));
+      return PDone.in(input.getPipeline());
+    }
+  }
 
   /**
    * Attempt to infer a {@link Coder} by extracting the type of the deserialized-class from the
