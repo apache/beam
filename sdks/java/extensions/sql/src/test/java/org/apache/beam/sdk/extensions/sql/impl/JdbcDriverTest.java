@@ -19,6 +19,9 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.sdk.values.Row.toRow;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -33,6 +36,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
@@ -41,6 +45,8 @@ import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.schema.SchemaPlus;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -93,6 +99,46 @@ public class JdbcDriverTest {
     Statement statement = connection.createStatement();
     // SELECT 1 is a special case and does not reach the parser
     assertTrue(statement.execute("SELECT 1"));
+  }
+
+  /** Tests that the userAgent is set in the pipeline options of the connection. */
+  @Test
+  public void testDriverManager_defaultUserAgent() throws Exception {
+    Connection connection = DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
+    SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
+    BeamCalciteSchema beamSchema =
+        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.get("userAgent"), containsString("BeamSQL"));
+  }
+
+  /** Tests that userAgent can be overridden on the querystring. */
+  @Test
+  public void testDriverManager_setUserAgent() throws Exception {
+    Connection connection =
+        DriverManager.getConnection(
+            JdbcDriver.CONNECT_STRING_PREFIX + "beam.userAgent=Secret Agent");
+    SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
+    BeamCalciteSchema beamSchema =
+        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.get("userAgent"), equalTo("Secret Agent"));
+  }
+
+  /** Tests that unknown pipeline options are passed verbatim from the JDBC URI. */
+  @Test
+  public void testDriverManager_pipelineOptionsPlumbing() throws Exception {
+    Connection connection =
+        DriverManager.getConnection(
+            JdbcDriver.CONNECT_STRING_PREFIX
+                + "beam.foo=baz;beam.foobizzle=mahshizzle;other=smother");
+    SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
+    BeamCalciteSchema beamSchema =
+        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.get("foo"), equalTo("baz"));
+    assertThat(pipelineOptions.get("foobizzle"), equalTo("mahshizzle"));
+    assertThat(pipelineOptions.get("other"), nullValue());
   }
 
   @Test
