@@ -20,10 +20,12 @@ package org.apache.beam.runners.gearpump.translators;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -56,9 +58,15 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     final TupleTag<OutputT> mainOutput = transform.getMainOutputTag();
     List<TupleTag<?>> sideOutputs = new ArrayList<>(outputs.size() - 1);
-    for (TupleTag<?> tag : outputs.keySet()) {
+    Map<TupleTag<?>, Coder<?>> outputCoders = new HashMap<>();
+    for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
+      TupleTag<?> tag = entry.getKey();
       if (tag != null && !tag.getId().equals(mainOutput.getId())) {
         sideOutputs.add(tag);
+      }
+      if (entry.getValue() instanceof PCollection) {
+        PCollection<?> pCollection = (PCollection<?>) entry.getValue();
+        outputCoders.put(tag, pCollection.getCoder());
       }
     }
 
@@ -75,6 +83,7 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
                     sideInputs,
                     tagsToSideInputs,
                     mainOutput,
+                    outputCoders,
                     sideOutputs),
                 transform.getName());
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
