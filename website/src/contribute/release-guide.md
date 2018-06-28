@@ -4,6 +4,19 @@ title: "Beam Release Guide"
 section_menu: section-menu/contribute.html
 permalink: /contribute/release-guide/
 ---
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 
 # Apache Beam Release Guide
 
@@ -30,6 +43,7 @@ The release process consists of several steps:
 1. Prepare for the release
 1. Build a release candidate
 1. Vote on the release candidate
+1. During vote process, run validation tests
 1. If necessary, fix any issues and go back to step 3.
 1. Finalize the release
 1. Promote the release
@@ -511,7 +525,220 @@ If there are no issues, reply on the vote thread to close the voting. Then, tall
     There are no disapproving votes.
 
     Thanks everyone!
+    
+### Run validation tests
+All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validation)
 
+_Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Manager.
+
+* Java Quickstart Validation
+
+  Direct Runner:
+  ```
+  ./gradlew :beam-runners-direct-java:runQuickstartJavaDirect \ 
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
+  -Pver=${RELEASE_VERSION}
+  ```
+  Apex Local Runner
+  ```
+  ./gradlew :beam-runners-apex:runQuickstartJavaApex \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
+  -Pver=${RELEASE_VERSION}
+  ```
+  Flink Local Runner
+  ```
+  ./gradlew :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
+  -Pver=${RELEASE_VERSION}
+  ```
+  Spark Local Runner
+  ```
+  ./gradlew :beam-runners-spark:runQuickstartJavaSpark \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
+  -Pver=${RELEASE_VERSION}
+  ```
+  Dataflow Runner
+  ```
+  ./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
+  -Pver= ${RELEASE_VERSION}\
+  -PgcpProject=${YOUR_GCP_PROJECT} \
+  -PgcsBucket=${YOUR_GCP_BUCKET}
+  ```
+* Java Mobile Game(UserScore, HourlyTeamScore, Leaderboard)
+  
+  Pre-request
+  * Create your own BigQuery dataset
+    ```
+    bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+    ```
+  * Create yout PubSub topic 
+    ```
+    gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC} 
+    ```
+  * Setup your service account
+    
+    Goto IAM console in your project to create a service account as ```project owner```
+    
+    Run 
+    ```
+    gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
+    export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON} 
+    ```
+  Run 
+  ```
+  ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
+   -Pver= ${RELEASE_VERSION}\
+   -PgcpProject=${YOUR_GCP_PROJECT} \
+   -PgcsBucket=gs://dataflow-samples/game/gaming_data1.csv \
+   -PbqDataset=${YOUR_DATASET} -PpubsubTopic=${YOUR_PROJECT_PUBSUB_TOPIC}
+  ```
+* Python Quickstart(batch & streaming), MobileGame(UserScore, HourlyTeamScore)
+  
+  Create a new PR in apache/beam
+  
+  In comment area, type in ```Run Python ReleaseCandidate```
+ 
+* Python Leaderboard & GameStats
+  * Get staging RC ```wget https://dist.apache.org/repos/dist/dev/beam/2.5.0/* ```
+  * Verify the hashes
+  
+    ```
+    sha512sum -c apache-beam-2.5.0-python.zip.sha512
+    sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
+    ```
+  * Build SDK
+  
+    ```
+    sudo apt-get install unzip
+    unzip apache-beam-2.5.0-source-release.zip
+    python setup.py sdist
+    ```
+  * Setup virtualenv
+    
+    ```
+    pip install --upgrade pip
+    pip install --upgrade setuptools
+    pip install --upgrade virtualenv
+    virtualenv beam_env
+     . beam_env/bin/activate
+    ```
+  * Install SDK
+    
+    ```
+    pip install dist/apache-beam-2.5.0.tar.gz
+    pip install dist/apache-beam-2.5.0.tar.gz[gcp]
+    ```
+  * Setup GCP
+    
+    Please repeat following steps for every following test.
+    
+    ```
+    bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
+    bq mk --project=${YOUR_PROJECT} ${USER}_test
+    gsutil rm -rf ${YOUR_GS_STORAGE]
+    gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
+    gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
+    ```
+    Setup your service account as described in ```Java Mobile Game``` section above.
+  
+    Produce data by using java injector:
+    * Configure your ~/.m2/settings.xml as following:
+      ```
+      <settings>
+        <profiles>
+          <profile>
+            <id>release-repo</id>
+            <activation>
+              <activeByDefault>true</activeByDefault>
+            </activation>
+            <repositories>
+              <repository>
+                <id>Release 2.4.0 RC3</id>
+                <name>Release 2.4.0 RC3</name>
+                <url>https://repository.apache.org/content/repositories/orgapachebeam-1031/</url>
+              </repository>
+            </repositories>
+          </profile>
+        </profiles>
+      </settings>
+      ```
+      _Note_: You can found the latest  ```id```, ```name``` and ```url``` for one RC in the vote email thread sent out by Release Manager.
+    
+    * Run 
+      ```
+      mvn archetype:generate \
+            -DarchetypeGroupId=org.apache.beam \
+            -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+            -DarchetypeVersion=${RELEASE_VERSION} \
+            -DgroupId=org.example \
+            -DartifactId=word-count-beam \
+            -Dversion="0.1" \
+            -Dpackage=org.apache.beam.examples \
+            -DinteractiveMode=false
+            -DarchetypeCatalog=internal
+            
+      mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+        -Dexec.args="${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none"
+      ```
+  * Run Leaderboard with Direct Runner
+    ```
+    python -m apache_beam.examples.complete.game.leader_board \
+    --project=${YOUR_PROJECT} \
+    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
+    --dataset ${USER}_test
+    ```
+    Inspect results:
+    * Check whether there is any error messages in console.
+    * Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.
+    * bq head -n 10 ${USER}_test.leader_board_users
+    * bq head -n 10 ${USER}_test.leader_board_teams
+  * Run Leaderboard with Dataflow Runner
+    ```
+    python -m apache_beam.examples.complete.game.leader_board \ 
+    --project=${YOUR_PROJECT} \ 
+    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
+    --dataset ${USER}_test \ 
+    --runner DataflowRunner \ 
+    --temp_location=${YOUR_GS_BUCKET}/temp/ \ 
+    --sdk_location dist/*
+    ```
+    Inspect results:
+    * Goto your Dataflow job console and check whether there is any error.
+    * Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.
+    * bq head -n 10 ${USER}_test.leader_board_users
+    * bq head -n 10 ${USER}_test.leader_board_teams
+  * Run GameStats with Direct Runner
+    ```
+    python -m apache_beam.examples.complete.game.game_stats \
+    --project=${YOUR_PROJECT} \
+    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
+    --dataset ${USER}_test \
+    --fixed_window_duration ${SOME_SMALL_DURATION}
+    ```
+    Inspect results:
+    * Check whether there is any error messages in console.
+    * Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.
+    * bq head -n 10 ${USER}_test.game_stats_teams
+    * bq head -n 10 ${USER}_test.game_stats_sessions
+
+  * Run GameStats with Dataflow Runner
+    ```
+    python -m apache_beam.examples.complete.game.game_stats \ 
+    --project=${YOUR_PROJECT} \ 
+    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
+    --dataset ${USER}_test \ 
+    --runner DataflowRunner \ 
+    --temp_location=${YOUR_GS_BUCKET}/temp/ \ 
+    --sdk_location dist/* \
+    --fixed_window_duration ${SOME_SMALL_DURATION}
+    ```
+    Inspect results:
+    * Goto your Dataflow job console and check whether there is any error.
+    * Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.
+    * bq head -n 10 ${USER}_test.game_stats_teams
+    * bq head -n 10 ${USER}_test.game_stats_sessions
 ### Checklist to proceed to the finalization step
 
 1. Community votes to release the proposed candidate, with at least three approving PMC votes

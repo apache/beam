@@ -4,6 +4,19 @@ title: 'Beam Design Documents'
 section_menu: section-menu/contribute.html
 permalink: /contribute/design-documents/
 ---
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 
 # Design Documents
 This is a collection of documents that may or may not be up to date.
@@ -40,7 +53,7 @@ This is a collection of documents that may or may not be up to date.
 - Error Reporting Callback (WIP) [[doc](https://docs.google.com/document/d/1o2VXwCL97k3G-1BR9RSKNc6XtJTIA6SEKPMne91S67Y)]
 - Snapshotting and Updating Beam Pipelines [[doc](https://docs.google.com/document/d/1UWhnYPgui0gUYOsuGcCjLuoOUlGA4QaY91n8p3wz9MY)]
 - Requiring PTransform to set a coder on its resulting collections [[mail](https://lists.apache.org/thread.html/1dde0b5a93c2983cbab5f68ce7c74580102f5bb2baaa816585d7eabb@%3Cdev.beam.apache.org%3E)]
-- [PROPOSAL] "Requires deterministic input" [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
+- [PROPOSAL] Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
 
 ### IO / Filesystem

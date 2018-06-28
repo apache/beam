@@ -122,8 +122,16 @@ rat {
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
 
-    // TODO: [BEAM-4568] Website sources need to have apache headers
-    "website/**/*",
+    // Ruby build files
+    "**/Gemfile.lock",
+    "**/Rakefile",
+    "**/_config.yml",
+    "**/_config_test.yml",
+    "**/.htaccess",
+    "website/src/_sass/_bootstrap.scss",
+    "website/src/_sass/bootstrap/**/*",
+    "website/src/js/bootstrap*.js",
+    "website/src/js/bootstrap/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
