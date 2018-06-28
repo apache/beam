@@ -442,10 +442,11 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
-    return resource_stager.stage_job_resources(
+    _, resources = resource_stager.stage_job_resources(
         options,
         temp_dir=tempfile.mkdtemp(),
         staging_location=google_cloud_options.staging_location)
+    return resources
 
   def stage_file(self, gcs_or_local_path, file_name, stream,
                  mime_type='application/octet-stream'):
