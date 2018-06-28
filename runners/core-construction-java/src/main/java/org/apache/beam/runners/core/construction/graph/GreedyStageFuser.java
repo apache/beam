@@ -173,6 +173,10 @@ public class GreedyStageFuser {
         return PCollectionFusibility.MATERIALIZE;
       }
     }
+    // The PCollection also has to be materialized if it is used as a side input by any transform.
+    if (!pipeline.getSingletonConsumers(candidate).isEmpty()) {
+      return PCollectionFusibility.MATERIALIZE;
+    }
     return PCollectionFusibility.FUSE;
   }
 
