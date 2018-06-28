@@ -44,8 +44,7 @@ public class BigQueryInsertErrorCoder extends AtomicCoder<BigQueryInsertError> {
 
     TableRowJsonCoder.of().encode(value.getRow(), outStream);
 
-    String tableStrValue = MAPPER.writeValueAsString(value.getTable());
-    StringUtf8Coder.of().encode(tableStrValue, outStream);
+    StringUtf8Coder.of().encode(BigQueryHelpers.toTableSpec(value.getTable()), outStream);
   }
 
   @Override
@@ -54,8 +53,7 @@ public class BigQueryInsertErrorCoder extends AtomicCoder<BigQueryInsertError> {
         MAPPER.readValue(
             StringUtf8Coder.of().decode(inStream), TableDataInsertAllResponse.InsertErrors.class);
     TableRow row = TableRowJsonCoder.of().decode(inStream);
-    TableReference ref =
-        MAPPER.readValue(StringUtf8Coder.of().decode(inStream), TableReference.class);
+    TableReference ref = BigQueryHelpers.parseTableSpec(StringUtf8Coder.of().decode(inStream));
     return new BigQueryInsertError(row, err, ref);
   }
 

@@ -50,9 +50,9 @@ public class BigQueryInsertErrorCoderTest {
                             .setMessage("A message")
                             .setDebugInfo("The debug info"))),
             new TableReference()
-                .setProjectId("DummyProject")
-                .setDatasetId("DummyDataset")
-                .setTableId("table"));
+                .setProjectId("dummy-project-id")
+                .setDatasetId("dummy-dataset-id")
+                .setTableId("dummy-table-id"));
 
     CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
   }
