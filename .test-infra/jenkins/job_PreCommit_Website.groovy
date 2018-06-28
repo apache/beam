@@ -24,5 +24,5 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':beam-website:setupJenkins :websitePreCommit',
     triggerPathPatterns: ['^website/.*$']
 )
-builder.build
+builder.build()
 
