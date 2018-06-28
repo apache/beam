@@ -51,6 +51,10 @@ public class BeamTpc {
     String customerFilePath = rootPath + "customer.tbl";
     String lineitemFilePath = rootPath + "lineitem.tbl";
     String orderFilePath = rootPath + "orders.tbl";
+    String regionFilePath = rootPath + "region.tbl";
+    String partFilePath = rootPath + "part.tbl";
+    String supplierFilePath = rootPath + "supplier.tbl";
+    String partsuppFilePath = rootPath + "partsupp.tbl";
     //      String catalogSalesFilePath = rootPath + "catalog_sales.dat";
     //      String catalogReturnsFilePath = rootPath + "catalog_returns.dat";
     //      String inventoryFilePath = rootPath + "inventory.dat";
@@ -71,32 +75,77 @@ public class BeamTpc {
 
     CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
 
-    PCollection<Row> storeSalesTable =
-        new TextTable(
-                SchemaUtil.storeSalesSchema,
-                storeSalesFilePath,
-                new CsvToRow(SchemaUtil.storeSalesSchema, csvFormat),
-                new RowToCsv(csvFormat))
-            .buildIOReader(pipeline.begin())
-            .setCoder(SchemaUtil.storeSalesSchema.getRowCoder());
+//    PCollection<Row> storeSalesTable =
+//        new TextTable(
+//                SchemaUtil.storeSalesSchema,
+//                storeSalesFilePath,
+//                new CsvToRow(SchemaUtil.storeSalesSchema, csvFormat),
+//                new RowToCsv(csvFormat))
+//            .buildIOReader(pipeline.begin())
+//            .setCoder(SchemaUtil.storeSalesSchema.getRowCoder());
 
-    PCollection<Row> dateDimTable =
-        new TextTable(
-                SchemaUtil.dateDimSchema,
-                dateDimFilePath,
-                new CsvToRow(SchemaUtil.dateDimSchema, csvFormat),
-                new RowToCsv(csvFormat))
-            .buildIOReader(pipeline.begin())
-            .setCoder(SchemaUtil.dateDimSchema.getRowCoder());
+//    PCollection<Row> dateDimTable =
+//        new TextTable(
+//                SchemaUtil.dateDimSchema,
+//                dateDimFilePath,
+//                new CsvToRow(SchemaUtil.dateDimSchema, csvFormat),
+//                new RowToCsv(csvFormat))
+//            .buildIOReader(pipeline.begin())
+//            .setCoder(SchemaUtil.dateDimSchema.getRowCoder());
 
-    PCollection<Row> itemTable =
+//    PCollection<Row> itemTable =
+//        new TextTable(
+//                SchemaUtil.itemSchema,
+//                itemFilePath,
+//                new CsvToRow(SchemaUtil.itemSchema, csvFormat),
+//                new RowToCsv(csvFormat))
+//            .buildIOReader(pipeline.begin())
+//            .setCoder(SchemaUtil.itemSchema.getRowCoder());
+//
+    PCollection<Row> nationTable =
         new TextTable(
-                SchemaUtil.itemSchema,
-                itemFilePath,
-                new CsvToRow(SchemaUtil.itemSchema, csvFormat),
+                SchemaUtil.nationSchema,
+                nationFilePath,
+                new CsvToRow(SchemaUtil.nationSchema, csvFormat),
                 new RowToCsv(csvFormat))
             .buildIOReader(pipeline.begin())
-            .setCoder(SchemaUtil.itemSchema.getRowCoder());
+            .setCoder(SchemaUtil.nationSchema.getRowCoder());
+//
+//    PCollection<Row> regionTable =
+//        new TextTable(
+//                SchemaUtil.regionSchema,
+//                regionFilePath,
+//                new CsvToRow(SchemaUtil.regionSchema, csvFormat),
+//                new RowToCsv(csvFormat))
+//            .buildIOReader(pipeline.begin())
+//            .setCoder(SchemaUtil.regionSchema.getRowCoder());
+//
+    PCollection<Row> partTable =
+        new TextTable(
+                SchemaUtil.partSchema,
+                partFilePath,
+                new CsvToRow(SchemaUtil.partSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.partSchema.getRowCoder());
+
+    PCollection<Row> supplierTable =
+        new TextTable(
+                SchemaUtil.supplierSchema,
+                supplierFilePath,
+                new CsvToRow(SchemaUtil.supplierSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.supplierSchema.getRowCoder());
+//
+    PCollection<Row> partsuppTable =
+        new TextTable(
+                SchemaUtil.partsuppSchema,
+                partsuppFilePath,
+                new CsvToRow(SchemaUtil.partsuppSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.partsuppSchema.getRowCoder());
 
     //      PCollection<Row> reasonTable =
     //              new BeamTextCSVTable(reasonSchema, reasonFilePath, format)
@@ -105,10 +154,10 @@ public class BeamTpc {
 
     //      Schema nationSchema = SchemaUtil.storeSalesSchema;
 
-    //      PCollection<Row> nationTable =
-    //              new BeamTextCSVTable(nationSchema, nationFilePath, format)
-    //                      .buildIOReader(pipeline)
-    //                      .setCoder(nationSchema.getRowCoder());
+//          PCollection<Row> nationTable =
+//                  new BeamTextCSVTable(nationSchema, nationFilePath, format)
+//                          .buildIOReader(pipeline)
+//                          .setCoder(nationSchema.getRowCoder());
 
     //      PCollection<Row> dateDimTable =
     //              new BeamTextCSVTable(dateDimSchema, dateDimFilePath, format)
@@ -138,7 +187,7 @@ public class BeamTpc {
                 new RowToCsv(csvFormat))
             .buildIOReader(pipeline.begin())
             .setCoder(SchemaUtil.customerSchema.getRowCoder());
-
+//
     PCollection<Row> orderTable =
         new TextTable(
                 SchemaUtil.orderSchema,
@@ -147,7 +196,7 @@ public class BeamTpc {
                 new RowToCsv(csvFormat))
             .buildIOReader(pipeline.begin())
             .setCoder(SchemaUtil.orderSchema.getRowCoder());
-
+//
     PCollection<Row> lineitemTable =
         new TextTable(
                 SchemaUtil.lineitemSchema,
@@ -245,15 +294,21 @@ public class BeamTpc {
     //            .setCoder(webSiteSchema.getRowCoder());
 
     PCollectionTuple tables =
-        PCollectionTuple.of(new TupleTag<>("store_sales"), storeSalesTable)
-            //                      .of(new TupleTag<>("nation"), nationTable)
-            .and(new TupleTag<>("date_dim"), dateDimTable)
+        PCollectionTuple
+//                .of(new TupleTag<>("store_sales"), storeSalesTable)
+                                  .of(new TupleTag<>("nation"), nationTable)
+//                                  .and(new TupleTag<>("region"), regionTable)
+                                  .and(new TupleTag<>("part"), partTable)
+                                  .and(new TupleTag<>("supplier"), supplierTable)
+                                  .and(new TupleTag<>("partsupp"), partsuppTable)
+//            .and(new TupleTag<>("date_dim"), dateDimTable)
             //                      .and(new TupleTag<>("store_sales"), storeSalesTable)
             //                      .and(new TupleTag<>("store"), storeTable)
-            .and(new TupleTag<>("item"), itemTable)
+//            .and(new TupleTag<>("item"), itemTable)
             //                        .and(new TupleTag<>("store_returns"), storeReturnTable)
-            .and(new TupleTag<>("customer"), customerTable)
             .and(new TupleTag<>("orders"), orderTable)
+                        .and(new TupleTag<>("customer"), customerTable)
+//            .and(new TupleTag<>("orders"), orderTable)
             .and(new TupleTag<>("lineitem"), lineitemTable)
         //                      .and(new TupleTag<>("catalog_sales"), catalogSalesTable)
         //                            .and(new TupleTag<>("catalog_returns"), catalogReturnsTable)
@@ -275,26 +330,26 @@ public class BeamTpc {
         //                .and(new TupleTag<>("web_page"), webPageTable)
         //                .and(new TupleTag<>("web_site"), webSiteTable)
         ;
-
-    String query =
-        "select  dt.d_year \n"
-            + "       ,item.i_brand_id brand_id \n"
-            + "       ,item.i_brand brand\n"
-            + "       ,sum(ss_sales_price) sum_agg\n"
-            + " from  date_dim dt \n"
-            + "      ,store_sales\n"
-            + "      ,item\n"
-            + " where dt.d_date_sk = store_sales.ss_sold_date_sk\n"
-            + "   and store_sales.ss_item_sk = item.i_item_sk\n"
-            + "   and item.i_manufact_id = 816\n"
-            + "   and dt.d_moy=11\n"
-            + " group by dt.d_year\n"
-            + "      ,item.i_brand\n"
-            + "      ,item.i_brand_id\n"
-            + " order by dt.d_year\n"
-            + "         ,sum_agg desc\n"
-            + "         ,brand_id\n"
-            + " limit 100";
+    //
+    //    String query =
+    //        "select  dt.d_year \n"
+    //            + "       ,item.i_brand_id brand_id \n"
+    //            + "       ,item.i_brand brand\n"
+    //            + "       ,sum(ss_sales_price) sum_agg\n"
+    //            + " from  date_dim dt \n"
+    //            + "      ,store_sales\n"
+    //            + "      ,item\n"
+    //            + " where dt.d_date_sk = store_sales.ss_sold_date_sk\n"
+    //            + "   and store_sales.ss_item_sk = item.i_item_sk\n"
+    //            + "   and item.i_manufact_id = 816\n"
+    //            + "   and dt.d_moy=11\n"
+    //            + " group by dt.d_year\n"
+    //            + "      ,item.i_brand\n"
+    //            + "      ,item.i_brand_id\n"
+    //            + " order by dt.d_year\n"
+    //            + "         ,sum_agg desc\n"
+    //            + "         ,brand_id\n"
+    //            + " limit 100";
 
     String queryh =
         "select\n"
@@ -319,7 +374,7 @@ public class BeamTpc {
             + "order by\n"
             + "\trevenue desc,\n"
             + "\to_orderdate\n"
-            + "limit 100";
+            + "limit 10";
 
 //    String queryh =
 //        "select * \n"
