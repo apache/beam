@@ -34,6 +34,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.MultimapSideInputSpec;
 import org.apache.beam.sdk.coders.Coder;
@@ -55,14 +56,19 @@ public class StateRequestHandlers {
    * <p>Note that this handler is expected to be thread safe as it will be invoked concurrently.
    */
   @ThreadSafe
-  public interface MultimapSideInputHandler<K, V, W extends BoundedWindow> {
+  public interface MultimapSideInputHandler<V, W extends BoundedWindow> {
     /**
      * Returns an {@link Iterable} of values representing the side input for the given key and
      * window.
      *
+     * <p>The key is interpreted according to the access pattern of side input.
+     *
      * <p>TODO: Add support for side input chunking and caching if a {@link Reiterable} is returned.
      */
-    Iterable<V> get(K key, W window);
+    Iterable<V> get(byte[] key, W window);
+
+    /** Returns the {@link Coder} to use for the elements of the resulting values iterable. */
+    Coder<V> resultCoder();
   }
 
   /**
@@ -74,26 +80,26 @@ public class StateRequestHandlers {
   public interface MultimapSideInputHandlerFactory {
 
     /**
-     * Returns a {@link MultimapSideInputHandler} for the given {@code pTransformId} and {@code
-     * sideInputId}. The supplied {@code keyCoder}, {@code valueCoder}, and {@code windowCoder}
-     * should be used to encode/decode their respective values.
+     * Returns a {@link MultimapSideInputHandler} for the given {@code pTransformId}, {@code
+     * sideInputId}, and {@code accessPattern}. The supplied {@code elementCoder} and {@code
+     * windowCoder} should be used to encode/decode their respective values.
      */
-    <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+    <T, V, W extends BoundedWindow> MultimapSideInputHandler<V, W> forSideInput(
         String pTransformId,
         String sideInputId,
-        Coder<K> keyCoder,
-        Coder<V> valueCoder,
+        RunnerApi.FunctionSpec accessPattern,
+        Coder<T> elementCoder,
         Coder<W> windowCoder);
 
     /** Throws a {@link UnsupportedOperationException} on the first access. */
     static MultimapSideInputHandlerFactory unsupported() {
       return new MultimapSideInputHandlerFactory() {
         @Override
-        public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+        public <T, V, W extends BoundedWindow> MultimapSideInputHandler<V, W> forSideInput(
             String pTransformId,
             String sideInputId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
+            RunnerApi.FunctionSpec accessPattern,
+            Coder<T> elementCoder,
             Coder<W> windowCoder) {
           throw new UnsupportedOperationException(
               String.format(
@@ -213,7 +219,7 @@ public class StateRequestHandlers {
         StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
         MultimapSideInputSpec<?, ?, ?> sideInputReferenceSpec =
             sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
-        MultimapSideInputHandler<?, ?, ?> handler =
+        MultimapSideInputHandler<?, ?> handler =
             cache.computeIfAbsent(sideInputReferenceSpec, this::createHandler);
 
         switch (request.getRequestCase()) {
@@ -234,7 +240,7 @@ public class StateRequestHandlers {
     }
 
     private <K, V, W extends BoundedWindow> CompletionStage<StateResponse.Builder> handleGetRequest(
-        StateRequest request, MultimapSideInputHandler<K, V, W> handler) throws Exception {
+        StateRequest request, MultimapSideInputHandler<V, W> handler) throws Exception {
       // TODO: Add support for continuation tokens when handling state if the handler
       // returned a {@link Reiterable}.
       checkState(
@@ -246,14 +252,13 @@ public class StateRequestHandlers {
       MultimapSideInputSpec<K, V, W> sideInputReferenceSpec =
           sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
 
-      K key = sideInputReferenceSpec.keyCoder().decode(stateKey.getKey().newInput());
       W window = sideInputReferenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
 
-      Iterable<V> values = handler.get(key, window);
+      Iterable<V> values = handler.get(stateKey.getKey().toByteArray(), window);
       List<ByteString> encodedValues = new ArrayList<>();
       ElementDelimitedOutputStream outputStream = DataStreams.outbound(encodedValues::add);
       for (V value : values) {
-        sideInputReferenceSpec.valueCoder().encode(value, outputStream);
+        handler.resultCoder().encode(value, outputStream);
         outputStream.delimitElement();
       }
       outputStream.close();
@@ -265,13 +270,13 @@ public class StateRequestHandlers {
       return CompletableFuture.completedFuture(response);
     }
 
-    private <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> createHandler(
+    private <K, V, W extends BoundedWindow> MultimapSideInputHandler<V, W> createHandler(
         MultimapSideInputSpec cacheKey) {
       return multimapSideInputHandlerFactory.forSideInput(
           cacheKey.transformId(),
           cacheKey.sideInputId(),
-          cacheKey.keyCoder(),
-          cacheKey.valueCoder(),
+          cacheKey.accessPattern(),
+          cacheKey.elementCoder(),
           cacheKey.windowCoder());
     }
   }
