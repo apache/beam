@@ -109,7 +109,6 @@ public class BigQueryWriteIT implements Serializable {
             + bigQueryTestingTypes.tableSpec()
             + "'";
     sqlEnv.executeDdl(createTableStatement);
-    System.out.println(bigQueryTestingTypes.tableSpec());
 
     String insertStatement =
         "INSERT INTO TEST VALUES ("
