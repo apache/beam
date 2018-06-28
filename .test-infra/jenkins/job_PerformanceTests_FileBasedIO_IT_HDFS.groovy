@@ -116,10 +116,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         // don't email individual committers.
         common_job_properties.setAutoJob(
                 delegate,
-                'H */6 * * *',
-                false,
-                'commits@beam.apache.org',
-                false)
+                'H */6 * * *')
 
         def pipelineArgs = [
                 project        : 'apache-beam-testing',

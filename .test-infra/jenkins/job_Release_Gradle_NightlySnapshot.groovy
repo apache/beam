@@ -33,7 +33,6 @@ job('beam_Release_Gradle_NightlySnapshot') {
   common_job_properties.setAutoJob(
       delegate,
       '0 7 * * *',
-      false,
       'dev@beam.apache.org')
 
 
