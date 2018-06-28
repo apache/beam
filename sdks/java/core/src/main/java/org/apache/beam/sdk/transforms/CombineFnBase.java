@@ -120,7 +120,9 @@ public class CombineFnBase {
         + "PCollection is not windowed by GlobalWindows. Instead, use "
         + "Combine.globally().withoutDefaults() to output an empty PCollection if the input "
         + "PCollection is empty, or Combine.globally().asSingletonView() to get the default "
-        + "output of the CombineFn if the input PCollection is empty.";
+        + "output of the CombineFn if the input PCollection is empty. If this error is "
+        + "called from Count.globally(), use"
+        + "Combine.globally(Count.<T>combineFn()).withoutDefaults() instead.";
 
     @Override
     public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
