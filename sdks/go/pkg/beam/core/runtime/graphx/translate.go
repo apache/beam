@@ -69,10 +69,10 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pb.Pipeline, error) {
 
 	var roots []string
 	for _, edge := range tree.Edges {
-		roots = append(roots, m.addMultiEdge(edge))
+		roots = append(roots, m.addMultiEdge("", edge))
 	}
 	for _, t := range tree.Children {
-		roots = append(roots, m.addScopeTree(t))
+		roots = append(roots, m.addScopeTree("", t))
 	}
 
 	p := &pb.Pipeline{
@@ -117,18 +117,20 @@ func (m *marshaller) build() *pb.Components {
 	}
 }
 
-func (m *marshaller) addScopeTree(s *ScopeTree) string {
+func (m *marshaller) addScopeTree(trunk string, s *ScopeTree) string {
 	id := scopeID(s.Scope.Scope)
 	if _, exists := m.transforms[id]; exists {
 		return id
 	}
 
+	uniqueName := fmt.Sprintf("%v/%v", trunk, s.Scope.Name)
+
 	var subtransforms []string
 	for _, edge := range s.Edges {
-		subtransforms = append(subtransforms, m.addMultiEdge(edge))
+		subtransforms = append(subtransforms, m.addMultiEdge(uniqueName, edge))
 	}
 	for _, tree := range s.Children {
-		subtransforms = append(subtransforms, m.addScopeTree(tree))
+		subtransforms = append(subtransforms, m.addScopeTree(uniqueName, tree))
 	}
 
 	// Compute the input/output for this scope:
@@ -143,7 +145,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 	}
 
 	transform := &pb.PTransform{
-		UniqueName:    s.Scope.Name,
+		UniqueName:    uniqueName,
 		Subtransforms: subtransforms,
 		Inputs:        diff(in, out),
 		Outputs:       diff(out, in),
@@ -222,7 +224,7 @@ func inout(transform *pb.PTransform, in, out map[string]bool) {
 	}
 }
 
-func (m *marshaller) addMultiEdge(edge NamedEdge) string {
+func (m *marshaller) addMultiEdge(trunk string, edge NamedEdge) string {
 	id := StableMultiEdgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
 		return id
@@ -244,7 +246,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 	}
 
 	transform := &pb.PTransform{
-		UniqueName: edge.Name,
+		UniqueName: fmt.Sprintf("%v/%v", trunk, edge.Name),
 		Spec:       m.makePayload(edge.Edge),
 		Inputs:     inputs,
 		Outputs:    outputs,
