@@ -18,8 +18,6 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.collect.ImmutableList;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -114,8 +112,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
-    Path workerPersistentDirectory = Files.createTempDirectory("worker_persistent_directory");
-    Path semiPersistentDirectory = Files.createTempDirectory("semi_persistent_dir");
     String containerImage = environment.getUrl();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
@@ -123,11 +119,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
+
     List<String> volArg =
         ImmutableList.of(
-            "-v",
-            // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
-            String.format("%s:%s", workerPersistentDirectory, semiPersistentDirectory),
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             "--network=host");
 
@@ -137,8 +131,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             String.format("--logging_endpoint=%s", loggingEndpoint),
             String.format("--artifact_endpoint=%s", artifactEndpoint),
             String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint),
-            String.format("--semi_persist_dir=%s", semiPersistentDirectory));
+            String.format("--control_endpoint=%s", controlEndpoint));
 
     LOG.debug("Creating Docker Container with ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.

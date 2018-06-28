@@ -68,7 +68,7 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
 
-	token, err := Stage(ctx, prepID, artifactEndpoint, st, bin)
+	token, err := Stage(ctx, prepID, artifactEndpoint, bin, st)
 	if err != nil {
 		return "", err
 	}
