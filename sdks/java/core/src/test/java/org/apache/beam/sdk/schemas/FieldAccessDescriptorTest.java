@@ -24,6 +24,9 @@ import com.google.common.collect.Sets;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.junit.Test;
 
+/**
+ * Tests for {@link FieldAccessDescriptor}.
+ */
 public class FieldAccessDescriptorTest {
   private static final Schema SIMPLE_SCHEMA =
       Schema.builder()
@@ -36,16 +39,16 @@ public class FieldAccessDescriptorTest {
   private static final Schema NESTED_SCHEMA1 =
       Schema.builder().addStringField("field0").addRowField("field1", SIMPLE_SCHEMA).build();
 
-  private static Schema NESTED_SCHEMA2 =
+  private static final Schema NESTED_SCHEMA2 =
       Schema.builder().addStringField("field0").addRowField("field1", NESTED_SCHEMA1).build();
 
-  private static Schema NESTED_ARRAY_SCHEMA =
+  private static final Schema NESTED_ARRAY_SCHEMA =
       Schema.builder()
           .addStringField("field0")
           .addArrayField("field1", FieldType.row(SIMPLE_SCHEMA))
           .build();
 
-  private static Schema NESTED_MAP_SCHEMA =
+  private static final Schema NESTED_MAP_SCHEMA =
       Schema.builder()
           .addStringField("field0")
           .addMapField("field1", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
