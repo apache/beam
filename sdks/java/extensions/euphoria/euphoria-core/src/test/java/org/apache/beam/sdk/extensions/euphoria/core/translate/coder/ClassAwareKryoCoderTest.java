@@ -22,7 +22,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -52,6 +58,26 @@ public class ClassAwareKryoCoderTest {
         (ClassAwareKryoCoder<ClassToBeEncoded>) ois.readObject();
 
     assertEncoding(coderDeserialized);
+  }
+
+  @Test
+  public void testCodingWithKVcoder() throws IOException {
+
+    final ListCoder<Void> listCoder = ListCoder.of(VoidCoder.of());
+    final KvCoder<TestClass, List<Void>> kvCoder = KvCoder
+        .of(ClassAwareKryoCoder.of(TestClass.class), listCoder);
+    List<Void> a = new ArrayList<>();
+    a.add(null);
+    a.add(null);
+
+    final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(2048);
+
+    kvCoder.encode(KV.of(new TestClass("something"), a), byteArrayOutputStream);
+
+    final KV<TestClass, List<Void>> decode = kvCoder
+        .decode(new ByteArrayInputStream(byteArrayOutputStream
+            .toByteArray()));
+    System.out.println("decode = " + decode);
   }
 
   private void assertEncoding(ClassAwareKryoCoder<ClassToBeEncoded> coder)
@@ -102,5 +128,15 @@ public class ClassAwareKryoCoderTest {
 
       return Objects.hash(firstField, secondField, thirdField);
     }
+  }
+
+  static class TestClass {
+
+    String param;
+
+    public TestClass(String param) {
+      this.param = param;
+    }
+
   }
 }

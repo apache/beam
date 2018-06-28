@@ -38,7 +38,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFu
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.io.KryoCoder;
+
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
