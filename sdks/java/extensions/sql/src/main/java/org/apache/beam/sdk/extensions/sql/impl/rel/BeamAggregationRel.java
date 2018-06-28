@@ -47,11 +47,14 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
@@ -109,6 +112,15 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       pw.item("window", window);
     }
     return pw;
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery metadata) {
+    RelNode child = getInput();
+    Double rowCnt = metadata.getRowCount(child);
+    double rowSize = estimateRowSize(child.getRowType());
+    int aggCnt = getNamedAggCalls().size();
+    return planner.getCostFactory().makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize);
   }
 
   @Override

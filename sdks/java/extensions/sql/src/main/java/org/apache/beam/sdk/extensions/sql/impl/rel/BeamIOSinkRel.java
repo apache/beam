@@ -28,12 +28,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableModify;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 
@@ -102,6 +104,13 @@ public class BeamIOSinkRel extends TableModify
   public void register(RelOptPlanner planner) {
     planner.addRule(BeamIOSinkRule.INSTANCE);
     super.register(planner);
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    double rowSize = estimateRowSize(getRowType());
+    double rowCnt = mq.getRowCount(this);
+    return planner.getCostFactory().makeCost(rowCnt, rowCnt, rowCnt * rowSize);
   }
 
   @Override

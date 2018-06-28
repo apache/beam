@@ -53,11 +53,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
@@ -125,6 +128,21 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
     }
     return BeamRelNode.super.getPCollectionInputs();
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    double leftRowCnt = mq.getRowCount(getLeft());
+    double leftRowSize = estimateRowSize(getLeft().getRowType());
+
+    double rightRowCnt = mq.getRowCount(getRight());
+    double rightRowSize = estimateRowSize(getRight().getRowType());
+
+    double ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize);
+    double cpuCost = leftRowCnt + rightRowCnt;
+    double rowCnt = leftRowCnt + rightRowCnt;
+
+    return planner.getCostFactory().makeCost(rowCnt, cpuCost, ioCost);
   }
 
   @Override
