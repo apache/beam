@@ -455,10 +455,10 @@ public class FileSystems {
     String lowerCaseScheme = scheme.toLowerCase();
     Map<String, FileSystem> schemeToFileSystem = SCHEME_TO_FILESYSTEM.get();
     FileSystem rval = schemeToFileSystem.get(lowerCaseScheme);
-    if (rval != null) {
-      return rval;
+    if (rval == null) {
+      throw new IllegalArgumentException("No filesystem found for scheme " + scheme);
     }
-    return schemeToFileSystem.get(DEFAULT_SCHEME);
+    return rval;
   }
 
   /** ******************************** METHODS FOR REGISTRATION ********************************* */
