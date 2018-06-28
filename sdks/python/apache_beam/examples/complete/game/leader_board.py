@@ -256,10 +256,10 @@ def run(argv=None):
 
   parser.add_argument('--topic',
                       type=str,
-                      required=True,
                       help='Pub/Sub topic to read from')
   parser.add_argument('--subscription',
                       type=str,
+                      required=True,
                       help='Pub/Sub subscription to read from')
   parser.add_argument('--dataset',
                       type=str,
