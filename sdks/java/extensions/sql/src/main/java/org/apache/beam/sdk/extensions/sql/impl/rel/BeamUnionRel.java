@@ -25,10 +25,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Union;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@link BeamRelNode} to replace a {@link Union}.
@@ -71,6 +74,14 @@ public class BeamUnionRel extends Union implements BeamRelNode {
   @Override
   public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    List<RelNode> children = getInputs();
+    double rowCnt = children.stream().mapToDouble(child -> mq.getRowCount(child)).sum();
+
+    return planner.getCostFactory().makeCost(rowCnt, 0, 0);
   }
 
   @Override
