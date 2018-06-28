@@ -27,7 +27,7 @@ import time
 from apache_beam.runners.interactive import display_graph
 
 try:
-  import IPython  # pylint: disable=g-import-not-at-top
+  import IPython  # pylint: disable=import-error
   # _display_progress defines how outputs are printed on the frontend.
   _display_progress = IPython.display.display
 

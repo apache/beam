@@ -21,10 +21,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import unittest
+
 import apache_beam as beam
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_runner
-import unittest
 
 
 def print_with_message(msg):
@@ -77,7 +78,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         | 'split' >> beam.ParDo(WordExtractingDoFn())
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
-        | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+        | 'count' >> beam.Map(lambda word, ones: (word, sum(ones))))
 
     result = p.run()
     result.wait_until_finish()

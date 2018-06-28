@@ -63,7 +63,7 @@ class InteractiveRunner(runners.PipelineRunner):
       self._desired_cache_labels = set()
     print('Running...')
 
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=import-error
     from apache_beam.pipeline import Pipeline
 
     # When possible, invoke a round trip through the runner API.
@@ -184,7 +184,7 @@ class InteractiveRunner(runners.PipelineRunner):
     """
     pcolls_to_pcoll_id = {}
 
-    from apache_beam.pipeline import PipelineVisitor  # pylint: disable=g-import-not-at-top
+    from apache_beam.pipeline import PipelineVisitor  # pylint: disable=import-error
 
     class PCollVisitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.

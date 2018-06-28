@@ -112,7 +112,7 @@ class PipelineGraph(object):
   def display_graph(self):
     """Displays graph via IPython or prints DOT if not possible."""
     try:
-      from IPython.core import display  # pylint: disable=g-import-not-at-top
+      from IPython.core import display  # pylint: disable=import-error
       display.display(display.HTML(self._get_graph()._repr_svg_()))  # pylint: disable=protected-access
     except ImportError:
       print(str(self._get_graph()))
