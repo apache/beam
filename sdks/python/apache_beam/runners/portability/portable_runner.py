@@ -21,8 +21,8 @@ import threading
 
 import grpc
 
-from apache_beam import coders
-from apache_beam.internal import pickler
+from apache_beam import metrics
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -30,6 +30,8 @@ from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+
+__all__ = ['PortableRunner']
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
@@ -49,20 +51,8 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
 
-  # TODO(angoenka): Read all init parameters from pipeline_options.
-  def __init__(self,
-               runner_api_address=None,
-               job_service_address=None,
-               docker_image=None):
-    super(PortableRunner, self).__init__()
-
-    self._subprocess = None
-    self._runner_api_address = runner_api_address
-    if not job_service_address:
-      raise ValueError(
-          'job_service_address should be provided while creating runner.')
-    self._job_service_address = job_service_address
-    self._docker_image = docker_image or self.default_docker_image()
+  def __init__(self):
+    pass
 
   @staticmethod
   def default_docker_image():
@@ -74,24 +64,18 @@ class PortableRunner(runner.PipelineRunner):
       logging.warning('Could not find a Python SDK docker image.')
       return 'unknown'
 
-  def _create_job_service(self):
-    return beam_job_api_pb2_grpc.JobServiceStub(
-        grpc.insecure_channel(self._job_service_address))
-
   def run_pipeline(self, pipeline):
-    # Java has different expectations about coders
-    # (windowed in Fn API, but *un*windowed in runner API), whereas the
-    # FnApiRunner treats them consistently, so we must guard this.
-    # See also BEAM-2717.
+    docker_image = (
+        pipeline.options.view_as(PortableOptions).harness_docker_image
+        or self.default_docker_image())
+    job_endpoint = pipeline.options.view_as(PortableOptions).job_endpoint
+    if not job_endpoint:
+      raise ValueError(
+          'job_endpoint should be provided while creating runner.')
+
     proto_context = pipeline_context.PipelineContext(
-        default_environment_url=self._docker_image)
+        default_environment_url=docker_image)
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
-    if self._runner_api_address:
-      for pcoll in proto_pipeline.components.pcollections.values():
-        if pcoll.coder_id not in proto_context.coders:
-          coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-          pcoll.coder_id = proto_context.coders.get_id(coder)
-      proto_context.coders.populate_map(proto_pipeline.components.coders)
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
@@ -102,7 +86,8 @@ class PortableRunner(runner.PipelineRunner):
           del proto_pipeline.components.transforms[sub_transform]
         del transform_proto.subtransforms[:]
 
-    job_service = self._create_job_service()
+    job_service = beam_job_api_pb2_grpc.JobServiceStub(
+        grpc.insecure_channel(job_endpoint))
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job', pipeline=proto_pipeline))
@@ -124,6 +109,16 @@ class PortableRunner(runner.PipelineRunner):
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
     return PipelineResult(job_service, run_response.job_id)
+
+
+class PortableMetrics(metrics.metric.MetricResults):
+  def __init__(self):
+    pass
+
+  def query(self, filter=None):
+    return {'counters': [],
+            'distributions': [],
+            'gauges': []}
 
 
 class PipelineResult(runner.PipelineResult):
@@ -152,6 +147,9 @@ class PipelineResult(runner.PipelineResult):
   @staticmethod
   def _pipeline_state_to_runner_api_state(pipeline_state):
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
+
+  def metrics(self):
+    return PortableMetrics()
 
   def wait_until_finish(self):
 

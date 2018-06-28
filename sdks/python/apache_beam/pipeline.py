@@ -608,6 +608,8 @@ class Pipeline(object):
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
         components=context.to_runner_api())
+    proto.components.transforms[root_transform_id].unique_name = (
+        root_transform_id)
     if return_context:
       return proto, context
     else:

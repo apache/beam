@@ -115,6 +115,14 @@ public class BigQueryHelpers {
   }
 
   static String jobToPrettyString(@Nullable Job job) throws IOException {
+    if (job != null && job.getConfiguration().getLoad() != null) {
+      // Removing schema and sourceUris from error messages for load jobs since these fields can be
+      // quite long and error message might not be displayed properly in runner specific logs.
+      job = job.clone();
+      job.getConfiguration().getLoad().setSchema(null);
+      job.getConfiguration().getLoad().setSourceUris(null);
+    }
+
     return job == null ? "null" : job.toPrettyString();
   }
 

@@ -76,6 +76,20 @@ class CoderTranslators {
     };
   }
 
+  static CoderTranslator<Timer.Coder<?>> timer() {
+    return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
+        return from.getCoderArguments();
+      }
+
+      @Override
+      public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
+        return Timer.Coder.of(components.get(0));
+      }
+    };
+  }
+
   static CoderTranslator<LengthPrefixCoder<?>> lengthPrefix() {
     return new SimpleStructuredCoderTranslator<LengthPrefixCoder<?>>() {
       @Override

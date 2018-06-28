@@ -56,10 +56,7 @@ job(testConfiguration.jobName) {
     // don't email individual committers.
     common_job_properties.setAutoJob(
             delegate,
-            '30 */24 * * *',
-            false,
-            'commits@beam.apache.org',
-            false)
+            '30 */24 * * *')
 
 
     steps {

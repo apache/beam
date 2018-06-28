@@ -60,8 +60,8 @@ import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -324,20 +324,25 @@ public class RemoteExecutionTest implements Serializable {
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
     StateRequestHandler stateRequestHandler =
-        StateRequestHandlers.forMultimapSideInputHandlerFactory(
-            descriptor.getMultimapSideInputSpecs(),
-            new MultimapSideInputHandlerFactory() {
+        StateRequestHandlers.forSideInputHandlerFactory(
+            descriptor.getSideInputSpecs(),
+            new SideInputHandlerFactory() {
               @Override
-              public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
                   String pTransformId,
                   String sideInputId,
-                  Coder<K> keyCoder,
-                  Coder<V> valueCoder,
+                  RunnerApi.FunctionSpec accessPattern,
+                  Coder<T> elementCoder,
                   Coder<W> windowCoder) {
-                return new MultimapSideInputHandler<K, V, W>() {
+                return new SideInputHandler<V, W>() {
                   @Override
-                  public Iterable<V> get(K key, W window) {
+                  public Iterable<V> get(byte[] key, W window) {
                     return (Iterable) sideInputData;
+                  }
+
+                  @Override
+                  public Coder<V> resultCoder() {
+                    return ((KvCoder) elementCoder).getValueCoder();
                   }
                 };
               }

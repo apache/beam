@@ -33,8 +33,7 @@ job('beam_Dependency_Check') {
   // This is a job that runs weekly.
   common_job_properties.setAutoJob(
     delegate,
-    '0 12 * * 1',
-    false)
+    '0 12 * * 1')
 
   steps {
     gradle {

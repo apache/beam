@@ -31,10 +31,7 @@ job('beam_PerformanceTests_Spark'){
     // don't email individual committers.
     common_job_properties.setAutoJob(
         delegate,
-        'H */6 * * *',
-        false,
-        'commits@beam.apache.org',
-        false)
+        'H */6 * * *')
 
     def argMap = [
       benchmarks: 'dpb_wordcount_benchmark',

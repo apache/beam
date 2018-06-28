@@ -39,6 +39,7 @@ public class ModelCoders {
   public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
 
   public static final String ITERABLE_CODER_URN = getUrn(StandardCoders.Enum.ITERABLE);
+  public static final String TIMER_CODER_URN = getUrn(StandardCoders.Enum.TIMER);
   public static final String KV_CODER_URN = getUrn(StandardCoders.Enum.KV);
   public static final String LENGTH_PREFIX_CODER_URN = getUrn(StandardCoders.Enum.LENGTH_PREFIX);
 
@@ -56,6 +57,7 @@ public class ModelCoders {
           BYTES_CODER_URN,
           INT64_CODER_URN,
           ITERABLE_CODER_URN,
+          TIMER_CODER_URN,
           KV_CODER_URN,
           LENGTH_PREFIX_CODER_URN,
           GLOBAL_WINDOW_CODER_URN,

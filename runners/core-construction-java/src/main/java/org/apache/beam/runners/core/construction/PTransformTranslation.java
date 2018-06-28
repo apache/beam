@@ -84,6 +84,11 @@ public class PTransformTranslation {
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =
       getUrn(SplittableParDoComponents.PROCESS_ELEMENTS);
 
+  public static final String ITERABLE_SIDE_INPUT =
+      getUrn(RunnerApi.StandardSideInputTypes.Enum.ITERABLE);
+  public static final String MULTIMAP_SIDE_INPUT =
+      getUrn(RunnerApi.StandardSideInputTypes.Enum.MULTIMAP);
+
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
