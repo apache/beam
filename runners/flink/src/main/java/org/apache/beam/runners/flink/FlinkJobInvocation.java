@@ -53,8 +53,10 @@ public class FlinkJobInvocation implements JobInvocation {
       String retrievalToken,
       ListeningExecutorService executorService,
       Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions) {
-    return new FlinkJobInvocation(id, retrievalToken, executorService, pipeline, pipelineOptions);
+      FlinkPipelineOptions pipelineOptions,
+      List<String> filesToStage) {
+    return new FlinkJobInvocation(id, retrievalToken, executorService, pipeline, pipelineOptions,
+        filesToStage);
   }
 
   private final String id;
@@ -62,6 +64,7 @@ public class FlinkJobInvocation implements JobInvocation {
   private final ListeningExecutorService executorService;
   private final RunnerApi.Pipeline pipeline;
   private final FlinkPipelineOptions pipelineOptions;
+  private final List<String> filesToStage;
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
 
@@ -71,13 +74,14 @@ public class FlinkJobInvocation implements JobInvocation {
       String id,
       String retrievalToken,
       ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions) {
+      Pipeline pipeline,
+      FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
     this.id = id;
     this.retrievalToken = retrievalToken;
     this.executorService = executorService;
     this.pipeline = pipeline;
     this.pipelineOptions = pipelineOptions;
+    this.filesToStage = filesToStage;
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
     this.stateObservers = new ArrayList<>();
@@ -103,7 +107,7 @@ public class FlinkJobInvocation implements JobInvocation {
       FlinkBatchPortablePipelineTranslator translator =
           FlinkBatchPortablePipelineTranslator.createTranslator();
       FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
-          FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo);
+          FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo, filesToStage);
       translator.translate(context, fusedPipeline);
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     } else {
@@ -111,7 +115,7 @@ public class FlinkJobInvocation implements JobInvocation {
       FlinkStreamingPortablePipelineTranslator translator =
           new FlinkStreamingPortablePipelineTranslator();
       FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context =
-          FlinkStreamingPortablePipelineTranslator.createTranslationContext(jobInfo);
+          FlinkStreamingPortablePipelineTranslator.createTranslationContext(jobInfo, filesToStage);
       translator.translate(context, fusedPipeline);
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     }
