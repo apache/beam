@@ -31,6 +31,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
@@ -45,7 +46,6 @@ import (
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
 	"google.golang.org/api/storage/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -129,13 +129,20 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	bin := *jobopts.WorkerBinary
 	if bin == "" {
-		worker, err := runnerlib.BuildTempWorkerBinary(ctx)
-		if err != nil {
-			return err
-		}
-		defer os.Remove(worker)
+		if self, ok := runnerlib.IsWorkerCompatibleBinary(); ok {
+			bin = self
+			log.Infof(ctx, "Using running binary as worker binary: '%v'", bin)
+		} else {
+			// Cross-compile as last resort.
 
-		bin = worker
+			worker, err := runnerlib.BuildTempWorkerBinary(ctx)
+			if err != nil {
+				return err
+			}
+			defer os.Remove(worker)
+
+			bin = worker
+		}
 	} else {
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
@@ -330,7 +337,6 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 		return "", fmt.Errorf("failed to open worker binary %s: %v", worker, err)
 	}
 	defer fd.Close()
-	defer os.Remove(worker)
 
 	return gcsx.Upload(client, project, bucket, obj, fd)
 }

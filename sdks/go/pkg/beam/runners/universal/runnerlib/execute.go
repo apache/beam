@@ -50,13 +50,20 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 
 	bin := opt.Worker
 	if bin == "" {
-		worker, err := BuildTempWorkerBinary(ctx)
-		if err != nil {
-			return "", err
-		}
-		defer os.Remove(worker)
+		if self, ok := IsWorkerCompatibleBinary(); ok {
+			bin = self
+			log.Infof(ctx, "Using running binary as worker binary: '%v'", bin)
+		} else {
+			// Cross-compile as last resort.
 
-		bin = worker
+			worker, err := BuildTempWorkerBinary(ctx)
+			if err != nil {
+				return "", err
+			}
+			defer os.Remove(worker)
+
+			bin = worker
+		}
 	} else {
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
