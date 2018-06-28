@@ -29,7 +29,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,11 +58,11 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
   @Override
   public StateRequestHandler getStateRequestHandler(
       ExecutableStage executableStage, RuntimeContext runtimeContext) {
-    MultimapSideInputHandlerFactory sideInputHandlerFactory =
+    SideInputHandlerFactory sideInputHandlerFactory =
         FlinkBatchSideInputHandlerFactory.forStage(executableStage, runtimeContext);
     try {
-      return StateRequestHandlers.forMultimapSideInputHandlerFactory(
-          ProcessBundleDescriptors.getMultimapSideInputs(executableStage), sideInputHandlerFactory);
+      return StateRequestHandlers.forSideInputHandlerFactory(
+          ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -38,7 +38,7 @@ import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -112,7 +112,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
   public void emptyResultForEmptyCollection() {
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<Integer, GlobalWindow> handler =
+    SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
@@ -133,7 +133,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<Integer, GlobalWindow> handler =
+    SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
@@ -155,7 +155,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<Integer, GlobalWindow> handler =
+    SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
@@ -185,7 +185,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<Integer, IntervalWindow> handler =
+    SideInputHandler<Integer, IntervalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
