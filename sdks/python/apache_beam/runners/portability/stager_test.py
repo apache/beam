@@ -133,7 +133,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
 
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
@@ -144,7 +144,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([names.PICKLED_MAIN_SESSION_FILE],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
@@ -156,7 +156,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
 
   def test_with_requirements_file(self):
     staging_dir = self.make_temp_dir()
@@ -176,7 +176,7 @@ class StagerTest(unittest.TestCase):
             self.stager.stage_job_resources(
                 options,
                 populate_requirements_cache=self.populate_requirements_cache,
-                staging_location=staging_dir)))
+                staging_location=staging_dir)[1]))
     self.assertTrue(
         os.path.isfile(os.path.join(staging_dir, stager.REQUIREMENTS_FILE)))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
@@ -214,7 +214,7 @@ class StagerTest(unittest.TestCase):
             self.stager.stage_job_resources(
                 options,
                 populate_requirements_cache=self.populate_requirements_cache,
-                staging_location=staging_dir)))
+                staging_location=staging_dir)[1]))
     self.assertTrue(
         os.path.isfile(os.path.join(staging_dir, stager.REQUIREMENTS_FILE)))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
@@ -244,7 +244,7 @@ class StagerTest(unittest.TestCase):
                 os.path.join(source_dir, stager.WORKFLOW_TARBALL_FILE)
             ],
             temp_dir=source_dir,
-            staging_location=staging_dir))
+            staging_location=staging_dir)[1])
     self.assertTrue(
         os.path.isfile(os.path.join(staging_dir, stager.WORKFLOW_TARBALL_FILE)))
 
@@ -287,7 +287,7 @@ class StagerTest(unittest.TestCase):
     with mock.patch(
         'apache_beam.utils.processes.check_call',
         self.build_fake_pip_download_command_handler(has_wheels=False)):
-      staged_resources = self.stager.stage_job_resources(
+      _, staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE], staged_resources)
@@ -305,7 +305,7 @@ class StagerTest(unittest.TestCase):
     with mock.patch(
         'apache_beam.utils.processes.check_call',
         self.build_fake_pip_download_command_handler(has_wheels=True)):
-      staged_resources = self.stager.stage_job_resources(
+      _, staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
       self.assertEqual(len(staged_resources), 2)
@@ -329,7 +329,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
@@ -347,7 +347,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
@@ -365,7 +365,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([sdk_filename],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, sdk_filename)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
@@ -399,7 +399,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                      self.stager.stage_job_resources(
-                         options, staging_location=staging_dir))
+                         options, staging_location=staging_dir)[1])
 
   @mock.patch(
       'apache_beam.runners.portability.stager_test.TestStager.stage_artifact')
@@ -425,7 +425,7 @@ class StagerTest(unittest.TestCase):
         '.stager.Stager._is_remote_path', staticmethod(is_remote_path)):
       self.assertEqual([sdk_filename],
                        self.stager.stage_job_resources(
-                           options, staging_location=staging_dir))
+                           options, staging_location=staging_dir)[1])
 
   def test_sdk_location_http(self):
     staging_dir = self.make_temp_dir()
@@ -445,7 +445,7 @@ class StagerTest(unittest.TestCase):
         '.stager.Stager._download_file', staticmethod(file_download)):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        self.stager.stage_job_resources(
-                           options, staging_location=staging_dir))
+                           options, staging_location=staging_dir)[1])
 
     tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
@@ -500,7 +500,7 @@ class StagerTest(unittest.TestCase):
             'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',
             'remote_file.tar.gz', stager.EXTRA_PACKAGES_FILE
         ], self.stager.stage_job_resources(
-            options, staging_location=staging_dir))
+            options, staging_location=staging_dir)[1])
     with open(os.path.join(staging_dir, stager.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual([
           'abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n', 'whl.whl\n',
