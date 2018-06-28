@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Nexmark Query 0: Convert bid prices from dollars to euros.
+"""Nexmark Query 1: Convert bid prices from dollars to euros.
 
 The Nexmark suite is a series of queries (streaming pipelines) performed
 on a simulation of auction events.
@@ -49,4 +49,4 @@ def load(raw_events, query_args=None):
           bid.extra
         ))
     | 'Display Q1' >> beam.Map(display)
-  )  # pylint: disable=expression-not-assigned
+  )

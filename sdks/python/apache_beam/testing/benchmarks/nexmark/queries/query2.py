@@ -26,11 +26,9 @@ It illustrates a simple filter.
 
 from __future__ import absolute_import
 
-# import csv
 import logging
 
 import apache_beam as beam
-# from apache_beam.metrics.metric import Metrics
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
 
@@ -45,10 +43,4 @@ def load(raw_events, metadata=None):
         lambda event: (isinstance(event, nexmark_model.Auction)
           and event.id == metadata.get('auction_id')))
     | 'Display Q2' >> beam.Map(display)
-  )  # pylint: disable=expression-not-assigned
-
-    # | 'FilterInAuctions' >> beam.Filter(lambda row: row.startswith('a'))
-    # | 'SelectID' >> beam.Filter(lambda row: list(csv.reader([row]))[0][0] == 'a12345')
-
-    # # /v1
-    # | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
+  )
