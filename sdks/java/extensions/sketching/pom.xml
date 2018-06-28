@@ -30,7 +30,7 @@
   <name>Apache Beam :: SDKs :: Java :: Extensions :: Sketching</name>
 
   <properties>
-    <streamlib.version>2.9.5</streamlib.version>
+    <streamlib.version>2.9.6</streamlib.version>
     <t-digest.version>3.2</t-digest.version>
   </properties>
 
