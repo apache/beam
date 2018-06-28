@@ -102,15 +102,13 @@ public class PipelineValidator {
       Map<String, String> uniqueNamesById = Maps.newHashMap();
       for (String transformId : components.getTransformsMap().keySet()) {
         PTransform transform = components.getTransformsOrThrow(transformId);
-        checkArgument(
-            !transform.getUniqueName().isEmpty(),
-            "%s: Transform %s does not have a unique_name set",
-            context,
-            transformId);
         String previousId = uniqueNamesById.put(transform.getUniqueName(), transformId);
+        // A transform is allowed to not have unique_name set, but, obviously,
+        // there can be only one such transform with an empty name.
+        // It's allowed for the (only) root transform to have the empty unique_name.
         checkArgument(
             previousId == null,
-            "%s: Transforms %s and %s both have unique_name %s",
+            "%s: Transforms %s and %s both have unique_name \"%s\"",
             context,
             transformId,
             previousId,
@@ -130,7 +128,7 @@ public class PipelineValidator {
         String previousId = uniqueNamesById.put(pc.getUniqueName(), pcollectionId);
         checkArgument(
             previousId == null,
-            "%s: PCollections %s and %s both have unique_name %s",
+            "%s: PCollections %s and %s both have unique_name \"%s\"",
             context,
             pcollectionId,
             previousId,
