@@ -116,8 +116,7 @@ public class ProcessBundleDescriptors {
     Map<Target, Coder<WindowedValue<?>>> outputTargetCoders =
         addStageOutputs(dataEndpoint, stage.getOutputPCollections(), components);
 
-    Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs =
-        addMultimapSideInputs(stage, components);
+    Map<String, Map<String, SideInputSpec>> sideInputSpecs = addSideInputs(stage, components);
 
     // Copy data from components to ProcessBundleDescriptor.
     ProcessBundleDescriptor.Builder bundleDescriptorBuilder =
@@ -133,10 +132,7 @@ public class ProcessBundleDescriptors {
         .putAllTransforms(components.getTransformsMap());
 
     return ExecutableProcessBundleDescriptor.of(
-        bundleDescriptorBuilder.build(),
-        inputDestination,
-        outputTargetCoders,
-        multimapSideInputSpecs);
+        bundleDescriptorBuilder.build(), inputDestination, outputTargetCoders, sideInputSpecs);
   }
 
   private static Map<Target, Coder<WindowedValue<?>>> addStageOutputs(
@@ -211,18 +207,17 @@ public class ProcessBundleDescriptors {
         wireCoder);
   }
 
-  public static Map<String, Map<String, MultimapSideInputSpec>> getMultimapSideInputs(
-      ExecutableStage stage) throws IOException {
-    return addMultimapSideInputs(stage, stage.getComponents().toBuilder());
+  public static Map<String, Map<String, SideInputSpec>> getSideInputs(ExecutableStage stage)
+      throws IOException {
+    return addSideInputs(stage, stage.getComponents().toBuilder());
   }
 
-  private static Map<String, Map<String, MultimapSideInputSpec>> addMultimapSideInputs(
+  private static Map<String, Map<String, SideInputSpec>> addSideInputs(
       ExecutableStage stage, Components.Builder components) throws IOException {
-    ImmutableTable.Builder<String, String, MultimapSideInputSpec> idsToSpec =
-        ImmutableTable.builder();
+    ImmutableTable.Builder<String, String, SideInputSpec> idsToSpec = ImmutableTable.builder();
     for (SideInputReference sideInputReference : stage.getSideInputs()) {
       // Update the coder specification for side inputs to be length prefixed so that the
-      // SDK and Runner agree on how to encode/decode the key, window, and values for multimap
+      // SDK and Runner agree on how to encode/decode the key, window, and values for
       // side inputs.
       PCollectionNode pcNode = sideInputReference.collection();
       PCollection pc = pcNode.getPCollection();
@@ -237,7 +232,7 @@ public class ProcessBundleDescriptors {
       idsToSpec.put(
           sideInputReference.transform().getId(),
           sideInputReference.localName(),
-          MultimapSideInputSpec.of(
+          SideInputSpec.of(
               sideInputReference.transform().getId(),
               sideInputReference.localName(),
               getAccessPattern(sideInputReference),
@@ -268,17 +263,17 @@ public class ProcessBundleDescriptors {
 
   /**
    * A container type storing references to the key, value, and window {@link Coder} used when
-   * handling multimap side input state requests.
+   * handling side input state requests.
    */
   @AutoValue
-  public abstract static class MultimapSideInputSpec<K, T, W extends BoundedWindow> {
-    public static <T, W extends BoundedWindow> MultimapSideInputSpec of(
+  public abstract static class SideInputSpec<K, T, W extends BoundedWindow> {
+    public static <T, W extends BoundedWindow> SideInputSpec of(
         String transformId,
         String sideInputId,
         RunnerApi.FunctionSpec accessPattern,
         Coder<T> elementCoder,
         Coder<W> windowCoder) {
-      return new AutoValue_ProcessBundleDescriptors_MultimapSideInputSpec(
+      return new AutoValue_ProcessBundleDescriptors_SideInputSpec(
           transformId, sideInputId, accessPattern, elementCoder, windowCoder);
     }
 
@@ -300,19 +295,18 @@ public class ProcessBundleDescriptors {
         ProcessBundleDescriptor descriptor,
         RemoteInputDestination<WindowedValue<?>> inputDestination,
         Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders,
-        Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs) {
-      ImmutableTable.Builder copyOfMultimapSideInputSpecs = ImmutableTable.builder();
-      for (Map.Entry<String, Map<String, MultimapSideInputSpec>> outer :
-          multimapSideInputSpecs.entrySet()) {
-        for (Map.Entry<String, MultimapSideInputSpec> inner : outer.getValue().entrySet()) {
-          copyOfMultimapSideInputSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
+        Map<String, Map<String, SideInputSpec>> sideInputSpecs) {
+      ImmutableTable.Builder copyOfSideInputSpecs = ImmutableTable.builder();
+      for (Map.Entry<String, Map<String, SideInputSpec>> outer : sideInputSpecs.entrySet()) {
+        for (Map.Entry<String, SideInputSpec> inner : outer.getValue().entrySet()) {
+          copyOfSideInputSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
         }
       }
       return new AutoValue_ProcessBundleDescriptors_ExecutableProcessBundleDescriptor(
           descriptor,
           inputDestination,
           Collections.unmodifiableMap(outputTargetCoders),
-          copyOfMultimapSideInputSpecs.build().rowMap());
+          copyOfSideInputSpecs.build().rowMap());
     }
 
     public abstract ProcessBundleDescriptor getProcessBundleDescriptor();
@@ -330,9 +324,9 @@ public class ProcessBundleDescriptors {
     public abstract Map<BeamFnApi.Target, Coder<WindowedValue<?>>> getOutputTargetCoders();
 
     /**
-     * Get a mapping from PTransform id to multimap side input id to {@link MultimapSideInputSpec
-     * multimap side inputs} that are used during execution.
+     * Get a mapping from PTransform id to side input id to {@link SideInputSpec side inputs} that
+     * are used during execution.
      */
-    public abstract Map<String, Map<String, MultimapSideInputSpec>> getMultimapSideInputSpecs();
+    public abstract Map<String, Map<String, SideInputSpec>> getSideInputSpecs();
   }
 }

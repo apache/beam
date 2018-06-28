@@ -35,8 +35,8 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,7 +48,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  * {@link StateRequestHandler} that uses a Flink {@link RuntimeContext} to access Flink broadcast
  * variable that represent side inputs.
  */
-class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFactory {
+class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
 
   // Map from side input id to global PCollection id.
   private final Map<SideInputId, PCollectionNode> sideInputToCollection;
@@ -79,7 +79,7 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
   }
 
   @Override
-  public <T, V, W extends BoundedWindow> MultimapSideInputHandler<V, W> forSideInput(
+  public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
       String transformId,
       String sideInputId,
       RunnerApi.FunctionSpec accessPattern,
@@ -110,22 +110,22 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
     }
   }
 
-  private <T, W extends BoundedWindow> MultimapSideInputHandler<T, W> forIterableSideInput(
+  private <T, W extends BoundedWindow> SideInputHandler<T, W> forIterableSideInput(
       List<WindowedValue<T>> broadcastVariable, Coder<T> elementCoder, Coder<W> windowCoder) {
-    ImmutableMultimap.Builder<Object, T> multimapBuilder = ImmutableMultimap.builder();
+    ImmutableMultimap.Builder<Object, T> windowToValuesBuilder = ImmutableMultimap.builder();
     for (WindowedValue<T> windowedValue : broadcastVariable) {
       for (BoundedWindow boundedWindow : windowedValue.getWindows()) {
         @SuppressWarnings("unchecked")
         W window = (W) boundedWindow;
-        multimapBuilder.put(windowCoder.structuralValue(window), windowedValue.getValue());
+        windowToValuesBuilder.put(windowCoder.structuralValue(window), windowedValue.getValue());
       }
     }
-    ImmutableMultimap<Object, T> multimap = multimapBuilder.build();
+    ImmutableMultimap<Object, T> windowToValues = windowToValuesBuilder.build();
 
-    return new MultimapSideInputHandler<T, W>() {
+    return new SideInputHandler<T, W>() {
       @Override
       public Iterable<T> get(byte[] key, W window) {
-        return multimap.get(windowCoder.structuralValue(window));
+        return windowToValues.get(windowCoder.structuralValue(window));
       }
 
       @Override
@@ -135,7 +135,7 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
     };
   }
 
-  private <K, V, W extends BoundedWindow> MultimapSideInputHandler<V, W> forMultimapSideInput(
+  private <K, V, W extends BoundedWindow> SideInputHandler<V, W> forMultimapSideInput(
       List<WindowedValue<KV<K, V>>> broadcastVariable,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
@@ -154,7 +154,7 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
       }
     }
 
-    return new SideInputHandler<>(multimap.build(), keyCoder, valueCoder, windowCoder);
+    return new MultimapSideInputHandler(multimap.build(), keyCoder, valueCoder, windowCoder);
   }
 
   private <T> List<WindowedValue<T>> getBroadcastVariable(String transformId, String sideInputId) {
@@ -165,15 +165,15 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
     return runtimeContext.getBroadcastVariable(collectionNode.getId());
   }
 
-  private static class SideInputHandler<K, V, W extends BoundedWindow>
-      implements MultimapSideInputHandler<V, W> {
+  private static class MultimapSideInputHandler<K, V, W extends BoundedWindow>
+      implements SideInputHandler<V, W> {
 
     private final Multimap<SideInputKey, V> collection;
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
     private final Coder<W> windowCoder;
 
-    private SideInputHandler(
+    private MultimapSideInputHandler(
         Multimap<SideInputKey, V> collection,
         Coder<K> keyCoder,
         Coder<V> valueCoder,
