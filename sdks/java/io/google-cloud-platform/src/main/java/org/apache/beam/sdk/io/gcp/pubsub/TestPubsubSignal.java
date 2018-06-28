@@ -30,7 +30,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
-import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -254,17 +254,19 @@ public class TestPubsubSignal implements TestRule {
     private SerializableFunction<Set<T>, Boolean> successPredicate;
     // keep all events seen so far in the state cell
 
-    @StateId("seenEvents")
-    private final StateSpec<SetState<T>> seenEvents;
+    private static final String SEEN_EVENTS = "seenEvents";
+
+    @StateId(SEEN_EVENTS)
+    private final StateSpec<BagState<T>> seenEvents;
 
     StatefulPredicateCheck(Coder<T> coder, SerializableFunction<Set<T>, Boolean> successPredicate) {
-      this.seenEvents = StateSpecs.set(coder);
+      this.seenEvents = StateSpecs.bag(coder);
       this.successPredicate = successPredicate;
     }
 
     @ProcessElement
     public void processElement(
-        ProcessContext context, @StateId("seenEvents") SetState<T> seenEvents) {
+        ProcessContext context, @StateId(SEEN_EVENTS) BagState<T> seenEvents) {
 
       seenEvents.add(context.element().getValue());
       ImmutableSet<T> eventsSoFar = ImmutableSet.copyOf(seenEvents.read());
