@@ -79,8 +79,8 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
     final String workerId = headerAccessor.getSdkWorkerId();
     if (Strings.isNullOrEmpty(workerId)) {
-      throw new StatusRuntimeException(
-              Status.INVALID_ARGUMENT.withDescription("No worker_id header provided"));
+      // TODO(BEAM-4149): Enforce proper worker id.
+      LOGGER.warn("No worker_id header provided in control request");
     }
 
     LOGGER.info("Beam Fn Control client connected with id {}", workerId);
