@@ -37,17 +37,24 @@ public class StreamingInserts<DestinationT>
   private boolean extendedErrorInfo;
 
   /** Constructor. */
-  public StreamingInserts(CreateDisposition createDisposition,
-                   DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this(createDisposition, dynamicDestinations, new BigQueryServicesImpl(),
-        InsertRetryPolicy.alwaysRetry(), false);
+  public StreamingInserts(
+      CreateDisposition createDisposition,
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this(
+        createDisposition,
+        dynamicDestinations,
+        new BigQueryServicesImpl(),
+        InsertRetryPolicy.alwaysRetry(),
+        false);
   }
 
   /** Constructor. */
-  private StreamingInserts(CreateDisposition createDisposition,
-                          DynamicDestinations<?, DestinationT> dynamicDestinations,
-                          BigQueryServices bigQueryServices,
-                          InsertRetryPolicy retryPolicy, boolean extendedErrorInfo) {
+  private StreamingInserts(
+      CreateDisposition createDisposition,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      BigQueryServices bigQueryServices,
+      InsertRetryPolicy retryPolicy,
+      boolean extendedErrorInfo) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
@@ -55,20 +62,16 @@ public class StreamingInserts<DestinationT>
     this.extendedErrorInfo = extendedErrorInfo;
   }
 
-  /**
-   * Specify a retry policy for failed inserts.
-   */
+  /** Specify a retry policy for failed inserts. */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
         createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
   }
 
-  /**
-   * Specify whether to use extended error info or not.
-   */
+  /** Specify whether to use extended error info or not. */
   public StreamingInserts<DestinationT> withExtendedErrorInfo(boolean extendedErrorInfo) {
-    return new StreamingInserts<>(createDisposition, dynamicDestinations, bigQueryServices,
-        retryPolicy, extendedErrorInfo);
+    return new StreamingInserts<>(
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {

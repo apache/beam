@@ -1490,11 +1490,8 @@ public class BigQueryIO {
     /**
      * Enables extended error information by enabling {@link WriteResult#getFailedInsertsWithErr()}
      *
-     * <p>ATM this only works if using {@link Method#STREAMING_INSERTS}.
-     * See {@link Write#withMethod(Method)}.
-     *
-     * <p>Disclaimer: Enabling this may cause your job not to be able to update
-     * (you may need to drain it before)
+     * <p>ATM this only works if using {@link Method#STREAMING_INSERTS}. See {@link
+     * Write#withMethod(Method)}.
      */
     public Write<T> withExtendedErrorInfo() {
       return toBuilder().setExtendedErrorInfo(true).build();
