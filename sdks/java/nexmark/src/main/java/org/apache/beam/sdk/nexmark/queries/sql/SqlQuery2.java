@@ -34,8 +34,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Query 2, 'Filtering. Find bids with specific auction ids and show their bid price.
- * In CQL syntax:
+ * Query 2, 'Filtering. Find bids with specific auction ids and show their bid price. In CQL syntax:
  *
  * <pre>
  * SELECT Rstream(auction, price)
@@ -43,9 +42,8 @@ import org.apache.beam.sdk.values.Row;
  * WHERE auction = 1007 OR auction = 1020 OR auction = 2001 OR auction = 2019 OR auction = 2087;
  * </pre>
  *
- * <p>As written that query will only yield a few hundred results over event streams of
- * arbitrary size. To make it more interesting we instead choose bids for every
- * {@code skipFactor}'th auction.
+ * <p>As written that query will only yield a few hundred results over event streams of arbitrary
+ * size. To make it more interesting we instead choose bids for every {@code skipFactor}'th auction.
  */
 public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<AuctionPrice>> {
 
@@ -66,16 +64,15 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Auctio
   public PCollection<AuctionPrice> expand(PCollection<Event> allEvents) {
     RowCoder bidRecordCoder = getBidRowCoder();
 
-    PCollection<Row> bidEventsRows = allEvents
-        .apply(Filter.by(IS_BID))
-        .apply(getName() + ".ToRow", ToRow.parDo())
-        .setCoder(bidRecordCoder);
+    PCollection<Row> bidEventsRows =
+        allEvents
+            .apply(Filter.by(IS_BID))
+            .apply(getName() + ".ToRow", ToRow.parDo())
+            .setCoder(bidRecordCoder);
 
     PCollection<Row> queryResultsRows = bidEventsRows.apply(query);
 
-    return queryResultsRows
-        .apply(auctionPriceParDo())
-        .setCoder(AuctionPrice.CODER);
+    return queryResultsRows.apply(auctionPriceParDo()).setCoder(AuctionPrice.CODER);
   }
 
   private RowCoder getBidRowCoder() {

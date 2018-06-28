@@ -34,9 +34,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 
-/**
- * Wrapper around the generated {@link Dataflow} client to provide common functionality.
- */
+/** Wrapper around the generated {@link Dataflow} client to provide common functionality. */
 public class DataflowClient {
 
   public static DataflowClient create(DataflowPipelineOptions options) {
@@ -51,93 +49,113 @@ public class DataflowClient {
     this.options = checkNotNull(options, "options");
   }
 
-  /**
-   * Creates the Dataflow {@link Job}.
-   */
+  /** Creates the Dataflow {@link Job}. */
   public Job createJob(@Nonnull Job job) throws IOException {
     checkNotNull(job, "job");
-    Jobs.Create jobsCreate = dataflow.projects().locations().jobs()
-        .create(options.getProject(), options.getRegion(), job);
+    Jobs.Create jobsCreate =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .create(options.getProject(), options.getRegion(), job);
     return jobsCreate.execute();
   }
 
   /**
-   * Lists Dataflow {@link Job Jobs} in the project associated with
-   * the {@link DataflowPipelineOptions}.
+   * Lists Dataflow {@link Job Jobs} in the project associated with the {@link
+   * DataflowPipelineOptions}.
    */
   public ListJobsResponse listJobs(@Nullable String pageToken) throws IOException {
-    Jobs.List jobsList = dataflow.projects().locations().jobs()
-        .list(options.getProject(), options.getRegion())
-        .setPageToken(pageToken);
+    Jobs.List jobsList =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .list(options.getProject(), options.getRegion())
+            .setPageToken(pageToken);
     return jobsList.execute();
   }
 
-  /**
-   * Updates the Dataflow {@link Job} with the given {@code jobId}.
-   */
+  /** Updates the Dataflow {@link Job} with the given {@code jobId}. */
   public Job updateJob(@Nonnull String jobId, @Nonnull Job content) throws IOException {
     checkNotNull(jobId, "jobId");
     checkNotNull(content, "content");
-    Jobs.Update jobsUpdate = dataflow.projects().locations().jobs()
-        .update(options.getProject(), options.getRegion(), jobId, content);
+    Jobs.Update jobsUpdate =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .update(options.getProject(), options.getRegion(), jobId, content);
     return jobsUpdate.execute();
   }
 
-  /**
-   * Gets the Dataflow {@link Job} with the given {@code jobId}.
-   */
+  /** Gets the Dataflow {@link Job} with the given {@code jobId}. */
   public Job getJob(@Nonnull String jobId) throws IOException {
     checkNotNull(jobId, "jobId");
-    Jobs.Get jobsGet = dataflow.projects().locations().jobs()
-        .get(options.getProject(), options.getRegion(), jobId);
+    Jobs.Get jobsGet =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .get(options.getProject(), options.getRegion(), jobId);
     return jobsGet.execute();
   }
 
-  /**
-   * Gets the {@link JobMetrics} with the given {@code jobId}.
-   */
+  /** Gets the {@link JobMetrics} with the given {@code jobId}. */
   public JobMetrics getJobMetrics(@Nonnull String jobId) throws IOException {
     checkNotNull(jobId, "jobId");
-    Jobs.GetMetrics jobsGetMetrics = dataflow.projects().locations().jobs()
-        .getMetrics(options.getProject(), options.getRegion(), jobId);
+    Jobs.GetMetrics jobsGetMetrics =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .getMetrics(options.getProject(), options.getRegion(), jobId);
     return jobsGetMetrics.execute();
   }
 
-  /**
-   * Lists job messages with the given {@code jobId}.
-   */
-  public ListJobMessagesResponse listJobMessages(
-      @Nonnull String jobId, @Nullable String pageToken) throws IOException {
+  /** Lists job messages with the given {@code jobId}. */
+  public ListJobMessagesResponse listJobMessages(@Nonnull String jobId, @Nullable String pageToken)
+      throws IOException {
     checkNotNull(jobId, "jobId");
-    Jobs.Messages.List jobMessagesList = dataflow.projects().locations().jobs().messages()
-        .list(options.getProject(), options.getRegion(), jobId)
-        .setPageToken(pageToken);
+    Jobs.Messages.List jobMessagesList =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .messages()
+            .list(options.getProject(), options.getRegion(), jobId)
+            .setPageToken(pageToken);
     return jobMessagesList.execute();
   }
 
-  /**
-   * Leases the work item for {@code jobId}.
-   */
-  @SuppressWarnings("unused")  // used internally in the Cloud Dataflow execution environment.
+  /** Leases the work item for {@code jobId}. */
+  @SuppressWarnings("unused") // used internally in the Cloud Dataflow execution environment.
   public LeaseWorkItemResponse leaseWorkItem(
       @Nonnull String jobId, @Nonnull LeaseWorkItemRequest request) throws IOException {
     checkNotNull(jobId, "jobId");
     checkNotNull(request, "request");
-    Jobs.WorkItems.Lease jobWorkItemsLease = dataflow.projects().locations().jobs().workItems()
-        .lease(options.getProject(), options.getRegion(), jobId, request);
+    Jobs.WorkItems.Lease jobWorkItemsLease =
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .workItems()
+            .lease(options.getProject(), options.getRegion(), jobId, request);
     return jobWorkItemsLease.execute();
   }
 
-  /**
-   * Reports the status of the work item for {@code jobId}.
-   */
-  @SuppressWarnings("unused")  // used internally in the Cloud Dataflow execution environment.
+  /** Reports the status of the work item for {@code jobId}. */
+  @SuppressWarnings("unused") // used internally in the Cloud Dataflow execution environment.
   public ReportWorkItemStatusResponse reportWorkItemStatus(
       @Nonnull String jobId, @Nonnull ReportWorkItemStatusRequest request) throws IOException {
     checkNotNull(jobId, "jobId");
     checkNotNull(request, "request");
     Jobs.WorkItems.ReportStatus jobWorkItemsReportStatus =
-        dataflow.projects().locations().jobs().workItems()
+        dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .workItems()
             .reportStatus(options.getProject(), options.getRegion(), jobId, request);
     return jobWorkItemsReportStatus.execute();
   }

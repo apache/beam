@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal utilities to translate Beam pipelines to Spark streaming.
- */
+/** Internal utilities to translate Beam pipelines to Spark streaming. */
 package org.apache.beam.runners.spark.translation.streaming;

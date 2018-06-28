@@ -40,9 +40,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Partition}.
- */
+/** Tests for {@link Partition}. */
 @RunWith(JUnit4.class)
 public class PartitionTest implements Serializable {
 
@@ -63,18 +61,17 @@ public class PartitionTest implements Serializable {
     }
   }
 
-
   @Test
   @Category(NeedsRunner.class)
   public void testEvenOddPartition() {
 
-    PCollectionList<Integer> outputs = pipeline
-        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
-        .apply(Partition.of(2, new ModFn()));
+    PCollectionList<Integer> outputs =
+        pipeline
+            .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
+            .apply(Partition.of(2, new ModFn()));
     assertTrue(outputs.size() == 2);
     PAssert.that(outputs.get(0)).containsInAnyOrder(24578);
-    PAssert.that(outputs.get(1)).containsInAnyOrder(591, 11789, 1257,
-        24799, 307);
+    PAssert.that(outputs.get(1)).containsInAnyOrder(591, 11789, 1257, 24799, 307);
     pipeline.run();
   }
 
@@ -82,9 +79,8 @@ public class PartitionTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testModPartition() {
 
-    PCollectionList<Integer> outputs = pipeline
-        .apply(Create.of(1, 2, 4, 5))
-        .apply(Partition.of(3, new ModFn()));
+    PCollectionList<Integer> outputs =
+        pipeline.apply(Create.of(1, 2, 4, 5)).apply(Partition.of(3, new ModFn()));
     assertTrue(outputs.size() == 3);
     PAssert.that(outputs.get(0)).empty();
     PAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
@@ -96,13 +92,10 @@ public class PartitionTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testOutOfBoundsPartitions() {
 
-    pipeline
-    .apply(Create.of(-1))
-    .apply(Partition.of(5, new IdentityFn()));
+    pipeline.apply(Create.of(-1)).apply(Partition.of(5, new IdentityFn()));
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage(
-        "Partition function returned out of bounds index: -1 not in [0..5)");
+    thrown.expectMessage("Partition function returned out of bounds index: -1 not in [0..5)");
     pipeline.run();
   }
 
@@ -121,9 +114,10 @@ public class PartitionTest implements Serializable {
   public void testDroppedPartition() {
 
     // Compute the set of integers either 1 or 2 mod 3, the hard way.
-    PCollectionList<Integer> outputs = pipeline
-        .apply(Create.of(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
-        .apply(Partition.of(3, new ModFn()));
+    PCollectionList<Integer> outputs =
+        pipeline
+            .apply(Create.of(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+            .apply(Partition.of(3, new ModFn()));
 
     List<PCollection<Integer>> outputsList = new ArrayList<>(outputs.getAll());
     outputsList.remove(0);
@@ -153,9 +147,10 @@ public class PartitionTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testModPartitionWithLambda() {
 
-    PCollectionList<Integer> outputs = pipeline
-        .apply(Create.of(1, 2, 4, 5))
-        .apply(Partition.of(3, (element, numPartitions) -> element % numPartitions));
+    PCollectionList<Integer> outputs =
+        pipeline
+            .apply(Create.of(1, 2, 4, 5))
+            .apply(Partition.of(3, (element, numPartitions) -> element % numPartitions));
     assertEquals(3, outputs.size());
     PAssert.that(outputs.get(0)).empty();
     PAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
@@ -171,9 +166,8 @@ public class PartitionTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testPartitionFnOutputTypeDescriptorRaw() throws Exception {
 
-    PCollectionList<String> output = pipeline
-        .apply(Create.of("hello"))
-        .apply(Partition.of(1, (element, numPartitions) -> 0));
+    PCollectionList<String> output =
+        pipeline.apply(Create.of("hello")).apply(Partition.of(1, (element, numPartitions) -> 0));
 
     thrown.expect(CannotProvideCoderException.class);
     pipeline.getCoderRegistry().getCoder(output.get(0).getTypeDescriptor());

@@ -33,9 +33,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.joda.time.Duration;
 
-/**
- * Helper for working with pubsub and gcs.
- */
+/** Helper for working with pubsub and gcs. */
 public class PubsubHelper {
   /** Underlying pub/sub client. */
   private final PubsubClient pubsubClient;
@@ -61,17 +59,17 @@ public class PubsubHelper {
     createdTopics = new ArrayList<>();
     createdSubscriptions = new ArrayList<>();
     sleeper = Sleeper.DEFAULT;
-    backOff = FluentBackoff.DEFAULT
-      .withInitialBackoff(Duration.standardSeconds(1))
-      .withMaxRetries(3)
-      .backoff();
+    backOff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(1))
+            .withMaxRetries(3)
+            .backoff();
   }
 
   /** Create a helper. */
   public static PubsubHelper create(PubsubOptions options) throws IOException {
     return new PubsubHelper(
-      PubsubJsonClient.FACTORY.newClient(null, null, options),
-      options.getProject());
+        PubsubJsonClient.FACTORY.newClient(null, null, options), options.getProject());
   }
 
   /**
@@ -101,8 +99,9 @@ public class PubsubHelper {
     }
   }
 
-  /** Create a topic from short name if it does not already exist. The topic will not be
-   * deleted on cleanup. Return full topic name.
+  /**
+   * Create a topic from short name if it does not already exist. The topic will not be deleted on
+   * cleanup. Return full topic name.
    */
   public TopicPath createOrReuseTopic(String shortTopic) throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
@@ -129,8 +128,8 @@ public class PubsubHelper {
   }
 
   /**
-   * Check a topic corresponding to short name exists, and throw exception if not. The
-   * topic will not be deleted on cleanup. Return full topic name.
+   * Check a topic corresponding to short name exists, and throw exception if not. The topic will
+   * not be deleted on cleanup. Return full topic name.
    */
   public TopicPath reuseTopic(String shortTopic) throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
@@ -145,20 +144,20 @@ public class PubsubHelper {
   public boolean topicExists(String shortTopic) throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
     return pubsubClient
-      .listTopics(PubsubClient.projectPathFromId(project))
-      .stream()
-      .anyMatch(topic::equals);
+        .listTopics(PubsubClient.projectPathFromId(project))
+        .stream()
+        .anyMatch(topic::equals);
   }
 
   /**
-   * Create subscription from short name. Ensure the subscription will be deleted
-   * on cleanup. Return full subscription name.
+   * Create subscription from short name. Ensure the subscription will be deleted on cleanup. Return
+   * full subscription name.
    */
   public SubscriptionPath createSubscription(String shortTopic, String shortSubscription)
       throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
-    SubscriptionPath subscription = PubsubClient.subscriptionPathFromName(project,
-                                                                          shortSubscription);
+    SubscriptionPath subscription =
+        PubsubClient.subscriptionPathFromName(project, shortSubscription);
     while (true) {
       try {
         NexmarkUtils.console("create subscription %s", subscription);
@@ -184,10 +183,10 @@ public class PubsubHelper {
    * Check a subscription corresponding to short name exists, and throw exception if not. The
    * subscription will not be deleted on cleanup. Return full topic name.
    */
-  public SubscriptionPath reuseSubscription(String shortTopic,
-                                            String shortSubscription) throws IOException {
-    SubscriptionPath subscription = PubsubClient.subscriptionPathFromName(project,
-                                                                          shortSubscription);
+  public SubscriptionPath reuseSubscription(String shortTopic, String shortSubscription)
+      throws IOException {
+    SubscriptionPath subscription =
+        PubsubClient.subscriptionPathFromName(project, shortSubscription);
     if (subscriptionExists(shortTopic, shortSubscription)) {
       NexmarkUtils.console("reusing existing subscription %s", subscription);
       return subscription;
@@ -199,12 +198,12 @@ public class PubsubHelper {
   public boolean subscriptionExists(String shortTopic, String shortSubscription)
       throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
-    SubscriptionPath subscription = PubsubClient.subscriptionPathFromName(project,
-                                                                          shortSubscription);
+    SubscriptionPath subscription =
+        PubsubClient.subscriptionPathFromName(project, shortSubscription);
     return pubsubClient
-      .listSubscriptions(PubsubClient.projectPathFromId(project), topic)
-      .stream()
-      .anyMatch(subscription::equals);
+        .listSubscriptions(PubsubClient.projectPathFromId(project), topic)
+        .stream()
+        .anyMatch(subscription::equals);
   }
 
   /** Delete all the subscriptions and topics we created. */

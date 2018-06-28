@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Gearpump specific wrappers for Beam DoFn.
- */
+/** Gearpump specific wrappers for Beam DoFn. */
 package org.apache.beam.runners.gearpump.translators.functions;

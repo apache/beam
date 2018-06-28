@@ -68,9 +68,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
 
   static class Factory<InputT, RestrictionT, OutputT>
       extends DoFnPTransformRunnerFactory<
-          KV<InputT, RestrictionT>,
-          InputT,
-          OutputT,
+          KV<InputT, RestrictionT>, InputT, OutputT,
           SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>> {
 
     @Override

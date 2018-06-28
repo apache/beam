@@ -18,18 +18,17 @@
 package org.apache.beam.runners.dataflow;
 
 /**
- * An exception that is thrown if the unique job name constraint of the Dataflow
- * service is broken because an existing job with the same job name is currently active.
- * The {@link DataflowPipelineJob} contained within this exception contains information
- * about the pre-existing job.
+ * An exception that is thrown if the unique job name constraint of the Dataflow service is broken
+ * because an existing job with the same job name is currently active. The {@link
+ * DataflowPipelineJob} contained within this exception contains information about the pre-existing
+ * job.
  */
 public class DataflowJobAlreadyExistsException extends DataflowJobException {
   /**
    * Create a new {@code DataflowJobAlreadyExistsException} with the specified {@link
    * DataflowPipelineJob} and message.
    */
-  public DataflowJobAlreadyExistsException(
-      DataflowPipelineJob job, String message) {
+  public DataflowJobAlreadyExistsException(DataflowPipelineJob job, String message) {
     super(job, message, null);
   }
 }

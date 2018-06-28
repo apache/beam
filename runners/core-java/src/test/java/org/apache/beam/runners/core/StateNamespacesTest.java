@@ -30,9 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StateNamespaces}.
- */
+/** Tests for {@link StateNamespaces}. */
 @RunWith(JUnit4.class)
 public class StateNamespacesTest {
 
@@ -44,8 +42,8 @@ public class StateNamespacesTest {
 
   /**
    * This test should not be changed. It verifies that the stringKey matches certain expectations.
-   * If this changes, the ability to reload any pipeline that has persisted these namespaces will
-   * be impacted.
+   * If this changes, the ability to reload any pipeline that has persisted these namespaces will be
+   * impacted.
    */
   @Test
   public void testStability() {
@@ -54,10 +52,10 @@ public class StateNamespacesTest {
         StateNamespaces.window(intervalCoder, intervalWindow(1000, 87392));
     StateNamespace intervalWindowAndTrigger =
         StateNamespaces.windowAndTrigger(intervalCoder, intervalWindow(1000, 87392), 57);
-    StateNamespace globalWindow = StateNamespaces.window(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
-    StateNamespace globalWindowAndTrigger = StateNamespaces.windowAndTrigger(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE, 12);
+    StateNamespace globalWindow =
+        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
+    StateNamespace globalWindowAndTrigger =
+        StateNamespaces.windowAndTrigger(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE, 12);
 
     assertEquals("/", global.stringKey());
     assertEquals("/gAAAAAABVWD4ogU/", intervalWindow.stringKey());
@@ -66,31 +64,28 @@ public class StateNamespacesTest {
     assertEquals("//C/", globalWindowAndTrigger.stringKey());
   }
 
-  /**
-   * Test that WindowAndTrigger namespaces are prefixed by the related Window namespace.
-   */
+  /** Test that WindowAndTrigger namespaces are prefixed by the related Window namespace. */
   @Test
   public void testIntervalWindowPrefixing() {
-    StateNamespace window =
-        StateNamespaces.window(intervalCoder, intervalWindow(1000, 87392));
-    StateNamespace windowAndTrigger = StateNamespaces.windowAndTrigger(
-        intervalCoder, intervalWindow(1000, 87392), 57);
+    StateNamespace window = StateNamespaces.window(intervalCoder, intervalWindow(1000, 87392));
+    StateNamespace windowAndTrigger =
+        StateNamespaces.windowAndTrigger(intervalCoder, intervalWindow(1000, 87392), 57);
     assertThat(windowAndTrigger.stringKey(), Matchers.startsWith(window.stringKey()));
-    assertThat(StateNamespaces.global().stringKey(),
+    assertThat(
+        StateNamespaces.global().stringKey(),
         Matchers.not(Matchers.startsWith(window.stringKey())));
   }
 
-  /**
-   * Test that WindowAndTrigger namespaces are prefixed by the related Window namespace.
-   */
+  /** Test that WindowAndTrigger namespaces are prefixed by the related Window namespace. */
   @Test
   public void testGlobalWindowPrefixing() {
     StateNamespace window =
         StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
-    StateNamespace windowAndTrigger = StateNamespaces.windowAndTrigger(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE, 57);
+    StateNamespace windowAndTrigger =
+        StateNamespaces.windowAndTrigger(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE, 57);
     assertThat(windowAndTrigger.stringKey(), Matchers.startsWith(window.stringKey()));
-    assertThat(StateNamespaces.global().stringKey(),
+    assertThat(
+        StateNamespaces.global().stringKey(),
         Matchers.not(Matchers.startsWith(window.stringKey())));
   }
 
@@ -106,20 +101,25 @@ public class StateNamespacesTest {
     assertStringKeyRoundTrips(
         intervalCoder, StateNamespaces.window(intervalCoder, intervalWindow(1000, 8000)));
 
-    assertStringKeyRoundTrips(intervalCoder,
+    assertStringKeyRoundTrips(
+        intervalCoder,
         StateNamespaces.windowAndTrigger(intervalCoder, intervalWindow(1000, 8000), 18));
-    assertStringKeyRoundTrips(intervalCoder,
+    assertStringKeyRoundTrips(
+        intervalCoder,
         StateNamespaces.windowAndTrigger(intervalCoder, intervalWindow(1000, 8000), 19));
-    assertStringKeyRoundTrips(intervalCoder,
+    assertStringKeyRoundTrips(
+        intervalCoder,
         StateNamespaces.windowAndTrigger(intervalCoder, intervalWindow(2000, 8000), 19));
   }
 
   @Test
   public void testFromStringGlobalWindow() {
     assertStringKeyRoundTrips(GlobalWindow.Coder.INSTANCE, StateNamespaces.global());
-    assertStringKeyRoundTrips(GlobalWindow.Coder.INSTANCE,
+    assertStringKeyRoundTrips(
+        GlobalWindow.Coder.INSTANCE,
         StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE));
-    assertStringKeyRoundTrips(GlobalWindow.Coder.INSTANCE,
+    assertStringKeyRoundTrips(
+        GlobalWindow.Coder.INSTANCE,
         StateNamespaces.windowAndTrigger(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE, 18));
   }
 

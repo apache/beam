@@ -32,43 +32,40 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * A bid for an item on auction.
- */
+/** A bid for an item on auction. */
 public class Bid implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  public static final Coder<Bid> CODER = new CustomCoder<Bid>() {
-    @Override
-    public void encode(Bid value, OutputStream outStream)
-        throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream);
-      LONG_CODER.encode(value.bidder, outStream);
-      LONG_CODER.encode(value.price, outStream);
-      LONG_CODER.encode(value.dateTime, outStream);
-      STRING_CODER.encode(value.extra, outStream);
-    }
+  public static final Coder<Bid> CODER =
+      new CustomCoder<Bid>() {
+        @Override
+        public void encode(Bid value, OutputStream outStream) throws CoderException, IOException {
+          LONG_CODER.encode(value.auction, outStream);
+          LONG_CODER.encode(value.bidder, outStream);
+          LONG_CODER.encode(value.price, outStream);
+          LONG_CODER.encode(value.dateTime, outStream);
+          STRING_CODER.encode(value.extra, outStream);
+        }
 
-    @Override
-    public Bid decode(
-        InputStream inStream)
-        throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream);
-      long bidder = LONG_CODER.decode(inStream);
-      long price = LONG_CODER.decode(inStream);
-      long dateTime = LONG_CODER.decode(inStream);
-      String extra = STRING_CODER.decode(inStream);
-      return new Bid(auction, bidder, price, dateTime, extra);
-    }
+        @Override
+        public Bid decode(InputStream inStream) throws CoderException, IOException {
+          long auction = LONG_CODER.decode(inStream);
+          long bidder = LONG_CODER.decode(inStream);
+          long price = LONG_CODER.decode(inStream);
+          long dateTime = LONG_CODER.decode(inStream);
+          String extra = STRING_CODER.decode(inStream);
+          return new Bid(auction, bidder, price, dateTime, extra);
+        }
 
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
 
-    @Override
-    public Object structuralValue(Bid v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(Bid v) {
+          return v;
+        }
+      };
 
   /**
    * Comparator to order bids by ascending price then descending time (for finding winning bids).
@@ -96,27 +93,22 @@ public class Bid implements KnownSize, Serializable {
       };
 
   /** Id of auction this bid is for. */
-  @JsonProperty
-  public final long auction; // foreign key: Auction.id
+  @JsonProperty public final long auction; // foreign key: Auction.id
 
   /** Id of person bidding in auction. */
-  @JsonProperty
-  public final long bidder; // foreign key: Person.id
+  @JsonProperty public final long bidder; // foreign key: Person.id
 
   /** Price of bid, in cents. */
-  @JsonProperty
-  public final long price;
+  @JsonProperty public final long price;
 
   /**
-   * Instant at which bid was made (ms since epoch).
-   * NOTE: This may be earlier than the system's event time.
+   * Instant at which bid was made (ms since epoch). NOTE: This may be earlier than the system's
+   * event time.
    */
-  @JsonProperty
-  public final long dateTime;
+  @JsonProperty public final long dateTime;
 
   /** Additional arbitrary payload for performance testing. */
-  @JsonProperty
-  public final String extra;
+  @JsonProperty public final String extra;
 
   // For Avro only.
   @SuppressWarnings("unused")
@@ -136,24 +128,17 @@ public class Bid implements KnownSize, Serializable {
     this.extra = extra;
   }
 
-  /**
-   * Return a copy of bid which capture the given annotation.
-   * (Used for debugging).
-   */
+  /** Return a copy of bid which capture the given annotation. (Used for debugging). */
   public Bid withAnnotation(String annotation) {
     return new Bid(auction, bidder, price, dateTime, annotation + ": " + extra);
   }
 
-  /**
-   * Does bid have {@code annotation}? (Used for debugging.)
-   */
+  /** Does bid have {@code annotation}? (Used for debugging.) */
   public boolean hasAnnotation(String annotation) {
     return extra.startsWith(annotation + ": ");
   }
 
-  /**
-   * Remove {@code annotation} from bid. (Used for debugging.)
-   */
+  /** Remove {@code annotation} from bid. (Used for debugging.) */
   public Bid withoutAnnotation(String annotation) {
     if (hasAnnotation(annotation)) {
       return new Bid(auction, bidder, price, dateTime, extra.substring(annotation.length() + 2));

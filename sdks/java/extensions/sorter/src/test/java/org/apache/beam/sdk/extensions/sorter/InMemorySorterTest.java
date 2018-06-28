@@ -72,9 +72,7 @@ public class InMemorySorterTest {
     fail();
   }
 
-  /**
-   * Verify an exception is thrown when the in memory sorter runs out of space.
-   */
+  /** Verify an exception is thrown when the in memory sorter runs out of space. */
   @Test
   public void testOutOfSpace() throws Exception {
     thrown.expect(IllegalStateException.class);

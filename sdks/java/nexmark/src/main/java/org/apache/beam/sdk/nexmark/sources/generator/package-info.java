@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * org.apache.beam.sdk.nexmark.sources.generator.
- */
+/** org.apache.beam.sdk.nexmark.sources.generator. */
 
-/**
- * Events generation logic.
- */
+/** Events generation logic. */
 package org.apache.beam.sdk.nexmark.sources.generator;

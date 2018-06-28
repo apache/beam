@@ -153,7 +153,6 @@ public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBas
     }
 
     @Override
-    public void onCompleted() {
-    }
+    public void onCompleted() {}
   }
 }

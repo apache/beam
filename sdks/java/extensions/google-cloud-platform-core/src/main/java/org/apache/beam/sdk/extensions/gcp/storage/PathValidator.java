@@ -49,8 +49,7 @@ public interface PathValidator {
   void validateOutputResourceSupported(ResourceId resourceId);
 
   /**
-   * Validate that a path is a valid path and that the path
-   * is accessible.
+   * Validate that a path is a valid path and that the path is accessible.
    *
    * @param path The path to verify.
    * @return The post-validation path.

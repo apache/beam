@@ -31,19 +31,21 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link StringUtf8Coder}.
- */
+/** Test case for {@link StringUtf8Coder}. */
 @RunWith(JUnit4.class)
 public class StringUtf8CoderTest {
 
   private static final Coder<String> TEST_CODER = StringUtf8Coder.of();
 
-  private static final List<String> TEST_VALUES = Arrays.asList(
-      "", "a", "13", "hello",
-      "a longer string with spaces and all that",
-      "a string with a \n newline",
-      "スタリング");
+  private static final List<String> TEST_VALUES =
+      Arrays.asList(
+          "",
+          "a",
+          "13",
+          "hello",
+          "a longer string with spaces and all that",
+          "a string with a \n newline",
+          "スタリング");
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -53,25 +55,25 @@ public class StringUtf8CoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "",
-      "YQ",
-      "MTM",
-      "aGVsbG8",
-      "YSBsb25nZXIgc3RyaW5nIHdpdGggc3BhY2VzIGFuZCBhbGwgdGhhdA",
-      "YSBzdHJpbmcgd2l0aCBhIAogbmV3bGluZQ",
-      "44K544K_44Oq44Oz44Kw");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "",
+          "YQ",
+          "MTM",
+          "aGVsbG8",
+          "YSBsb25nZXIgc3RyaW5nIHdpdGggc3BhY2VzIGFuZCBhbGwgdGhhdA",
+          "YSBzdHJpbmcgd2l0aCBhIAogbmV3bGluZQ",
+          "44K544K_44Oq44Oz44Kw");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

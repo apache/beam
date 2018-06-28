@@ -25,8 +25,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * Flink {@link FlatMapFunction} for implementing
- * {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}.
+ * Flink {@link FlatMapFunction} for implementing {@link
+ * org.apache.beam.sdk.transforms.windowing.Window.Assign}.
  */
 public class FlinkAssignWindows<T, W extends BoundedWindow>
     implements FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
@@ -38,10 +38,10 @@ public class FlinkAssignWindows<T, W extends BoundedWindow>
   }
 
   @Override
-  public void flatMap(
-      WindowedValue<T> input, Collector<WindowedValue<T>> collector) throws Exception {
+  public void flatMap(WindowedValue<T> input, Collector<WindowedValue<T>> collector)
+      throws Exception {
     Collection<W> windows = windowFn.assignWindows(new FlinkAssignContext<>(windowFn, input));
-    for (W window: windows) {
+    for (W window : windows) {
       collector.collect(
           WindowedValue.of(input.getValue(), input.getTimestamp(), window, input.getPane()));
     }

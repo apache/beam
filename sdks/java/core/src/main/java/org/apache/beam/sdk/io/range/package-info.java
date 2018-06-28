@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 /**
- * Provides thread-safe helpers for implementing dynamic work rebalancing in position-based
- * bounded sources.
+ * Provides thread-safe helpers for implementing dynamic work rebalancing in position-based bounded
+ * sources.
  *
  * <p>See {@link org.apache.beam.sdk.io.range.RangeTracker} to get started.
  */

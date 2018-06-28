@@ -49,9 +49,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link ReadTranslation}.
- */
+/** Tests for {@link ReadTranslation}. */
 @RunWith(Parameterized.class)
 public class ReadTranslationTest {
 

@@ -60,8 +60,8 @@ public class CassandraServiceImplTest {
 
   @Test
   public void testDistance() {
-    BigInteger distance = CassandraServiceImpl.distance(new BigInteger("10"),
-        new BigInteger("100"));
+    BigInteger distance =
+        CassandraServiceImpl.distance(new BigInteger("10"), new BigInteger("100"));
     assertEquals(BigInteger.valueOf(90), distance);
 
     distance = CassandraServiceImpl.distance(new BigInteger("100"), new BigInteger("10"));
@@ -72,13 +72,15 @@ public class CassandraServiceImplTest {
   public void testRingFraction() {
     // simulate a first range taking "half" of the available tokens
     List<CassandraServiceImpl.TokenRange> tokenRanges = new ArrayList<>();
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1,
-        BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("0")));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1, BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("0")));
     assertEquals(0.5, CassandraServiceImpl.getRingFraction(tokenRanges), 0);
 
     // add a second range to cover all tokens available
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1,
-        new BigInteger("0"), BigInteger.valueOf(Long.MAX_VALUE)));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1, new BigInteger("0"), BigInteger.valueOf(Long.MAX_VALUE)));
     assertEquals(1.0, CassandraServiceImpl.getRingFraction(tokenRanges), 0);
   }
 
@@ -86,25 +88,30 @@ public class CassandraServiceImplTest {
   public void testEstimatedSizeBytes() {
     List<CassandraServiceImpl.TokenRange> tokenRanges = new ArrayList<>();
     // one partition containing all tokens, the size is actually the size of the partition
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1000,
-        BigInteger.valueOf(Long.MIN_VALUE), BigInteger.valueOf(Long.MAX_VALUE)));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, BigInteger.valueOf(Long.MIN_VALUE), BigInteger.valueOf(Long.MAX_VALUE)));
     assertEquals(1000, CassandraServiceImpl.getEstimatedSizeBytes(tokenRanges));
 
     // one partition with half of the tokens, we estimate the size to the double of this partition
     tokenRanges = new ArrayList<>();
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1000,
-        BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("0")));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("0")));
     assertEquals(2000, CassandraServiceImpl.getEstimatedSizeBytes(tokenRanges));
 
     // we have three partitions covering all tokens, the size is the sum of partition size *
     // partition count
     tokenRanges = new ArrayList<>();
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1000,
-        BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("-3")));
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1000,
-        new BigInteger("-2"), new BigInteger("10000")));
-    tokenRanges.add(new CassandraServiceImpl.TokenRange(2, 3000,
-        new BigInteger("10001"), BigInteger.valueOf(Long.MAX_VALUE)));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("-3")));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, new BigInteger("-2"), new BigInteger("10000")));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            2, 3000, new BigInteger("10001"), BigInteger.valueOf(Long.MAX_VALUE)));
     assertEquals(8000, CassandraServiceImpl.getEstimatedSizeBytes(tokenRanges));
   }
 }

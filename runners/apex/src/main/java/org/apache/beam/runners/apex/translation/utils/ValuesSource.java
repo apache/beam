@@ -34,9 +34,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
 
-/**
- * Unbounded source that reads from a Java {@link Iterable}.
- */
+/** Unbounded source that reads from a Java {@link Iterable}. */
 public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
   private static final long serialVersionUID = 1L;
 
@@ -61,8 +59,8 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public UnboundedReader<T> createReader(PipelineOptions options,
-      @Nullable CheckpointMark checkpointMark) {
+  public UnboundedReader<T> createReader(
+      PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
     ByteArrayInputStream bis = new ByteArrayInputStream(codedValues);
     try {
       Iterable<T> values = this.iterableCoder.decode(bis, Context.OUTER);
@@ -124,8 +122,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 
     @Override
     public Instant getWatermark() {

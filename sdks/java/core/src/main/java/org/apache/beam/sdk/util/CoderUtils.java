@@ -30,25 +30,22 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * Utilities for working with Coders.
- */
+/** Utilities for working with Coders. */
 public final class CoderUtils {
-  private CoderUtils() {}  // Non-instantiable
+  private CoderUtils() {} // Non-instantiable
 
-  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
-      threadLocalOutputStream = new ThreadLocal<>();
+  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>> threadLocalOutputStream =
+      new ThreadLocal<>();
 
   /** If true, a call to {@code encodeToByteArray} is already on the call stack. */
   private static ThreadLocal<Boolean> threadLocalOutputStreamInUse =
       ThreadLocal.withInitial(() -> false);
 
   /**
-   * Encodes the given value using the specified Coder, and returns
-   * the encoded bytes.
+   * Encodes the given value using the specified Coder, and returns the encoded bytes.
    *
-   * <p>This function is not reentrant; it should not be called from methods of the provided
-   * {@link Coder}.
+   * <p>This function is not reentrant; it should not be called from methods of the provided {@link
+   * Coder}.
    */
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value) throws CoderException {
     return encodeToByteArray(coder, value, Coder.Context.OUTER);
@@ -76,8 +73,8 @@ public final class CoderUtils {
 
   /**
    * Encodes {@code value} to the given {@code stream}, which should be a stream that never throws
-   * {@code IOException}, such as {@code ByteArrayOutputStream} or
-   * {@link ExposedByteArrayOutputStream}.
+   * {@code IOException}, such as {@code ByteArrayOutputStream} or {@link
+   * ExposedByteArrayOutputStream}.
    */
   private static <T> void encodeToSafeStream(
       Coder<T> coder, T value, OutputStream stream, Coder.Context context) throws CoderException {
@@ -85,15 +82,11 @@ public final class CoderUtils {
       coder.encode(value, new UnownedOutputStream(stream), context);
     } catch (IOException exn) {
       Throwables.propagateIfPossible(exn, CoderException.class);
-      throw new IllegalArgumentException(
-          "Forbidden IOException when writing to OutputStream", exn);
+      throw new IllegalArgumentException("Forbidden IOException when writing to OutputStream", exn);
     }
   }
 
-  /**
-   * Decodes the given bytes using the specified Coder, and returns
-   * the resulting decoded value.
-   */
+  /** Decodes the given bytes using the specified Coder, and returns the resulting decoded value. */
   public static <T> T decodeFromByteArray(Coder<T> coder, byte[] encodedValue)
       throws CoderException {
     return decodeFromByteArray(coder, encodedValue, Coder.Context.OUTER);
@@ -113,8 +106,8 @@ public final class CoderUtils {
 
   /**
    * Decodes a value from the given {@code stream}, which should be a stream that never throws
-   * {@code IOException}, such as {@code ByteArrayInputStream} or
-   * {@link ExposedByteArrayInputStream}.
+   * {@code IOException}, such as {@code ByteArrayInputStream} or {@link
+   * ExposedByteArrayInputStream}.
    */
   private static <T> T decodeFromSafeStream(
       Coder<T> coder, InputStream stream, Coder.Context context) throws CoderException {
@@ -141,8 +134,8 @@ public final class CoderUtils {
   /**
    * Clones the given value by encoding and then decoding it with the specified Coder.
    *
-   * <p>This function is not reentrant; it should not be called from methods of the provided
-   * {@link Coder}.
+   * <p>This function is not reentrant; it should not be called from methods of the provided {@link
+   * Coder}.
    */
   public static <T> T clone(Coder<T> coder, T value) throws CoderException {
     return decodeFromByteArray(coder, encodeToByteArray(coder, value));
@@ -154,15 +147,12 @@ public final class CoderUtils {
    *
    * @throws CoderException if there are errors during encoding.
    */
-  public static <T> String encodeToBase64(Coder<T> coder, T value)
-      throws CoderException {
+  public static <T> String encodeToBase64(Coder<T> coder, T value) throws CoderException {
     byte[] rawValue = encodeToByteArray(coder, value);
     return BaseEncoding.base64Url().omitPadding().encode(rawValue);
   }
 
-  /**
-   * Parses a value from a base64-encoded String using the given coder.
-   */
+  /** Parses a value from a base64-encoded String using the given coder. */
   public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) throws CoderException {
     return decodeFromSafeStream(
         coder,
@@ -171,8 +161,8 @@ public final class CoderUtils {
   }
 
   /**
-   * If {@code coderType} is a subclass of {@code Coder<T>} for a specific
-   * type {@code T}, returns {@code T.class}.
+   * If {@code coderType} is a subclass of {@code Coder<T>} for a specific type {@code T}, returns
+   * {@code T.class}.
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {

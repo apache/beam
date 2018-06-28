@@ -31,9 +31,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-/**
- * Tests for PipelineResources.
- */
+/** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
 public class PipelineResourcesTest {
 
@@ -44,12 +42,11 @@ public class PipelineResourcesTest {
   public void detectClassPathResourceWithFileResources() throws Exception {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {
-        file.toURI().toURL(),
-        file2.toURI().toURL()
-    });
+    URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
 
-    assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
+    assertEquals(
+        ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
         PipelineResources.detectClassPathResourcesToStage(classLoader));
   }
 
@@ -65,9 +62,7 @@ public class PipelineResourcesTest {
   @Test
   public void detectClassPathResourceWithNonFileResources() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {
-        new URL(url)
-    });
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to convert url (" + url + ") to file.");
 

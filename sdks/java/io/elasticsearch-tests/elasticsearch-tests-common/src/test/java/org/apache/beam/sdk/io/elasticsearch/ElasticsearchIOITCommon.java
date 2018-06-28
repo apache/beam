@@ -27,8 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.elasticsearch.client.RestClient;
 
 /**
- * Manipulates test data used by the {@link ElasticsearchIO}
- * integration tests.
+ * Manipulates test data used by the {@link ElasticsearchIO} integration tests.
  *
  * <p>This is independent from the tests so that for read tests it can be run separately after data
  * store creation rather than every time (which can be more fragile.)
@@ -42,6 +41,7 @@ public class ElasticsearchIOITCommon {
     WRITE_PARTIAL(ES_INDEX + "_partial_" + System.currentTimeMillis());
 
     private final String index;
+
     IndexMode(String index) {
       this.index = index;
     }
@@ -80,23 +80,18 @@ public class ElasticsearchIOITCommon {
     ConnectionConfiguration connectionConfiguration =
         getConnectionConfiguration(options, IndexMode.READ);
     try (RestClient restClient = connectionConfiguration.createClient()) {
-      ElasticSearchIOTestUtils
-          .insertTestDocuments(connectionConfiguration, NUM_DOCS_ITESTS, restClient);
+      ElasticSearchIOTestUtils.insertTestDocuments(
+          connectionConfiguration, NUM_DOCS_ITESTS, restClient);
     }
   }
 
   static ConnectionConfiguration getConnectionConfiguration(
       IOTestPipelineOptions options, IndexMode mode) {
     return ConnectionConfiguration.create(
-            new String[] {
-              "http://"
-                  + options.getElasticsearchServer()
-                  + ":"
-                  + options.getElasticsearchHttpPort()
-            },
-            mode.getIndex(),
-            ES_TYPE);
+        new String[] {
+          "http://" + options.getElasticsearchServer() + ":" + options.getElasticsearchHttpPort()
+        },
+        mode.getIndex(),
+        ES_TYPE);
   }
-
-
 }

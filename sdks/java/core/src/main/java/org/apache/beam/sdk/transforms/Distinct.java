@@ -124,8 +124,8 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
         ParDo.of(
             new DoFn<KV<T, Void>, T>() {
               @ProcessElement
-              public void processElement(@Element KV<T, Void> element, PaneInfo pane,
-                                         OutputReceiver<T> receiver) {
+              public void processElement(
+                  @Element KV<T, Void> element, PaneInfo pane, OutputReceiver<T> receiver) {
                 if (pane.isFirst()) {
                   // Only output the key if it's the first time it's been seen.
                   receiver.output(element.getKey());
@@ -188,8 +188,8 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
           ParDo.of(
               new DoFn<KV<IdT, T>, T>() {
                 @ProcessElement
-                public void processElement(@Element KV<IdT, T> element, PaneInfo pane,
-                                           OutputReceiver<T> receiver) {
+                public void processElement(
+                    @Element KV<IdT, T> element, PaneInfo pane, OutputReceiver<T> receiver) {
                   // Only output the value if it's the first time it's been seen.
                   if (pane.isFirst()) {
                     receiver.output(element.getValue());

@@ -23,17 +23,15 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * wrapper over UnboundedSource for Gearpump DataSource API.
- */
+/** wrapper over UnboundedSource for Gearpump DataSource API. */
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends GearpumpSource<OutputT> {
 
   private static final long serialVersionUID = -2453956849834747150L;
   private final UnboundedSource<OutputT, CheckpointMarkT> source;
 
-  public UnboundedSourceWrapper(UnboundedSource<OutputT, CheckpointMarkT> source,
-      PipelineOptions options) {
+  public UnboundedSourceWrapper(
+      UnboundedSource<OutputT, CheckpointMarkT> source, PipelineOptions options) {
     super(options);
     this.source = source;
   }

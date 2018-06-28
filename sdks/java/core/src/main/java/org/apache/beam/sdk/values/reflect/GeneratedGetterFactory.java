@@ -34,15 +34,16 @@ import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.DynamicType;
 
 /**
- * Implements and creates an instance of the {@link FieldValueGetter} for each public
- * getter method of the pojo class.
+ * Implements and creates an instance of the {@link FieldValueGetter} for each public getter method
+ * of the pojo class.
  *
- * <p>Generated {@link FieldValueGetter#get(Object)} calls the corresponding
- * getter method of the pojo.
+ * <p>Generated {@link FieldValueGetter#get(Object)} calls the corresponding getter method of the
+ * pojo.
  *
  * <p>Generated {@link FieldValueGetter#name()} strips the 'get' from the getter method name.
  *
  * <p>For example if pojo looks like
+ *
  * <pre>{@code
  * public class PojoClass {
  *   public String getPojoNameField() { ... }
@@ -50,6 +51,7 @@ import net.bytebuddy.dynamic.DynamicType;
  * }</pre>
  *
  * <p>Then, class name aside, generated {@link FieldValueGetter} will look like:
+ *
  * <pre>{@code
  * public class FieldValueGetterGenerated implements FieldValueGetter<PojoType> {
  *   public String name() {
@@ -68,17 +70,15 @@ import net.bytebuddy.dynamic.DynamicType;
  *
  * <p>ByteBuddy is used to generate the code. Class naming is left to ByteBuddy's defaults.
  *
- * <p>Class is injected into ByteBuddyUtils.class.getClassLoader().
- * See {@link ByteBuddyUtils#makeNewGetterInstance(String, DynamicType.Builder)}
- * and ByteBuddy documentation for details.
+ * <p>Class is injected into ByteBuddyUtils.class.getClassLoader(). See {@link
+ * ByteBuddyUtils#makeNewGetterInstance(String, DynamicType.Builder)} and ByteBuddy documentation
+ * for details.
  */
 class GeneratedGetterFactory implements GetterFactory {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  /**
-   * Returns the list of the getters, one for each public getter of the pojoClass.
-   */
+  /** Returns the list of the getters, one for each public getter of the pojoClass. */
   @Override
   public List<FieldValueGetter> generateGetters(Class pojoClass) {
     ImmutableList.Builder<FieldValueGetter> getters = ImmutableList.builder();

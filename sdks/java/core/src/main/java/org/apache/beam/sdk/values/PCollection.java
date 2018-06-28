@@ -41,34 +41,31 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
- * A {@link PCollection PCollection&lt;T&gt;} is an immutable collection of values of type
- * {@code T}.  A {@link PCollection} can contain either a bounded or unbounded
- * number of elements.  Bounded and unbounded {@link PCollection PCollections} are produced
- * as the output of {@link PTransform PTransforms}
- * (including root PTransforms like {@link Read} and {@link Create}), and can
- * be passed as the inputs of other PTransforms.
+ * A {@link PCollection PCollection&lt;T&gt;} is an immutable collection of values of type {@code
+ * T}. A {@link PCollection} can contain either a bounded or unbounded number of elements. Bounded
+ * and unbounded {@link PCollection PCollections} are produced as the output of {@link PTransform
+ * PTransforms} (including root PTransforms like {@link Read} and {@link Create}), and can be passed
+ * as the inputs of other PTransforms.
  *
- * <p>Some root transforms produce bounded {@code PCollections} and others
- * produce unbounded ones. For example, {@link GenerateSequence#from} with
- * {@link GenerateSequence#to} produces a fixed set of integers, so it produces a bounded
- * {@link PCollection}. {@link GenerateSequence#from} without a {@link GenerateSequence#to}
- * produces all integers as an infinite stream, so it produces an unbounded {@link PCollection}.
+ * <p>Some root transforms produce bounded {@code PCollections} and others produce unbounded ones.
+ * For example, {@link GenerateSequence#from} with {@link GenerateSequence#to} produces a fixed set
+ * of integers, so it produces a bounded {@link PCollection}. {@link GenerateSequence#from} without
+ * a {@link GenerateSequence#to} produces all integers as an infinite stream, so it produces an
+ * unbounded {@link PCollection}.
  *
  * <p>Each element in a {@link PCollection} has an associated timestamp. Readers assign timestamps
- * to elements when they create {@link PCollection PCollections}, and other
- * {@link PTransform PTransforms} propagate these timestamps from their input to their output. See
- * the documentation on {@link BoundedReader} and {@link UnboundedReader} for more information on
- * how these readers produce timestamps and watermarks.
+ * to elements when they create {@link PCollection PCollections}, and other {@link PTransform
+ * PTransforms} propagate these timestamps from their input to their output. See the documentation
+ * on {@link BoundedReader} and {@link UnboundedReader} for more information on how these readers
+ * produce timestamps and watermarks.
  *
- * <p>Additionally, a {@link PCollection} has an associated
- * {@link WindowFn} and each element is assigned to a set of windows.
- * By default, the windowing function is {@link GlobalWindows}
- * and all elements are assigned into a single default window.
- * This default can be overridden with the {@link Window}
- * {@link PTransform}.
+ * <p>Additionally, a {@link PCollection} has an associated {@link WindowFn} and each element is
+ * assigned to a set of windows. By default, the windowing function is {@link GlobalWindows} and all
+ * elements are assigned into a single default window. This default can be overridden with the
+ * {@link Window} {@link PTransform}.
  *
- * <p>See the individual {@link PTransform} subclasses for specific information
- * on how they propagate timestamps and windowing.
+ * <p>See the individual {@link PTransform} subclasses for specific information on how they
+ * propagate timestamps and windowing.
  *
  * @param <T> the type of the elements of this {@link PCollection}
  */
@@ -91,10 +88,9 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * After building, finalizes this {@link PValue} to make it ready for
-   * running.  Automatically invoked whenever the {@link PValue} is "used"
-   * (e.g., when apply() is called on it) and when the Pipeline is
-   * run (useful if this is a {@link PValue} with no consumers).
+   * After building, finalizes this {@link PValue} to make it ready for running. Automatically
+   * invoked whenever the {@link PValue} is "used" (e.g., when apply() is called on it) and when the
+   * Pipeline is run (useful if this is a {@link PValue} with no consumers).
    */
   @Override
   public void finishSpecifying(PInput input, PTransform<?, ?> transform) {
@@ -109,10 +105,9 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Returns a {@link TypeDescriptor TypeDescriptor&lt;T&gt;} with some reflective information
-   * about {@code T}, if possible. May return {@code null} if no information
-   * is available. Subclasses may override this to enable better
-   * {@code Coder} inference.
+   * Returns a {@link TypeDescriptor TypeDescriptor&lt;T&gt;} with some reflective information about
+   * {@code T}, if possible. May return {@code null} if no information is available. Subclasses may
+   * override this to enable better {@code Coder} inference.
    */
   @Nullable
   public TypeDescriptor<T> getTypeDescriptor() {
@@ -153,23 +148,27 @@ public class PCollection<T> extends PValueBase implements PValue {
         // and provide a better error message if so. Unfortunately, this information is not
         // directly available from the TypeDescriptor, so infer based on the type of the PTransform
         // and the error message itself.
-        if (transform instanceof ParDo.MultiOutput
-            && exc.getReason() == ReasonCode.TYPE_ERASURE) {
-          inferFromTokenException = new CannotProvideCoderException(exc.getMessage()
-              + " If this error occurs for an output of the producing ParDo, verify that the "
-              + "TupleTag for this output is constructed with proper type information (see "
-              + "TupleTag Javadoc) or explicitly set the Coder to use if this is not possible.");
+        if (transform instanceof ParDo.MultiOutput && exc.getReason() == ReasonCode.TYPE_ERASURE) {
+          inferFromTokenException =
+              new CannotProvideCoderException(
+                  exc.getMessage()
+                      + " If this error occurs for an output of the producing ParDo, verify that the "
+                      + "TupleTag for this output is constructed with proper type information (see "
+                      + "TupleTag Javadoc) or explicitly set the Coder to use if this is not possible.");
         }
       }
     }
 
     // Build up the error message and list of causes.
-    StringBuilder messageBuilder = new StringBuilder()
-        .append("Unable to return a default Coder for ").append(this)
-        .append(". Correct one of the following root causes:");
+    StringBuilder messageBuilder =
+        new StringBuilder()
+            .append("Unable to return a default Coder for ")
+            .append(this)
+            .append(". Correct one of the following root causes:");
 
     // No exception, but give the user a message about .setCoder() has not been called.
-    messageBuilder.append("\n  No Coder has been manually specified; ")
+    messageBuilder
+        .append("\n  No Coder has been manually specified; ")
         .append(" you may do so using .setCoder().");
 
     if (inferFromTokenException != null) {
@@ -188,17 +187,11 @@ public class PCollection<T> extends PValueBase implements PValue {
     return new CoderOrFailure<>(null, messageBuilder.toString());
   }
 
-  /**
-   * The enumeration of cases for whether a {@link PCollection} is bounded.
-   */
+  /** The enumeration of cases for whether a {@link PCollection} is bounded. */
   public enum IsBounded {
-    /**
-     * Indicates that a {@link PCollection} contains a bounded number of elements.
-     */
+    /** Indicates that a {@link PCollection} contains a bounded number of elements. */
     BOUNDED,
-    /**
-     * Indicates that a {@link PCollection} contains an unbounded number of elements.
-     */
+    /** Indicates that a {@link PCollection} contains an unbounded number of elements. */
     UNBOUNDED;
 
     /**
@@ -219,9 +212,8 @@ public class PCollection<T> extends PValueBase implements PValue {
   /**
    * Returns the name of this {@link PCollection}.
    *
-   * <p>By default, the name of a {@link PCollection} is based on the name of the
-   * {@link PTransform} that produces it.  It can be specified explicitly by
-   * calling {@link #setName}.
+   * <p>By default, the name of a {@link PCollection} is based on the name of the {@link PTransform}
+   * that produces it. It can be specified explicitly by calling {@link #setName}.
    *
    * @throws IllegalStateException if the name hasn't been set yet
    */
@@ -236,11 +228,10 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets the name of this {@link PCollection}.  Returns {@code this}.
+   * Sets the name of this {@link PCollection}. Returns {@code this}.
    *
-   * @throws IllegalStateException if this {@link PCollection} has already been
-   * finalized and may no longer be set.
-   * Once {@link #apply} has been called, this will be the case.
+   * @throws IllegalStateException if this {@link PCollection} has already been finalized and may no
+   *     longer be set. Once {@link #apply} has been called, this will be the case.
    */
   @Override
   public PCollection<T> setName(String name) {
@@ -249,11 +240,10 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Returns the {@link Coder} used by this {@link PCollection} to encode and decode
-   * the values stored in it.
+   * Returns the {@link Coder} used by this {@link PCollection} to encode and decode the values
+   * stored in it.
    *
-   * @throws IllegalStateException if the {@link Coder} hasn't been set, and
-   * couldn't be inferred.
+   * @throws IllegalStateException if the {@link Coder} hasn't been set, and couldn't be inferred.
    */
   public Coder<T> getCoder() {
     checkState(coderOrFailure.coder != null, coderOrFailure.failure);
@@ -261,24 +251,21 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets the {@link Coder} used by this {@link PCollection} to encode and decode the
-   * values stored in it. Returns {@code this}.
+   * Sets the {@link Coder} used by this {@link PCollection} to encode and decode the values stored
+   * in it. Returns {@code this}.
    *
-   * @throws IllegalStateException if this {@link PCollection} has already
-   * been finalized and may no longer be set.
-   * Once {@link #apply} has been called, this will be the case.
+   * @throws IllegalStateException if this {@link PCollection} has already been finalized and may no
+   *     longer be set. Once {@link #apply} has been called, this will be the case.
    */
   public PCollection<T> setCoder(Coder<T> coder) {
-    checkState(
-        !isFinishedSpecifying(), "cannot change the Coder of %s once it's been used", this);
+    checkState(!isFinishedSpecifying(), "cannot change the Coder of %s once it's been used", this);
     checkArgument(coder != null, "Cannot setCoder(null)");
     this.coderOrFailure = new CoderOrFailure<>(coder, null);
     return this;
   }
 
   /**
-   * Like {@link #apply(String, PTransform)} but defaulting to the name
-   * of the {@link PTransform}.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name of the {@link PTransform}.
    *
    * @return the output of the applied {@link PTransform}
    */
@@ -287,10 +274,10 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Applies the given {@link PTransform} to this input {@link PCollection},
-   * using {@code name} to identify this specific application of the transform.
-   * This name is used in various places, including the monitoring UI, logging,
-   * and to stably identify this application node in the job graph.
+   * Applies the given {@link PTransform} to this input {@link PCollection}, using {@code name} to
+   * identify this specific application of the transform. This name is used in various places,
+   * including the monitoring UI, logging, and to stably identify this application node in the job
+   * graph.
    *
    * @return the output of the applied {@link PTransform}
    */
@@ -299,9 +286,7 @@ public class PCollection<T> extends PValueBase implements PValue {
     return Pipeline.applyTransform(name, this, t);
   }
 
-  /**
-   * Returns the {@link WindowingStrategy} of this {@link PCollection}.
-   */
+  /** Returns the {@link WindowingStrategy} of this {@link PCollection}. */
   public WindowingStrategy<?, ?> getWindowingStrategy() {
     return windowingStrategy;
   }
@@ -323,9 +308,7 @@ public class PCollection<T> extends PValueBase implements PValue {
 
   private IsBounded isBounded;
 
-  /**
-   * A local {@link TupleTag} used in the expansion of this {@link PValueBase}.
-   */
+  /** A local {@link TupleTag} used in the expansion of this {@link PValueBase}. */
   private final TupleTag<?> tag = new TupleTag<>();
 
   private PCollection(Pipeline p, WindowingStrategy<?, ?> windowingStrategy, IsBounded isBounded) {
@@ -335,37 +318,31 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets the {@link TypeDescriptor TypeDescriptor&lt;T&gt;} for this
-   * {@link PCollection PCollection&lt;T&gt;}. This may allow the enclosing
-   * {@link PCollectionTuple}, {@link PCollectionList}, or {@code PTransform<?, PCollection<T>>},
-   * etc., to provide more detailed reflective information.
+   * Sets the {@link TypeDescriptor TypeDescriptor&lt;T&gt;} for this {@link PCollection
+   * PCollection&lt;T&gt;}. This may allow the enclosing {@link PCollectionTuple}, {@link
+   * PCollectionList}, or {@code PTransform<?, PCollection<T>>}, etc., to provide more detailed
+   * reflective information.
    */
   public PCollection<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor) {
     this.typeDescriptor = typeDescriptor;
     return this;
   }
 
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   */
+  /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
   @Internal
   public PCollection<T> setWindowingStrategyInternal(WindowingStrategy<?, ?> windowingStrategy) {
-     this.windowingStrategy = windowingStrategy;
-     return this;
+    this.windowingStrategy = windowingStrategy;
+    return this;
   }
 
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   */
+  /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
   @Internal
   public PCollection<T> setIsBoundedInternal(IsBounded isBounded) {
     this.isBounded = isBounded;
     return this;
   }
 
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   */
+  /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
   @Internal
   public static <T> PCollection<T> createPrimitiveOutputInternal(
       Pipeline pipeline,

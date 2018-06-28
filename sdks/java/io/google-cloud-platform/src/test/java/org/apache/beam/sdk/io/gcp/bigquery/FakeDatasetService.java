@@ -51,8 +51,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
-  static com.google.common.collect.Table<String, String, Map<String, TableContainer>>
-      tables;
+  static com.google.common.collect.Table<String, String, Map<String, TableContainer>> tables;
 
   Map<String, List<String>> insertErrors = Maps.newHashMap();
 
@@ -62,16 +61,14 @@ public class FakeDatasetService implements DatasetService, Serializable {
   }
 
   @Override
-  public Table getTable(TableReference tableRef)
-      throws InterruptedException, IOException {
+  public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
     synchronized (tables) {
       Map<String, TableContainer> dataset =
-              tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
+          tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such dataset was set",
-            tableRef.getProjectId(),
-            tableRef.getDatasetId());
+            tableRef.getProjectId(), tableRef.getDatasetId());
       }
       TableContainer tableContainer = dataset.get(tableRef.getTableId());
       return tableContainer == null ? null : tableContainer.getTable();
@@ -91,17 +88,13 @@ public class FakeDatasetService implements DatasetService, Serializable {
       Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         throwNotFound(
-            "Tried to get a dataset %s:%s, but no such dataset was set",
-            projectId,
-            datasetId);
+            "Tried to get a dataset %s:%s, but no such dataset was set", projectId, datasetId);
       }
       TableContainer tableContainer = dataset.get(tableId);
       if (tableContainer == null) {
         throwNotFound(
             "Tried to get a table %s:%s.%s, but no such table was set",
-            projectId,
-            datasetId,
-            tableId);
+            projectId, datasetId, tableId);
       }
       return tableContainer;
     }
@@ -116,8 +109,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such table was set",
-            tableRef.getProjectId(),
-            tableRef.getDatasetId());
+            tableRef.getProjectId(), tableRef.getDatasetId());
       }
       dataset.remove(tableRef.getTableId());
     }
@@ -150,32 +142,30 @@ public class FakeDatasetService implements DatasetService, Serializable {
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such table was set",
-            tableReference.getProjectId(),
-            tableReference.getDatasetId());
+            tableReference.getProjectId(), tableReference.getDatasetId());
       }
       dataset.computeIfAbsent(tableReference.getTableId(), k -> new TableContainer(table));
     }
   }
 
   @Override
-  public boolean isTableEmpty(TableReference tableRef)
-      throws IOException, InterruptedException {
+  public boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException {
     Long numBytes = getTable(tableRef).getNumBytes();
     return numBytes == null || numBytes == 0L;
   }
 
   @Override
-  public Dataset getDataset(
-      String projectId, String datasetId) throws IOException, InterruptedException {
+  public Dataset getDataset(String projectId, String datasetId)
+      throws IOException, InterruptedException {
     synchronized (tables) {
       Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
-        throwNotFound("Tried to get a dataset %s:%s, but no such table was set",
-                    projectId, datasetId);
+        throwNotFound(
+            "Tried to get a dataset %s:%s, but no such table was set", projectId, datasetId);
       }
-      return new Dataset().setDatasetReference(new DatasetReference()
-          .setDatasetId(datasetId)
-          .setProjectId(projectId));
+      return new Dataset()
+          .setDatasetReference(
+              new DatasetReference().setDatasetId(datasetId).setProjectId(projectId));
     }
   }
 
@@ -204,22 +194,28 @@ public class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
-  public long insertAll(TableReference ref, List<TableRow> rowList,
-                        @Nullable List<String> insertIdList)
+  public long insertAll(
+      TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
       throws IOException, InterruptedException {
     List<ValueInSingleWindow<TableRow>> windowedRows = Lists.newArrayList();
     for (TableRow row : rowList) {
-      windowedRows.add(ValueInSingleWindow.of(row, GlobalWindow.TIMESTAMP_MAX_VALUE,
-          GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+      windowedRows.add(
+          ValueInSingleWindow.of(
+              row,
+              GlobalWindow.TIMESTAMP_MAX_VALUE,
+              GlobalWindow.INSTANCE,
+              PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
     return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null);
   }
 
   @Override
   public long insertAll(
-      TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+      TableReference ref,
+      List<ValueInSingleWindow<TableRow>> rowList,
       @Nullable List<String> insertIdList,
-      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
+      InsertRetryPolicy retryPolicy,
+      List<ValueInSingleWindow<TableRow>> failedInserts)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
@@ -233,10 +229,11 @@ public class FakeDatasetService implements DatasetService, Serializable {
       }
 
       long dataSize = 0;
-      TableContainer tableContainer = getTableContainer(
-          ref.getProjectId(),
-          ref.getDatasetId(),
-          BigQueryHelpers.stripPartitionDecorator(ref.getTableId()));
+      TableContainer tableContainer =
+          getTableContainer(
+              ref.getProjectId(),
+              ref.getDatasetId(),
+              BigQueryHelpers.stripPartitionDecorator(ref.getTableId()));
       for (int i = 0; i < rowList.size(); ++i) {
         TableRow row = rowList.get(i).getValue();
         List<TableDataInsertAllResponse.InsertErrors> allErrors = insertErrors.get(row);
@@ -259,27 +256,30 @@ public class FakeDatasetService implements DatasetService, Serializable {
   }
 
   @Override
-  public Table patchTableDescription(TableReference tableReference,
-                                     @Nullable String tableDescription)
+  public Table patchTableDescription(
+      TableReference tableReference, @Nullable String tableDescription)
       throws IOException, InterruptedException {
     validateWholeTableReference(tableReference);
     synchronized (tables) {
-      TableContainer tableContainer = getTableContainer(tableReference.getProjectId(),
-          tableReference.getDatasetId(), tableReference.getTableId());
+      TableContainer tableContainer =
+          getTableContainer(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId());
       tableContainer.getTable().setDescription(tableDescription);
       return tableContainer.getTable();
     }
   }
 
   /**
-   * Cause a given {@link TableRow} object to fail when it's inserted. The errors link the list
-   * will be returned on subsequent retries, and the insert will succeed when the errors run out.
+   * Cause a given {@link TableRow} object to fail when it's inserted. The errors link the list will
+   * be returned on subsequent retries, and the insert will succeed when the errors run out.
    */
   public void failOnInsert(
       Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors) {
     synchronized (tables) {
-      for (Map.Entry<TableRow, List<TableDataInsertAllResponse.InsertErrors>> entry
-          : insertErrors.entrySet()) {
+      for (Map.Entry<TableRow, List<TableDataInsertAllResponse.InsertErrors>> entry :
+          insertErrors.entrySet()) {
         List<String> errorStrings = Lists.newArrayList();
         for (TableDataInsertAllResponse.InsertErrors errors : entry.getValue()) {
           errorStrings.add(BigQueryHelpers.toJsonString(errors));
@@ -297,8 +297,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
         TableRow tableRow = BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class);
         List<TableDataInsertAllResponse.InsertErrors> allErrors = Lists.newArrayList();
         for (String errorsString : entry.getValue()) {
-          allErrors.add(BigQueryHelpers.fromJsonString(
-              errorsString, TableDataInsertAllResponse.InsertErrors.class));
+          allErrors.add(
+              BigQueryHelpers.fromJsonString(
+                  errorsString, TableDataInsertAllResponse.InsertErrors.class));
         }
         parsedInsertErrors.put(tableRow, allErrors);
       }

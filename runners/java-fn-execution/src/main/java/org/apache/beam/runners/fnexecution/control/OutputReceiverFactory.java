@@ -20,9 +20,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
-/**
- * A factory that can create output receivers during an executable stage.
- */
+/** A factory that can create output receivers during an executable stage. */
 public interface OutputReceiverFactory {
   /**
    * Get a new {@link RemoteOutputReceiver} for an output PCollection.

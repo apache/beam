@@ -31,9 +31,7 @@ import java.net.SocketAddress;
 public class SocketAddressFactory {
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
 
-  /**
-   * Parse a {@link SocketAddress} from the given string.
-   */
+  /** Parse a {@link SocketAddress} from the given string. */
   public static SocketAddress createFrom(String value) {
     if (value.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
       // Unix Domain Socket address.
@@ -56,8 +54,10 @@ public class SocketAddressFactory {
     } else {
       // Standard TCP/IP address.
       HostAndPort hostAndPort = HostAndPort.fromString(value);
-      checkArgument(hostAndPort.hasPort(),
-          "Address must be a unix:// path or be in the form host:port. Got: %s", value);
+      checkArgument(
+          hostAndPort.hasPort(),
+          "Address must be a unix:// path or be in the form host:port. Got: %s",
+          value);
       return new InetSocketAddress(hostAndPort.getHost(), hostAndPort.getPort());
     }
   }

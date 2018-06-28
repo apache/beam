@@ -42,8 +42,8 @@ import org.joda.time.format.DateTimeFormatter;
 /**
  * A set of utilities for working with Avro files.
  *
- * <p>These utilities are based on the <a
- * href="https://avro.apache.org/docs/1.8.1/spec.html">Avro 1.8.1</a> specification.
+ * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
+ * 1.8.1</a> specification.
  */
 class BigQueryAvroUtils {
 
@@ -97,8 +97,8 @@ class BigQueryAvroUtils {
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
-   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
-   * "Avro format"</a> for more information.
+   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">"Avro
+   * format"</a> for more information.
    */
   static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
     return convertGenericRecordToTableRow(record, schema.getFields());
@@ -217,8 +217,7 @@ class BigQueryAvroUtils {
         throw new UnsupportedOperationException(
             String.format(
                 "Unexpected BigQuery field schema type %s for field named %s",
-                fieldSchema.getType(),
-                fieldSchema.getName()));
+                fieldSchema.getType(), fieldSchema.getName()));
     }
   }
 

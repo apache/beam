@@ -35,8 +35,8 @@ import org.apache.samza.metrics.Metric;
 import org.apache.samza.metrics.MetricsRegistryMap;
 
 /**
- * This class holds the {@link MetricsContainer}s for BEAM metrics, and update the results
- * to Samza metrics.
+ * This class holds the {@link MetricsContainer}s for BEAM metrics, and update the results to Samza
+ * metrics.
  */
 public class SamzaMetricsContainer {
   private static final String BEAM_METRICS_GROUP = "BeamMetrics";
@@ -61,10 +61,8 @@ public class SamzaMetricsContainer {
   public void updateMetrics() {
     assert metricsRegistry != null;
 
-    final MetricResults metricResults =
-        asAttemptedOnlyMetricResults(metricsContainers);
-    final MetricQueryResults results =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
+    final MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainers);
+    final MetricQueryResults results = metricResults.queryMetrics(MetricsFilter.builder().build());
 
     final CounterUpdater updateCounter = new CounterUpdater();
     results.getCounters().forEach(updateCounter);
@@ -107,7 +105,9 @@ public class SamzaMetricsContainer {
 
   private static String getMetricName(MetricResult<?> metricResult) {
     return metricResult.getStep()
-        + DELIMITER + metricResult.getName().getNamespace()
-        + DELIMITER + metricResult.getName().getName();
+        + DELIMITER
+        + metricResult.getName().getNamespace()
+        + DELIMITER
+        + metricResult.getName().getName();
   }
 }

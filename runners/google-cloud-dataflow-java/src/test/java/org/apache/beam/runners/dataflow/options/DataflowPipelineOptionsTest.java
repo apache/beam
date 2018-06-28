@@ -161,10 +161,11 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation("file://temp_location");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Error constructing default value for stagingLocation: "
-        + "failed to retrieve gcpTempLocation.");
-    thrown.expectCause(hasMessage(containsString(
-        "Error constructing default value for gcpTempLocation")));
+    thrown.expectMessage(
+        "Error constructing default value for stagingLocation: "
+            + "failed to retrieve gcpTempLocation.");
+    thrown.expectCause(
+        hasMessage(containsString("Error constructing default value for gcpTempLocation")));
     options.getStagingLocation();
   }
 
@@ -175,9 +176,8 @@ public class DataflowPipelineOptionsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Error constructing default value for stagingLocation: gcpTempLocation is not"
-        + " a valid GCS path");
-    thrown.expectCause(
-        hasMessage(containsString("Expected a valid 'gs://' path")));
+            + " a valid GCS path");
+    thrown.expectCause(hasMessage(containsString("Expected a valid 'gs://' path")));
     options.getStagingLocation();
   }
 

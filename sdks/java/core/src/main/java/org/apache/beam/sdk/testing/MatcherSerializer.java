@@ -25,13 +25,14 @@ import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
 
-/**
- * MatcherSerializer is used with Jackson to enable serialization of SerializableMatchers.
- */
+/** MatcherSerializer is used with Jackson to enable serialization of SerializableMatchers. */
 class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {
   @Override
-  public void serialize(SerializableMatcher<?> matcher, JsonGenerator jsonGenerator,
-      SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+  public void serialize(
+      SerializableMatcher<?> matcher,
+      JsonGenerator jsonGenerator,
+      SerializerProvider serializerProvider)
+      throws IOException, JsonProcessingException {
     byte[] out = SerializableUtils.serializeToByteArray(matcher);
     String encodedString = BaseEncoding.base64().encode(out);
     jsonGenerator.writeStartObject();

@@ -25,13 +25,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 
 /**
- * Receives elements grouped by their (sharded) destination, and writes them out to a file.
- * Since all the elements in the {@link Iterable} are destined to the same table, they are all
- * written to the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
+ * Receives elements grouped by their (sharded) destination, and writes them out to a file. Since
+ * all the elements in the {@link Iterable} are destined to the same table, they are all written to
+ * the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
  */
 class WriteGroupedRecordsToFiles<DestinationT>
-    extends DoFn<KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
-    WriteBundlesToFiles.Result<DestinationT>> {
+    extends DoFn<
+        KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
+        WriteBundlesToFiles.Result<DestinationT>> {
 
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
@@ -51,8 +52,9 @@ class WriteGroupedRecordsToFiles<DestinationT>
           writer.close();
           writer = new TableRowWriter(tempFilePrefix);
           TableRowWriter.Result result = writer.getResult();
-          c.output(new WriteBundlesToFiles.Result<>(
-              result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
+          c.output(
+              new WriteBundlesToFiles.Result<>(
+                  result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
         }
         writer.write(tableRow);
       }
@@ -65,5 +67,4 @@ class WriteGroupedRecordsToFiles<DestinationT>
         new WriteBundlesToFiles.Result<>(
             result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
   }
-
 }

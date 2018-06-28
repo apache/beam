@@ -30,15 +30,14 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.junit.Test;
 
-
 /**
  * Test that we can "force streaming" on pipelines with {@link BoundedReadFromUnboundedSource}
  * inputs using the {@link TestSparkRunner}.
  *
  * <p>The test validates that when a pipeline reads from a {@link BoundedReadFromUnboundedSource},
- * with {@link SparkPipelineOptions#setStreaming(boolean)} true
- * and using the {@link TestSparkRunner}; the {@link Read.Bounded} transform
- * is replaced by an {@link Read.Unbounded} transform.
+ * with {@link SparkPipelineOptions#setStreaming(boolean)} true and using the {@link
+ * TestSparkRunner}; the {@link Read.Bounded} transform is replaced by an {@link Read.Unbounded}
+ * transform.
  *
  * <p>This test does not execute a pipeline.
  */
@@ -71,9 +70,7 @@ public class ForceStreamingTest {
     assertThat("Expected to have an unbounded read.", unboundedReadDetector.isUnbounded);
   }
 
-  /**
-   * Traverses the Pipeline to check if the input is indeed a {@link Read.Unbounded}.
-   */
+  /** Traverses the Pipeline to check if the input is indeed a {@link Read.Unbounded}. */
   private static class UnboundedReadDetector extends Pipeline.PipelineVisitor.Defaults {
     private boolean isUnbounded = false;
 
@@ -84,6 +81,5 @@ public class ForceStreamingTest {
         isUnbounded = true;
       }
     }
-
   }
 }

@@ -25,8 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
- * Implementation of {@link ActiveWindowSet} used with {@link WindowFn WindowFns} that don't
- * support
+ * Implementation of {@link ActiveWindowSet} used with {@link WindowFn WindowFns} that don't support
  * merging.
  *
  * @param <W> the types of windows being managed

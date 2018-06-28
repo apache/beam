@@ -58,8 +58,13 @@ public class StateFetchingIteratorsTest {
 
     @Test
     public void testMultiWithEmptyByteStrings() throws Exception {
-      testFetch(ByteString.EMPTY, ByteString.copyFromUtf8("BC"), ByteString.EMPTY,
-          ByteString.EMPTY, ByteString.copyFromUtf8("DEF"), ByteString.EMPTY);
+      testFetch(
+          ByteString.EMPTY,
+          ByteString.copyFromUtf8("BC"),
+          ByteString.EMPTY,
+          ByteString.EMPTY,
+          ByteString.copyFromUtf8("DEF"),
+          ByteString.EMPTY);
     }
 
     private void testFetch(ByteString... expected) {

@@ -26,9 +26,9 @@ import org.apache.beam.sdk.annotations.Internal;
  *
  * <p>How a view should be physically materialized by a {@link PipelineRunner}.
  *
- * <p>A {@link PipelineRunner} will support some set of materializations, and will reject
- * {@link ViewFn ViewFns} that require materializations it does not support. See
- * {@link Materializations} for known implementations.
+ * <p>A {@link PipelineRunner} will support some set of materializations, and will reject {@link
+ * ViewFn ViewFns} that require materializations it does not support. See {@link Materializations}
+ * for known implementations.
  */
 @Internal
 public interface Materialization<T> {

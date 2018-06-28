@@ -20,9 +20,7 @@ package org.apache.beam.sdk.util.common;
 import java.util.Observable;
 import java.util.Observer;
 
-/**
- * An observer that gets notified when additional bytes are read and/or used.
- */
+/** An observer that gets notified when additional bytes are read and/or used. */
 public abstract class ElementByteSizeObserver implements Observer {
   private boolean isLazy = false;
   private long totalSize = 0;
@@ -30,40 +28,32 @@ public abstract class ElementByteSizeObserver implements Observer {
 
   public ElementByteSizeObserver() {}
 
-  /**
-   * Called to report element byte size.
-   */
+  /** Called to report element byte size. */
   protected abstract void reportElementSize(long elementByteSize);
 
   /**
-   * Sets byte counting for the current element as lazy. That is, the
-   * observer will get notified of the element's byte count only as
-   * element's pieces are being processed or iterated over.
+   * Sets byte counting for the current element as lazy. That is, the observer will get notified of
+   * the element's byte count only as element's pieces are being processed or iterated over.
    */
   public void setLazy() {
     isLazy = true;
   }
 
   /**
-   * Returns whether byte counting for the current element is lazy, that is,
-   * whether the observer gets notified of the element's byte count only as
-   * element's pieces are being processed or iterated over.
+   * Returns whether byte counting for the current element is lazy, that is, whether the observer
+   * gets notified of the element's byte count only as element's pieces are being processed or
+   * iterated over.
    */
   public boolean getIsLazy() {
     return isLazy;
   }
 
-  /**
-   * Updates the observer with a context specified, but without an instance of
-   * the Observable.
-   */
+  /** Updates the observer with a context specified, but without an instance of the Observable. */
   public void update(Object obj) {
     update(null, obj);
   }
 
-  /**
-   * Sets a multiplier to use on observed sizes.
-   */
+  /** Sets a multiplier to use on observed sizes. */
   public void setScalingFactor(double scalingFactor) {
     this.scalingFactor = scalingFactor;
   }
@@ -80,8 +70,8 @@ public abstract class ElementByteSizeObserver implements Observer {
   }
 
   /**
-   * Advances the observer to the next element. Adds the current total byte
-   * size to the counter, and prepares the observer for the next element.
+   * Advances the observer to the next element. Adds the current total byte size to the counter, and
+   * prepares the observer for the next element.
    */
   public void advance() {
     reportElementSize(totalSize);

@@ -21,8 +21,5 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * A set of options used to configure the {@link TestPipeline}.
- */
-public interface TestDataflowPipelineOptions extends TestPipelineOptions, DataflowPipelineOptions {
-}
+/** A set of options used to configure the {@link TestPipeline}. */
+public interface TestDataflowPipelineOptions extends TestPipelineOptions, DataflowPipelineOptions {}

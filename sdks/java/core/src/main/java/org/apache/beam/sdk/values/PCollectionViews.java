@@ -54,11 +54,11 @@ import org.apache.beam.sdk.util.CoderUtils;
 public class PCollectionViews {
 
   /**
-   * Returns a {@code PCollectionView<T>} capable of processing elements windowed
-   * using the provided {@link WindowingStrategy}.
+   * Returns a {@code PCollectionView<T>} capable of processing elements windowed using the provided
+   * {@link WindowingStrategy}.
    *
-   * <p>If {@code hasDefault} is {@code true}, then the view will take on the value
-   * {@code defaultValue} for any empty windows.
+   * <p>If {@code hasDefault} is {@code true}, then the view will take on the value {@code
+   * defaultValue} for any empty windows.
    */
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonView(
       PCollection<KV<Void, T>> pCollection,
@@ -74,12 +74,11 @@ public class PCollectionViews {
   }
 
   /**
-   * Returns a {@code PCollectionView<Iterable<T>>} capable of processing elements windowed
-   * using the provided {@link WindowingStrategy}.
+   * Returns a {@code PCollectionView<Iterable<T>>} capable of processing elements windowed using
+   * the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableView(
-      PCollection<KV<Void, T>> pCollection,
-      WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, T>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
         new IterableViewFn<T>(),
@@ -88,12 +87,11 @@ public class PCollectionViews {
   }
 
   /**
-   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed
-   * using the provided {@link WindowingStrategy}.
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
-      PCollection<KV<Void, T>> pCollection,
-      WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, T>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
         new ListViewFn<T>(),
@@ -102,12 +100,11 @@ public class PCollectionViews {
   }
 
   /**
-   * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed
-   * using the provided {@link WindowingStrategy}.
+   * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapView(
-      PCollection<KV<Void, KV<K, V>>> pCollection,
-      WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, KV<K, V>>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
         new MapViewFn<K, V>(),
@@ -120,8 +117,7 @@ public class PCollectionViews {
    * using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> multimapView(
-      PCollection<KV<Void, KV<K, V>>> pCollection,
-      WindowingStrategy<?, W> windowingStrategy) {
+      PCollection<KV<Void, KV<K, V>>> pCollection, WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
         new MultimapViewFn<K, V>(),
@@ -130,8 +126,8 @@ public class PCollectionViews {
   }
 
   /**
-   * Expands a list of {@link PCollectionView} into the form needed for
-   * {@link PTransform#getAdditionalInputs()}.
+   * Expands a list of {@link PCollectionView} into the form needed for {@link
+   * PTransform#getAdditionalInputs()}.
    */
   public static Map<TupleTag<?>, PValue> toAdditionalInputs(Iterable<PCollectionView<?>> views) {
     ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
@@ -149,8 +145,7 @@ public class PCollectionViews {
    * <p>Instantiate via {@link PCollectionViews#singletonView}.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class SingletonViewFn<T>
-      extends ViewFn<MultimapView<Void, T>, T> {
+  public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T> {
     @Nullable private byte[] encodedDefaultValue;
     @Nullable private transient T defaultValue;
     @Nullable private Coder<T> valueCoder;
@@ -169,9 +164,7 @@ public class PCollectionViews {
       }
     }
 
-    /**
-     * Returns if a default value was specified.
-     */
+    /** Returns if a default value was specified. */
     @Internal
     public boolean hasDefault() {
       return hasDefault;
@@ -230,8 +223,7 @@ public class PCollectionViews {
    * <p>Instantiate via {@link PCollectionViews#iterableView}.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class IterableViewFn<T>
-      extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
+  public static class IterableViewFn<T> extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
 
     @Override
     public Materialization<MultimapView<Void, T>> getMaterialization() {
@@ -252,8 +244,7 @@ public class PCollectionViews {
    * <p>Instantiate via {@link PCollectionViews#listView}.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class ListViewFn<T>
-      extends ViewFn<MultimapView<Void, T>, List<T>> {
+  public static class ListViewFn<T> extends ViewFn<MultimapView<Void, T>, List<T>> {
     @Override
     public Materialization<MultimapView<Void, T>> getMaterialization() {
       return Materializations.multimap();
@@ -264,7 +255,7 @@ public class PCollectionViews {
       List<T> list = new ArrayList<>();
       for (T t : primitiveViewT.get(null)) {
         list.add(t);
-            }
+      }
       return Collections.unmodifiableList(list);
     }
 
@@ -280,8 +271,8 @@ public class PCollectionViews {
   }
 
   /**
-   * Implementation which is able to adapt a multimap materialization to a
-   * {@code Map<K, Iterable<V>>}.
+   * Implementation which is able to adapt a multimap materialization to a {@code Map<K,
+   * Iterable<V>>}.
    *
    * <p>For internal use only.
    *
@@ -296,8 +287,7 @@ public class PCollectionViews {
     }
 
     @Override
-    public Map<K, Iterable<V>> apply(
-        MultimapView<Void, KV<K, V>> primitiveViewT) {
+    public Map<K, Iterable<V>> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
       // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
       // using structural value equality.
       Multimap<K, V> multimap = HashMultimap.create();
@@ -319,8 +309,7 @@ public class PCollectionViews {
    * <p>Instantiate via {@link PCollectionViews#mapView}.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class MapViewFn<K, V>
-      extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
+  public static class MapViewFn<K, V> extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
 
     @Override
     public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
@@ -343,14 +332,13 @@ public class PCollectionViews {
   }
 
   /**
-   * A class for {@link PCollectionView} implementations, with additional type parameters
-   * that are not visible at pipeline assembly time when the view is used as a side input.
+   * A class for {@link PCollectionView} implementations, with additional type parameters that are
+   * not visible at pipeline assembly time when the view is used as a side input.
    *
    * <p>For internal use only.
    */
   public static class SimplePCollectionView<ElemT, PrimitiveViewT, ViewT, W extends BoundedWindow>
-      extends PValueBase
-      implements PCollectionView<ViewT> {
+      extends PValueBase implements PCollectionView<ViewT> {
     /** The {@link PCollection} this view was originally created from. */
     private transient PCollection<ElemT> pCollection;
 
@@ -365,14 +353,12 @@ public class PCollectionViews {
     /** The coder for the elements underlying the view. */
     private @Nullable Coder<ElemT> coder;
 
-    /**
-     * The typed {@link ViewFn} for this view.
-     */
+    /** The typed {@link ViewFn} for this view. */
     private ViewFn<PrimitiveViewT, ViewT> viewFn;
 
     /**
-     * Call this constructor to initialize the fields for which this base class provides
-     * boilerplate accessors.
+     * Call this constructor to initialize the fields for which this base class provides boilerplate
+     * accessors.
      */
     private SimplePCollectionView(
         PCollection<ElemT> pCollection,
@@ -393,8 +379,8 @@ public class PCollectionViews {
     }
 
     /**
-     * Call this constructor to initialize the fields for which this base class provides
-     * boilerplate accessors, with an auto-generated tag.
+     * Call this constructor to initialize the fields for which this base class provides boilerplate
+     * accessors, with an auto-generated tag.
      */
     private SimplePCollectionView(
         PCollection<ElemT> pCollection,
@@ -430,8 +416,8 @@ public class PCollectionViews {
     }
 
     /**
-     * Returns the {@link WindowingStrategy} of this {@link PCollectionView}, which should
-     * be that of the underlying {@link PCollection}.
+     * Returns the {@link WindowingStrategy} of this {@link PCollectionView}, which should be that
+     * of the underlying {@link PCollection}.
      *
      * <p>For internal use only by runner implementors.
      */

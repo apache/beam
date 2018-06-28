@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from MQTT.
- */
+/** Transforms for reading and writing from MQTT. */
 package org.apache.beam.sdk.io.mqtt;

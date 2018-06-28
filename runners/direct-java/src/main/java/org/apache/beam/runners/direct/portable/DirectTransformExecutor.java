@@ -90,8 +90,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   public void run() {
     MetricsContainerImpl metricsContainer = new MetricsContainerImpl(transform.getId());
     try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
-      TransformEvaluator<T> evaluator =
-          evaluatorRegistry.forApplication(transform, inputBundle);
+      TransformEvaluator<T> evaluator = evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {
         onComplete.handleEmpty(transform);
         // Nothing to do
@@ -119,13 +118,9 @@ class DirectTransformExecutor<T> implements TransformExecutor {
     }
   }
 
-  /**
-   * Processes all the elements in the input bundle using the transform evaluator.
-   */
+  /** Processes all the elements in the input bundle using the transform evaluator. */
   private void processElements(
-      TransformEvaluator<T> evaluator,
-      MetricsContainerImpl metricsContainer)
-      throws Exception {
+      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer) throws Exception {
     if (inputBundle != null) {
       for (WindowedValue<T> value : inputBundle.getElements()) {
         evaluator.processElement(value);
@@ -141,15 +136,13 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   }
 
   /**
-   * Finishes processing the input bundle and commit the result using the
-   * {@link CompletionCallback}.
+   * Finishes processing the input bundle and commit the result using the {@link
+   * CompletionCallback}.
    *
-   * @return the {@link TransformResult} produced by
-   *         {@link TransformEvaluator#finishBundle()}
+   * @return the {@link TransformResult} produced by {@link TransformEvaluator#finishBundle()}
    */
   private TransformResult<T> finishBundle(
-      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer)
-      throws Exception {
+      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer) throws Exception {
     TransformResult<T> result =
         evaluator.finishBundle().withLogicalMetricUpdates(metricsContainer.getCumulative());
     onComplete.handleResult(inputBundle, result);

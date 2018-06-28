@@ -81,21 +81,17 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * Called for each value of type {@code InputT} associated with the current key.
-   */
+  /** Called for each value of type {@code InputT} associated with the current key. */
   public abstract void processValue(ProcessValueContext c) throws Exception;
 
-  /**
-   * Called when windows are merged.
-   */
+  /** Called when windows are merged. */
   public abstract void onMerge(OnMergeContext context) throws Exception;
 
   /**
    * Called when triggers fire.
    *
-   * <p>Implementations of {@link ReduceFn} should call {@link OnTriggerContext#output} to emit
-   * any results that should be included in the pane produced by this trigger firing.
+   * <p>Implementations of {@link ReduceFn} should call {@link OnTriggerContext#output} to emit any
+   * results that should be included in the pane produced by this trigger firing.
    */
   public abstract void onTrigger(OnTriggerContext context) throws Exception;
 
@@ -121,8 +117,6 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    */
   public abstract void clearState(Context context) throws Exception;
 
-  /**
-   * Returns true if the there is no buffered state.
-   */
+  /** Returns true if the there is no buffered state. */
   public abstract ReadableState<Boolean> isEmpty(StateAccessor<K> context);
 }

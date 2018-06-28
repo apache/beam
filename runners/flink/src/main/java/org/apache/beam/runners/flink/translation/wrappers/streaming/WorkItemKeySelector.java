@@ -28,13 +28,13 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
- * {@link KeySelector} that retrieves a key from a {@link KeyedWorkItem}. This will return
- * the key as encoded by the provided {@link Coder} in a {@link ByteBuffer}. This ensures
- * that all key comparisons/hashing happen on the encoded form.
+ * {@link KeySelector} that retrieves a key from a {@link KeyedWorkItem}. This will return the key
+ * as encoded by the provided {@link Coder} in a {@link ByteBuffer}. This ensures that all key
+ * comparisons/hashing happen on the encoded form.
  */
 public class WorkItemKeySelector<K, V>
     implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>,
-    ResultTypeQueryable<ByteBuffer> {
+        ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
 

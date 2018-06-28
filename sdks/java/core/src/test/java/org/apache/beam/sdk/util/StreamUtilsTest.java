@@ -63,8 +63,7 @@ public class StreamUtilsTest {
   @Test
   public void testGetBytesFromInputStream() throws IOException {
     // Any stream which is not a ByteArrayInputStream.
-    InputStream stream =
-        new BufferedInputStream(new ByteArrayInputStream(testData));
+    InputStream stream = new BufferedInputStream(new ByteArrayInputStream(testData));
     byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
     assertArrayEquals(testData, bytes);
     assertEquals(0, stream.available());

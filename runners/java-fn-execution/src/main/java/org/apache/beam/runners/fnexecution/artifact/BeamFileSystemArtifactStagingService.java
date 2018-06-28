@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This implementation is experimental.
  *
- * {@link ArtifactStagingServiceImplBase} based on beam file system. {@link
+ * <p>{@link ArtifactStagingServiceImplBase} based on beam file system. {@link
  * BeamFileSystemArtifactStagingService} requires {@link StagingSessionToken} in every me call. The
  * manifest is put in {@link StagingSessionToken#getBasePath()}/{@link
  * StagingSessionToken#getSessionId()} and artifacts are put in {@link
@@ -67,8 +67,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The manifest file is encoded in {@link ProxyManifest}.
  */
-public class BeamFileSystemArtifactStagingService extends ArtifactStagingServiceImplBase implements
-    FnService {
+public class BeamFileSystemArtifactStagingService extends ArtifactStagingServiceImplBase
+    implements FnService {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(BeamFileSystemArtifactStagingService.class);
@@ -90,24 +90,29 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     try {
       ResourceId manifestResourceId = getManifestFileResourceId(request.getStagingSessionToken());
       ResourceId artifactDirResourceId = getArtifactDirResourceId(request.getStagingSessionToken());
-      ProxyManifest.Builder proxyManifestBuilder = ProxyManifest.newBuilder()
-          .setManifest(request.getManifest());
+      ProxyManifest.Builder proxyManifestBuilder =
+          ProxyManifest.newBuilder().setManifest(request.getManifest());
       for (ArtifactMetadata artifactMetadata : request.getManifest().getArtifactList()) {
-        proxyManifestBuilder.addLocation(Location.newBuilder()
-            .setName(artifactMetadata.getName())
-            .setUri(artifactDirResourceId
-                .resolve(encodedFileName(artifactMetadata), StandardResolveOptions.RESOLVE_FILE)
-                .toString()).build());
+        proxyManifestBuilder.addLocation(
+            Location.newBuilder()
+                .setName(artifactMetadata.getName())
+                .setUri(
+                    artifactDirResourceId
+                        .resolve(
+                            encodedFileName(artifactMetadata), StandardResolveOptions.RESOLVE_FILE)
+                        .toString())
+                .build());
       }
-      try (WritableByteChannel manifestWritableByteChannel = FileSystems
-          .create(manifestResourceId, MimeTypes.TEXT)) {
-        manifestWritableByteChannel
-            .write(CHARSET.encode(JsonFormat.printer().print(proxyManifestBuilder.build())));
+      try (WritableByteChannel manifestWritableByteChannel =
+          FileSystems.create(manifestResourceId, MimeTypes.TEXT)) {
+        manifestWritableByteChannel.write(
+            CHARSET.encode(JsonFormat.printer().print(proxyManifestBuilder.build())));
       }
       // TODO: Validate integrity of staged files.
-      responseObserver.onNext(CommitManifestResponse.newBuilder()
-          .setRetrievalToken(manifestResourceId.toString())
-          .build());
+      responseObserver.onNext(
+          CommitManifestResponse.newBuilder()
+              .setRetrievalToken(manifestResourceId.toString())
+              .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
       // TODO: Cleanup all the artifacts.
@@ -137,8 +142,8 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   }
 
   private String encodedFileName(ArtifactMetadata artifactMetadata) {
-    return "artifact_" + Hashing.sha256().hashString(artifactMetadata.getName(), CHARSET)
-        .toString();
+    return "artifact_"
+        + Hashing.sha256().hashString(artifactMetadata.getName(), CHARSET).toString();
   }
 
   private static StagingSessionToken decodeStagingSessionToken(String stagingSessionToken)
@@ -161,8 +166,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     try {
       return MAPPER.writeValueAsString(stagingSessionToken);
     } catch (JsonProcessingException e) {
-      LOG.error("Error {} occurred while serializing {}.", e.getMessage(),
-          stagingSessionToken);
+      LOG.error("Error {} occurred while serializing {}.", e.getMessage(), stagingSessionToken);
       throw e;
     }
   }
@@ -171,11 +175,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     ResourceId baseResourceId;
     StagingSessionToken parsedToken = decodeStagingSessionToken(stagingSessionToken);
     // Get or Create the base path
-    baseResourceId = FileSystems
-        .matchNewResource(parsedToken.getBasePath(), true /* isDirectory */);
+    baseResourceId =
+        FileSystems.matchNewResource(parsedToken.getBasePath(), true /* isDirectory */);
     // Using sessionId as the subDir to store artifacts and manifest.
-    return baseResourceId
-        .resolve(parsedToken.getSessionId(), StandardResolveOptions.RESOLVE_DIRECTORY);
+    return baseResourceId.resolve(
+        parsedToken.getSessionId(), StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
   private ResourceId getManifestFileResourceId(String stagingSessionToken) throws Exception {
@@ -209,12 +213,13 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         metadata = putArtifactRequest.getMetadata();
         // Check the base path exists or create the base path
         try {
-          ResourceId artifactsDirId = getArtifactDirResourceId(
-              putArtifactRequest.getMetadata().getStagingSessionToken());
-          artifactId = artifactsDirId.resolve(encodedFileName(metadata.getMetadata()),
-              StandardResolveOptions.RESOLVE_FILE);
-          LOG.info("Going to stage artifact {} to {}.", metadata.getMetadata().getName(),
-              artifactId);
+          ResourceId artifactsDirId =
+              getArtifactDirResourceId(putArtifactRequest.getMetadata().getStagingSessionToken());
+          artifactId =
+              artifactsDirId.resolve(
+                  encodedFileName(metadata.getMetadata()), StandardResolveOptions.RESOLVE_FILE);
+          LOG.info(
+              "Going to stage artifact {} to {}.", metadata.getMetadata().getName(), artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
           hasher = Hashing.md5().newHasher();
         } catch (Exception e) {
@@ -249,8 +254,8 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           artifactWritableByteChannel.close();
         }
         if (artifactId != null) {
-          FileSystems.delete(Collections.singletonList(artifactId),
-              StandardMoveOptions.IGNORE_MISSING_FILES);
+          FileSystems.delete(
+              Collections.singletonList(artifactId), StandardMoveOptions.IGNORE_MISSING_FILES);
         }
 
       } catch (IOException e) {
@@ -305,9 +310,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     private String sessionId;
     private String basePath;
 
-    /**
-     * Access is public for json conversion.
-     */
+    /** Access is public for json conversion. */
     public String getSessionId() {
       return sessionId;
     }
@@ -316,9 +319,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
       this.sessionId = sessionId;
     }
 
-    /**
-     * Access is public for json conversion.
-     */
+    /** Access is public for json conversion. */
     public String getBasePath() {
       return basePath;
     }
@@ -329,8 +330,14 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
     @Override
     public String toString() {
-      return "StagingSessionToken{" + "sessionId='" + sessionId + "', " + "basePath='" + basePath
-          + "'" + "}";
+      return "StagingSessionToken{"
+          + "sessionId='"
+          + sessionId
+          + "', "
+          + "basePath='"
+          + basePath
+          + "'"
+          + "}";
     }
   }
 }

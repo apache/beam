@@ -22,9 +22,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/**
- * Shared constants between game series classes.
- */
+/** Shared constants between game series classes. */
 public class GameConstants {
 
   public static final String TIMESTAMP_ATTRIBUTE = "timestamp_ms";

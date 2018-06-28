@@ -32,27 +32,22 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/**
- * Samza override for {@link View} (side input) transforms.
- */
+/** Samza override for {@link View} (side input) transforms. */
 class SamzaPublishViewTransformOverride<ElemT, ViewT>
-    extends SingleInputOutputOverrideFactory<PCollection<ElemT>,
-                                             PCollection<ElemT>,
-                                             View.CreatePCollectionView<ElemT, ViewT>> {
+    extends SingleInputOutputOverrideFactory<
+        PCollection<ElemT>, PCollection<ElemT>, View.CreatePCollectionView<ElemT, ViewT>> {
   @Override
-  public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>>getReplacementTransform(
+  public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
       AppliedPTransform<
-          PCollection<ElemT>,
-          PCollection<ElemT>,
-          View.CreatePCollectionView<ElemT, ViewT>> transform) {
+              PCollection<ElemT>, PCollection<ElemT>, View.CreatePCollectionView<ElemT, ViewT>>
+          transform) {
 
     @SuppressWarnings("unchecked")
     PCollection<ElemT> input =
         (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values());
 
     return PTransformReplacement.of(
-        input,
-        new SamzaCreatePCollectionViewTransform<>(transform.getTransform().getView()));
+        input, new SamzaCreatePCollectionViewTransform<>(transform.getTransform().getView()));
   }
 
   private static class SamzaCreatePCollectionViewTransform<ElemT, ViewT>

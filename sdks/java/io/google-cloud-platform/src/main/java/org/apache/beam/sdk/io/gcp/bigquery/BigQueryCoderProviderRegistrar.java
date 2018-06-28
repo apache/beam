@@ -26,9 +26,7 @@ import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link CoderProviderRegistrar} for standard types used with {@link BigQueryIO}.
- */
+/** A {@link CoderProviderRegistrar} for standard types used with {@link BigQueryIO}. */
 @AutoService(CoderProviderRegistrar.class)
 public class BigQueryCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override

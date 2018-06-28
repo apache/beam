@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Gearpump specific wrappers for Beam I/O.
- */
+/** Gearpump specific wrappers for Beam I/O. */
 package org.apache.beam.runners.gearpump.translators.io;

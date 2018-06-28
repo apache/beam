@@ -48,12 +48,9 @@ public class InMemoryJobServiceTest {
   private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
   private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
 
-
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
-  @Mock
-  JobInvoker invoker;
-  @Mock
-  JobInvocation invocation;
+  @Mock JobInvoker invoker;
+  @Mock JobInvocation invocation;
 
   InMemoryJobService service;
 
@@ -69,8 +66,7 @@ public class InMemoryJobServiceTest {
   @Test
   public void testPrepareIsSuccessful() {
     JobApi.PrepareJobRequest request =
-        JobApi.PrepareJobRequest
-            .newBuilder()
+        JobApi.PrepareJobRequest.newBuilder()
             .setJobName(TEST_JOB_NAME)
             .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
             .setPipelineOptions(Struct.getDefaultInstance())

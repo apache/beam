@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test for {@link HadoopFileSystemModule}.
- */
+/** Test for {@link HadoopFileSystemModule}. */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemModuleTest {
   @Test
@@ -58,9 +56,11 @@ public class HadoopFileSystemModuleTest {
     String serializedConfiguration = objectMapper.writeValueAsString(configuration);
     Configuration deserializedConfiguration =
         objectMapper.readValue(serializedConfiguration, Configuration.class);
-    assertThat(deserializedConfiguration, Matchers.<Map.Entry<String, String>>containsInAnyOrder(
-        new AbstractMap.SimpleEntry("testPropertyA", "A"),
-        new AbstractMap.SimpleEntry("testPropertyB", "B"),
-        new AbstractMap.SimpleEntry("testPropertyC", "baseC")));
+    assertThat(
+        deserializedConfiguration,
+        Matchers.<Map.Entry<String, String>>containsInAnyOrder(
+            new AbstractMap.SimpleEntry("testPropertyA", "A"),
+            new AbstractMap.SimpleEntry("testPropertyB", "B"),
+            new AbstractMap.SimpleEntry("testPropertyC", "baseC")));
   }
 }

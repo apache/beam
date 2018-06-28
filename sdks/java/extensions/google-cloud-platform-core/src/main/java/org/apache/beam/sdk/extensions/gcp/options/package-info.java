@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 /**
- * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
- * configuring pipeline execution for Google Cloud Platform components.
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
+ * for Google Cloud Platform components.
  */
 package org.apache.beam.sdk.extensions.gcp.options;

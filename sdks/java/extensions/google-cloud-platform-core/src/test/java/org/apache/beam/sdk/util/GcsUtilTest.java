@@ -176,8 +176,8 @@ public class GcsUtilTest {
     // Release the last latch starting the chain reaction.
     countDownLatches[countDownLatches.length - 1].countDown();
     executorService.shutdown();
-    assertTrue("Expected tasks to complete",
-        executorService.awaitTermination(10, TimeUnit.SECONDS));
+    assertTrue(
+        "Expected tasks to complete", executorService.awaitTermination(10, TimeUnit.SECONDS));
   }
 
   @Test
@@ -207,11 +207,11 @@ public class GcsUtilTest {
     modelObjects.setItems(items);
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get("testbucket", "testdirectory/otherfile")).thenReturn(
-        mockStorageGet);
+    when(mockStorageObjects.get("testbucket", "testdirectory/otherfile"))
+        .thenReturn(mockStorageGet);
     when(mockStorageObjects.list("testbucket")).thenReturn(mockStorageList);
-    when(mockStorageGet.execute()).thenReturn(
-        new StorageObject().setBucket("testbucket").setName("testdirectory/otherfile"));
+    when(mockStorageGet.execute())
+        .thenReturn(new StorageObject().setBucket("testbucket").setName("testdirectory/otherfile"));
     when(mockStorageList.execute()).thenReturn(modelObjects);
 
     // Test a single file.
@@ -226,40 +226,44 @@ public class GcsUtilTest {
     // Test patterns.
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
-      List<GcsPath> expectedFiles = ImmutableList.of(
-          GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(
+              GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file[1-3]*");
-      List<GcsPath> expectedFiles = ImmutableList.of(
-          GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(
+              GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file?name");
-      List<GcsPath> expectedFiles = ImmutableList.of(
-          GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(
+              GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/test*ectory/fi*name");
-      List<GcsPath> expectedFiles = ImmutableList.of(
-          GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
-          GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(
+              GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
+              GcsPath.fromUri("gs://testbucket/testdirectory/file3name"));
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
@@ -293,20 +297,22 @@ public class GcsUtilTest {
     modelObjects.setItems(items);
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get("testbucket", "test/directory/otherfile")).thenReturn(
-        mockStorageGet);
+    when(mockStorageObjects.get("testbucket", "test/directory/otherfile"))
+        .thenReturn(mockStorageGet);
     when(mockStorageObjects.list("testbucket")).thenReturn(mockStorageList);
-    when(mockStorageGet.execute()).thenReturn(
-        new StorageObject().setBucket("testbucket").setName("test/directory/otherfile"));
+    when(mockStorageGet.execute())
+        .thenReturn(
+            new StorageObject().setBucket("testbucket").setName("test/directory/otherfile"));
     when(mockStorageList.execute()).thenReturn(modelObjects);
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/test/**/*.txt");
-      List<GcsPath> expectedFiles = ImmutableList.of(
-          GcsPath.fromUri("gs://testbucket/test/directory/file1.txt"),
-          GcsPath.fromUri("gs://testbucket/test/directory/file2.txt"),
-          GcsPath.fromUri("gs://testbucket/test/directory/file3.txt"),
-          GcsPath.fromUri("gs://testbucket/test/file4.txt"));
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(
+              GcsPath.fromUri("gs://testbucket/test/directory/file1.txt"),
+              GcsPath.fromUri("gs://testbucket/test/directory/file2.txt"),
+              GcsPath.fromUri("gs://testbucket/test/directory/file3.txt"),
+              GcsPath.fromUri("gs://testbucket/test/file4.txt"));
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
@@ -327,12 +333,12 @@ public class GcsUtilTest {
 
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentfile");
     GoogleJsonResponseException expectedException =
-        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
-            "It don't exist", "Nothing here to see");
+        googleJsonResponseException(
+            HttpStatusCodes.STATUS_CODE_NOT_FOUND, "It don't exist", "Nothing here to see");
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject())).thenReturn(
-        mockStorageGet);
+    when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject()))
+        .thenReturn(mockStorageGet);
     when(mockStorageGet.execute()).thenThrow(expectedException);
 
     assertEquals(Collections.emptyList(), gcsUtil.expand(pattern));
@@ -352,12 +358,14 @@ public class GcsUtilTest {
 
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/accessdeniedfile");
     GoogleJsonResponseException expectedException =
-        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets you're looking for");
+        googleJsonResponseException(
+            HttpStatusCodes.STATUS_CODE_FORBIDDEN,
+            "Waves hand mysteriously",
+            "These aren't the buckets you're looking for");
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject())).thenReturn(
-        mockStorageGet);
+    when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject()))
+        .thenReturn(mockStorageGet);
     when(mockStorageGet.execute()).thenThrow(expectedException);
 
     thrown.expect(IOException.class);
@@ -378,8 +386,8 @@ public class GcsUtilTest {
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
-    when(mockStorageGet.execute()).thenReturn(
-            new StorageObject().setSize(BigInteger.valueOf(1000)));
+    when(mockStorageGet.execute())
+        .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
 
     assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject")));
   }
@@ -391,7 +399,7 @@ public class GcsUtilTest {
     notFoundResponse.setStatusCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
 
     MockHttpTransport mockTransport =
-            new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
 
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
@@ -413,21 +421,25 @@ public class GcsUtilTest {
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.withMaxRetries(2).backoff());
+    BackOff mockBackOff =
+        BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.withMaxRetries(2).backoff());
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute())
-            .thenThrow(new SocketTimeoutException("SocketException"))
-            .thenThrow(new SocketTimeoutException("SocketException"))
-            .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
+        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
 
-    assertEquals(1000,
-        gcsUtil.getObject(
-            GcsPath.fromComponents("testbucket", "testobject"),
-            mockBackOff,
-            new FastNanoClockAndSleeper()).getSize().longValue());
+    assertEquals(
+        1000,
+        gcsUtil
+            .getObject(
+                GcsPath.fromComponents("testbucket", "testobject"),
+                mockBackOff,
+                new FastNanoClockAndSleeper())
+            .getSize()
+            .longValue());
     assertEquals(BackOff.STOP, mockBackOff.nextBackOffMillis());
   }
 
@@ -439,26 +451,28 @@ public class GcsUtilTest {
     String contentBoundaryLine = "--" + contentBoundary;
     String endOfContentBoundaryLine = "--" + contentBoundary + "--";
 
-    GenericJson error = new GenericJson()
-        .set("error", new GenericJson().set("code", 404));
+    GenericJson error = new GenericJson().set("error", new GenericJson().set("code", 404));
     error.setFactory(jsonFactory);
 
-    String content = contentBoundaryLine + "\n"
-        + "Content-Type: application/http\n"
-        + "\n"
-        + "HTTP/1.1 404 Not Found\n"
-        + "Content-Length: -1\n"
-        + "\n"
-        + error.toString()
-        + "\n"
-        + "\n"
-        + endOfContentBoundaryLine
-        + "\n";
+    String content =
+        contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
+            + endOfContentBoundaryLine
+            + "\n";
     thrown.expect(FileNotFoundException.class);
-    MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse()
-        .setContentType("multipart/mixed; boundary=" + contentBoundary)
-        .setContent(content)
-        .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
+    MockLowLevelHttpResponse notFoundResponse =
+        new MockLowLevelHttpResponse()
+            .setContentType("multipart/mixed; boundary=" + contentBoundary)
+            .setContent(content)
+            .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
 
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
@@ -477,21 +491,22 @@ public class GcsUtilTest {
     String contentBoundaryLine = "--" + contentBoundary;
     String endOfContentBoundaryLine = "--" + contentBoundary + "--";
 
-    GenericJson error = new GenericJson()
-        .set("error", new GenericJson().set("code", 404));
+    GenericJson error = new GenericJson().set("error", new GenericJson().set("code", 404));
     error.setFactory(jsonFactory);
 
-    String content = contentBoundaryLine + "\n"
-        + "Content-Type: application/http\n"
-        + "\n"
-        + "HTTP/1.1 404 Not Found\n"
-        + "Content-Length: -1\n"
-        + "\n"
-        + error.toString()
-        + "\n"
-        + "\n"
-        + endOfContentBoundaryLine
-        + "\n";
+    String content =
+        contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
+            + endOfContentBoundaryLine
+            + "\n";
     thrown.expect(FileNotFoundException.class);
 
     final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
@@ -515,7 +530,7 @@ public class GcsUtilTest {
 
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
-        gcsUtil.setStorageClient(
+    gcsUtil.setStorageClient(
         new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
     gcsUtil.fileSizes(ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")));
   }
@@ -528,21 +543,22 @@ public class GcsUtilTest {
     String contentBoundaryLine = "--" + contentBoundary;
     String endOfContentBoundaryLine = "--" + contentBoundary + "--";
 
-    GenericJson error = new GenericJson()
-        .set("error", new GenericJson().set("code", 404));
+    GenericJson error = new GenericJson().set("error", new GenericJson().set("code", 404));
     error.setFactory(jsonFactory);
 
-    String content = contentBoundaryLine + "\n"
-        + "Content-Type: application/http\n"
-        + "\n"
-        + "HTTP/1.1 404 Not Found\n"
-        + "Content-Length: -1\n"
-        + "\n"
-        + error.toString()
-        + "\n"
-        + "\n"
-        + endOfContentBoundaryLine
-        + "\n";
+    String content =
+        contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
+            + endOfContentBoundaryLine
+            + "\n";
 
     final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
     when(mockResponse.getContentType()).thenReturn("multipart/mixed; boundary=" + contentBoundary);
@@ -550,12 +566,13 @@ public class GcsUtilTest {
     when(mockResponse.getContent()).thenReturn(toStream(content));
 
     // A mock transport that lets us mock the API responses.
-    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest() {
-      @Override
-      public LowLevelHttpResponse execute() throws IOException {
-        return mockResponse;
-      }
-    };
+    MockLowLevelHttpRequest request =
+        new MockLowLevelHttpRequest() {
+          @Override
+          public LowLevelHttpResponse execute() throws IOException {
+            return mockResponse;
+          }
+        };
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
 
@@ -579,8 +596,8 @@ public class GcsUtilTest {
     BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.insert(
-           any(String.class), any(Bucket.class))).thenReturn(mockStorageInsert);
+    when(mockStorageObjects.insert(any(String.class), any(Bucket.class)))
+        .thenReturn(mockStorageInsert);
     when(mockStorageInsert.execute())
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
@@ -601,14 +618,15 @@ public class GcsUtilTest {
 
     BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
     GoogleJsonResponseException expectedException =
-        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets you're looking for");
+        googleJsonResponseException(
+            HttpStatusCodes.STATUS_CODE_FORBIDDEN,
+            "Waves hand mysteriously",
+            "These aren't the buckets you're looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.insert(
-           any(String.class), any(Bucket.class))).thenReturn(mockStorageInsert);
-    when(mockStorageInsert.execute())
-        .thenThrow(expectedException);
+    when(mockStorageObjects.insert(any(String.class), any(Bucket.class)))
+        .thenReturn(mockStorageInsert);
+    when(mockStorageInsert.execute()).thenThrow(expectedException);
 
     thrown.expect(AccessDeniedException.class);
 
@@ -626,8 +644,7 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.backoff());
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -635,8 +652,11 @@ public class GcsUtilTest {
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
 
-    assertTrue(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
+    assertTrue(
+        gcsUtil.bucketAccessible(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            mockBackOff,
+            new FastNanoClockAndSleeper()));
   }
 
   @Test
@@ -650,19 +670,22 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.backoff());
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
     GoogleJsonResponseException expectedException =
-        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets you're looking for");
+        googleJsonResponseException(
+            HttpStatusCodes.STATUS_CODE_FORBIDDEN,
+            "Waves hand mysteriously",
+            "These aren't the buckets you're looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
-    when(mockStorageGet.execute())
-        .thenThrow(expectedException);
+    when(mockStorageGet.execute()).thenThrow(expectedException);
 
-    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
+    assertFalse(
+        gcsUtil.bucketAccessible(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            mockBackOff,
+            new FastNanoClockAndSleeper()));
   }
 
   @Test
@@ -676,17 +699,20 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.backoff());
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute())
-        .thenThrow(googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
-            "It don't exist", "Nothing here to see"));
+        .thenThrow(
+            googleJsonResponseException(
+                HttpStatusCodes.STATUS_CODE_NOT_FOUND, "It don't exist", "Nothing here to see"));
 
-    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
+    assertFalse(
+        gcsUtil.bucketAccessible(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            mockBackOff,
+            new FastNanoClockAndSleeper()));
   }
 
   @Test
@@ -700,8 +726,7 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.backoff());
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -709,8 +734,11 @@ public class GcsUtilTest {
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
 
-    assertNotNull(gcsUtil.getBucket(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
+    assertNotNull(
+        gcsUtil.getBucket(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            mockBackOff,
+            new FastNanoClockAndSleeper()));
   }
 
   @Test
@@ -724,19 +752,21 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.backoff());
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute())
-        .thenThrow(googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
-            "It don't exist", "Nothing here to see"));
+        .thenThrow(
+            googleJsonResponseException(
+                HttpStatusCodes.STATUS_CODE_NOT_FOUND, "It don't exist", "Nothing here to see"));
 
     thrown.expect(FileNotFoundException.class);
     thrown.expectMessage("It don't exist");
-    gcsUtil.getBucket(GcsPath.fromComponents("testbucket", "testobject"),
-                      mockBackOff, new FastNanoClockAndSleeper());
+    gcsUtil.getBucket(
+        GcsPath.fromComponents("testbucket", "testobject"),
+        mockBackOff,
+        new FastNanoClockAndSleeper());
   }
 
   @Test
@@ -748,31 +778,33 @@ public class GcsUtilTest {
     channel.close();
   }
 
-  /**
-   * Builds a fake GoogleJsonResponseException for testing API error handling.
-   */
+  /** Builds a fake GoogleJsonResponseException for testing API error handling. */
   private static GoogleJsonResponseException googleJsonResponseException(
       final int status, final String reason, final String message) throws IOException {
     final JsonFactory jsonFactory = new JacksonFactory();
-    HttpTransport transport = new MockHttpTransport() {
-      @Override
-      public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
-        ErrorInfo errorInfo = new ErrorInfo();
-        errorInfo.setReason(reason);
-        errorInfo.setMessage(message);
-        errorInfo.setFactory(jsonFactory);
-        GenericJson error = new GenericJson();
-        error.set("code", status);
-        error.set("errors", Arrays.asList(errorInfo));
-        error.setFactory(jsonFactory);
-        GenericJson errorResponse = new GenericJson();
-        errorResponse.set("error", error);
-        errorResponse.setFactory(jsonFactory);
-        return new MockLowLevelHttpRequest().setResponse(
-            new MockLowLevelHttpResponse().setContent(errorResponse.toPrettyString())
-            .setContentType(Json.MEDIA_TYPE).setStatusCode(status));
-        }
-    };
+    HttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
+            ErrorInfo errorInfo = new ErrorInfo();
+            errorInfo.setReason(reason);
+            errorInfo.setMessage(message);
+            errorInfo.setFactory(jsonFactory);
+            GenericJson error = new GenericJson();
+            error.set("code", status);
+            error.set("errors", Arrays.asList(errorInfo));
+            error.setFactory(jsonFactory);
+            GenericJson errorResponse = new GenericJson();
+            errorResponse.set("error", error);
+            errorResponse.setFactory(jsonFactory);
+            return new MockLowLevelHttpRequest()
+                .setResponse(
+                    new MockLowLevelHttpResponse()
+                        .setContent(errorResponse.toPrettyString())
+                        .setContentType(Json.MEDIA_TYPE)
+                        .setStatusCode(status));
+          }
+        };
     HttpRequest request =
         transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL);
     request.setThrowExceptionOnExecuteError(false);
@@ -880,9 +912,7 @@ public class GcsUtilTest {
     assertEquals(501, results.size());
   }
 
-  /**
-   * A helper to wrap a {@link GenericJson} object in a content stream.
-   */
+  /** A helper to wrap a {@link GenericJson} object in a content stream. */
   private static InputStream toStream(String content) throws IOException {
     return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
   }

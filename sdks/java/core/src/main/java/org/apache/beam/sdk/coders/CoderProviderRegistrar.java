@@ -23,18 +23,18 @@ import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * {@link Coder} creators have the ability to automatically have their
- * {@link Coder coders} registered with this SDK by creating a {@link ServiceLoader} entry
- * and a concrete implementation of this interface.
+ * {@link Coder} creators have the ability to automatically have their {@link Coder coders}
+ * registered with this SDK by creating a {@link ServiceLoader} entry and a concrete implementation
+ * of this interface.
  *
- * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link AutoService} to generate the necessary META-INF files automatically.
+ * <p>It is optional but recommended to use one of the many build time tools such as {@link
+ * AutoService} to generate the necessary META-INF files automatically.
  */
 @Experimental
 public interface CoderProviderRegistrar {
   /**
-   * Returns a list of {@link CoderProvider coder providers} which
-   * will be registered by default within each {@link CoderRegistry coder registry} instance.
+   * Returns a list of {@link CoderProvider coder providers} which will be registered by default
+   * within each {@link CoderRegistry coder registry} instance.
    *
    * <p>See {@link CoderProviders} for convenience methods to construct a {@link CoderProvider}.
    */

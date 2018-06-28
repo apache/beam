@@ -23,25 +23,21 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/**
- * Tests {@link KinesisRecordCoder}.
- */
+/** Tests {@link KinesisRecordCoder}. */
 public class KinesisRecordCoderTest {
 
   @Test
   public void encodingAndDecodingWorks() throws Exception {
-    KinesisRecord record = new KinesisRecord(
-        ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8)),
-        "sequence",
-        128L,
-        "partition",
-        Instant.now(),
-        Instant.now(),
-        "stream",
-        "shard"
-    );
-    CoderProperties.coderDecodeEncodeEqual(
-        new KinesisRecordCoder(), record
-    );
+    KinesisRecord record =
+        new KinesisRecord(
+            ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8)),
+            "sequence",
+            128L,
+            "partition",
+            Instant.now(),
+            Instant.now(),
+            "stream",
+            "shard");
+    CoderProperties.coderDecodeEncodeEqual(new KinesisRecordCoder(), record);
   }
 }

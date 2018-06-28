@@ -61,20 +61,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
- * and consume unbounded {@link PCollection PCollections}.
+ * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create and consume
+ * unbounded {@link PCollection PCollections}.
  *
  * <h3>Using local emulator</h3>
  *
- * <p>In order to use local emulator for Pubsub you should use
- * {@code PubsubOptions#setPubsubRootUrl(String)} method to set host and port of your
- * local emulator.
+ * <p>In order to use local emulator for Pubsub you should use {@code
+ * PubsubOptions#setPubsubRootUrl(String)} method to set host and port of your local emulator.
  *
  * <h3>Permissions</h3>
  *
- * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Beam pipeline. Please refer to the documentation of corresponding
- * {@link PipelineRunner PipelineRunners} for more details.
+ * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the Beam
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
+ * PipelineRunners} for more details.
  */
 public class PubsubIO {
 
@@ -84,10 +83,9 @@ public class PubsubIO {
   private static final PubsubClient.PubsubClientFactory FACTORY = PubsubJsonClient.FACTORY;
 
   /**
-   * Project IDs must contain 6-63 lowercase letters, digits, or dashes.
-   * IDs must start with a letter and may not end with a dash.
-   * This regex isn't exact - this allows for patterns that would be rejected by
-   * the service, but this is sufficient for basic parsing of table references.
+   * Project IDs must contain 6-63 lowercase letters, digits, or dashes. IDs must start with a
+   * letter and may not end with a dash. This regex isn't exact - this allows for patterns that
+   * would be rejected by the service, but this is sufficient for basic parsing of table references.
    */
   private static final Pattern PROJECT_ID_REGEXP =
       Pattern.compile("[a-z][-a-z0-9:.]{4,61}[a-z0-9]");
@@ -135,16 +133,19 @@ public class PubsubIO {
 
     Matcher match = PUBSUB_NAME_REGEXP.matcher(name);
     if (!match.matches()) {
-      throw new IllegalArgumentException("Illegal Pubsub object name specified: " + name
-          + " Please see Javadoc for naming rules.");
+      throw new IllegalArgumentException(
+          "Illegal Pubsub object name specified: "
+              + name
+              + " Please see Javadoc for naming rules.");
     }
   }
 
-  /**
-   * Populate common {@link DisplayData} between Pubsub source and sink.
-   */
-  private static void populateCommonDisplayData(DisplayData.Builder builder,
-      String timestampAttribute, String idAttribute, ValueProvider<PubsubTopic> topic) {
+  /** Populate common {@link DisplayData} between Pubsub source and sink. */
+  private static void populateCommonDisplayData(
+      DisplayData.Builder builder,
+      String timestampAttribute,
+      String idAttribute,
+      ValueProvider<PubsubTopic> topic) {
     builder
         .addIfNotNull(
             DisplayData.item("timestampAttribute", timestampAttribute)
@@ -153,12 +154,13 @@ public class PubsubIO {
         .addIfNotNull(DisplayData.item("topic", topic).withLabel("Pubsub Topic"));
   }
 
-  /**
-   * Class representing a Cloud Pub/Sub Subscription.
-   */
+  /** Class representing a Cloud Pub/Sub Subscription. */
   public static class PubsubSubscription implements Serializable {
 
-    private enum Type {NORMAL, FAKE}
+    private enum Type {
+      NORMAL,
+      FAKE
+    }
 
     private final Type type;
     private final String project;
@@ -173,18 +175,18 @@ public class PubsubIO {
     /**
      * Creates a class representing a Pub/Sub subscription from the specified subscription path.
      *
-     * <p>Cloud Pub/Sub subscription names should be of the form
-     * {@code projects/<project>/subscriptions/<subscription>}, where {@code <project>} is the name
-     * of the project the subscription belongs to. The {@code <subscription>} component must comply
-     * with the following requirements:
+     * <p>Cloud Pub/Sub subscription names should be of the form {@code
+     * projects/<project>/subscriptions/<subscription>}, where {@code <project>} is the name of the
+     * project the subscription belongs to. The {@code <subscription>} component must comply with
+     * the following requirements:
      *
      * <ul>
-     * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
-     * ('.').</li>
-     * <li>Must be between 3 and 255 characters.</li>
-     * <li>Must begin with a letter.</li>
-     * <li>Must end with a letter or a number.</li>
-     * <li>Cannot begin with {@code 'goog'} prefix.</li>
+     *   <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and
+     *       periods ('.').
+     *   <li>Must be between 3 and 255 characters.
+     *   <li>Must begin with a letter.
+     *   <li>Must end with a letter or a number.
+     *   <li>Cannot begin with {@code 'goog'} prefix.
      * </ul>
      */
     public static PubsubSubscription fromPath(String path) {
@@ -197,15 +199,18 @@ public class PubsubIO {
 
       Matcher v1beta1Match = V1BETA1_SUBSCRIPTION_REGEXP.matcher(path);
       if (v1beta1Match.matches()) {
-        LOG.warn("Saw subscription in v1beta1 format. Subscriptions should be in the format "
-            + "projects/<project_id>/subscriptions/<subscription_name>");
+        LOG.warn(
+            "Saw subscription in v1beta1 format. Subscriptions should be in the format "
+                + "projects/<project_id>/subscriptions/<subscription_name>");
         projectName = v1beta1Match.group(1);
         subscriptionName = v1beta1Match.group(2);
       } else {
         Matcher match = SUBSCRIPTION_REGEXP.matcher(path);
         if (!match.matches()) {
-          throw new IllegalArgumentException("Pubsub subscription is not in "
-              + "projects/<project_id>/subscriptions/<subscription_name> format: " + path);
+          throw new IllegalArgumentException(
+              "Pubsub subscription is not in "
+                  + "projects/<project_id>/subscriptions/<subscription_name> format: "
+                  + path);
         }
         projectName = match.group(1);
         subscriptionName = match.group(2);
@@ -264,9 +269,7 @@ public class PubsubIO {
     }
   }
 
-  /**
-   * Used to build a {@link ValueProvider} for {@link PubsubSubscription}.
-   */
+  /** Used to build a {@link ValueProvider} for {@link PubsubSubscription}. */
   private static class SubscriptionTranslator
       implements SerializableFunction<String, PubsubSubscription> {
 
@@ -276,9 +279,7 @@ public class PubsubIO {
     }
   }
 
-  /**
-   * Used to build a {@link ValueProvider} for {@link SubscriptionPath}.
-   */
+  /** Used to build a {@link ValueProvider} for {@link SubscriptionPath}. */
   private static class SubscriptionPathTranslator
       implements SerializableFunction<PubsubSubscription, SubscriptionPath> {
 
@@ -288,11 +289,8 @@ public class PubsubIO {
     }
   }
 
-  /**
-   * Used to build a {@link ValueProvider} for {@link PubsubTopic}.
-   */
-  private static class TopicTranslator
-      implements SerializableFunction<String, PubsubTopic> {
+  /** Used to build a {@link ValueProvider} for {@link PubsubTopic}. */
+  private static class TopicTranslator implements SerializableFunction<String, PubsubTopic> {
 
     @Override
     public PubsubTopic apply(String from) {
@@ -300,11 +298,8 @@ public class PubsubIO {
     }
   }
 
-  /**
-   * Used to build a {@link ValueProvider} for {@link TopicPath}.
-   */
-  private static class TopicPathTranslator
-      implements SerializableFunction<PubsubTopic, TopicPath> {
+  /** Used to build a {@link ValueProvider} for {@link TopicPath}. */
+  private static class TopicPathTranslator implements SerializableFunction<PubsubTopic, TopicPath> {
 
     @Override
     public TopicPath apply(PubsubTopic from) {
@@ -312,9 +307,7 @@ public class PubsubIO {
     }
   }
 
-  /**
-   * Used to build a {@link ValueProvider} for {@link ProjectPath}.
-   */
+  /** Used to build a {@link ValueProvider} for {@link ProjectPath}. */
   private static class ProjectPathTranslator
       implements SerializableFunction<PubsubTopic, ProjectPath> {
 
@@ -324,12 +317,13 @@ public class PubsubIO {
     }
   }
 
-  /**
-   * Class representing a Cloud Pub/Sub Topic.
-   */
+  /** Class representing a Cloud Pub/Sub Topic. */
   public static class PubsubTopic implements Serializable {
 
-    private enum Type {NORMAL, FAKE}
+    private enum Type {
+      NORMAL,
+      FAKE
+    }
 
     private final Type type;
     private final String project;
@@ -344,18 +338,17 @@ public class PubsubIO {
     /**
      * Creates a class representing a Cloud Pub/Sub topic from the specified topic path.
      *
-     * <p>Cloud Pub/Sub topic names should be of the form
-     * {@code /topics/<project>/<topic>}, where {@code <project>} is the name of
-     * the publishing project. The {@code <topic>} component must comply with
-     * the following requirements:
+     * <p>Cloud Pub/Sub topic names should be of the form {@code /topics/<project>/<topic>}, where
+     * {@code <project>} is the name of the publishing project. The {@code <topic>} component must
+     * comply with the following requirements:
      *
      * <ul>
-     * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
-     * ('.').</li>
-     * <li>Must be between 3 and 255 characters.</li>
-     * <li>Must begin with a letter.</li>
-     * <li>Must end with a letter or a number.</li>
-     * <li>Cannot begin with 'goog' prefix.</li>
+     *   <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and
+     *       periods ('.').
+     *   <li>Must be between 3 and 255 characters.
+     *   <li>Must begin with a letter.
+     *   <li>Must end with a letter or a number.
+     *   <li>Cannot begin with 'goog' prefix.
      * </ul>
      */
     public static PubsubTopic fromPath(String path) {
@@ -367,8 +360,9 @@ public class PubsubIO {
 
       Matcher v1beta1Match = V1BETA1_TOPIC_REGEXP.matcher(path);
       if (v1beta1Match.matches()) {
-        LOG.warn("Saw topic in v1beta1 format.  Topics should be in the format "
-            + "projects/<project_id>/topics/<topic_name>");
+        LOG.warn(
+            "Saw topic in v1beta1 format.  Topics should be in the format "
+                + "projects/<project_id>/topics/<topic_name>");
         projectName = v1beta1Match.group(1);
         topicName = v1beta1Match.group(2);
       } else {
@@ -387,8 +381,8 @@ public class PubsubIO {
     }
 
     /**
-     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub
-     * v1beta1 API.
+     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub v1beta1
+     * API.
      *
      * @deprecated the v1beta1 API for Cloud Pub/Sub is deprecated.
      */
@@ -402,8 +396,8 @@ public class PubsubIO {
     }
 
     /**
-     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub
-     * v1beta2 API.
+     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub v1beta2
+     * API.
      *
      * @deprecated the v1beta2 API for Cloud Pub/Sub is deprecated.
      */
@@ -416,10 +410,7 @@ public class PubsubIO {
       }
     }
 
-    /**
-     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub
-     * API.
-     */
+    /** Returns the string representation of this topic as a path used in the Cloud Pub/Sub API. */
     public String asPath() {
       if (type == Type.NORMAL) {
         return "projects/" + project + "/topics/" + topic;
@@ -434,7 +425,7 @@ public class PubsubIO {
     }
   }
 
-   /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
+  /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   private static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>().setNeedsAttributes(false).build();
   }
@@ -470,8 +461,8 @@ public class PubsubIO {
    * Pub/Sub stream.
    */
   public static Read<String> readStrings() {
-    return PubsubIO.<String>read().withCoderAndParseFn(
-        StringUtf8Coder.of(), new ParsePayloadAsUtf8());
+    return PubsubIO.<String>read()
+        .withCoderAndParseFn(StringUtf8Coder.of(), new ParsePayloadAsUtf8());
   }
 
   /**
@@ -487,8 +478,8 @@ public class PubsubIO {
   }
 
   /**
-   * Returns A {@link PTransform} that continuously reads binary encoded Avro messages of the
-   * given type from a Google Cloud Pub/Sub stream.
+   * Returns A {@link PTransform} that continuously reads binary encoded Avro messages of the given
+   * type from a Google Cloud Pub/Sub stream.
    */
   public static <T> Read<T> readAvros(Class<T> clazz) {
     // TODO: Stop using AvroCoder and instead parse the payload directly.
@@ -517,8 +508,8 @@ public class PubsubIO {
   }
 
   /**
-   * Returns A {@link PTransform} that writes binary encoded protobuf messages of a given type
-   * to a Google Cloud Pub/Sub stream.
+   * Returns A {@link PTransform} that writes binary encoded protobuf messages of a given type to a
+   * Google Cloud Pub/Sub stream.
    */
   public static <T extends Message> Write<T> writeProtos(Class<T> messageClass) {
     // TODO: Like in readProtos(), stop using ProtoCoder and instead format the payload directly.
@@ -527,8 +518,8 @@ public class PubsubIO {
   }
 
   /**
-   * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type
-   * to a Google Cloud Pub/Sub stream.
+   * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type to a
+   * Google Cloud Pub/Sub stream.
    */
   public static <T> Write<T> writeAvros(Class<T> clazz) {
     // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
@@ -586,20 +577,17 @@ public class PubsubIO {
     /**
      * Reads from the given subscription.
      *
-     * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
-     * of the {@code subscription} string.
+     * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format of
+     * the {@code subscription} string.
      *
-     * <p>Multiple readers reading from the same subscription will each receive
-     * some arbitrary portion of the data.  Most likely, separate readers should
-     * use their own subscriptions.
+     * <p>Multiple readers reading from the same subscription will each receive some arbitrary
+     * portion of the data. Most likely, separate readers should use their own subscriptions.
      */
     public Read<T> fromSubscription(String subscription) {
       return fromSubscription(StaticValueProvider.of(subscription));
     }
 
-    /**
-     * Like {@code subscription()} but with a {@link ValueProvider}.
-     */
+    /** Like {@code subscription()} but with a {@link ValueProvider}. */
     public Read<T> fromSubscription(ValueProvider<String> subscription) {
       if (subscription.isAccessible()) {
         // Validate.
@@ -615,20 +603,18 @@ public class PubsubIO {
      * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
      * with {@link #fromSubscription(String)}.
      *
-     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
-     * of the {@code topic} string.
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+     * {@code topic} string.
      *
-     * <p>The Beam runner will start reading data published on this topic from the time the
-     * pipeline is started. Any data published on the topic before the pipeline is started will
-     * not be read by the runner.
+     * <p>The Beam runner will start reading data published on this topic from the time the pipeline
+     * is started. Any data published on the topic before the pipeline is started will not be read
+     * by the runner.
      */
     public Read<T> fromTopic(String topic) {
       return fromTopic(StaticValueProvider.of(topic));
     }
 
-    /**
-     * Like {@code topic()} but with a {@link ValueProvider}.
-     */
+    /** Like {@code topic()} but with a {@link ValueProvider}. */
     public Read<T> fromTopic(ValueProvider<String> topic) {
       if (topic.isAccessible()) {
         // Validate.
@@ -646,22 +632,21 @@ public class PubsubIO {
      * <p>The timestamp value is expected to be represented in the attribute as either:
      *
      * <ul>
-     * <li>a numerical value representing the number of milliseconds since the Unix epoch. For
-     * example, if using the Joda time classes, {@link Instant#getMillis()} returns the correct
-     * value for this attribute.
-     * <li>a String in RFC 3339 format. For example, {@code 2015-10-29T23:41:41.123Z}. The
-     * sub-second component of the timestamp is optional, and digits beyond the first three
-     * (i.e., time units smaller than milliseconds) will be ignored.
+     *   <li>a numerical value representing the number of milliseconds since the Unix epoch. For
+     *       example, if using the Joda time classes, {@link Instant#getMillis()} returns the
+     *       correct value for this attribute.
+     *   <li>a String in RFC 3339 format. For example, {@code 2015-10-29T23:41:41.123Z}. The
+     *       sub-second component of the timestamp is optional, and digits beyond the first three
+     *       (i.e., time units smaller than milliseconds) will be ignored.
      * </ul>
      *
      * <p>If {@code timestampAttribute} is not provided, the system will generate record timestamps
-     * the first time it sees each record. All windowing will be done relative to these
-     * timestamps.
+     * the first time it sees each record. All windowing will be done relative to these timestamps.
      *
-     * <p>By default, windows are emitted based on an estimate of when this source is likely
-     * done producing data for a given timestamp (referred to as the Watermark; see
-     * {@link AfterWatermark} for more details). Any late data will be handled by the trigger
-     * specified with the windowing strategy &ndash; by default it will be output immediately.
+     * <p>By default, windows are emitted based on an estimate of when this source is likely done
+     * producing data for a given timestamp (referred to as the Watermark; see {@link
+     * AfterWatermark} for more details). Any late data will be handled by the trigger specified
+     * with the windowing strategy &ndash; by default it will be output immediately.
      *
      * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
      * timestamps by arrival time (i.e. {@code timestampAttribute} is not provided).
@@ -674,12 +659,12 @@ public class PubsubIO {
 
     /**
      * When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub
-     * message attributes, specifies the name of the attribute containing the unique identifier.
-     * The value of the attribute can be any string that uniquely identifies this record.
+     * message attributes, specifies the name of the attribute containing the unique identifier. The
+     * value of the attribute can be any string that uniquely identifies this record.
      *
      * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
-     * If {@code idAttribute} is not provided, Beam cannot guarantee that no duplicate data will
-     * be delivered, and deduplication of the stream will be strictly best effort.
+     * If {@code idAttribute} is not provided, Beam cannot guarantee that no duplicate data will be
+     * delivered, and deduplication of the stream will be strictly best effort.
      */
     public Read<T> withIdAttribute(String idAttribute) {
       return toBuilder().setIdAttribute(idAttribute).build();
@@ -687,9 +672,9 @@ public class PubsubIO {
 
     /**
      * Causes the source to return a PubsubMessage that includes Pubsub attributes, and uses the
-     * given parsing function to transform the PubsubMessage into an output type.
-     * A Coder for the output type T must be registered or set on the output via
-     * {@link PCollection#setCoder(Coder)}.
+     * given parsing function to transform the PubsubMessage into an output type. A Coder for the
+     * output type T must be registered or set on the output via {@link
+     * PCollection#setCoder(Coder)}.
      */
     private Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
@@ -738,8 +723,9 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-      builder.addIfNotNull(DisplayData.item("subscription", getSubscriptionProvider())
-          .withLabel("Pubsub Subscription"));
+      builder.addIfNotNull(
+          DisplayData.item("subscription", getSubscriptionProvider())
+              .withLabel("Pubsub Subscription"));
     }
   }
 
@@ -747,7 +733,6 @@ public class PubsubIO {
 
   /** Disallow construction of utility class. */
   private PubsubIO() {}
-
 
   /** Implementation of {@link #write}. */
   @AutoValue
@@ -792,9 +777,7 @@ public class PubsubIO {
       return to(StaticValueProvider.of(topic));
     }
 
-    /**
-     * Like {@code topic()} but with a {@link ValueProvider}.
-     */
+    /** Like {@code topic()} but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> topic) {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
@@ -804,12 +787,12 @@ public class PubsubIO {
     /**
      * Writes to Pub/Sub and adds each record's timestamp to the published messages in an attribute
      * with the specified name. The value of the attribute will be a number representing the number
-     * of milliseconds since the Unix epoch. For example, if using the Joda
-     * time classes, {@link Instant#Instant(long)} can be used to parse this value.
+     * of milliseconds since the Unix epoch. For example, if using the Joda time classes, {@link
+     * Instant#Instant(long)} can be used to parse this value.
      *
-     * <p>If the output from this sink is being read by another Beam pipeline, then
-     * {@link PubsubIO.Read#withTimestampAttribute(String)} can be used to ensure the other source
-     * reads these timestamps from the appropriate attribute.
+     * <p>If the output from this sink is being read by another Beam pipeline, then {@link
+     * PubsubIO.Read#withTimestampAttribute(String)} can be used to ensure the other source reads
+     * these timestamps from the appropriate attribute.
      */
     public Write<T> withTimestampAttribute(String timestampAttribute) {
       return toBuilder().setTimestampAttribute(timestampAttribute).build();
@@ -829,8 +812,8 @@ public class PubsubIO {
 
     /**
      * Used to write a PubSub message together with PubSub attributes. The user-supplied format
-     * function translates the input type T to a PubsubMessage object, which is used by the sink
-     * to separately set the PubSub message's payload and attributes.
+     * function translates the input type T to a PubsubMessage object, which is used by the sink to
+     * separately set the PubSub message's payload and attributes.
      */
     private Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
       return toBuilder().setFormatFn(formatFn).build();
@@ -846,12 +829,15 @@ public class PubsubIO {
           input.apply(ParDo.of(new PubsubBoundedWriter()));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
-          return input.apply(MapElements.via(getFormatFn())).apply(new PubsubUnboundedSink(
-              FACTORY,
-              NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
-              getTimestampAttribute(),
-              getIdAttribute(),
-              100 /* numShards */));
+          return input
+              .apply(MapElements.via(getFormatFn()))
+              .apply(
+                  new PubsubUnboundedSink(
+                      FACTORY,
+                      NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
+                      getTimestampAttribute(),
+                      getIdAttribute(),
+                      100 /* numShards */));
       }
       throw new RuntimeException(); // cases are exhaustive.
     }
@@ -879,8 +865,8 @@ public class PubsubIO {
         this.output = new ArrayList<>();
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
-            FACTORY.newClient(getTimestampAttribute(), null,
-                c.getPipelineOptions().as(PubsubOptions.class));
+            FACTORY.newClient(
+                getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
       }
 
       @ProcessElement
@@ -911,9 +897,7 @@ public class PubsubIO {
         PubsubTopic topic = getTopicProvider().get();
         int n =
             pubsubClient.publish(
-                PubsubClient.topicPathFromName(
-                    topic.project, topic.topic),
-                output);
+                PubsubClient.topicPathFromName(topic.project, topic.topic), output);
         checkState(n == output.size());
         output.clear();
       }

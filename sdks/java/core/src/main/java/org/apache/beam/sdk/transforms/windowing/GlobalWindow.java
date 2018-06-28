@@ -25,13 +25,9 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * The default window into which all data is placed (via {@link GlobalWindows}).
- */
+/** The default window into which all data is placed (via {@link GlobalWindows}). */
 public class GlobalWindow extends BoundedWindow {
-  /**
-   * Singleton instance of {@link GlobalWindow}.
-   */
+  /** Singleton instance of {@link GlobalWindow}. */
   public static final GlobalWindow INSTANCE = new GlobalWindow();
 
   // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
@@ -60,9 +56,7 @@ public class GlobalWindow extends BoundedWindow {
 
   private GlobalWindow() {}
 
-  /**
-   * {@link Coder} for encoding and decoding {@code GlobalWindow}s.
-   */
+  /** {@link Coder} for encoding and decoding {@code GlobalWindow}s. */
   public static class Coder extends StructuredCoder<GlobalWindow> {
     public static final Coder INSTANCE = new Coder();
 

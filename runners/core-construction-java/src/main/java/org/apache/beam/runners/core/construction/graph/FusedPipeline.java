@@ -82,10 +82,11 @@ public abstract class FusedPipeline {
                 false)
             .map(PTransformNode::getId)
             .collect(Collectors.toList());
-    Pipeline res = Pipeline.newBuilder()
-        .setComponents(fusedComponents)
-        .addAllRootTransformIds(rootTransformIds)
-        .build();
+    Pipeline res =
+        Pipeline.newBuilder()
+            .setComponents(fusedComponents)
+            .addAllRootTransformIds(rootTransformIds)
+            .build();
     // Validate that fusion didn't produce a malformed pipeline.
     PipelineValidator.validate(res);
     return res;

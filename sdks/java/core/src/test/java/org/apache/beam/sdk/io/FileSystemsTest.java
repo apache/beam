@@ -46,28 +46,28 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FileSystems}.
- */
+/** Tests for {@link FileSystems}. */
 @RunWith(JUnit4.class)
 public class FileSystemsTest {
 
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
   private LocalFileSystem localFileSystem = new LocalFileSystem();
 
   @Test
   public void testGetLocalFileSystem() throws Exception {
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
-        instanceof LocalFileSystem);
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("file://home").getScheme())
-        instanceof LocalFileSystem);
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("FILE://home").getScheme())
-        instanceof LocalFileSystem);
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("File://home").getScheme())
-        instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
+            instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("file://home").getScheme())
+            instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("FILE://home").getScheme())
+            instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("File://home").getScheme())
+            instanceof LocalFileSystem);
   }
 
   @Test
@@ -128,12 +128,10 @@ public class FileSystemsTest {
     assertTrue(srcPath1.toFile().exists());
     assertTrue(srcPath3.toFile().exists());
     assertThat(
-        Files.readLines(srcPath1.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder("content1"));
+        Files.readLines(srcPath1.toFile(), StandardCharsets.UTF_8), containsInAnyOrder("content1"));
     assertFalse(destPath2.toFile().exists());
     assertThat(
-        Files.readLines(srcPath3.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder("content3"));
+        Files.readLines(srcPath3.toFile(), StandardCharsets.UTF_8), containsInAnyOrder("content3"));
   }
 
   @Test
@@ -189,11 +187,12 @@ public class FileSystemsTest {
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {
-    try (Writer writer = Channels.newWriter(
-        localFileSystem.create(
-            LocalResourceId.fromPath(path, false /* isDirectory */),
-            CreateOptions.StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
-        StandardCharsets.UTF_8.name())) {
+    try (Writer writer =
+        Channels.newWriter(
+            localFileSystem.create(
+                LocalResourceId.fromPath(path, false /* isDirectory */),
+                CreateOptions.StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
+            StandardCharsets.UTF_8.name())) {
       writer.write(content);
     }
   }

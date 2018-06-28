@@ -25,20 +25,18 @@ import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
-/**
- * Properties that can be set when using Google Cloud Pub/Sub with the Apache Beam SDK.
- */
-@Description("Options that are used to configure Google Cloud Pub/Sub. See "
-    + "https://cloud.google.com/pubsub/docs/overview for details on Cloud Pub/Sub.")
-public interface PubsubOptions extends ApplicationNameOptions, GcpOptions,
-    PipelineOptions, StreamingOptions {
+/** Properties that can be set when using Google Cloud Pub/Sub with the Apache Beam SDK. */
+@Description(
+    "Options that are used to configure Google Cloud Pub/Sub. See "
+        + "https://cloud.google.com/pubsub/docs/overview for details on Cloud Pub/Sub.")
+public interface PubsubOptions
+    extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {
 
-  /**
-   * Root URL for use with the Google Cloud Pub/Sub API.
-   */
+  /** Root URL for use with the Google Cloud Pub/Sub API. */
   @Description("Root URL for use with the Google Cloud Pub/Sub API")
   @Default.String("https://pubsub.googleapis.com")
   @Hidden
   String getPubsubRootUrl();
+
   void setPubsubRootUrl(String value);
 }

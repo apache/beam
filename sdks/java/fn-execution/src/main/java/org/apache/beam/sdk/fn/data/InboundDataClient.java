@@ -39,14 +39,10 @@ public interface InboundDataClient {
    */
   boolean isDone();
 
-  /**
-   * Cancels the client, causing it to drop any future inbound data.
-   */
+  /** Cancels the client, causing it to drop any future inbound data. */
   void cancel();
 
-  /**
-   * Mark the client as completed.
-   */
+  /** Mark the client as completed. */
   void complete();
 
   /**

@@ -36,13 +36,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CompletableFutureInboundDataClient}.
- */
+/** Tests for {@link CompletableFutureInboundDataClient}. */
 @RunWith(JUnit4.class)
 public class CompletableFutureInboundDataClientTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testComplete() throws Exception {

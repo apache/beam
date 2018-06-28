@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines utilities for unit testing Google Cloud Platform components of Apache Beam pipelines.
- */
+/** Defines utilities for unit testing Google Cloud Platform components of Apache Beam pipelines. */
 package org.apache.beam.sdk.io.gcp.testing;

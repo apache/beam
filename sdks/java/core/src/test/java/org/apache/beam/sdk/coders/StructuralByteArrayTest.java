@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StructuralByteArray}.
- */
+/** Tests for {@link StructuralByteArray}. */
 @RunWith(JUnit4.class)
 public final class StructuralByteArrayTest {
 
@@ -36,7 +34,8 @@ public final class StructuralByteArrayTest {
     assertEquals(
         new StructuralByteArray("test string".getBytes(Charsets.UTF_8)),
         new StructuralByteArray("test string".getBytes(Charsets.UTF_8)));
-    assertFalse(new StructuralByteArray("test string".getBytes(Charsets.UTF_8)).equals(
-        new StructuralByteArray("diff string".getBytes(Charsets.UTF_8))));
+    assertFalse(
+        new StructuralByteArray("test string".getBytes(Charsets.UTF_8))
+            .equals(new StructuralByteArray("diff string".getBytes(Charsets.UTF_8))));
   }
 }

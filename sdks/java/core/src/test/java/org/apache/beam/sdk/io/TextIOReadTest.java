@@ -159,10 +159,10 @@ public class TextIOReadTest {
    * they all match the given expected output.
    *
    * <p>The transforms being verified are:
+   *
    * <ul>
    *   <li>TextIO.read().from(filename).withCompression(compressionType)
-   *   <li>TextIO.read().from(filename).withCompression(compressionType)
-   *       .withHintMatchesManyFiles()
+   *   <li>TextIO.read().from(filename).withCompression(compressionType) .withHintMatchesManyFiles()
    *   <li>TextIO.readAll().withCompression(compressionType)
    * </ul>
    */
@@ -180,8 +180,7 @@ public class TextIOReadTest {
                 read.withHintMatchesManyFiles()))
         .containsInAnyOrder(expected);
 
-    TextIO.ReadAll readAll =
-        TextIO.readAll().withCompression(compression);
+    TextIO.ReadAll readAll = TextIO.readAll().withCompression(compression);
     PAssert.that(
             p.apply("Create_" + file, Create.of(file.getPath()))
                 .apply("Read_" + compression.toString(), readAll))
@@ -327,6 +326,7 @@ public class TextIOReadTest {
   public static class ReadWithDelimiterTest {
     private static final ImmutableList<String> EXPECTED = ImmutableList.of("asdf", "hjkl", "xyz");
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
@@ -398,11 +398,11 @@ public class TextIOReadTest {
 
     @Test
     public void testDelimiterSelfOverlaps() {
-      assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c'}));
-      assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'c', 'a', 'b', 'd', 'a', 'b'}));
-      assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c', 'a', 'b', 'd'}));
-      assertTrue(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'a'}));
-      assertTrue(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c', 'a', 'b'}));
+      assertFalse(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'c'}));
+      assertFalse(TextIO.Read.isSelfOverlapping(new byte[] {'c', 'a', 'b', 'd', 'a', 'b'}));
+      assertFalse(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'c', 'a', 'b', 'd'}));
+      assertTrue(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'a'}));
+      assertTrue(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'c', 'a', 'b'}));
     }
 
     @Test
@@ -472,7 +472,7 @@ public class TextIOReadTest {
 
       assertEquals("TextIO.Read/Read.out", p.apply(TextIO.read().from("somefile")).getName());
       assertEquals(
-        "MyRead/Read.out", p.apply("MyRead", TextIO.read().from(emptyFile.getPath())).getName());
+          "MyRead/Read.out", p.apply("MyRead", TextIO.read().from(emptyFile.getPath())).getName());
     }
 
     @Test
@@ -494,14 +494,15 @@ public class TextIOReadTest {
 
       Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
       assertThat(
-        "TextIO.Read should include the file prefix in its primitive display data",
-        displayData,
-        hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
+          "TextIO.Read should include the file prefix in its primitive display data",
+          displayData,
+          hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
     }
 
     /** Options for testing. */
     public interface RuntimeTestOptions extends PipelineOptions {
       ValueProvider<String> getInput();
+
       void setInput(ValueProvider<String> value);
     }
 
@@ -509,8 +510,7 @@ public class TextIOReadTest {
     public void testRuntimeOptionsNotCalledInApply() throws Exception {
       p.enableAbandonedNodeEnforcement(false);
 
-      RuntimeTestOptions options =
-        PipelineOptionsFactory.as(RuntimeTestOptions.class);
+      RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
 
       p.apply(TextIO.read().from(options.getInput()));
     }
@@ -524,30 +524,30 @@ public class TextIOReadTest {
     }
 
     /**
-     * Tests reading from a small, uncompressed file with .gz extension. This must work in
-     * GZIP modes. This is needed because some network file systems / HTTP clients will
-     * transparently decompress gzipped content.
+     * Tests reading from a small, uncompressed file with .gz extension. This must work in GZIP
+     * modes. This is needed because some network file systems / HTTP clients will transparently
+     * decompress gzipped content.
      */
     @Test
     @Category(NeedsRunner.class)
     public void testSmallCompressedGzipReadActuallyUncompressed() throws Exception {
       File smallGzNotCompressed =
-        writeToFile(TINY, tempFolder, "tiny_uncompressed.gz", UNCOMPRESSED);
+          writeToFile(TINY, tempFolder, "tiny_uncompressed.gz", UNCOMPRESSED);
       // Should work with GZIP compression set.
       assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, GZIP, TINY, p);
       p.run();
     }
 
     /**
-     * Tests reading from a small, uncompressed file with .gz extension. This must work in
-     * AUTO modes. This is needed because some network file systems / HTTP clients will
-     * transparently decompress gzipped content.
+     * Tests reading from a small, uncompressed file with .gz extension. This must work in AUTO
+     * modes. This is needed because some network file systems / HTTP clients will transparently
+     * decompress gzipped content.
      */
     @Test
     @Category(NeedsRunner.class)
     public void testSmallCompressedAutoReadActuallyUncompressed() throws Exception {
       File smallGzNotCompressed =
-        writeToFile(TINY, tempFolder, "tiny_uncompressed.gz", UNCOMPRESSED);
+          writeToFile(TINY, tempFolder, "tiny_uncompressed.gz", UNCOMPRESSED);
       // Should also work with AUTO mode set.
       assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, AUTO, TINY, p);
       p.run();
@@ -578,8 +578,7 @@ public class TextIOReadTest {
 
       List<String> expected = new ArrayList<>();
 
-      File file =
-        createZipFile(expected, tempFolder, "multiple entries", entry0, entry1, entry2);
+      File file = createZipFile(expected, tempFolder, "multiple entries", entry0, entry1, entry2);
       assertReadingCompressedFileMatchesExpected(file, ZIP, expected, p);
       p.run();
     }
@@ -601,8 +600,7 @@ public class TextIOReadTest {
               new String[] {},
               new String[] {"dog"});
 
-      assertReadingCompressedFileMatchesExpected(
-        file, ZIP, Arrays.asList("cat", "dog"), p);
+      assertReadingCompressedFileMatchesExpected(file, ZIP, Arrays.asList("cat", "dog"), p);
       p.run();
     }
 
@@ -619,12 +617,12 @@ public class TextIOReadTest {
     @Test
     public void testProgressEmptyFile() throws IOException {
       try (BoundedSource.BoundedReader<String> reader =
-             prepareSource(new byte[0]).createReader(PipelineOptionsFactory.create())) {
+          prepareSource(new byte[0]).createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting.
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
         assertEquals(0, reader.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
         // Assert empty
         assertFalse(reader.start());
@@ -640,25 +638,25 @@ public class TextIOReadTest {
     public void testProgressTextFile() throws IOException {
       String file = "line1\nline2\nline3";
       try (BoundedSource.BoundedReader<String> reader =
-             prepareSource(file.getBytes(Charsets.UTF_8))
-                 .createReader(PipelineOptionsFactory.create())) {
+          prepareSource(file.getBytes(Charsets.UTF_8))
+              .createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
         assertEquals(0, reader.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
         // Line 1
         assertTrue(reader.start());
         assertEquals(0, reader.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
         // Line 2
         assertTrue(reader.advance());
         assertEquals(1, reader.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
         // Line 3
         assertTrue(reader.advance());
@@ -681,18 +679,18 @@ public class TextIOReadTest {
 
       // Create the remainder, verifying properties pre- and post-splitting.
       try (BoundedSource.BoundedReader<String> readerOrig =
-             source.createReader(PipelineOptionsFactory.create())) {
+          source.createReader(PipelineOptionsFactory.create())) {
         // Preconditions.
         assertEquals(0.0, readerOrig.getFractionConsumed(), 1e-6);
         assertEquals(0, readerOrig.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, readerOrig.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, readerOrig.getSplitPointsRemaining());
 
         // First record, before splitting.
         assertTrue(readerOrig.start());
         assertEquals(0, readerOrig.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, readerOrig.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, readerOrig.getSplitPointsRemaining());
 
         // Split. 0.1 is in line1, so should now be able to detect last record.
         remainder = readerOrig.splitAtFraction(0.1);
@@ -712,18 +710,18 @@ public class TextIOReadTest {
 
       // Check the properties of the remainder.
       try (BoundedSource.BoundedReader<String> reader =
-             remainder.createReader(PipelineOptionsFactory.create())) {
+          remainder.createReader(PipelineOptionsFactory.create())) {
         // Preconditions.
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
         assertEquals(0, reader.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
         // First record should be line 2.
         assertTrue(reader.start());
         assertEquals(0, reader.getSplitPointsConsumed());
         assertEquals(
-          BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+            BoundedSource.BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
         // Second record is line 3
         assertTrue(reader.advance());
@@ -780,7 +778,7 @@ public class TextIOReadTest {
       assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
 
       FileBasedSource<String> source =
-        TextIO.read().from(largeTxt.getPath()).withCompression(GZIP).getSource();
+          TextIO.read().from(largeTxt.getPath()).withCompression(GZIP).getSource();
       List<? extends FileBasedSource<String>> splits = source.split(desiredBundleSize, options);
 
       // Exactly 1 split, even though splittable text file, since using GZIP mode.
@@ -797,11 +795,11 @@ public class TextIOReadTest {
       writeToFile(LARGE, tempFolder, "readAllLarge1.zip", ZIP);
       writeToFile(LARGE, tempFolder, "readAllLarge2.txt", UNCOMPRESSED);
       PCollection<String> lines =
-        p.apply(
-          Create.of(
-            tempFolderPath.resolve("readAllTiny*").toString(),
-            tempFolderPath.resolve("readAllLarge*").toString()))
-          .apply(TextIO.readAll().withCompression(AUTO));
+          p.apply(
+                  Create.of(
+                      tempFolderPath.resolve("readAllTiny*").toString(),
+                      tempFolderPath.resolve("readAllLarge*").toString()))
+              .apply(TextIO.readAll().withCompression(AUTO));
       PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
       p.run();
     }
@@ -815,13 +813,13 @@ public class TextIOReadTest {
       writeToFile(LARGE, tempFolder, "readAllLarge1.zip", ZIP);
       writeToFile(LARGE, tempFolder, "readAllLarge2.txt", UNCOMPRESSED);
       PCollection<String> lines =
-        p.apply(
-          Create.of(
-            tempFolderPath.resolve("readAllTiny*").toString(),
-            tempFolderPath.resolve("readAllLarge*").toString()))
-          .apply(FileIO.matchAll())
-          .apply(FileIO.readMatches().withCompression(AUTO))
-          .apply(TextIO.readFiles().withDesiredBundleSizeBytes(10));
+          p.apply(
+                  Create.of(
+                      tempFolderPath.resolve("readAllTiny*").toString(),
+                      tempFolderPath.resolve("readAllLarge*").toString()))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches().withCompression(AUTO))
+              .apply(TextIO.readFiles().withDesiredBundleSizeBytes(10));
       PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
       p.run();
     }

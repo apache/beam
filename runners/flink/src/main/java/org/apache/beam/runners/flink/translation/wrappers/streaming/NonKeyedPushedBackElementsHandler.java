@@ -23,9 +23,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.flink.api.common.state.ListState;
 
-/**
- * {@link PushedBackElementsHandler} that stores elements in a Flink operator state list.
- */
+/** {@link PushedBackElementsHandler} that stores elements in a Flink operator state list. */
 class NonKeyedPushedBackElementsHandler<T> implements PushedBackElementsHandler<T> {
 
   static <T> NonKeyedPushedBackElementsHandler<T> create(ListState<T> elementState) {

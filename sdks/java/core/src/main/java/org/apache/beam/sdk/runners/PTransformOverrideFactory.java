@@ -58,8 +58,8 @@ public interface PTransformOverrideFactory<
   Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, OutputT newOutput);
 
   /**
-   * A {@link PTransform} that replaces an {@link AppliedPTransform}, and the input required to
-   * do so. The input must be constructed from the expanded form, as the transform may not have
+   * A {@link PTransform} that replaces an {@link AppliedPTransform}, and the input required to do
+   * so. The input must be constructed from the expanded form, as the transform may not have
    * originally been applied within this process or from within a Java SDK.
    */
   @AutoValue
@@ -69,13 +69,13 @@ public interface PTransformOverrideFactory<
             InputT input, PTransform<InputT, OutputT> transform) {
       return new AutoValue_PTransformOverrideFactory_PTransformReplacement(input, transform);
     }
+
     public abstract InputT getInput();
+
     public abstract PTransform<InputT, OutputT> getTransform();
   }
 
-  /**
-   * A mapping between original {@link TaggedPValue} outputs and their replacements.
-   */
+  /** A mapping between original {@link TaggedPValue} outputs and their replacements. */
   @AutoValue
   abstract class ReplacementOutput {
     public static ReplacementOutput of(TaggedPValue original, TaggedPValue replacement) {

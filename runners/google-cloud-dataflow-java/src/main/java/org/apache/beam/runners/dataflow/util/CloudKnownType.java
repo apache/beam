@@ -120,7 +120,7 @@ enum CloudKnownType {
   }
 
   private static final Map<Class<?>, CloudKnownType> typesByClass =
-  Collections.unmodifiableMap(buildTypesByClass());
+      Collections.unmodifiableMap(buildTypesByClass());
 
   private static Map<Class<?>, CloudKnownType> buildTypesByClass() {
     Map<Class<?>, CloudKnownType> result = new HashMap<>();

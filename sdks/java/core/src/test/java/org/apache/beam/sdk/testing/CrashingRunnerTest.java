@@ -32,13 +32,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CrashingRunner}.
- */
+/** Tests for {@link CrashingRunner}. */
 @RunWith(JUnit4.class)
 public class CrashingRunnerTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void fromOptionsCreatesInstance() {

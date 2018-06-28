@@ -30,14 +30,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link TableRowJsonCoder}.
- */
+/** Test case for {@link TableRowJsonCoder}. */
 @RunWith(JUnit4.class)
 public class TableRowJsonCoderTest {
 
   private static class TableRowBuilder {
     private TableRow row;
+
     public TableRowBuilder() {
       row = new TableRow();
     }
@@ -46,6 +45,7 @@ public class TableRowJsonCoderTest {
       row.set(fieldName, value);
       return this;
     }
+
     public TableRow build() {
       return row;
     }
@@ -53,11 +53,12 @@ public class TableRowJsonCoderTest {
 
   private static final Coder<TableRow> TEST_CODER = TableRowJsonCoder.of();
 
-  private static final List<TableRow> TEST_VALUES = Arrays.asList(
-      new TableRowBuilder().build(),
-      new TableRowBuilder().set("a", "1").build(),
-      new TableRowBuilder().set("b", 3.14).build(),
-      new TableRowBuilder().set("a", "1").set("b", true).set("c", "hi").build());
+  private static final List<TableRow> TEST_VALUES =
+      Arrays.asList(
+          new TableRowBuilder().build(),
+          new TableRowBuilder().set("a", "1").build(),
+          new TableRowBuilder().set("b", 3.14).build(),
+          new TableRowBuilder().set("a", "1").set("b", true).set("c", "hi").build());
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -67,14 +68,12 @@ public class TableRowJsonCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "e30",
-      "eyJhIjoiMSJ9",
-      "eyJiIjozLjE0fQ",
-      "eyJhIjoiMSIsImIiOnRydWUsImMiOiJoaSJ9");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "e30", "eyJhIjoiMSJ9", "eyJiIjozLjE0fQ", "eyJhIjoiMSIsImIiOnRydWUsImMiOiJoaSJ9");
 
   @Test
   public void testWireFormatEncode() throws Exception {

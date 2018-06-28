@@ -36,9 +36,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-/**
- * a serializable {@link SimpleDoFnRunner}.
- */
+/** a serializable {@link SimpleDoFnRunner}. */
 public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
   private static final long serialVersionUID = -4109539010014189725L;
@@ -73,10 +71,16 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
       ReadyCheckingSideInputReader sideInputReader) {
     PipelineOptions options = serializedOptions.get();
-    DoFnRunner<InputT, OutputT> underlying = DoFnRunners.simpleRunner(
-        options, fn, sideInputReader, outputManager, mainOutputTag,
-        sideOutputTags, stepContext, windowingStrategy);
+    DoFnRunner<InputT, OutputT> underlying =
+        DoFnRunners.simpleRunner(
+            options,
+            fn,
+            sideInputReader,
+            outputManager,
+            mainOutputTag,
+            sideOutputTags,
+            stepContext,
+            windowingStrategy);
     return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
-
 }

@@ -18,27 +18,17 @@
 
 package org.apache.beam.runners.local;
 
-/**
- * Handles failures in the form of exceptions.
- */
+/** Handles failures in the form of exceptions. */
 public interface PipelineMessageReceiver {
-  /**
-   * Report that a failure has occurred.
-   */
+  /** Report that a failure has occurred. */
   void failed(Exception e);
 
-  /**
-   * Report that a failure has occurred.
-   */
+  /** Report that a failure has occurred. */
   void failed(Error e);
 
-  /**
-   * Report that the pipeline has been cancelled.
-   */
+  /** Report that the pipeline has been cancelled. */
   void cancelled();
 
-  /**
-   * Report that the pipeline has successfully completed.
-   */
+  /** Report that the pipeline has successfully completed. */
   void completed();
 }

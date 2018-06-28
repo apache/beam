@@ -26,9 +26,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PTransform} base class.
- */
+/** Tests for {@link PTransform} base class. */
 @RunWith(JUnit4.class)
 public class PTransformTest {
   @Test

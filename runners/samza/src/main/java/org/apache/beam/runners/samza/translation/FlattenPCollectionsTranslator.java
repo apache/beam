@@ -36,12 +36,10 @@ import org.apache.samza.operators.MessageStream;
 /**
  * Translates {@link org.apache.beam.sdk.transforms.Flatten.PCollections} to Samza merge operator.
  */
-class FlattenPCollectionsTranslator<T>
-    implements TransformTranslator<Flatten.PCollections<T>> {
+class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PCollections<T>> {
   @Override
-  public void translate(Flatten.PCollections<T> transform,
-                        TransformHierarchy.Node node,
-                        TranslationContext ctx) {
+  public void translate(
+      Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
 
     final List<MessageStream<OpMessage<T>>> inputStreams = new ArrayList<>();
@@ -62,8 +60,8 @@ class FlattenPCollectionsTranslator<T>
 
     if (inputStreams.size() == 0) {
       final MessageStream<OpMessage<T>> noOpStream =
-          ctx.getDummyStream().flatMap(
-              OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
+          ctx.getDummyStream()
+              .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }
@@ -74,13 +72,14 @@ class FlattenPCollectionsTranslator<T>
     }
 
     final Set<MessageStream<OpMessage<T>>> streamsToMerge = new HashSet<>();
-    inputStreams.forEach(stream -> {
-      boolean inserted = streamsToMerge.add(stream);
-      if (!inserted) {
-        // Merge same streams. Make a copy of the current stream.
-        streamsToMerge.add(stream.map(m -> m));
-      }
-    });
+    inputStreams.forEach(
+        stream -> {
+          boolean inserted = streamsToMerge.add(stream);
+          if (!inserted) {
+            // Merge same streams. Make a copy of the current stream.
+            streamsToMerge.add(stream.map(m -> m));
+          }
+        });
 
     final MessageStream<OpMessage<T>> outputStream = MessageStream.mergeAll(streamsToMerge);
     ctx.registerMessageStream(output, outputStream);

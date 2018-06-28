@@ -31,13 +31,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Test for {@link SourceRDD.Bounded.ReaderToIteratorAdapter}.
- */
+/** Test for {@link SourceRDD.Bounded.ReaderToIteratorAdapter}. */
 public class ReaderToIteratorAdapterTest {
 
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
+  @Rule public ExpectedException exception = ExpectedException.none();
 
   private static class TestReader extends Source.Reader<Integer> {
 
@@ -141,5 +138,4 @@ public class ReaderToIteratorAdapterTest {
     exception.expect(NoSuchElementException.class);
     readerIterator.next();
   }
-
 }

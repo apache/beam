@@ -27,29 +27,23 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link DefaultSchemaFactory}.
- */
+/** Unit tests for {@link DefaultSchemaFactory}. */
 public class DefaultSchemaFactoryTest {
 
-  /**
-   * Test class without supported coder.
-   */
-  private static class UnsupportedClass {
-  }
+  /** Test class without supported coder. */
+  private static class UnsupportedClass {}
 
-  private static final ImmutableList<FieldValueGetter> GETTERS = ImmutableList
-      .<FieldValueGetter>builder()
-      .add(getter("byteGetter", Byte.class))
-      .add(getter("integerGetter", Integer.class))
-      .add(getter("longGetter", Long.class))
-      .add(getter("doubleGetter", Double.class))
-      .add(getter("booleanGetter", Boolean.class))
-      .add(getter("stringGetter", String.class))
-      .build();
+  private static final ImmutableList<FieldValueGetter> GETTERS =
+      ImmutableList.<FieldValueGetter>builder()
+          .add(getter("byteGetter", Byte.class))
+          .add(getter("integerGetter", Integer.class))
+          .add(getter("longGetter", Long.class))
+          .add(getter("doubleGetter", Double.class))
+          .add(getter("booleanGetter", Boolean.class))
+          .add(getter("stringGetter", String.class))
+          .build();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testContainsCorrectFields() throws Exception {

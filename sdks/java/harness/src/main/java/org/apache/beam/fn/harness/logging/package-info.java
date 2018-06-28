@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Logging service client and JUL logging handler adapter.
- */
+/** Logging service client and JUL logging handler adapter. */
 package org.apache.beam.fn.harness.logging;

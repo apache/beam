@@ -49,9 +49,7 @@ public class PerfsToBigQueryTest {
       new FakeBigQueryServices()
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
-  @Rule
-  public transient TemporaryFolder testFolder = new TemporaryFolder();
-
+  @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
 
   @Before
   public void before() throws IOException, InterruptedException {
@@ -103,19 +101,22 @@ public class PerfsToBigQueryTest {
             BigQueryHelpers.parseTableSpec(tableSpec).getTableId());
     assertEquals("Wrong number of rows inserted", 2, actualRows.size());
     List<TableRow> expectedRows = new ArrayList<>();
-    TableRow row1 = new TableRow()
-        .set("runtimeSec", nexmarkPerf1.runtimeSec).set("eventsPerSec", nexmarkPerf1.eventsPerSec)
-        // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
-        // to for bowing into Integer in the expectedRows.
-        .set("numResults", (int) nexmarkPerf1.numResults);
+    TableRow row1 =
+        new TableRow()
+            .set("runtimeSec", nexmarkPerf1.runtimeSec)
+            .set("eventsPerSec", nexmarkPerf1.eventsPerSec)
+            // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
+            // to for bowing into Integer in the expectedRows.
+            .set("numResults", (int) nexmarkPerf1.numResults);
     expectedRows.add(row1);
-    TableRow row2 = new TableRow()
-        .set("runtimeSec", nexmarkPerf2.runtimeSec).set("eventsPerSec", nexmarkPerf2.eventsPerSec)
-        // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
-        // to for bowing into Integer in the expectedRows.
-        .set("numResults", (int) nexmarkPerf2.numResults);
+    TableRow row2 =
+        new TableRow()
+            .set("runtimeSec", nexmarkPerf2.runtimeSec)
+            .set("eventsPerSec", nexmarkPerf2.eventsPerSec)
+            // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
+            // to for bowing into Integer in the expectedRows.
+            .set("numResults", (int) nexmarkPerf2.numResults);
     expectedRows.add(row2);
     assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
-
   }
 }

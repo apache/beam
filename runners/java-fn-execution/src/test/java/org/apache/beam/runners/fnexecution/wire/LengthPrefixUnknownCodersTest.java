@@ -45,9 +45,9 @@ public class LengthPrefixUnknownCodersTest {
 
   private static class UnknownCoder extends CustomCoder<String> {
     private static final Coder<?> INSTANCE = new UnknownCoder();
+
     @Override
-    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
-    }
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
     public String decode(InputStream inStream) throws CoderException, IOException {
@@ -61,7 +61,7 @@ public class LengthPrefixUnknownCodersTest {
 
     @Override
     public boolean equals(Object obj) {
-      return obj instanceof  UnknownCoder;
+      return obj instanceof UnknownCoder;
     }
   }
 
@@ -70,59 +70,57 @@ public class LengthPrefixUnknownCodersTest {
     return ImmutableList.of(
         /** Test wrapping unknown coders with {@code LengthPrefixCoder}. */
         new Object[] {
-            WindowedValue.getFullCoder(
-                KvCoder.of(UnknownCoder.INSTANCE, UnknownCoder.INSTANCE),
-                GlobalWindow.Coder.INSTANCE),
-            WindowedValue.getFullCoder(
-                KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE),
-                    LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
-                GlobalWindow.Coder.INSTANCE),
-            false
+          WindowedValue.getFullCoder(
+              KvCoder.of(UnknownCoder.INSTANCE, UnknownCoder.INSTANCE),
+              GlobalWindow.Coder.INSTANCE),
+          WindowedValue.getFullCoder(
+              KvCoder.of(
+                  LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+                  LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
+              GlobalWindow.Coder.INSTANCE),
+          false
         },
         /**
-         * Test bypassing unknown coders that are already wrapped with
-         * {@code LengthPrefixCoder}.
+         * Test bypassing unknown coders that are already wrapped with {@code LengthPrefixCoder}.
          */
         new Object[] {
-            WindowedValue.getFullCoder(
-                KvCoder.of(UnknownCoder.INSTANCE,
-                    LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
-                GlobalWindow.Coder.INSTANCE),
-            WindowedValue.getFullCoder(
-                KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE),
-                    LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
-                GlobalWindow.Coder.INSTANCE),
-            false
+          WindowedValue.getFullCoder(
+              KvCoder.of(UnknownCoder.INSTANCE, LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
+              GlobalWindow.Coder.INSTANCE),
+          WindowedValue.getFullCoder(
+              KvCoder.of(
+                  LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+                  LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
+              GlobalWindow.Coder.INSTANCE),
+          false
         },
         /** Test replacing unknown coders with {@code LengthPrefixCoder<ByteArray>}. */
         new Object[] {
-            WindowedValue.getFullCoder(
-                KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE),
-                    UnknownCoder.INSTANCE),
-                GlobalWindow.Coder.INSTANCE),
-            WindowedValue.getFullCoder(
-                KvCoder.of(LengthPrefixCoder.of(ByteArrayCoder.of()),
-                    LengthPrefixCoder.of(ByteArrayCoder.of())),
-                GlobalWindow.Coder.INSTANCE),
-            true
+          WindowedValue.getFullCoder(
+              KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE), UnknownCoder.INSTANCE),
+              GlobalWindow.Coder.INSTANCE),
+          WindowedValue.getFullCoder(
+              KvCoder.of(
+                  LengthPrefixCoder.of(ByteArrayCoder.of()),
+                  LengthPrefixCoder.of(ByteArrayCoder.of())),
+              GlobalWindow.Coder.INSTANCE),
+          true
         },
         /** Test skipping a top level length prefix coder. */
         new Object[] {
-            LengthPrefixCoder.of(UnknownCoder.INSTANCE),
-            LengthPrefixCoder.of(UnknownCoder.INSTANCE),
-            false
+          LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+          LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+          false
         },
         /** Test replacing a top level length prefix coder with byte array coder. */
         new Object[] {
-            LengthPrefixCoder.of(UnknownCoder.INSTANCE),
-            LengthPrefixCoder.of(ByteArrayCoder.of()),
-            true
-        }
-    );
+          LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+          LengthPrefixCoder.of(ByteArrayCoder.of()),
+          true
+        });
   }
 
-  @Parameter
-  public Coder<?> original;
+  @Parameter public Coder<?> original;
 
   @Parameter(1)
   public Coder<?> expected;
@@ -135,8 +133,8 @@ public class LengthPrefixUnknownCodersTest {
     SdkComponents sdkComponents = SdkComponents.create();
     String coderId = sdkComponents.registerCoder(original);
     Components.Builder components = sdkComponents.toComponents().toBuilder();
-    String updatedCoderId = LengthPrefixUnknownCoders.addLengthPrefixedCoder(
-        coderId, components, replaceWithByteArray);
+    String updatedCoderId =
+        LengthPrefixUnknownCoders.addLengthPrefixedCoder(coderId, components, replaceWithByteArray);
     assertEquals(
         expected, RehydratedComponents.forComponents(components.build()).getCoder(updatedCoderId));
   }

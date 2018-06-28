@@ -89,14 +89,18 @@ public class ProcessBundleHandlerTest {
   public void testOrderOfStartAndFinishCalls() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
-                .putOutputs("2L-output", "2L-output-pc")
-                .build())
-            .putTransforms("3L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
-                .putInputs("3L-input", "2L-output-pc")
-                .build())
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putOutputs("2L-output", "2L-output-pc")
+                    .build())
+            .putTransforms(
+                "3L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("3L-input", "2L-output-pc")
+                    .build())
             .putPcollections("2L-output-pc", RunnerApi.PCollection.getDefaultInstance())
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
@@ -126,25 +130,30 @@ public class ProcessBundleHandlerTest {
           return null;
         };
 
-    ProcessBundleHandler handler = new ProcessBundleHandler(
-        PipelineOptionsFactory.create(),
-        fnApiRegistry::get,
-        beamFnDataClient,
-        null /* beamFnStateClient */,
-        ImmutableMap.of(
-            DATA_INPUT_URN, startFinishRecorder,
-            DATA_OUTPUT_URN, startFinishRecorder));
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateClient */,
+            ImmutableMap.of(
+                DATA_INPUT_URN, startFinishRecorder,
+                DATA_OUTPUT_URN, startFinishRecorder));
 
-    handler.processBundle(BeamFnApi.InstructionRequest.newBuilder()
-        .setInstructionId("999L")
-        .setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
-        .build());
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("999L")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorReference("1L"))
+            .build());
 
     // Processing of transforms is performed in reverse order.
-    assertThat(transformsProcessed, contains(
-        processBundleDescriptor.getTransformsMap().get("3L"),
-        processBundleDescriptor.getTransformsMap().get("2L")));
+    assertThat(
+        transformsProcessed,
+        contains(
+            processBundleDescriptor.getTransformsMap().get("3L"),
+            processBundleDescriptor.getTransformsMap().get("2L")));
     // Start should occur in reverse order while finish calls should occur in forward order
     assertThat(orderOfOperations, contains("Start3L", "Start2L", "Finish2L", "Finish3L"));
   }
@@ -153,9 +162,11 @@ public class ProcessBundleHandlerTest {
   public void testCreatingPTransformExceptionsArePropagated() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
-                .build())
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
@@ -185,8 +196,10 @@ public class ProcessBundleHandlerTest {
                   throw new IllegalStateException("TestException");
                 }));
     handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorReference("1L"))
             .build());
   }
 
@@ -194,9 +207,11 @@ public class ProcessBundleHandlerTest {
   public void testPTransformStartExceptionsArePropagated() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
-                .build())
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
@@ -239,9 +254,11 @@ public class ProcessBundleHandlerTest {
   public void testPTransformFinishExceptionsArePropagated() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
-                .build())
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
@@ -273,8 +290,10 @@ public class ProcessBundleHandlerTest {
                       return null;
                     }));
     handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorReference("1L"))
             .build());
   }
 
@@ -282,9 +301,11 @@ public class ProcessBundleHandlerTest {
   public void testPendingStateCallsBlockTillCompletion() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
-                .build())
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
             .setStateApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
@@ -324,42 +345,49 @@ public class ProcessBundleHandlerTest {
         .when(mockBeamFnStateClient)
         .handle(any(), any());
 
-    ProcessBundleHandler handler = new ProcessBundleHandler(
-        PipelineOptionsFactory.create(),
-        fnApiRegistry::get,
-        beamFnDataClient,
-        mockBeamFnStateGrpcClient,
-        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
-          @Override
-          public Object createRunnerForPTransform(
-              PipelineOptions pipelineOptions,
-              BeamFnDataClient beamFnDataClient,
-              BeamFnStateClient beamFnStateClient,
-              String pTransformId,
-              PTransform pTransform,
-              Supplier<String> processBundleInstructionId,
-              Map<String, PCollection> pCollections,
-              Map<String, Coder> coders,
-              Map<String, WindowingStrategy> windowingStrategies,
-              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-              Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction,
-              BundleSplitListener splitListener) throws IOException {
-            addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
-            return null;
-          }
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            mockBeamFnStateGrpcClient,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                new PTransformRunnerFactory<Object>() {
+                  @Override
+                  public Object createRunnerForPTransform(
+                      PipelineOptions pipelineOptions,
+                      BeamFnDataClient beamFnDataClient,
+                      BeamFnStateClient beamFnStateClient,
+                      String pTransformId,
+                      PTransform pTransform,
+                      Supplier<String> processBundleInstructionId,
+                      Map<String, PCollection> pCollections,
+                      Map<String, Coder> coders,
+                      Map<String, WindowingStrategy> windowingStrategies,
+                      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+                      Consumer<ThrowingRunnable> addStartFunction,
+                      Consumer<ThrowingRunnable> addFinishFunction,
+                      BundleSplitListener splitListener)
+                      throws IOException {
+                    addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
+                    return null;
+                  }
 
-          private void doStateCalls(BeamFnStateClient beamFnStateClient) {
-            beamFnStateClient.handle(StateRequest.newBuilder().setInstructionReference("SUCCESS"),
-                successfulResponse);
-            beamFnStateClient.handle(StateRequest.newBuilder().setInstructionReference("FAIL"),
-                unsuccessfulResponse);
-          }
-        }));
+                  private void doStateCalls(BeamFnStateClient beamFnStateClient) {
+                    beamFnStateClient.handle(
+                        StateRequest.newBuilder().setInstructionReference("SUCCESS"),
+                        successfulResponse);
+                    beamFnStateClient.handle(
+                        StateRequest.newBuilder().setInstructionReference("FAIL"),
+                        unsuccessfulResponse);
+                  }
+                }));
     handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder()
-                .setProcessBundleDescriptorReference("1L"))
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorReference("1L"))
             .build());
 
     assertTrue(successfulResponse.isDone());
@@ -370,50 +398,58 @@ public class ProcessBundleHandlerTest {
   public void testStateCallsFailIfNoStateApiServiceDescriptorSpecified() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
-                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
-                .build())
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
-    ProcessBundleHandler handler = new ProcessBundleHandler(
-        PipelineOptionsFactory.create(),
-        fnApiRegistry::get,
-        beamFnDataClient,
-        null /* beamFnStateGrpcClientCache */,
-        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
-          @Override
-          public Object createRunnerForPTransform(
-              PipelineOptions pipelineOptions,
-              BeamFnDataClient beamFnDataClient,
-              BeamFnStateClient beamFnStateClient,
-              String pTransformId,
-              PTransform pTransform,
-              Supplier<String> processBundleInstructionId,
-              Map<String, PCollection> pCollections,
-              Map<String, Coder> coders,
-              Map<String, WindowingStrategy> windowingStrategies,
-              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-              Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction,
-              BundleSplitListener splitListener) throws IOException {
-            addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
-            return null;
-          }
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateGrpcClientCache */,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                new PTransformRunnerFactory<Object>() {
+                  @Override
+                  public Object createRunnerForPTransform(
+                      PipelineOptions pipelineOptions,
+                      BeamFnDataClient beamFnDataClient,
+                      BeamFnStateClient beamFnStateClient,
+                      String pTransformId,
+                      PTransform pTransform,
+                      Supplier<String> processBundleInstructionId,
+                      Map<String, PCollection> pCollections,
+                      Map<String, Coder> coders,
+                      Map<String, WindowingStrategy> windowingStrategies,
+                      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+                      Consumer<ThrowingRunnable> addStartFunction,
+                      Consumer<ThrowingRunnable> addFinishFunction,
+                      BundleSplitListener splitListener)
+                      throws IOException {
+                    addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
+                    return null;
+                  }
 
-          private void doStateCalls(BeamFnStateClient beamFnStateClient) {
-            thrown.expect(IllegalStateException.class);
-            thrown.expectMessage("State API calls are unsupported");
-            beamFnStateClient.handle(StateRequest.newBuilder().setInstructionReference("SUCCESS"),
-                new CompletableFuture<>());
-          }
-        }));
+                  private void doStateCalls(BeamFnStateClient beamFnStateClient) {
+                    thrown.expect(IllegalStateException.class);
+                    thrown.expectMessage("State API calls are unsupported");
+                    beamFnStateClient.handle(
+                        StateRequest.newBuilder().setInstructionReference("SUCCESS"),
+                        new CompletableFuture<>());
+                  }
+                }));
     handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorReference("1L"))
             .build());
   }
-
 
   private static void throwException() {
     throw new IllegalStateException("TestException");

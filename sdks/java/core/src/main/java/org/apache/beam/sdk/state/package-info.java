@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Classes and interfaces for interacting with state.
- */
+/** Classes and interfaces for interacting with state. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.state;
 

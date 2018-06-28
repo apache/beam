@@ -26,8 +26,8 @@ import java.nio.ByteBuffer;
 import javax.annotation.Nonnull;
 
 /**
- * A class representing a key consisting of an array of bytes. Arbitrary-length
- * {@code byte[]} keys are typical in key-value stores such as Google Cloud Bigtable.
+ * A class representing a key consisting of an array of bytes. Arbitrary-length {@code byte[]} keys
+ * are typical in key-value stores such as Google Cloud Bigtable.
  *
  * <p>Instances of {@link ByteKey} are immutable.
  *
@@ -36,17 +36,17 @@ import javax.annotation.Nonnull;
  * to a key is the same key with an additional 0 byte appended; and keys have unbounded size.
  *
  * <p>Note that the empty {@link ByteKey} compares smaller than all other keys, but some systems
- * have the semantic that when an empty {@link ByteKey} is used as an upper bound, it represents
- * the largest possible key. In these cases, implementors should use {@link #isEmpty} to test
- * whether an upper bound key is empty.
+ * have the semantic that when an empty {@link ByteKey} is used as an upper bound, it represents the
+ * largest possible key. In these cases, implementors should use {@link #isEmpty} to test whether an
+ * upper bound key is empty.
  */
 public final class ByteKey implements Comparable<ByteKey>, Serializable {
   /** An empty key. */
   public static final ByteKey EMPTY = ByteKey.of();
 
   /**
-   * Creates a new {@link ByteKey} backed by a copy of the data remaining in the specified
-   * {@link ByteBuffer}.
+   * Creates a new {@link ByteKey} backed by a copy of the data remaining in the specified {@link
+   * ByteBuffer}.
    */
   public static ByteKey copyFrom(ByteBuffer value) {
     return new ByteKey(ByteString.copyFrom(value));
@@ -80,9 +80,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
     return ByteKey.copyFrom(ret);
   }
 
-  /**
-   * Returns a read-only {@link ByteBuffer} representing this {@link ByteKey}.
-   */
+  /** Returns a read-only {@link ByteBuffer} representing this {@link ByteKey}. */
   public ByteBuffer getValue() {
     return value.asReadOnlyByteBuffer();
   }
@@ -96,18 +94,15 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
     return value.toByteArray();
   }
 
-  /**
-   * Returns {@code true} if the {@code byte[]} backing this {@link ByteKey} is of length 0.
-   */
+  /** Returns {@code true} if the {@code byte[]} backing this {@link ByteKey} is of length 0. */
   public boolean isEmpty() {
     return value.isEmpty();
   }
 
   /**
-   * {@link ByteKey} implements {@link Comparable Comparable&lt;ByteKey&gt;} by comparing the
-   * arrays in lexicographic order. The smallest {@link ByteKey} is a zero-length array; the
-   * successor to a key is the same key with an additional 0 byte appended; and keys have unbounded
-   * size.
+   * {@link ByteKey} implements {@link Comparable Comparable&lt;ByteKey&gt;} by comparing the arrays
+   * in lexicographic order. The smallest {@link ByteKey} is a zero-length array; the successor to a
+   * key is the same key with an additional 0 byte appended; and keys have unbounded size.
    */
   @Override
   public int compareTo(@Nonnull ByteKey other) {

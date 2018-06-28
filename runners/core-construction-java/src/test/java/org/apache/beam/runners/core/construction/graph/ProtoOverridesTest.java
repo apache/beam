@@ -44,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ProtoOverrides}.
- */
+/** Tests for {@link ProtoOverrides}. */
 @RunWith(JUnit4.class)
 public class ProtoOverridesTest {
   @Test

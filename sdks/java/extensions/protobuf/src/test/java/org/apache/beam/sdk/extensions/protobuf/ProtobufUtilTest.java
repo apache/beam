@@ -44,9 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ProtobufUtil}.
- */
+/** Tests for {@link ProtobufUtil}. */
 @RunWith(JUnit4.class)
 public class ProtobufUtilTest {
   @Rule public ExpectedException thrown = ExpectedException.none();

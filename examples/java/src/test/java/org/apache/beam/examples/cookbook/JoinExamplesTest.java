@@ -41,47 +41,52 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JoinExamplesTest {
 
-  private static final TableRow row1 = new TableRow()
-        .set("ActionGeo_CountryCode", "VM").set("SQLDATE", "20141212")
-        .set("Actor1Name", "BANGKOK").set("SOURCEURL", "http://cnn.com");
-  private static final TableRow row2 = new TableRow()
-        .set("ActionGeo_CountryCode", "VM").set("SQLDATE", "20141212")
-        .set("Actor1Name", "LAOS").set("SOURCEURL", "http://www.chicagotribune.com");
-  private static final TableRow row3 = new TableRow()
-        .set("ActionGeo_CountryCode", "BE").set("SQLDATE", "20141213")
-        .set("Actor1Name", "AFGHANISTAN").set("SOURCEURL", "http://cnn.com");
-  static final TableRow[] EVENTS = new TableRow[] {
-    row1, row2, row3
-  };
+  private static final TableRow row1 =
+      new TableRow()
+          .set("ActionGeo_CountryCode", "VM")
+          .set("SQLDATE", "20141212")
+          .set("Actor1Name", "BANGKOK")
+          .set("SOURCEURL", "http://cnn.com");
+  private static final TableRow row2 =
+      new TableRow()
+          .set("ActionGeo_CountryCode", "VM")
+          .set("SQLDATE", "20141212")
+          .set("Actor1Name", "LAOS")
+          .set("SOURCEURL", "http://www.chicagotribune.com");
+  private static final TableRow row3 =
+      new TableRow()
+          .set("ActionGeo_CountryCode", "BE")
+          .set("SQLDATE", "20141213")
+          .set("Actor1Name", "AFGHANISTAN")
+          .set("SOURCEURL", "http://cnn.com");
+  static final TableRow[] EVENTS = new TableRow[] {row1, row2, row3};
   static final List<TableRow> EVENT_ARRAY = Arrays.asList(EVENTS);
 
-  private static final KV<String, String> kv1 = KV.of("VM",
-      "Date: 20141212, Actor1: LAOS, url: http://www.chicagotribune.com");
-  private static final KV<String, String> kv2 = KV.of("BE",
-      "Date: 20141213, Actor1: AFGHANISTAN, url: http://cnn.com");
+  private static final KV<String, String> kv1 =
+      KV.of("VM", "Date: 20141212, Actor1: LAOS, url: http://www.chicagotribune.com");
+  private static final KV<String, String> kv2 =
+      KV.of("BE", "Date: 20141213, Actor1: AFGHANISTAN, url: http://cnn.com");
   private static final KV<String, String> kv3 = KV.of("BE", "Belgium");
   private static final KV<String, String> kv4 = KV.of("VM", "Vietnam");
 
-  private static final TableRow cc1 = new TableRow()
-        .set("FIPSCC", "VM").set("HumanName", "Vietnam");
-  private static final TableRow cc2 = new TableRow()
-        .set("FIPSCC", "BE").set("HumanName", "Belgium");
-  static final TableRow[] CCS = new TableRow[] {
-    cc1, cc2
-  };
+  private static final TableRow cc1 =
+      new TableRow().set("FIPSCC", "VM").set("HumanName", "Vietnam");
+  private static final TableRow cc2 =
+      new TableRow().set("FIPSCC", "BE").set("HumanName", "Belgium");
+  static final TableRow[] CCS = new TableRow[] {cc1, cc2};
   static final List<TableRow> CC_ARRAY = Arrays.asList(CCS);
 
-  static final String[] JOINED_EVENTS = new String[] {
-      "Country code: VM, Country name: Vietnam, Event info: Date: 20141212, Actor1: LAOS, "
-          + "url: http://www.chicagotribune.com",
-      "Country code: VM, Country name: Vietnam, Event info: Date: 20141212, Actor1: BANGKOK, "
-          + "url: http://cnn.com",
-      "Country code: BE, Country name: Belgium, Event info: Date: 20141213, Actor1: AFGHANISTAN, "
-          + "url: http://cnn.com"
-    };
+  static final String[] JOINED_EVENTS =
+      new String[] {
+        "Country code: VM, Country name: Vietnam, Event info: Date: 20141212, Actor1: LAOS, "
+            + "url: http://www.chicagotribune.com",
+        "Country code: VM, Country name: Vietnam, Event info: Date: 20141212, Actor1: BANGKOK, "
+            + "url: http://cnn.com",
+        "Country code: BE, Country name: Belgium, Event info: Date: 20141213, Actor1: AFGHANISTAN, "
+            + "url: http://cnn.com"
+      };
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   public void testExtractEventDataFn() throws Exception {
@@ -100,7 +105,6 @@ public class JoinExamplesTest {
     Assert.assertThat(results, CoreMatchers.hasItem(kv3));
     Assert.assertThat(results, CoreMatchers.hasItem(kv4));
   }
-
 
   @Test
   @Category(ValidatesRunner.class)

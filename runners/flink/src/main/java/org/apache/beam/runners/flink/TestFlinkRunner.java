@@ -26,9 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.UserCodeException;
 
-/**
- * Test Flink runner.
- */
+/** Test Flink runner. */
 public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private FlinkRunner delegate;
@@ -81,5 +79,3 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
     return delegate.getPipelineOptions();
   }
 }
-
-

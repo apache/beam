@@ -48,18 +48,16 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.serializers.KVSerde;
 
-/**
- * Translates {@link GroupByKey} to Samza {@link GroupByKeyOp}.
- */
+/** Translates {@link GroupByKey} to Samza {@link GroupByKeyOp}. */
 class GroupByKeyTranslator<K, InputT, OutputT>
-    implements TransformTranslator<PTransform<PCollection<KV<K, InputT>>,
-                                   PCollection<KV<K, OutputT>>>> {
+    implements TransformTranslator<
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
   @Override
-  public void
-  translate(PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-            TransformHierarchy.Node node,
-            TranslationContext ctx) {
+  public void translate(
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<KV<K, InputT>> input = ctx.getInput(transform);
 
     final PCollection<KV<K, OutputT>> output = ctx.getOutput(transform);
@@ -74,21 +72,24 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final KvCoder<K, InputT> kvInputCoder = (KvCoder<K, InputT>) input.getCoder();
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder = SamzaCoders.of(input);
 
-    final MessageStream<OpMessage<KV<K, InputT>>> filteredInputStream = inputStream
-        .filter(msg -> msg.getType() == OpMessage.Type.ELEMENT);
+    final MessageStream<OpMessage<KV<K, InputT>>> filteredInputStream =
+        inputStream.filter(msg -> msg.getType() == OpMessage.Type.ELEMENT);
 
     final MessageStream<OpMessage<KV<K, InputT>>> partitionedInputStream;
     if (ctx.getPipelineOptions().getMaxSourceParallelism() == 1) {
       // Only one task will be created, no need for repartition
       partitionedInputStream = filteredInputStream;
     } else {
-      partitionedInputStream = filteredInputStream
-          .partitionBy(msg -> msg.getElement().getValue().getKey(), msg -> msg.getElement(),
-              KVSerde.of(
-                  SamzaCoders.toSerde(kvInputCoder.getKeyCoder()),
-                  SamzaCoders.toSerde(elementCoder)),
-              "gbk-" + ctx.getCurrentTopologicalId())
-          .map(kv -> OpMessage.ofElement(kv.getValue()));
+      partitionedInputStream =
+          filteredInputStream
+              .partitionBy(
+                  msg -> msg.getElement().getValue().getKey(),
+                  msg -> msg.getElement(),
+                  KVSerde.of(
+                      SamzaCoders.toSerde(kvInputCoder.getKeyCoder()),
+                      SamzaCoders.toSerde(elementCoder)),
+                  "gbk-" + ctx.getCurrentTopologicalId())
+              .map(kv -> OpMessage.ofElement(kv.getValue()));
     }
 
     final Coder<KeyedWorkItem<K, InputT>> keyedWorkItemCoder =
@@ -98,22 +99,20 @@ class GroupByKeyTranslator<K, InputT, OutputT>
             windowingStrategy.getWindowFn().windowCoder());
 
     final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn =
-        getSystemReduceFn(
-            transform,
-            ctx.getCurrentTransform(),
-            input.getPipeline(),
-            kvInputCoder);
+        getSystemReduceFn(transform, ctx.getCurrentTransform(), input.getPipeline(), kvInputCoder);
 
     final MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
         partitionedInputStream
             .flatMap(OpAdapter.adapt(new KvToKeyedWorkItemOp<>()))
-            .flatMap(OpAdapter.adapt(new GroupByKeyOp<>(
-                outputTag,
-                keyedWorkItemCoder,
-                reduceFn,
-                windowingStrategy,
-                new DoFnOp.SingleOutputManagerFactory<>(),
-                node.getFullName())));
+            .flatMap(
+                OpAdapter.adapt(
+                    new GroupByKeyOp<>(
+                        outputTag,
+                        keyedWorkItemCoder,
+                        reduceFn,
+                        windowingStrategy,
+                        new DoFnOp.SingleOutputManagerFactory<>(),
+                        node.getFullName())));
 
     ctx.registerMessageStream(output, outputStream);
   }
@@ -131,18 +130,17 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     } else if (transform instanceof Combine.PerKey) {
       final CombineFnBase.GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
       try {
-        combineFn = (CombineFnBase.GlobalCombineFn<? super InputT, ?, OutputT>)
-            CombineTranslation.getCombineFn(appliedPTransform)
-                .orElseThrow(() ->
-                    new IOException("CombineFn not found in node."));
+        combineFn =
+            (CombineFnBase.GlobalCombineFn<? super InputT, ?, OutputT>)
+                CombineTranslation.getCombineFn(appliedPTransform)
+                    .orElseThrow(() -> new IOException("CombineFn not found in node."));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
 
       return SystemReduceFn.combining(
           kvInputCoder.getKeyCoder(),
-          AppliedCombineFn
-              .withInputCoder(combineFn, pipeline.getCoderRegistry(), kvInputCoder));
+          AppliedCombineFn.withInputCoder(combineFn, pipeline.getCoderRegistry(), kvInputCoder));
     } else {
       throw new RuntimeException("Transform " + transform + " cannot be translated as GroupByKey.");
     }

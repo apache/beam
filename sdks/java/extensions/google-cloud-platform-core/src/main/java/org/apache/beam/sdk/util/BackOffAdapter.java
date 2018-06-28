@@ -24,8 +24,8 @@ import java.io.IOException;
  */
 public class BackOffAdapter {
   /**
-   * Returns an adapter to convert from {@link BackOff} to
-   * {@link com.google.api.client.util.BackOff}.
+   * Returns an adapter to convert from {@link BackOff} to {@link
+   * com.google.api.client.util.BackOff}.
    */
   public static com.google.api.client.util.BackOff toGcpBackOff(final BackOff backOff) {
     return new com.google.api.client.util.BackOff() {

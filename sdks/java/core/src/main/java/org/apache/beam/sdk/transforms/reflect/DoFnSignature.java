@@ -127,19 +127,33 @@ public abstract class DoFnSignature {
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setFnClass(Class<? extends DoFn<?, ?>> fnClass);
+
     abstract Builder setIsBoundedPerElement(PCollection.IsBounded isBounded);
+
     abstract Builder setProcessElement(ProcessElementMethod processElement);
+
     abstract Builder setStartBundle(BundleMethod startBundle);
+
     abstract Builder setFinishBundle(BundleMethod finishBundle);
+
     abstract Builder setSetup(LifecycleMethod setup);
+
     abstract Builder setTeardown(LifecycleMethod teardown);
+
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
+
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
+
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
+
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
+
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
+
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
+
     abstract DoFnSignature build();
   }
 
@@ -173,8 +187,8 @@ public abstract class DoFnSignature {
     private Parameter() {}
 
     /**
-     * Performs case analysis on this {@link Parameter}, processing it with the appropriate
-     * {@link Cases#dispatch} case of the provided {@link Cases} object.
+     * Performs case analysis on this {@link Parameter}, processing it with the appropriate {@link
+     * Cases#dispatch} case of the provided {@link Cases} object.
      */
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
@@ -211,34 +225,45 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimeDomainParameter) this);
       } else {
         throw new IllegalStateException(
-            String.format("Attempt to case match on unknown %s subclass %s",
+            String.format(
+                "Attempt to case match on unknown %s subclass %s",
                 Parameter.class.getCanonicalName(), this.getClass().getCanonicalName()));
       }
     }
 
-    /**
-     * An interface for destructuring a {@link Parameter}.
-     */
+    /** An interface for destructuring a {@link Parameter}. */
     public interface Cases<ResultT> {
       ResultT dispatch(StartBundleContextParameter p);
+
       ResultT dispatch(FinishBundleContextParameter p);
+
       ResultT dispatch(ProcessContextParameter p);
+
       ResultT dispatch(ElementParameter p);
+
       ResultT dispatch(TimestampParameter p);
+
       ResultT dispatch(TimeDomainParameter p);
+
       ResultT dispatch(OutputReceiverParameter p);
+
       ResultT dispatch(TaggedOutputReceiverParameter p);
+
       ResultT dispatch(OnTimerContextParameter p);
+
       ResultT dispatch(WindowParameter p);
+
       ResultT dispatch(PaneInfoParameter p);
+
       ResultT dispatch(RestrictionTrackerParameter p);
+
       ResultT dispatch(StateParameter p);
+
       ResultT dispatch(TimerParameter p);
+
       ResultT dispatch(PipelineOptionsParameter p);
 
-      /**
-       * A base class for a visitor with a default method for cases it is not interested in.
-       */
+      /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
         protected abstract ResultT dispatchDefault(Parameter p);
@@ -326,7 +351,7 @@ public abstract class DoFnSignature {
     private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_FinishBundleContextParameter();
     private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
-          new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
+        new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
@@ -384,16 +409,12 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
     }
 
-    /**
-     * Returns a {@link RestrictionTrackerParameter}.
-     */
+    /** Returns a {@link RestrictionTrackerParameter}. */
     public static RestrictionTrackerParameter restrictionTracker(TypeDescriptor<?> trackerT) {
       return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter(trackerT);
     }
 
-    /**
-     * Returns a {@link StateParameter} referring to the given {@link StateDeclaration}.
-     */
+    /** Returns a {@link StateParameter} referring to the given {@link StateDeclaration}. */
     public static StateParameter stateParameter(StateDeclaration decl) {
       return new AutoValue_DoFnSignature_Parameter_StateParameter(decl);
     }
@@ -402,9 +423,7 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
     }
 
-    /**
-     * Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}.
-     */
+    /** Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}. */
     @AutoValue
     public abstract static class PipelineOptionsParameter extends Parameter {
       PipelineOptionsParameter() {}
@@ -469,8 +488,7 @@ public abstract class DoFnSignature {
      */
     @AutoValue
     public abstract static class TimeDomainParameter extends Parameter {
-      TimeDomainParameter() {
-      }
+      TimeDomainParameter() {}
     }
 
     /**
@@ -490,8 +508,7 @@ public abstract class DoFnSignature {
      */
     @AutoValue
     public abstract static class TaggedOutputReceiverParameter extends Parameter {
-      TaggedOutputReceiverParameter() {
-      }
+      TaggedOutputReceiverParameter() {}
     }
 
     /**
@@ -517,8 +534,8 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of type
-     * {@link org.apache.beam.sdk.transforms.windowing.PaneInfo}.
+     * Descriptor for a {@link Parameter} of type {@link
+     * org.apache.beam.sdk.transforms.windowing.PaneInfo}.
      *
      * <p>All such descriptors are equal.
      */
@@ -555,8 +572,8 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of type {@link Timer}, with an id indicated by
-     * its {@link TimerId} annotation.
+     * Descriptor for a {@link Parameter} of type {@link Timer}, with an id indicated by its {@link
+     * TimerId} annotation.
      */
     @AutoValue
     public abstract static class TimerParameter extends Parameter {
@@ -616,8 +633,8 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
      * resides in.
      *
-     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because
-     * they are each scoped to a single window.
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
      */
     public boolean observesWindow() {
       return extraParameters()
@@ -683,19 +700,19 @@ public abstract class DoFnSignature {
   }
 
   /**
-   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
-   * {@link DoFn.TimerId}.
+   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with {@link
+   * DoFn.TimerId}.
    */
   @AutoValue
   public abstract static class TimerDeclaration {
     public abstract String id();
+
     public abstract Field field();
 
     static TimerDeclaration create(String id, Field field) {
       return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
     }
   }
-
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue
@@ -710,13 +727,15 @@ public abstract class DoFnSignature {
   }
 
   /**
-   * Describes a state declaration; a field of type {@link StateSpec} annotated with
-   * {@link DoFn.StateId}.
+   * Describes a state declaration; a field of type {@link StateSpec} annotated with {@link
+   * DoFn.StateId}.
    */
   @AutoValue
   public abstract static class StateDeclaration {
     public abstract String id();
+
     public abstract Field field();
+
     public abstract TypeDescriptor<? extends State> stateType();
 
     static StateDeclaration create(

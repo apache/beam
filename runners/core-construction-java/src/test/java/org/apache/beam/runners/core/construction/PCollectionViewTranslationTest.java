@@ -27,26 +27,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PCollectionViewTranslation}.
- */
+/** Tests for {@link PCollectionViewTranslation}. */
 @RunWith(JUnit4.class)
 public class PCollectionViewTranslationTest {
   @Test
   public void testViewFnTranslation() throws Exception {
-    assertEquals(new TestViewFn(),
+    assertEquals(
+        new TestViewFn(),
         PCollectionViewTranslation.viewFnFromProto(
-            ParDoTranslation.translateViewFn(new TestViewFn(),
-                SdkComponents.create())));
+            ParDoTranslation.translateViewFn(new TestViewFn(), SdkComponents.create())));
   }
 
   @Test
   public void testWindowMappingFnTranslation() throws Exception {
-    assertEquals(new GlobalWindows().getDefaultWindowMappingFn(),
+    assertEquals(
+        new GlobalWindows().getDefaultWindowMappingFn(),
         PCollectionViewTranslation.windowMappingFnFromProto(
             ParDoTranslation.translateWindowMappingFn(
-                new GlobalWindows().getDefaultWindowMappingFn(),
-                SdkComponents.create())));
+                new GlobalWindows().getDefaultWindowMappingFn(), SdkComponents.create())));
   }
 
   /** Test implementation to check for equality. */

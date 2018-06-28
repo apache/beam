@@ -39,10 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate
- * the user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a
- * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
- *
+ * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the
+ * user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a {@link
+ * org.apache.flink.streaming.api.datastream.DataStream} one.
  */
 class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
@@ -56,9 +55,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   private FlinkRunner flinkRunner;
 
   public FlinkStreamingPipelineTranslator(
-      FlinkRunner flinkRunner,
-      StreamExecutionEnvironment env,
-      PipelineOptions options) {
+      FlinkRunner flinkRunner, StreamExecutionEnvironment env, PipelineOptions options) {
     this.streamingContext = new FlinkStreamingTranslationContext(env, options);
     this.flinkRunner = flinkRunner;
   }
@@ -156,20 +153,16 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   /**
-   * The interface that every Flink translator of a Beam operator should implement.
-   * This interface is for <b>streaming</b> jobs. For examples of such translators see
-   * {@link FlinkStreamingTransformTranslators}.
+   * The interface that every Flink translator of a Beam operator should implement. This interface
+   * is for <b>streaming</b> jobs. For examples of such translators see {@link
+   * FlinkStreamingTransformTranslators}.
    */
   abstract static class StreamTransformTranslator<T extends PTransform> {
 
-    /**
-     * Translate the given transform.
-     */
+    /** Translate the given transform. */
     abstract void translateNode(T transform, FlinkStreamingTranslationContext context);
 
-    /**
-     * Returns true iff this translator can translate the given transform.
-     */
+    /** Returns true iff this translator can translate the given transform. */
     boolean canTranslate(T transform, FlinkStreamingTranslationContext context) {
       return true;
     }
@@ -183,11 +176,9 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       implements PTransformOverrideFactory<
           PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
     @Override
-    public PTransformReplacement<PCollection<InputT>, PCollectionTuple>
-        getReplacementTransform(
-            AppliedPTransform<
-                    PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
-                transform) {
+    public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+            transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           (SplittableParDo<InputT, OutputT, ?>) SplittableParDo.forAppliedParDo(transform));

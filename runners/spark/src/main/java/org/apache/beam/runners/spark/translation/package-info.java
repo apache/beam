@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal translators for running Beam pipelines on Spark.
- */
+/** Internal translators for running Beam pipelines on Spark. */
 package org.apache.beam.runners.spark.translation;

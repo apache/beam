@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link SourceTestUtils}.
- */
+/** Tests for {@link SourceTestUtils}. */
 @RunWith(JUnit4.class)
 public class SourceTestUtilsTest {
 

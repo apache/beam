@@ -32,9 +32,7 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 public class MergeOverlappingIntervalWindows {
 
-  /**
-   * Merge overlapping {@link IntervalWindow}s.
-   */
+  /** Merge overlapping {@link IntervalWindow}s. */
   public static void mergeWindows(WindowFn<?, IntervalWindow>.MergeContext c) throws Exception {
     // Merge any overlapping windows into a single window.
     // Sort the list of existing windows so we only have to
@@ -78,10 +76,12 @@ public class MergeOverlappingIntervalWindows {
     public boolean intersects(IntervalWindow window) {
       return union == null || union.intersects(window);
     }
+
     public void add(IntervalWindow window) {
       union = union == null ? window : union.span(window);
       parts.add(window);
     }
+
     public void apply(WindowFn<?, IntervalWindow>.MergeContext c) throws Exception {
       if (parts.size() > 1) {
         c.merge(parts, union);

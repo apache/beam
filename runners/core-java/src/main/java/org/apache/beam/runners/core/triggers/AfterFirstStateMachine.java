@@ -37,17 +37,13 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers. */
   @SafeVarargs
-  public static TriggerStateMachine of(
-      TriggerStateMachine... triggers) {
+  public static TriggerStateMachine of(TriggerStateMachine... triggers) {
     return new AfterFirstStateMachine(Arrays.asList(triggers));
   }
 
-  public static TriggerStateMachine of(
-      Iterable<? extends TriggerStateMachine> triggers) {
+  public static TriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {
     return new AfterFirstStateMachine(ImmutableList.copyOf(triggers));
   }
 

@@ -37,8 +37,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
- * Query 8, 'Monitor New Users'. Select people who have entered the system and created auctions
- * in the last 12 hours, updated every 12 hours. In CQL syntax:
+ * Query 8, 'Monitor New Users'. Select people who have entered the system and created auctions in
+ * the last 12 hours, updated every 12 hours. In CQL syntax:
  *
  * <pre>
  * SELECT Rstream(P.id, P.name, A.reserve)

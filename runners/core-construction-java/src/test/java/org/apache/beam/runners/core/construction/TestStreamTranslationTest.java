@@ -100,9 +100,7 @@ public class TestStreamTranslationTest {
       throws Exception {
 
     // This reverse direction is only valid for Java-based coders
-    assertThat(
-        protoComponents.getCoder(payload.getCoderId()),
-        equalTo(testStream.getValueCoder()));
+    assertThat(protoComponents.getCoder(payload.getCoderId()), equalTo(testStream.getValueCoder()));
 
     assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
 

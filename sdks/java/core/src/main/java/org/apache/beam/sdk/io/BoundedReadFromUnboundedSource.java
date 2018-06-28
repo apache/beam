@@ -44,8 +44,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource},
- * specified as one or both of a maximum number of elements or a maximum period of time to read.
+ * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource}, specified
+ * as one or both of a maximum number of elements or a maximum period of time to read.
  */
 public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;
@@ -59,21 +59,19 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
           .withMaxBackoff(Duration.standardSeconds(10));
 
   /**
-   * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
-   * of data from the given {@link UnboundedSource}.  The bound is specified as a number
-   * of records to read.
+   * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount of data from
+   * the given {@link UnboundedSource}. The bound is specified as a number of records to read.
    *
-   * <p>This may take a long time to execute if the splits of this source are slow to read
-   * records.
+   * <p>This may take a long time to execute if the splits of this source are slow to read records.
    */
   public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
     return new BoundedReadFromUnboundedSource<>(source, maxNumRecords, maxReadTime);
   }
 
   /**
-   * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
-   * of data from the given {@link UnboundedSource}.  The bound is specified as an amount
-   * of time to read for.  Each split of the source will read for this much time.
+   * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount of data from
+   * the given {@link UnboundedSource}. The bound is specified as an amount of time to read for.
+   * Each split of the source will read for this much time.
    */
   public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
     return new BoundedReadFromUnboundedSource<>(source, maxNumRecords, maxReadTime);
@@ -85,16 +83,16 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     this.maxNumRecords = maxNumRecords;
     this.maxReadTime = maxReadTime;
     this.adaptedSource =
-            new AutoValue_BoundedReadFromUnboundedSource_UnboundedToBoundedSourceAdapter
-                    .Builder()
-                    .setSource(source)
-                    .setMaxNumRecords(maxNumRecords)
-                    .setMaxReadTime(maxReadTime).build();
+        new AutoValue_BoundedReadFromUnboundedSource_UnboundedToBoundedSourceAdapter.Builder()
+            .setSource(source)
+            .setMaxNumRecords(maxNumRecords)
+            .setMaxReadTime(maxReadTime)
+            .build();
   }
 
   /**
-   * Returns an adapted {@link BoundedSource} wrapping the underlying {@link UnboundedSource},
-   * with the specified bounds on number of records and read time.
+   * Returns an adapted {@link BoundedSource} wrapping the underlying {@link UnboundedSource}, with
+   * the specified bounds on number of records and read time.
    */
   @Experimental
   public BoundedSource<ValueWithRecordId<T>> getAdaptedSource() {
@@ -103,8 +101,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
-        Read.from(getAdaptedSource()));
+    PCollection<ValueWithRecordId<T>> read =
+        Pipeline.applyTransform(input, Read.from(getAdaptedSource()));
     if (source.requiresDeduping()) {
       read =
           read.apply(
@@ -125,39 +123,45 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   public void populateDisplayData(DisplayData.Builder builder) {
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
-        .add(DisplayData.item("source", source.getClass())
-          .withLabel("Read Source"))
-        .addIfNotDefault(DisplayData.item("maxRecords", maxNumRecords)
-          .withLabel("Maximum Read Records"), Long.MAX_VALUE)
-        .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
-          .withLabel("Maximum Read Time"))
+        .add(DisplayData.item("source", source.getClass()).withLabel("Read Source"))
+        .addIfNotDefault(
+            DisplayData.item("maxRecords", maxNumRecords).withLabel("Maximum Read Records"),
+            Long.MAX_VALUE)
+        .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime).withLabel("Maximum Read Time"))
         .include("source", source);
   }
 
   /**
-   * Adapter that wraps the underlying {@link UnboundedSource} with the specified bounds on
-   * number of records and read time into a {@link BoundedSource}.
+   * Adapter that wraps the underlying {@link UnboundedSource} with the specified bounds on number
+   * of records and read time into a {@link BoundedSource}.
    */
   @AutoValue
   abstract static class UnboundedToBoundedSourceAdapter<T>
       extends BoundedSource<ValueWithRecordId<T>> {
-    @Nullable abstract UnboundedSource<T, ?> getSource();
+    @Nullable
+    abstract UnboundedSource<T, ?> getSource();
+
     abstract long getMaxNumRecords();
-    @Nullable abstract Duration getMaxReadTime();
+
+    @Nullable
+    abstract Duration getMaxReadTime();
 
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setSource(UnboundedSource<T, ?> source);
+
       abstract Builder<T> setMaxNumRecords(long maxNumRecords);
+
       abstract Builder<T> setMaxReadTime(@Nullable Duration maxReadTime);
+
       abstract UnboundedToBoundedSourceAdapter<T> build();
     }
 
     /**
-     * Divide the given number of records into {@code numSplits} approximately
-     * equal parts that sum to {@code numRecords}.
+     * Divide the given number of records into {@code numSplits} approximately equal parts that sum
+     * to {@code numRecords}.
      */
     private static long[] splitNumRecords(long numRecords, int numSplits) {
       long[] splitNumRecords = new long[numSplits];
@@ -170,9 +174,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
       return splitNumRecords;
     }
 
-    /**
-     * Pick a number of initial splits based on the number of records expected to be processed.
-     */
+    /** Pick a number of initial splits based on the number of records expected to be processed. */
     private static int numInitialSplits(long numRecords) {
       final int maxSplits = 100;
       final long recordsPerSplit = 10000;
@@ -184,12 +186,12 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       List<UnboundedToBoundedSourceAdapter<T>> result = new ArrayList<>();
       int numInitialSplits = numInitialSplits(getMaxNumRecords());
-      List<? extends UnboundedSource<T, ?>> splits =
-          getSource().split(numInitialSplits, options);
+      List<? extends UnboundedSource<T, ?>> splits = getSource().split(numInitialSplits, options);
       int numSplits = splits.size();
       long[] numRecords = splitNumRecords(getMaxNumRecords(), numSplits);
       for (int i = 0; i < numSplits; i++) {
-        result.add(toBuilder()
+        result.add(
+            toBuilder()
                 .setSource(splits.get(i))
                 .setMaxNumRecords(numRecords[i])
                 .setMaxReadTime(getMaxReadTime())
@@ -244,8 +246,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
       @Override
       public boolean start() throws IOException {
-        if (getMaxNumRecords() <= 0 || (getMaxReadTime() != null
-                && getMaxReadTime().getMillis() == 0)) {
+        if (getMaxNumRecords() <= 0
+            || (getMaxReadTime() != null && getMaxReadTime().getMillis() == 0)) {
           return false;
         }
 

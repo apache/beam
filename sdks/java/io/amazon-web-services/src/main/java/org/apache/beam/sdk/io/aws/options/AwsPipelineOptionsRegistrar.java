@@ -22,9 +22,7 @@ import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
-/**
- * A registrar containing the default AWS options.
- */
+/** A registrar containing the default AWS options. */
 @AutoService(PipelineOptionsRegistrar.class)
 public class AwsPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
 

@@ -183,8 +183,9 @@ public class CombineTranslation {
     private final CombinePayload payload;
     private final Coder<AccumT> accumulatorCoder;
 
-    private RawCombine(RunnerApi.PTransform protoTransform,
-        RehydratedComponents rehydratedComponents) throws IOException {
+    private RawCombine(
+        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+        throws IOException {
       this.protoTransform = protoTransform;
       this.rehydratedComponents = rehydratedComponents;
       this.spec = protoTransform.getSpec();
@@ -292,16 +293,18 @@ public class CombineTranslation {
   public static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
-    String id = getCombinePayload(transform, sdkComponents)
-        .map(CombinePayload::getAccumulatorCoderId)
-        .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
+    String id =
+        getCombinePayload(transform, sdkComponents)
+            .map(CombinePayload::getAccumulatorCoderId)
+            .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
     Components components = sdkComponents.toComponents();
     return CoderTranslation.fromProto(
         components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
   }
 
   public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload) throws IOException {
-    checkArgument(payload.getCombineFn().getSpec().getUrn().equals(JAVA_SERIALIZED_COMBINE_FN_URN),
+    checkArgument(
+        payload.getCombineFn().getSpec().getUrn().equals(JAVA_SERIALIZED_COMBINE_FN_URN),
         "Payload URN was \"%s\", should have been \"%s\".",
         payload.getCombineFn().getSpec().getUrn(),
         JAVA_SERIALIZED_COMBINE_FN_URN);
@@ -311,8 +314,7 @@ public class CombineTranslation {
   }
 
   public static Optional<GlobalCombineFn<?, ?, ?>> getCombineFn(
-      AppliedPTransform<?, ?, ?> transform)
-      throws IOException {
+      AppliedPTransform<?, ?, ?> transform) throws IOException {
     Optional<CombinePayload> payload = getCombinePayload(transform);
     if (payload.isPresent()) {
       return Optional.of(getCombineFn(payload.get()));
@@ -328,8 +330,8 @@ public class CombineTranslation {
 
   private static Optional<CombinePayload> getCombinePayload(
       AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
-    RunnerApi.PTransform proto = PTransformTranslation
-        .toProto(transform, Collections.emptyList(), components);
+    RunnerApi.PTransform proto =
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components);
 
     // Even if the proto has no spec, calling getSpec still returns a blank spec, which we want to
     // avoid. It should be clear to the caller whether or not there was a spec in the transform.

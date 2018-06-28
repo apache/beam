@@ -66,10 +66,9 @@ import org.joda.time.Instant;
  * <p>MongoDbGridFSIO source returns a bounded collection of Objects as {@code PCollection<T>}.
  *
  * <p>To configure the MongoDB GridFS source, you can provide the connection URI, the database name
- * and the bucket name.  If unspecified, the default values from the GridFS driver are used.</p>
+ * and the bucket name. If unspecified, the default values from the GridFS driver are used.
  *
- * <p>The following example illustrates various options for configuring the
- * source:
+ * <p>The following example illustrates various options for configuring the source:
  *
  * <pre>{@code
  * pipeline.apply(MongoDbGridFSIO.<String>read()
@@ -81,27 +80,23 @@ import org.joda.time.Instant;
  * <p>The source also accepts an optional configuration: {@code withQueryFilter()} allows you to
  * define a JSON filter to get subset of files in the database.
  *
- * <p>There is also an optional {@code Parser} (and associated {@code Coder}) that can be
- * specified that can be used to parse the InputStream into objects usable with Beam. By default,
- * MongoDbGridFSIO will parse into Strings, splitting on line breaks and using the uploadDate of
- * the file as the timestamp.
- * When using a parser that outputs with custom timestamps, you may also need to specify
- * the allowedTimestampSkew option.</p>
- *
- *
+ * <p>There is also an optional {@code Parser} (and associated {@code Coder}) that can be specified
+ * that can be used to parse the InputStream into objects usable with Beam. By default,
+ * MongoDbGridFSIO will parse into Strings, splitting on line breaks and using the uploadDate of the
+ * file as the timestamp. When using a parser that outputs with custom timestamps, you may also need
+ * to specify the allowedTimestampSkew option.
  *
  * <h3>Writing to MongoDB via GridFS</h3>
  *
- * <p>MongoDBGridFS supports writing of data to a file in a MongoDB GridFS collection.</p>
+ * <p>MongoDBGridFS supports writing of data to a file in a MongoDB GridFS collection.
  *
- * <p>To configure a MongoDB GridFS sink, you can provide the connection URI, the database name
- * and the bucket name.  You must also provide the filename to write to. Another optional parameter
- * is the GridFS file chunkSize.
+ * <p>To configure a MongoDB GridFS sink, you can provide the connection URI, the database name and
+ * the bucket name. You must also provide the filename to write to. Another optional parameter is
+ * the GridFS file chunkSize.
  *
- * For instance:</p>
+ * <p>For instance:
  *
  * <pre>{@code
- *
  * pipeline
  *   .apply(...)
  *   .apply(MongoDbGridFSIO.write()
@@ -113,34 +108,23 @@ import org.joda.time.Instant;
  *
  * }</pre>
  *
- * <p>There is also an optional argument to the {@code create()} method to specify a writer
- * that is used to write the data to the OutputStream.  By default, it writes UTF-8 strings
- * to the file separated with line feeds.
- * </p>
+ * <p>There is also an optional argument to the {@code create()} method to specify a writer that is
+ * used to write the data to the OutputStream. By default, it writes UTF-8 strings to the file
+ * separated with line feeds.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class MongoDbGridFSIO {
 
-  /**
-   * Callback for the parser to use to submit data.
-   */
+  /** Callback for the parser to use to submit data. */
   public interface ParserCallback<T> extends Serializable {
-    /**
-     * Output the object.  The default timestamp will be the GridFSDBFile
-     * creation timestamp.
-     */
+    /** Output the object. The default timestamp will be the GridFSDBFile creation timestamp. */
     void output(T output);
 
-    /**
-     * Output the object using the specified timestamp.
-     */
+    /** Output the object using the specified timestamp. */
     void output(T output, Instant timestamp);
   }
 
-  /**
-   * Interface for the parser that is used to parse the GridFSDBFile into
-   * the appropriate types.
-   */
+  /** Interface for the parser that is used to parse the GridFSDBFile into the appropriate types. */
   public interface Parser<T> extends Serializable {
     void parse(GridFSDBFile input, ParserCallback<T> callback) throws IOException;
   }
@@ -182,6 +166,7 @@ public class MongoDbGridFSIO {
             })
         .build();
   }
+
   public static <T> Write<T> write(WriteFn<T> fn) {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<T>()
         .setWriteFn(fn)
@@ -189,23 +174,25 @@ public class MongoDbGridFSIO {
         .build();
   }
 
-
-  /**
-   * Encapsulate the MongoDB GridFS connection logic.
-   */
+  /** Encapsulate the MongoDB GridFS connection logic. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
-    @Nullable abstract String uri();
-    @Nullable abstract String database();
-    @Nullable abstract String bucket();
+    @Nullable
+    abstract String uri();
+
+    @Nullable
+    abstract String database();
+
+    @Nullable
+    abstract String bucket();
 
     static ConnectionConfiguration create() {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(null, null, null);
     }
+
     static ConnectionConfiguration create(String uri, String database, String bucket) {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(uri, database, bucket);
     }
-
 
     Mongo setupMongo() {
       return uri() == null ? new Mongo() : new Mongo(new MongoURI(uri()));
@@ -215,57 +202,64 @@ public class MongoDbGridFSIO {
       DB db = database() == null ? mongo.getDB("gridfs") : mongo.getDB(database());
       return bucket() == null ? new GridFS(db) : new GridFS(db, bucket());
     }
-
   }
 
-  /**
-   * A {@link PTransform} to read data from MongoDB GridFS.
-   */
+  /** A {@link PTransform} to read data from MongoDB GridFS. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
     abstract ConnectionConfiguration connectionConfiguration();
-    @Nullable abstract Parser<T> parser();
-    @Nullable abstract Coder<T> coder();
-    @Nullable abstract Duration skew();
-    @Nullable abstract String filter();
+
+    @Nullable
+    abstract Parser<T> parser();
+
+    @Nullable
+    abstract Coder<T> coder();
+
+    @Nullable
+    abstract Duration skew();
+
+    @Nullable
+    abstract String filter();
 
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConnectionConfiguration(ConnectionConfiguration connection);
+
       abstract Builder<T> setParser(Parser<T> parser);
+
       abstract Builder<T> setCoder(Coder<T> coder);
+
       abstract Builder<T> setSkew(Duration skew);
+
       abstract Builder<T> setFilter(String filter);
+
       abstract Read<T> build();
     }
 
     public Read<T> withUri(String uri) {
       checkNotNull(uri);
-      ConnectionConfiguration config = ConnectionConfiguration
-          .create(uri,
-                  connectionConfiguration().database(),
-                  connectionConfiguration().bucket());
+      ConnectionConfiguration config =
+          ConnectionConfiguration.create(
+              uri, connectionConfiguration().database(), connectionConfiguration().bucket());
       return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Read<T> withDatabase(String database) {
       checkNotNull(database);
-      ConnectionConfiguration config = ConnectionConfiguration
-          .create(connectionConfiguration().uri(),
-                  database,
-                  connectionConfiguration().bucket());
+      ConnectionConfiguration config =
+          ConnectionConfiguration.create(
+              connectionConfiguration().uri(), database, connectionConfiguration().bucket());
       return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Read<T> withBucket(String bucket) {
       checkNotNull(bucket);
-      ConnectionConfiguration config = ConnectionConfiguration
-          .create(connectionConfiguration().uri(),
-                  connectionConfiguration().database(),
-                  bucket);
+      ConnectionConfiguration config =
+          ConnectionConfiguration.create(
+              connectionConfiguration().uri(), connectionConfiguration().database(), bucket);
       return toBuilder().setConnectionConfiguration(config).build();
     }
 
@@ -305,66 +299,70 @@ public class MongoDbGridFSIO {
       final BoundedGridFSSource source = new BoundedGridFSSource(this, null);
       org.apache.beam.sdk.io.Read.Bounded<ObjectId> objectIds =
           org.apache.beam.sdk.io.Read.from(source);
-      PCollection<T> output = input.getPipeline().apply(objectIds)
-          .apply(ParDo.of(new DoFn<ObjectId, T>() {
-            Mongo mongo;
-            GridFS gridfs;
+      PCollection<T> output =
+          input
+              .getPipeline()
+              .apply(objectIds)
+              .apply(
+                  ParDo.of(
+                      new DoFn<ObjectId, T>() {
+                        Mongo mongo;
+                        GridFS gridfs;
 
-            @Setup
-            public void setup() {
-              mongo = source.spec.connectionConfiguration().setupMongo();
-              gridfs = source.spec.connectionConfiguration().setupGridFS(mongo);
-            }
+                        @Setup
+                        public void setup() {
+                          mongo = source.spec.connectionConfiguration().setupMongo();
+                          gridfs = source.spec.connectionConfiguration().setupGridFS(mongo);
+                        }
 
-            @Teardown
-            public void teardown() {
-              mongo.close();
-            }
+                        @Teardown
+                        public void teardown() {
+                          mongo.close();
+                        }
 
-            @ProcessElement
-            public void processElement(final ProcessContext c) throws IOException {
-              ObjectId oid = c.element();
-              GridFSDBFile file = gridfs.find(oid);
-              parser().parse(file, new ParserCallback<T>() {
-                @Override
-                public void output(T output, Instant timestamp) {
-                  checkNotNull(timestamp);
-                  c.outputWithTimestamp(output, timestamp);
-                }
+                        @ProcessElement
+                        public void processElement(final ProcessContext c) throws IOException {
+                          ObjectId oid = c.element();
+                          GridFSDBFile file = gridfs.find(oid);
+                          parser()
+                              .parse(
+                                  file,
+                                  new ParserCallback<T>() {
+                                    @Override
+                                    public void output(T output, Instant timestamp) {
+                                      checkNotNull(timestamp);
+                                      c.outputWithTimestamp(output, timestamp);
+                                    }
 
-                @Override
-                public void output(T output) {
-                  c.output(output);
-                }
-              });
-            }
+                                    @Override
+                                    public void output(T output) {
+                                      c.output(output);
+                                    }
+                                  });
+                        }
 
-            @Override
-            public Duration getAllowedTimestampSkew() {
-              return skew();
-            }
-          }));
+                        @Override
+                        public Duration getAllowedTimestampSkew() {
+                          return skew();
+                        }
+                      }));
       if (coder() != null) {
         output.setCoder(coder());
       }
       return output;
     }
 
-    /**
-     * A {@link BoundedSource} for MongoDB GridFS.
-     */
+    /** A {@link BoundedSource} for MongoDB GridFS. */
     protected static class BoundedGridFSSource extends BoundedSource<ObjectId> {
 
       private Read<?> spec;
 
-      @Nullable
-      private List<ObjectId> objectIds;
+      @Nullable private List<ObjectId> objectIds;
 
       BoundedGridFSSource(Read<?> spec, List<ObjectId> objectIds) {
         this.spec = spec;
         this.objectIds = objectIds;
       }
-
 
       private DBCursor createCursor(GridFS gridfs) {
         if (spec.filter() != null) {
@@ -422,8 +420,8 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public BoundedSource.BoundedReader<ObjectId> createReader(
-          PipelineOptions options) throws IOException {
+      public BoundedSource.BoundedReader<ObjectId> createReader(PipelineOptions options)
+          throws IOException {
         return new GridFSReader(this, objectIds);
       }
 
@@ -445,8 +443,7 @@ public class MongoDbGridFSIO {
          * files is used directly to avoid having the ObjectId's queried and
          * loaded ahead of time saving time and memory.
          */
-        @Nullable
-        final List<ObjectId> objects;
+        @Nullable final List<ObjectId> objects;
 
         Mongo mongo;
         DBCursor cursor;
@@ -517,64 +514,66 @@ public class MongoDbGridFSIO {
     }
   }
 
-
-  /**
-   * Function that is called to write the data to the give GridFS OutputStream.
-   */
+  /** Function that is called to write the data to the give GridFS OutputStream. */
   public interface WriteFn<T> extends Serializable {
     /**
      * Output the object to the given OutputStream.
+     *
      * @param output The data to output
      * @param outStream The OutputStream
      */
     void write(T output, OutputStream outStream) throws IOException;
   }
 
-  /**
-   * A {@link PTransform} to write data to MongoDB GridFS.
-   */
+  /** A {@link PTransform} to write data to MongoDB GridFS. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     abstract ConnectionConfiguration connectionConfiguration();
-    @Nullable abstract Long chunkSize();
+
+    @Nullable
+    abstract Long chunkSize();
+
     abstract WriteFn<T> writeFn();
-    @Nullable abstract String filename();
+
+    @Nullable
+    abstract String filename();
 
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConnectionConfiguration(ConnectionConfiguration connection);
+
       abstract Builder<T> setFilename(String filename);
+
       abstract Builder<T> setChunkSize(Long chunkSize);
+
       abstract Builder<T> setWriteFn(WriteFn<T> fn);
+
       abstract Write<T> build();
     }
 
     public Write<T> withUri(String uri) {
       checkNotNull(uri);
-      ConnectionConfiguration config = ConnectionConfiguration
-          .create(uri,
-                  connectionConfiguration().database(),
-                  connectionConfiguration().bucket());
+      ConnectionConfiguration config =
+          ConnectionConfiguration.create(
+              uri, connectionConfiguration().database(), connectionConfiguration().bucket());
       return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Write<T> withDatabase(String database) {
       checkNotNull(database);
-      ConnectionConfiguration config = ConnectionConfiguration
-          .create(connectionConfiguration().uri(),
-                  database,
-                  connectionConfiguration().bucket());
+      ConnectionConfiguration config =
+          ConnectionConfiguration.create(
+              connectionConfiguration().uri(), database, connectionConfiguration().bucket());
       return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Write<T> withBucket(String bucket) {
       checkNotNull(bucket);
-      ConnectionConfiguration config = ConnectionConfiguration
-          .create(connectionConfiguration().uri(),
-                  connectionConfiguration().database(),
-                  bucket);
+      ConnectionConfiguration config =
+          ConnectionConfiguration.create(
+              connectionConfiguration().uri(), connectionConfiguration().database(), bucket);
       return toBuilder().setConnectionConfiguration(config).build();
     }
 

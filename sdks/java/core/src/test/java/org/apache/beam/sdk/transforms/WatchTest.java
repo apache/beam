@@ -223,7 +223,6 @@ public class WatchTest implements Serializable {
     p.run();
   }
 
-
   @Test
   @Category({NeedsRunner.class, UsesSplittableParDo.class})
   public void testMultiplePollsStopAfterTimeSinceNewOutput() {
@@ -240,8 +239,7 @@ public class WatchTest implements Serializable {
                             standardSeconds(1000) /* timeToDeclareOutputFinal */,
                             standardSeconds(30) /* timeToFail */))
                     // Should terminate after 4 seconds - earlier than timeToFail
-                    .withTerminationPerInput(
-                        afterTimeSinceNewOutput(standardSeconds(3)))
+                    .withTerminationPerInput(afterTimeSinceNewOutput(standardSeconds(3)))
                     .withPollInterval(Duration.millis(300))
                     .withOutputCoder(VarIntCoder.of()))
             .apply("Drop input", Values.create());

@@ -35,9 +35,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
-/**
- * A simulator of the {@code WinningBids} query.
- */
+/** A simulator of the {@code WinningBids} query. */
 public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   /** Auctions currently still open, indexed by auction id. */
   private final Map<Long, Auction> openAuctions;
@@ -51,9 +49,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   /** Bids for auctions we havn't seen yet. */
   private final List<Bid> bidsWithoutAuctions;
 
-  /**
-   * Timestamp of last new auction or bid event (ms since epoch).
-   */
+  /** Timestamp of last new auction or bid event (ms since epoch). */
   private long lastTimestamp;
 
   public WinningBidsSimulator(NexmarkConfiguration configuration) {
@@ -66,8 +62,8 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   }
 
   /**
-   * Try to account for {@code bid} in state. Return true if bid has now been
-   * accounted for by {@code bestBids}.
+   * Try to account for {@code bid} in state. Return true if bid has now been accounted for by
+   * {@code bestBids}.
    */
   private boolean captureBestBid(Bid bid, boolean shouldLog) {
     if (closedAuctions.contains(bid.auction)) {
@@ -108,9 +104,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
     return true;
   }
 
-  /**
-   * Try to match bids without auctions to auctions.
-   */
+  /** Try to match bids without auctions to auctions. */
   private void flushBidsWithoutAuctions() {
     Iterator<Bid> itr = bidsWithoutAuctions.iterator();
     while (itr.hasNext()) {
@@ -123,9 +117,9 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   }
 
   /**
-   * Return the next winning bid for an expired auction relative to {@code timestamp}.
-   * Return null if no more winning bids, in which case all expired auctions will
-   * have been removed from our state. Retire auctions in order of expire time.
+   * Return the next winning bid for an expired auction relative to {@code timestamp}. Return null
+   * if no more winning bids, in which case all expired auctions will have been removed from our
+   * state. Retire auctions in order of expire time.
    */
   @Nullable
   private TimestampedValue<AuctionBid> nextWinningBid(long timestamp) {

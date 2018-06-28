@@ -404,8 +404,8 @@ public final class ApproximateDistinct {
       try {
         coder.verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-        throw new IllegalArgumentException("Coder must be deterministic to perform this sketch."
-                + e.getMessage(), e);
+        throw new IllegalArgumentException(
+            "Coder must be deterministic to perform this sketch." + e.getMessage(), e);
       }
       return new ApproximateDistinctFn<>(12, 0, coder);
     }
@@ -428,8 +428,8 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns an {@link ApproximateDistinctFn} combiner with a new
-     * sparse representation's precision {@code sp}.
+     * Returns an {@link ApproximateDistinctFn} combiner with a new sparse representation's
+     * precision {@code sp}.
      *
      * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
      *

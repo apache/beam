@@ -23,20 +23,17 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * {@link GroupByKey} translation to Apex operator.
- */
+/** {@link GroupByKey} translation to Apex operator. */
 class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKey<K, V>> {
   private static final long serialVersionUID = 1L;
 
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
     PCollection<KV<K, V>> input = context.getInput();
-    ApexGroupByKeyOperator<K, V> group = new ApexGroupByKeyOperator<>(context.getPipelineOptions(),
-        input, context.getStateBackend()
-        );
+    ApexGroupByKeyOperator<K, V> group =
+        new ApexGroupByKeyOperator<>(
+            context.getPipelineOptions(), input, context.getStateBackend());
     context.addOperator(group, group.output);
     context.addStream(input, group.input);
   }
-
 }

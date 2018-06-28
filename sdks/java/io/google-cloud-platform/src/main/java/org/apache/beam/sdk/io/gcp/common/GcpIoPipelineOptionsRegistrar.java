@@ -24,9 +24,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
-/**
- * A registrar containing the default GCP options.
- */
+/** A registrar containing the default GCP options. */
 @AutoService(PipelineOptionsRegistrar.class)
 public class GcpIoPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override

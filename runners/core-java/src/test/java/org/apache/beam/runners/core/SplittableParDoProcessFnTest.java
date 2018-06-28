@@ -111,8 +111,7 @@ public class SplittableParDoProcessFnTest {
     public void checkDone() {}
   }
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   /**
    * A helper for testing {@link ProcessFn} on 1 element (but possibly over multiple {@link
@@ -144,8 +143,7 @@ public class SplittableParDoProcessFnTest {
       WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
           (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
       final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-          new ProcessFn<>(
-              fn, inputCoder, restrictionCoder, windowingStrategy);
+          new ProcessFn<>(fn, inputCoder, restrictionCoder, windowingStrategy);
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
@@ -427,7 +425,8 @@ public class SplittableParDoProcessFnTest {
     @ProcessElement
     public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
-          tracker.tryClaim(i); ++i, ++numIterations) {
+          tracker.tryClaim(i);
+          ++i, ++numIterations) {
         c.output(String.valueOf(c.element() + i));
         if (numIterations == numOutputsPerCall - 1) {
           return resume();
@@ -477,8 +476,12 @@ public class SplittableParDoProcessFnTest {
 
     ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(OffsetRange.class),
-            max, MAX_BUNDLE_DURATION);
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            max,
+            MAX_BUNDLE_DURATION);
 
     List<String> elements;
 
@@ -519,8 +522,12 @@ public class SplittableParDoProcessFnTest {
 
     ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(OffsetRange.class),
-            max, maxBundleDuration);
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            max,
+            maxBundleDuration);
 
     List<String> elements;
 

@@ -76,7 +76,8 @@ class ParDoTranslator<InputT, OutputT>
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
-    ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
+    ApexParDoOperator<InputT, OutputT> operator =
+        new ApexParDoOperator<>(
             context.getPipelineOptions(),
             doFn,
             transform.getMainOutputTag(),
@@ -129,9 +130,10 @@ class ParDoTranslator<InputT, OutputT>
       PCollection<InputT> input = context.getInput();
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
-      @SuppressWarnings({ "rawtypes", "unchecked" })
+      @SuppressWarnings({"rawtypes", "unchecked"})
       DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
-      ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
+      ApexParDoOperator<InputT, OutputT> operator =
+          new ApexParDoOperator<>(
               context.getPipelineOptions(),
               doFn,
               transform.getMainOutputTag(),
@@ -170,10 +172,8 @@ class ParDoTranslator<InputT, OutputT>
       if (!sideInputs.isEmpty()) {
         addSideInputs(operator.sideInput1, sideInputs, context);
       }
-
     }
   }
-
 
   static void addSideInputs(
       Operator.InputPort<?> sideInputPort,

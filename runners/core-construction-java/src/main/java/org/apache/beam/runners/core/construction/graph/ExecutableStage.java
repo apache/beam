@@ -157,10 +157,11 @@ public interface ExecutableStage {
                     .collect(
                         Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform))));
 
-    pt.setSpec(FunctionSpec.newBuilder()
-        .setUrn(ExecutableStage.URN)
-        .setPayload(payload.build().toByteString())
-        .build());
+    pt.setSpec(
+        FunctionSpec.newBuilder()
+            .setUrn(ExecutableStage.URN)
+            .setPayload(payload.build().toByteString())
+            .build());
     return pt.build();
   }
 

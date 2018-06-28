@@ -27,12 +27,10 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/**
- * Methods for testing {@link PCollectionView}s.
- */
+/** Methods for testing {@link PCollectionView}s. */
 public final class PCollectionViewTesting {
   public static List<Object> materializeValuesFor(
-      PTransform<?, ? extends PCollectionView<?>> viewTransformClass, Object ... values) {
+      PTransform<?, ? extends PCollectionView<?>> viewTransformClass, Object... values) {
     List<Object> rval = new ArrayList<>();
     // Currently all view materializations are the same where the data is shared underneath
     // the void/null key. Once this changes, these materializations will differ but test code
@@ -59,15 +57,16 @@ public final class PCollectionViewTesting {
         rval.add(KV.of(null, value));
       }
     } else {
-      throw new IllegalArgumentException(String.format(
-          "Unknown type of view %s. Supported views are %s.",
-          viewTransformClass.getClass(),
-          ImmutableSet.of(
-              View.AsSingleton.class,
-              View.AsIterable.class,
-              View.AsList.class,
-              View.AsMap.class,
-              View.AsMultimap.class)));
+      throw new IllegalArgumentException(
+          String.format(
+              "Unknown type of view %s. Supported views are %s.",
+              viewTransformClass.getClass(),
+              ImmutableSet.of(
+                  View.AsSingleton.class,
+                  View.AsIterable.class,
+                  View.AsList.class,
+                  View.AsMap.class,
+                  View.AsMultimap.class)));
     }
     return Collections.unmodifiableList(rval);
   }

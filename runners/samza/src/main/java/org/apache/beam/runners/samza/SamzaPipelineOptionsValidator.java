@@ -23,9 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 
-/**
- * Validates that the {@link SamzaPipelineOptions} conforms to all the criteria.
- */
+/** Validates that the {@link SamzaPipelineOptions} conforms to all the criteria. */
 public class SamzaPipelineOptionsValidator {
   public static SamzaPipelineOptions validate(PipelineOptions opts) {
     final SamzaPipelineOptions samzaOptions =

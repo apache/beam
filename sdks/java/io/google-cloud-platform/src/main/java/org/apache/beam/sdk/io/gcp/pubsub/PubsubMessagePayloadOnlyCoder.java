@@ -34,8 +34,7 @@ public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
   }
 
   @Override
-  public void encode(PubsubMessage value, OutputStream outStream)
-      throws IOException {
+  public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 

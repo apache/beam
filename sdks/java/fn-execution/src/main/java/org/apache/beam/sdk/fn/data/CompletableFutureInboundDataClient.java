@@ -20,9 +20,7 @@ package org.apache.beam.sdk.fn.data;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * An {@link InboundDataClient} backed by a {@link CompletableFuture}.
- */
+/** An {@link InboundDataClient} backed by a {@link CompletableFuture}. */
 public class CompletableFutureInboundDataClient implements InboundDataClient {
   private static final Object COMPLETED = new Object();
   /**
@@ -33,8 +31,8 @@ public class CompletableFutureInboundDataClient implements InboundDataClient {
   }
 
   /**
-   * Create a new {@link CompletableFutureInboundDataClient} wrapping the provided
-   * {@link CompletableFuture}.
+   * Create a new {@link CompletableFutureInboundDataClient} wrapping the provided {@link
+   * CompletableFuture}.
    */
   static InboundDataClient forBackingFuture(CompletableFuture<Object> future) {
     return new CompletableFutureInboundDataClient(future);

@@ -74,7 +74,6 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads<DestinationT>
     extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
@@ -89,8 +88,7 @@ class BatchLoads<DestinationT>
   // save on the cost of shuffling some of this data.
   // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
   // their own policy.
-  @VisibleForTesting
-  static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
+  @VisibleForTesting static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
   @VisibleForTesting
   // Maximum number of files in a single partition.
@@ -131,12 +129,14 @@ class BatchLoads<DestinationT>
   private ValueProvider<String> customGcsTempLocation;
   private ValueProvider<String> loadJobProjectId;
 
-  BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
-             boolean singletonTable,
-             DynamicDestinations<?, DestinationT> dynamicDestinations,
-             Coder<DestinationT> destinationCoder,
-             ValueProvider<String> customGcsTempLocation,
-             @Nullable ValueProvider<String> loadJobProjectId) {
+  BatchLoads(
+      WriteDisposition writeDisposition,
+      CreateDisposition createDisposition,
+      boolean singletonTable,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      Coder<DestinationT> destinationCoder,
+      ValueProvider<String> customGcsTempLocation,
+      @Nullable ValueProvider<String> loadJobProjectId) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;

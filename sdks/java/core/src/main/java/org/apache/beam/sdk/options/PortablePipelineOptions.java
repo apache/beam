@@ -36,11 +36,13 @@ public interface PortablePipelineOptions extends PipelineOptions {
       "Files to stage to the artifact service and make available to workers. Files are placed on "
           + "the worker's classpath. The default value is all files from the classpath.")
   List<String> getFilesToStage();
+
   void setFilesToStage(List<String> value);
 
   @Description(
       "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")
   @Required
   String getJobEndpoint();
+
   void setJobEndpoint(String endpoint);
 }

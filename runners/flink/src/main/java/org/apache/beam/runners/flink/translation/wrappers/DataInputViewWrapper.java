@@ -23,10 +23,9 @@ import java.io.InputStream;
 import org.apache.flink.core.memory.DataInputView;
 
 /**
- * Wrapper for {@link DataInputView}. We need this because Flink reads data using a
- * {@link org.apache.flink.core.memory.DataInputView} while
- * Dataflow {@link org.apache.beam.sdk.coders.Coder}s expect an
- * {@link java.io.InputStream}.
+ * Wrapper for {@link DataInputView}. We need this because Flink reads data using a {@link
+ * org.apache.flink.core.memory.DataInputView} while Dataflow {@link
+ * org.apache.beam.sdk.coders.Coder}s expect an {@link java.io.InputStream}.
  */
 public class DataInputViewWrapper extends InputStream {
 

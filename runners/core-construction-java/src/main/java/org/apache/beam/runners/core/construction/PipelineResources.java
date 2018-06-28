@@ -28,18 +28,21 @@ import java.util.List;
 public class PipelineResources {
 
   /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
+   * Attempts to detect all the resources the class loader has access to. This does not recurse to
+   * class loader parents stopping it from pulling in resources from the system class loader.
    *
    * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException  If either the class loader is not a URLClassLoader or one
-   * of the resources the class loader exposes is not a file resource.
+   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one of
+   *     the resources the class loader exposes is not a file resource.
    * @return A list of absolute paths to the resources the class loader uses.
    */
   public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
     if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
+      String message =
+          String.format(
+              "Unable to use ClassLoader to detect classpath elements. "
+                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
+              classLoader);
       throw new IllegalArgumentException(message);
     }
 

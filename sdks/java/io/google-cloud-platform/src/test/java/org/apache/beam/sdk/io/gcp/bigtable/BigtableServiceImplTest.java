@@ -57,34 +57,26 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Unit tests of BigtableServiceImpl.
- */
+/** Unit tests of BigtableServiceImpl. */
 @RunWith(JUnit4.class)
 public class BigtableServiceImplTest {
 
   private static final BigtableTableName TABLE_NAME =
       new BigtableInstanceName("project", "instance").toTableName("table");
 
-  @Mock
-  private BigtableSession mockSession;
+  @Mock private BigtableSession mockSession;
 
-  @Mock
-  private BulkMutation mockBulkMutation;
+  @Mock private BulkMutation mockBulkMutation;
 
-  @Mock
-  private BigtableDataClient mockBigtableDataClient;
+  @Mock private BigtableDataClient mockBigtableDataClient;
 
-  @Mock
-  private BigtableSource mockBigtableSource;
+  @Mock private BigtableSource mockBigtableSource;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    BigtableOptions options = new BigtableOptions.Builder()
-        .setProjectId("project")
-        .setInstanceId("instance")
-        .build();
+    BigtableOptions options =
+        new BigtableOptions.Builder().setProjectId("project").setInstanceId("instance").build();
     when(mockSession.getOptions()).thenReturn(options);
     when(mockSession.createBulkMutation(eq(TABLE_NAME))).thenReturn(mockBulkMutation);
     when(mockSession.getDataClient()).thenReturn(mockBigtableDataClient);
@@ -93,6 +85,7 @@ public class BigtableServiceImplTest {
   /**
    * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
    * as expected.
+   *
    * @throws IOException
    * @throws InterruptedException
    */
@@ -104,12 +97,8 @@ public class BigtableServiceImplTest {
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of("table_name"));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
-    Row expectedRow = Row.newBuilder()
-        .setKey(ByteString.copyFromUtf8("a"))
-        .build();
-    when(mockResultScanner.next())
-        .thenReturn(expectedRow)
-        .thenReturn(null);
+    Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+    when(mockResultScanner.next()).thenReturn(expectedRow).thenReturn(null);
     when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
@@ -125,6 +114,7 @@ public class BigtableServiceImplTest {
   /**
    * This test ensures that protobuf creation and interactions with {@link BulkMutation} work as
    * expected.
+   *
    * @throws IOException
    * @throws InterruptedException
    */
@@ -133,18 +123,18 @@ public class BigtableServiceImplTest {
     BigtableService.Writer underTest =
         new BigtableServiceImpl.BigtableWriterImpl(mockSession, TABLE_NAME);
 
-    Mutation mutation = Mutation.newBuilder()
-        .setSetCell(SetCell.newBuilder().setFamilyName("Family").build()).build();
+    Mutation mutation =
+        Mutation.newBuilder()
+            .setSetCell(SetCell.newBuilder().setFamilyName("Family").build())
+            .build();
     ByteString key = ByteString.copyFromUtf8("key");
 
     SettableFuture<MutateRowResponse> fakeResponse = SettableFuture.create();
     when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class))).thenReturn(fakeResponse);
 
     underTest.writeRecord(KV.of(key, ImmutableList.of(mutation)));
-    Entry expected = MutateRowsRequest.Entry.newBuilder()
-        .setRowKey(key)
-        .addMutations(mutation)
-        .build();
+    Entry expected =
+        MutateRowsRequest.Entry.newBuilder().setRowKey(key).addMutations(mutation).build();
     verify(mockBulkMutation, times(1)).add(expected);
 
     underTest.close();

@@ -135,17 +135,16 @@ class CreateStreamingFlinkView<ElemT, ViewT>
 
   public static class Factory<ElemT, ViewT>
       implements PTransformOverrideFactory<
-          PCollection<ElemT>,
-          PCollection<ElemT>,
+          PCollection<ElemT>, PCollection<ElemT>,
           PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
     public Factory() {}
 
     @Override
     public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
         AppliedPTransform<
-            PCollection<ElemT>,
-            PCollection<ElemT>,
-            PTransform<PCollection<ElemT>, PCollection<ElemT>>> transform) {
+                PCollection<ElemT>, PCollection<ElemT>,
+                PTransform<PCollection<ElemT>, PCollection<ElemT>>>
+            transform) {
       PCollection<ElemT> collection =
           (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values());
       PCollectionView<ViewT> view;

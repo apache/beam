@@ -51,9 +51,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TransformHierarchy.Node} and {@link TransformHierarchy}.
- */
+/** Tests for {@link TransformHierarchy.Node} and {@link TransformHierarchy}. */
 @RunWith(JUnit4.class)
 public class TransformTreeTest {
 
@@ -69,8 +67,8 @@ public class TransformTreeTest {
   /**
    * INVALID TRANSFORM, DO NOT COPY.
    *
-   * <p>This is an invalid composite transform that returns unbound outputs.
-   * This should never happen, and is here to test that it is properly rejected.
+   * <p>This is an invalid composite transform that returns unbound outputs. This should never
+   * happen, and is here to test that it is properly rejected.
    */
   private static class InvalidCompositeTransform
       extends PTransform<PBegin, PCollectionList<String>> {
@@ -94,11 +92,8 @@ public class TransformTreeTest {
     }
   }
 
-  /**
-   * A composite transform that returns an output that is unbound.
-   */
-  private static class UnboundOutputCreator
-      extends PTransform<PCollection<Integer>, PDone> {
+  /** A composite transform that returns an output that is unbound. */
+  private static class UnboundOutputCreator extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
     public PDone expand(PCollection<Integer> input) {
@@ -123,10 +118,8 @@ public class TransformTreeTest {
         .apply(Flatten.iterables())
         .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
-    final EnumSet<TransformsSeen> visited =
-        EnumSet.noneOf(TransformsSeen.class);
-    final EnumSet<TransformsSeen> left =
-        EnumSet.noneOf(TransformsSeen.class);
+    final EnumSet<TransformsSeen> visited = EnumSet.noneOf(TransformsSeen.class);
+    final EnumSet<TransformsSeen> left = EnumSet.noneOf(TransformsSeen.class);
 
     p.traverseTopologically(
         new Pipeline.PipelineVisitor.Defaults() {
@@ -185,8 +178,7 @@ public class TransformTreeTest {
   @Test
   @Category(NeedsRunner.class)
   public void testMultiGraphSetup() {
-    PCollection<Integer> input = p.begin()
-        .apply(Create.of(1, 2, 3));
+    PCollection<Integer> input = p.begin().apply(Create.of(1, 2, 3));
 
     input.apply(new UnboundOutputCreator());
 

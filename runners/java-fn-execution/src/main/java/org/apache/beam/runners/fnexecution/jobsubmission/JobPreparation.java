@@ -29,14 +29,19 @@ public abstract class JobPreparation {
   }
 
   public abstract String id();
+
   public abstract Pipeline pipeline();
+
   public abstract Struct options();
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setId(String id);
+
     abstract Builder setPipeline(Pipeline pipeline);
+
     abstract Builder setOptions(Struct options);
+
     abstract JobPreparation build();
   }
 }

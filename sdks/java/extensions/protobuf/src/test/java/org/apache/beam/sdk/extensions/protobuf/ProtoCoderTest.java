@@ -40,9 +40,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ProtoCoder}.
- */
+/** Tests for {@link ProtoCoder}. */
 @RunWith(JUnit4.class)
 public class ProtoCoderTest {
 

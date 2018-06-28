@@ -31,21 +31,27 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link DoubleCoder}.
- */
+/** Test case for {@link DoubleCoder}. */
 @RunWith(JUnit4.class)
 public class DoubleCoderTest {
 
   private static final Coder<Double> TEST_CODER = DoubleCoder.of();
 
-  private static final List<Double> TEST_VALUES = Arrays.asList(
-      0.0, -0.5, 0.5, 0.3, -0.3, 1.0, -43.89568740, Math.PI,
-      Double.MAX_VALUE,
-      Double.MIN_VALUE,
-      Double.POSITIVE_INFINITY,
-      Double.NEGATIVE_INFINITY,
-      Double.NaN);
+  private static final List<Double> TEST_VALUES =
+      Arrays.asList(
+          0.0,
+          -0.5,
+          0.5,
+          0.3,
+          -0.3,
+          1.0,
+          -43.89568740,
+          Math.PI,
+          Double.MAX_VALUE,
+          Double.MIN_VALUE,
+          Double.POSITIVE_INFINITY,
+          Double.NEGATIVE_INFINITY,
+          Double.NaN);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -55,31 +61,31 @@ public class DoubleCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAAAAAAA",
-      "v-AAAAAAAAA",
-      "P-AAAAAAAAA",
-      "P9MzMzMzMzM",
-      "v9MzMzMzMzM",
-      "P_AAAAAAAAA",
-      "wEXypeJ9ODo",
-      "QAkh-1RELRg",
-      "f-________8",
-      "AAAAAAAAAAE",
-      "f_AAAAAAAAA",
-      "__AAAAAAAAA",
-      "f_gAAAAAAAA");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "AAAAAAAAAAA",
+          "v-AAAAAAAAA",
+          "P-AAAAAAAAA",
+          "P9MzMzMzMzM",
+          "v9MzMzMzMzM",
+          "P_AAAAAAAAA",
+          "wEXypeJ9ODo",
+          "QAkh-1RELRg",
+          "f-________8",
+          "AAAAAAAAAAE",
+          "f_AAAAAAAAA",
+          "__AAAAAAAAA",
+          "f_gAAAAAAAA");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

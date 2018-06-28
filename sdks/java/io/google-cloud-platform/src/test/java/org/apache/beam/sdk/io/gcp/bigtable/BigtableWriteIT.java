@@ -57,9 +57,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests of BigtableWrite.
- */
+/** End-to-end tests of BigtableWrite. */
 @RunWith(JUnit4.class)
 public class BigtableWriteIT implements Serializable {
   /**
@@ -67,6 +65,7 @@ public class BigtableWriteIT implements Serializable {
    * when executing the test and would not affect passed-in objects otherwise.
    */
   private static final String COLUMN_FAMILY_NAME = "cf";
+
   private static BigtableTestOptions options;
   private BigtableOptions bigtableOptions;
   private static BigtableSession session;
@@ -109,24 +108,25 @@ public class BigtableWriteIT implements Serializable {
 
     Pipeline p = Pipeline.create(options);
     p.apply(GenerateSequence.from(0).to(numRows))
-        .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            int index = c.element().intValue();
+        .apply(
+            ParDo.of(
+                new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    int index = c.element().intValue();
 
-            Iterable<Mutation> mutations =
-                ImmutableList.of(Mutation.newBuilder()
-                    .setSetCell(
-                        Mutation.SetCell.newBuilder()
-                            .setValue(testData.get(index).getValue())
-                            .setFamilyName(COLUMN_FAMILY_NAME))
-                    .build());
-            c.output(KV.of(testData.get(index).getKey(), mutations));
-          }
-        }))
-        .apply(BigtableIO.write()
-          .withBigtableOptions(bigtableOptions)
-          .withTableId(tableId));
+                    Iterable<Mutation> mutations =
+                        ImmutableList.of(
+                            Mutation.newBuilder()
+                                .setSetCell(
+                                    Mutation.SetCell.newBuilder()
+                                        .setValue(testData.get(index).getValue())
+                                        .setFamilyName(COLUMN_FAMILY_NAME))
+                                .build());
+                    c.output(KV.of(testData.get(index).getKey(), mutations));
+                  }
+                }))
+        .apply(BigtableIO.write().withBigtableOptions(bigtableOptions).withTableId(tableId));
     p.run();
 
     // Test number of column families and column family name equality
@@ -164,33 +164,32 @@ public class BigtableWriteIT implements Serializable {
     Table.Builder tableBuilder = Table.newBuilder();
     tableBuilder.putColumnFamilies(COLUMN_FAMILY_NAME, ColumnFamily.newBuilder().build());
 
-    CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder()
-        .setParent(instanceName)
-        .setTableId(tableId)
-        .setTable(tableBuilder.build());
+    CreateTableRequest.Builder createTableRequestBuilder =
+        CreateTableRequest.newBuilder()
+            .setParent(instanceName)
+            .setTableId(tableId)
+            .setTable(tableBuilder.build());
     tableAdminClient.createTable(createTableRequestBuilder.build());
   }
 
   /** Helper function to get a table. */
   private Table getTable(String tableName) {
-    GetTableRequest.Builder getTableRequestBuilder = GetTableRequest.newBuilder()
-        .setName(tableName);
+    GetTableRequest.Builder getTableRequestBuilder =
+        GetTableRequest.newBuilder().setName(tableName);
     return tableAdminClient.getTable(getTableRequestBuilder.build());
   }
 
   /** Helper function to get a table's data. */
   private List<KV<ByteString, ByteString>> getTableData(String tableName) throws IOException {
     // Add empty range to avoid TARGET_NOT_SET error
-    RowRange range = RowRange.newBuilder()
-        .setStartKeyClosed(ByteString.EMPTY)
-        .setEndKeyOpen(ByteString.EMPTY)
-        .build();
-    RowSet rowSet = RowSet.newBuilder()
-        .addRowRanges(range)
-        .build();
-    ReadRowsRequest.Builder readRowsRequestBuilder = ReadRowsRequest.newBuilder()
-        .setTableName(tableName)
-        .setRows(rowSet);
+    RowRange range =
+        RowRange.newBuilder()
+            .setStartKeyClosed(ByteString.EMPTY)
+            .setEndKeyOpen(ByteString.EMPTY)
+            .build();
+    RowSet rowSet = RowSet.newBuilder().addRowRanges(range).build();
+    ReadRowsRequest.Builder readRowsRequestBuilder =
+        ReadRowsRequest.newBuilder().setTableName(tableName).setRows(rowSet);
     ResultScanner<Row> scanner = session.getDataClient().readRows(readRowsRequestBuilder.build());
 
     Row currentRow;
@@ -207,8 +206,8 @@ public class BigtableWriteIT implements Serializable {
 
   /** Helper function to delete a table. */
   private void deleteTable(String tableName) {
-    DeleteTableRequest.Builder deleteTableRequestBuilder = DeleteTableRequest.newBuilder()
-        .setName(tableName);
+    DeleteTableRequest.Builder deleteTableRequestBuilder =
+        DeleteTableRequest.newBuilder().setName(tableName);
     tableAdminClient.deleteTable(deleteTableRequestBuilder.build());
   }
 }

@@ -160,8 +160,7 @@ class GreedyPCollectionFusers {
       return false;
     } else {
       try {
-        ParDoPayload payload =
-            ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
+        ParDoPayload payload = ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
         if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
           // Inputs to a ParDo that uses State or Timers must be key-partitioned, and elements for
           // a key must execute serially. To avoid checking if the rest of the stage is

@@ -35,13 +35,13 @@ import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
 /**
- * {@link ParDo.MultiOutput} is translated to Gearpump flatMap function
- * with {@link DoFn} wrapped in {@link DoFnFunction}. The outputs are
- * further filtered with Gearpump filter function by output tag
+ * {@link ParDo.MultiOutput} is translated to Gearpump flatMap function with {@link DoFn} wrapped in
+ * {@link DoFnFunction}. The outputs are further filtered with Gearpump filter function by output
+ * tag
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ParDoMultiOutputTranslator<InputT, OutputT> implements
-    TransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
+public class ParDoMultiOutputTranslator<InputT, OutputT>
+    implements TransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
 
   private static final long serialVersionUID = -6023461558200028849L;
 
@@ -56,30 +56,32 @@ public class ParDoMultiOutputTranslator<InputT, OutputT> implements
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     final TupleTag<OutputT> mainOutput = transform.getMainOutputTag();
     List<TupleTag<?>> sideOutputs = new ArrayList<>(outputs.size() - 1);
-    for (TupleTag<?> tag: outputs.keySet()) {
+    for (TupleTag<?> tag : outputs.keySet()) {
       if (tag != null && !tag.getId().equals(mainOutput.getId())) {
         sideOutputs.add(tag);
       }
     }
 
-    JavaStream<TranslatorUtils.RawUnionValue> unionStream = TranslatorUtils.withSideInputStream(
-        context, inputStream, tagsToSideInputs);
+    JavaStream<TranslatorUtils.RawUnionValue> unionStream =
+        TranslatorUtils.withSideInputStream(context, inputStream, tagsToSideInputs);
 
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
-        TranslatorUtils.toList(unionStream).flatMap(
-            new DoFnFunction<>(
-                context.getPipelineOptions(),
-                transform.getFn(),
-                inputT.getWindowingStrategy(),
-                sideInputs,
-                tagsToSideInputs,
-                mainOutput,
-                sideOutputs), transform.getName());
-    for (Map.Entry<TupleTag<?>, PValue> output: outputs.entrySet()) {
-      JavaStream<WindowedValue<OutputT>> taggedStream = outputStream
-          .filter(new FilterByOutputTag(output.getKey().getId()),
-              "filter_by_output_tag")
-          .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
+        TranslatorUtils.toList(unionStream)
+            .flatMap(
+                new DoFnFunction<>(
+                    context.getPipelineOptions(),
+                    transform.getFn(),
+                    inputT.getWindowingStrategy(),
+                    sideInputs,
+                    tagsToSideInputs,
+                    mainOutput,
+                    sideOutputs),
+                transform.getName());
+    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      JavaStream<WindowedValue<OutputT>> taggedStream =
+          outputStream
+              .filter(new FilterByOutputTag(output.getKey().getId()), "filter_by_output_tag")
+              .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
       context.setOutputStream(output.getValue(), taggedStream);
     }
   }

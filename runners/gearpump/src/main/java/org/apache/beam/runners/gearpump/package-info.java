@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal implementation of the Beam runner for Apache Gearpump.
- */
+/** Internal implementation of the Beam runner for Apache Gearpump. */
 package org.apache.beam.runners.gearpump;

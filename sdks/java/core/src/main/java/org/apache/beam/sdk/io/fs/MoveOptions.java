@@ -20,14 +20,12 @@ package org.apache.beam.sdk.io.fs;
 import org.apache.beam.sdk.io.FileSystems;
 
 /**
- * An object that configures {@link FileSystems#copy}, {@link FileSystems#rename},
- * and {@link FileSystems#delete}.
+ * An object that configures {@link FileSystems#copy}, {@link FileSystems#rename}, and {@link
+ * FileSystems#delete}.
  */
 public interface MoveOptions {
 
-  /**
-   * Defines the standard {@link MoveOptions}.
-   */
+  /** Defines the standard {@link MoveOptions}. */
   enum StandardMoveOptions implements MoveOptions {
     IGNORE_MISSING_FILES,
   }

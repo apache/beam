@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing using AMQP 1.0 protocol.
- */
+/** Transforms for reading and writing using AMQP 1.0 protocol. */
 package org.apache.beam.sdk.io.amqp;

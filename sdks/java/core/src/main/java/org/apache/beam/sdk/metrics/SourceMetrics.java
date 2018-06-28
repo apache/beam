@@ -21,9 +21,7 @@ import com.google.common.base.Joiner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * Standard {@link org.apache.beam.sdk.io.Source} Metrics.
- */
+/** Standard {@link org.apache.beam.sdk.io.Source} Metrics. */
 @Experimental(Kind.METRICS)
 public class SourceMetrics {
 
@@ -38,16 +36,12 @@ public class SourceMetrics {
 
   private static final Counter ELEMENTS_READ_COUNTER =
       Metrics.counter(SOURCE_NAMESPACE, ELEMENTS_READ);
-  private static final Counter BYTES_READ_COUNTER =
-      Metrics.counter(SOURCE_NAMESPACE, BYTES_READ);
-  private static final Gauge BACKLOG_BYTES_GAUGE =
-      Metrics.gauge(SOURCE_NAMESPACE, BACKLOG_BYTES);
+  private static final Counter BYTES_READ_COUNTER = Metrics.counter(SOURCE_NAMESPACE, BYTES_READ);
+  private static final Gauge BACKLOG_BYTES_GAUGE = Metrics.gauge(SOURCE_NAMESPACE, BACKLOG_BYTES);
   private static final Gauge BACKLOG_ELEMENTS_GAUGE =
       Metrics.gauge(SOURCE_NAMESPACE, BACKLOG_ELEMENTS);
 
-  /**
-   * Counter of elements read by a source.
-   */
+  /** Counter of elements read by a source. */
   public static Counter elementsRead() {
     return ELEMENTS_READ_COUNTER;
   }
@@ -56,15 +50,13 @@ public class SourceMetrics {
    * Counter of elements read by a source split.
    *
    * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
-   * metrics backends.</p>
+   * metrics backends.
    */
   public static Counter elementsReadBySplit(String splitId) {
     return Metrics.counter(SOURCE_SPLITS_NAMESPACE, renderName(splitId, ELEMENTS_READ));
   }
 
-  /**
-   * Counter of bytes read by a source.
-   */
+  /** Counter of bytes read by a source. */
   public static Counter bytesRead() {
     return BYTES_READ_COUNTER;
   }
@@ -73,15 +65,13 @@ public class SourceMetrics {
    * Counter of bytes read by a source split.
    *
    * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
-   * metrics backends.</p>
+   * metrics backends.
    */
   public static Counter bytesReadBySplit(String splitId) {
     return Metrics.counter(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BYTES_READ));
   }
 
-  /**
-   * Gauge for source backlog in bytes.
-   */
+  /** Gauge for source backlog in bytes. */
   public static Gauge backlogBytes() {
     return BACKLOG_BYTES_GAUGE;
   }
@@ -90,15 +80,13 @@ public class SourceMetrics {
    * Gauge for source split backlog in bytes.
    *
    * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
-   * metrics backends.</p>
+   * metrics backends.
    */
   public static Gauge backlogBytesOfSplit(String splitId) {
     return Metrics.gauge(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BACKLOG_BYTES));
   }
 
-  /**
-   * Gauge for source backlog in elements.
-   */
+  /** Gauge for source backlog in elements. */
   public static Gauge backlogElements() {
     return BACKLOG_ELEMENTS_GAUGE;
   }
@@ -107,7 +95,7 @@ public class SourceMetrics {
    * Gauge for source split backlog in elements.
    *
    * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
-   * metrics backends.</p>
+   * metrics backends.
    */
   public static Gauge backlogElementsOfSplit(String splitId) {
     return Metrics.gauge(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BACKLOG_ELEMENTS));
