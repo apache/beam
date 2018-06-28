@@ -235,6 +235,24 @@ public class QueryablePipeline {
   }
 
   /**
+   * Same as {@link #getPerElementConsumers(PCollectionNode)}, but returns transforms that consume
+   * the collection as a singleton.
+   */
+  public Set<PTransformNode> getSingletonConsumers(PCollectionNode pCollection) {
+    return pipelineNetwork
+        .successors(pCollection)
+        .stream()
+        .filter(
+            consumer ->
+                pipelineNetwork
+                    .edgesConnecting(pCollection, consumer)
+                    .stream()
+                    .anyMatch(edge -> !edge.isPerElement()))
+        .map(pipelineNode -> (PTransformNode) pipelineNode)
+        .collect(Collectors.toSet());
+  }
+
+  /**
    * Gets each {@link PCollectionNode} that the provided {@link PTransformNode} consumes on a
    * per-element basis.
    */
