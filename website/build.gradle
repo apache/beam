@@ -24,7 +24,21 @@ task cleanWebsite(type: Delete) {
 }
 clean.dependsOn cleanWebsite
 
+task installBundler(type: Exec) {
+  commandLine './install_bundler.sh'
+}
+
+task installGems(type: Exec) {
+  mustRunAfter (cleanWebsite, installBundler)
+  commandLine 'bundle', 'install', '--deployment'
+}
+
+task setupJenkins {
+  dependsOn (installBundler, installGems)
+}
+
 task buildWebsite(type: Exec) {
+  mustRunAfter (cleanWebsite, setupJenkins, installGems)
   commandLine 'bundle', 'exec', 'jekyll', 'build', '--config', '_config.yml,_config_test.yml'
 }
 build.dependsOn buildWebsite
