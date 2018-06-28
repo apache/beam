@@ -28,24 +28,23 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DataflowProfilingOptions}.
- */
+/** Tests for {@link DataflowProfilingOptions}. */
 @RunWith(JUnit4.class)
 public class DataflowProfilingOptionsTest {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   @Test
   public void testOptionsObject() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(
-        "--saveProfilesToGcs=path", "--profilingAgentConfiguration={\"interval\": 21}")
-        .as(DataflowPipelineOptions.class);
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--saveProfilesToGcs=path", "--profilingAgentConfiguration={\"interval\": 21}")
+            .as(DataflowPipelineOptions.class);
     assertThat(options.getSaveProfilesToGcs(), equalTo("path"));
 
     String json = MAPPER.writeValueAsString(options);
-    assertThat(json, Matchers.containsString(
-        "\"profilingAgentConfiguration\":{\"interval\":21}"));
+    assertThat(json, Matchers.containsString("\"profilingAgentConfiguration\":{\"interval\":21}"));
   }
 }

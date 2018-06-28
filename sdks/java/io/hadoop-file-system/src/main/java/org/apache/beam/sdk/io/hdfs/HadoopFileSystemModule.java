@@ -35,8 +35,8 @@ import java.util.TreeMap;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer}
- * for a Hadoop {@link Configuration}. The serialized representation is that of a JSON map.
+ * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
+ * a Hadoop {@link Configuration}. The serialized representation is that of a JSON map.
  *
  * <p>Note that the serialization of the Hadoop {@link Configuration} only keeps the keys and their
  * values dropping any configuration hierarchy and source information.
@@ -56,8 +56,8 @@ public class HadoopFileSystemModule extends SimpleModule {
   /** A Jackson {@link JsonDeserializer} for Hadoop {@link Configuration} objects. */
   private static class ConfigurationDeserializer extends JsonDeserializer<Configuration> {
     @Override
-    public Configuration deserialize(JsonParser jsonParser,
-        DeserializationContext deserializationContext) throws IOException {
+    public Configuration deserialize(
+        JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
       Map<String, String> rawConfiguration =
           jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
       Configuration configuration = new Configuration(false);
@@ -71,8 +71,11 @@ public class HadoopFileSystemModule extends SimpleModule {
   /** A Jackson {@link JsonSerializer} for Hadoop {@link Configuration} objects. */
   private static class ConfigurationSerializer extends JsonSerializer<Configuration> {
     @Override
-    public void serialize(Configuration configuration, JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider) throws IOException {
+    public void serialize(
+        Configuration configuration,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider)
+        throws IOException {
       Map<String, String> map = new TreeMap<>();
       for (Map.Entry<String, String> entry : configuration) {
         map.put(entry.getKey(), entry.getValue());

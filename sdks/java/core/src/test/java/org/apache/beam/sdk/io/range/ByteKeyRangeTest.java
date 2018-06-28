@@ -33,9 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ByteKeyRange}.
- */
+/** Tests for {@link ByteKeyRange}. */
 @RunWith(JUnit4.class)
 public class ByteKeyRangeTest {
   // A set of ranges for testing.
@@ -80,25 +78,19 @@ public class ByteKeyRangeTest {
     bidirectionalOverlapHelper(left, right, false);
   }
 
-  /**
-   * Tests that the two ranges overlap, passing each in as the first range in the comparison.
-   */
+  /** Tests that the two ranges overlap, passing each in as the first range in the comparison. */
   private static void bidirectionalOverlap(ByteKeyRange left, ByteKeyRange right) {
     bidirectionalOverlapHelper(left, right, true);
   }
 
-  /**
-   * Helper function for tests with a good error message.
-   */
+  /** Helper function for tests with a good error message. */
   private static void bidirectionalOverlapHelper(
       ByteKeyRange left, ByteKeyRange right, boolean result) {
     assertEquals(String.format("%s overlaps %s", left, right), result, left.overlaps(right));
     assertEquals(String.format("%s overlaps %s", right, left), result, right.overlaps(left));
   }
 
-  /**
-   * Tests of {@link ByteKeyRange#overlaps(ByteKeyRange)} with cases that should return true.
-   */
+  /** Tests of {@link ByteKeyRange#overlaps(ByteKeyRange)} with cases that should return true. */
   @Test
   public void testOverlappingRanges() {
     bidirectionalOverlap(ByteKeyRange.ALL_KEYS, ByteKeyRange.ALL_KEYS);
@@ -114,9 +106,7 @@ public class ByteKeyRangeTest {
     bidirectionalOverlap(RANGE_5_10, RANGE_5_50);
   }
 
-  /**
-   * Tests of {@link ByteKeyRange#overlaps(ByteKeyRange)} with cases that should return false.
-   */
+  /** Tests of {@link ByteKeyRange#overlaps(ByteKeyRange)} with cases that should return false. */
   @Test
   public void testNonOverlappingRanges() {
     bidirectionalNonOverlap(UP_TO_1, AFTER_1);
@@ -124,9 +114,7 @@ public class ByteKeyRangeTest {
     bidirectionalNonOverlap(RANGE_5_10, RANGE_10_50);
   }
 
-  /**
-   * Verifies that all keys in the given list are strictly ordered by size.
-   */
+  /** Verifies that all keys in the given list are strictly ordered by size. */
   private static void ensureOrderedKeys(List<ByteKey> keys) {
     for (int i = 0; i < keys.size() - 1; ++i) {
       // This will throw if these two keys do not form a valid range.

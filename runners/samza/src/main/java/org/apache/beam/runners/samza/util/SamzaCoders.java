@@ -27,17 +27,15 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.samza.serializers.Serde;
 
-/**
- * Utils for Coders creation/conversion in Samza.
- */
+/** Utils for Coders creation/conversion in Samza. */
 public class SamzaCoders {
 
   private SamzaCoders() {}
 
   public static <T> Coder<WindowedValue<T>> of(PCollection<T> pCollection) {
     final Coder<T> coder = pCollection.getCoder();
-    final Coder<? extends BoundedWindow> windowCoder = pCollection.getWindowingStrategy()
-        .getWindowFn().windowCoder();
+    final Coder<? extends BoundedWindow> windowCoder =
+        pCollection.getWindowingStrategy().getWindowFn().windowCoder();
     return WindowedValue.FullWindowedValueCoder.of(coder, windowCoder);
   }
 
@@ -73,5 +71,4 @@ public class SamzaCoders {
       }
     };
   }
-
 }

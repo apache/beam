@@ -40,16 +40,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * primitive.
  *
  * <p>This implementation of {@link GroupByKey} proceeds via the following steps:
+ *
  * <ol>
- *   <li>{@code ReifyTimestampsAndWindowsDoFn ParDo(ReifyTimestampsAndWindows)}: This embeds
- *       the previously-implicit timestamp and window into the elements themselves, so a
- *       window-and-timestamp-unaware transform can operate on them.</li>
- *   <li>{@code GroupByKeyOnly}: This lower-level primitive groups by keys, ignoring windows
- *       and timestamps. Many window-unaware runners have such a primitive already.</li>
+ *   <li>{@code ReifyTimestampsAndWindowsDoFn ParDo(ReifyTimestampsAndWindows)}: This embeds the
+ *       previously-implicit timestamp and window into the elements themselves, so a
+ *       window-and-timestamp-unaware transform can operate on them.
+ *   <li>{@code GroupByKeyOnly}: This lower-level primitive groups by keys, ignoring windows and
+ *       timestamps. Many window-unaware runners have such a primitive already.
  *   <li>{@code SortValuesByTimestamp ParDo(SortValuesByTimestamp)}: The values in the iterables
- *       output by {@link GroupByKeyOnly} are sorted by timestamp.</li>
+ *       output by {@link GroupByKeyOnly} are sorted by timestamp.
  *   <li>{@code GroupAlsoByWindow}: This primitive processes the sorted values. Today it is
- *       implemented as a {@link ParDo} that calls reserved internal methods.</li>
+ *       implemented as a {@link ParDo} that calls reserved internal methods.
  * </ol>
  *
  * <p>This implementation of {@link GroupByKey} has severe limitations unless its component
@@ -57,13 +58,13 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * execution strategy. Specifically:
  *
  * <ul>
- *   <li>Every iterable output by {@link GroupByKeyOnly} must contain all elements for that key.
- *       A streaming-style partition, with multiple elements for the same key, will not yield
- *       correct results.</li>
- *   <li>Sorting of values by timestamp is performed on an in-memory list. It will not succeed
- *       for large iterables.</li>
+ *   <li>Every iterable output by {@link GroupByKeyOnly} must contain all elements for that key. A
+ *       streaming-style partition, with multiple elements for the same key, will not yield correct
+ *       results.
+ *   <li>Sorting of values by timestamp is performed on an in-memory list. It will not succeed for
+ *       large iterables.
  *   <li>The implementation of {@code GroupAlsoByWindow} does not support timers. This is only
- *       appropriate for runners which also do not support timers.</li>
+ *       appropriate for runners which also do not support timers.
  * </ul>
  */
 public class GroupByKeyViaGroupByKeyOnly<K, V>
@@ -98,9 +99,9 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   }
 
   /**
-   * Runner-specific primitive that groups by key only, ignoring any window assignments. A
-   * runner that uses {@link GroupByKeyViaGroupByKeyOnly} should have a primitive way to translate
-   * or evaluate this class.
+   * Runner-specific primitive that groups by key only, ignoring any window assignments. A runner
+   * that uses {@link GroupByKeyViaGroupByKeyOnly} should have a primitive way to translate or
+   * evaluate this class.
    */
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<WindowedValue<V>>>>> {
@@ -116,9 +117,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
     }
   }
 
-  /**
-   * Helper transform that sorts the values associated with each key by timestamp.
-   */
+  /** Helper transform that sorts the values associated with each key by timestamp. */
   private static class SortValuesByTimestamp<K, V>
       extends PTransform<
           PCollection<KV<K, Iterable<WindowedValue<V>>>>,
@@ -169,7 +168,8 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
     private KvCoder<K, Iterable<WindowedValue<V>>> getKvCoder(
         Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder) {
       // Coder<KV<...>> --> KvCoder<...>
-      checkArgument(inputCoder instanceof KvCoder,
+      checkArgument(
+          inputCoder instanceof KvCoder,
           "%s requires a %s<...> but got %s",
           getClass().getSimpleName(),
           KvCoder.class.getSimpleName(),
@@ -188,7 +188,8 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       // Coder<Iterable<...>> --> IterableCoder<...>
       Coder<Iterable<WindowedValue<V>>> iterableWindowedValueCoder =
           getKvCoder(inputCoder).getValueCoder();
-      checkArgument(iterableWindowedValueCoder instanceof IterableCoder,
+      checkArgument(
+          iterableWindowedValueCoder instanceof IterableCoder,
           "%s requires a %s<..., %s> but got a %s",
           getClass().getSimpleName(),
           KvCoder.class.getSimpleName(),
@@ -199,15 +200,15 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
 
       // Coder<WindowedValue<...>> --> WindowedValueCoder<...>
       Coder<WindowedValue<V>> iterableElementCoder = iterableCoder.getElemCoder();
-      checkArgument(iterableElementCoder instanceof WindowedValueCoder,
+      checkArgument(
+          iterableElementCoder instanceof WindowedValueCoder,
           "%s requires a %s<..., %s<%s>> but got a %s",
           getClass().getSimpleName(),
           KvCoder.class.getSimpleName(),
           IterableCoder.class.getSimpleName(),
           WindowedValueCoder.class.getSimpleName(),
           iterableElementCoder);
-      WindowedValueCoder<V> windowedValueCoder =
-          (WindowedValueCoder<V>) iterableElementCoder;
+      WindowedValueCoder<V> windowedValueCoder = (WindowedValueCoder<V>) iterableElementCoder;
 
       return windowedValueCoder.getValueCoder();
     }

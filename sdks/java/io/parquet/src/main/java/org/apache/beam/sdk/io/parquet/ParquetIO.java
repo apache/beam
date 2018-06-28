@@ -57,8 +57,8 @@ import org.apache.parquet.io.SeekableInputStream;
  *
  * <h3>Reading Parquet files</h3>
  *
- * <p>{@link ParquetIO} source returns a {@link PCollection} for
- * Parquet files. The elements in the {@link PCollection} are Avro {@link GenericRecord}.
+ * <p>{@link ParquetIO} source returns a {@link PCollection} for Parquet files. The elements in the
+ * {@link PCollection} are Avro {@link GenericRecord}.
  *
  * <p>To configure the {@link Read}, you have to provide the file patterns (from) of the Parquet
  * files and the schema.
@@ -66,73 +66,65 @@ import org.apache.parquet.io.SeekableInputStream;
  * <p>For example:
  *
  * <pre>{@code
- *  PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar"));
- *  ...
+ * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar"));
+ * ...
  * }</pre>
  *
  * <p>As {@link Read} is based on {@link FileIO}, it supports any filesystem (hdfs, ...).
  *
- * <p>For more advanced use cases, like reading each file in a {@link PCollection}
- * of {@link FileIO.ReadableFile}, use the {@link ReadFiles} transform.
+ * <p>For more advanced use cases, like reading each file in a {@link PCollection} of {@link
+ * FileIO.ReadableFile}, use the {@link ReadFiles} transform.
  *
  * <p>For example:
  *
  * <pre>{@code
- *  PCollection<FileIO.ReadableFile> files = pipeline
- *    .apply(FileIO.match().filepattern(options.getInputFilepattern())
- *    .apply(FileIO.readMatches());
+ * PCollection<FileIO.ReadableFile> files = pipeline
+ *   .apply(FileIO.match().filepattern(options.getInputFilepattern())
+ *   .apply(FileIO.readMatches());
  *
- *  PCollection<GenericRecord> output = files.apply(ParquetIO.readFiles(SCHEMA));
+ * PCollection<GenericRecord> output = files.apply(ParquetIO.readFiles(SCHEMA));
  * }</pre>
- *
  *
  * <h3>Writing Parquet files</h3>
  *
- * <p>{@link ParquetIO.Sink} allows you to write a {@link PCollection} of {@link GenericRecord}
- * into a Parquet file. It can be used with the general-purpose {@link FileIO} transforms
- * with FileIO.write/writeDynamic specifically.
+ * <p>{@link ParquetIO.Sink} allows you to write a {@link PCollection} of {@link GenericRecord} into
+ * a Parquet file. It can be used with the general-purpose {@link FileIO} transforms with
+ * FileIO.write/writeDynamic specifically.
  *
  * <p>For example:
  *
  * <pre>{@code
- *  pipeline
- *    .apply(...) // PCollection<GenericRecord>
- *    .apply(FileIO.<GenericRecord>
- *      .write()
- *      .via(ParquetIO.sink(SCHEMA))
- *      .to("destination/path")
+ * pipeline
+ *   .apply(...) // PCollection<GenericRecord>
+ *   .apply(FileIO.<GenericRecord>
+ *     .write()
+ *     .via(ParquetIO.sink(SCHEMA))
+ *     .to("destination/path")
  * }</pre>
  *
- * <p>This IO API is considered experimental and may break or receive
- * backwards-incompatible changes in future versions of the Apache Beam SDK.
+ * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
+ * in future versions of the Apache Beam SDK.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ParquetIO {
 
   /**
-   * Reads {@link GenericRecord} from a Parquet file (or multiple Parquet files matching
-   * the pattern).
+   * Reads {@link GenericRecord} from a Parquet file (or multiple Parquet files matching the
+   * pattern).
    */
   public static Read read(Schema schema) {
-    return new AutoValue_ParquetIO_Read.Builder()
-      .setSchema(schema)
-      .build();
+    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).build();
   }
 
   /**
-   * Like {@link #read(Schema)}, but reads each file in a {@link PCollection}
-   * of {@link org.apache.beam.sdk.io.FileIO.ReadableFile},
-   * which allows more flexible usage.
+   * Like {@link #read(Schema)}, but reads each file in a {@link PCollection} of {@link
+   * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
-    return new AutoValue_ParquetIO_ReadFiles.Builder()
-      .setSchema(schema)
-      .build();
+    return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).build();
   }
 
-  /**
-   * Implementation of {@link #read(Schema)}.
-   */
+  /** Implementation of {@link #read(Schema)}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<GenericRecord>> {
 
@@ -147,14 +139,13 @@ public class ParquetIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder setSchema(Schema schema);
 
       abstract Read build();
     }
 
-    /**
-     * Reads from the given filename or filepattern.
-     */
+    /** Reads from the given filename or filepattern. */
     public Read from(ValueProvider<String> filepattern) {
       return builder().setFilepattern(filepattern).build();
     }
@@ -169,26 +160,24 @@ public class ParquetIO {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
 
       return input
-        .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-        .apply(FileIO.matchAll())
-        .apply(FileIO.readMatches())
-        .apply(readFiles(getSchema()));
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply(FileIO.matchAll())
+          .apply(FileIO.readMatches())
+          .apply(readFiles(getSchema()));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder
-        .add(DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
+      builder.add(
+          DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
     }
   }
 
-  /**
-   * Implementation of {@link #readFiles(Schema)}.
-   */
+  /** Implementation of {@link #readFiles(Schema)}. */
   @AutoValue
-  public abstract static class ReadFiles extends PTransform<PCollection<FileIO.ReadableFile>,
-      PCollection<GenericRecord>> {
+  public abstract static class ReadFiles
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<GenericRecord>> {
 
     @Nullable
     abstract Schema getSchema();
@@ -196,6 +185,7 @@ public class ParquetIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setSchema(Schema schema);
+
       abstract ReadFiles build();
     }
 
@@ -219,9 +209,8 @@ public class ParquetIO {
         SeekableByteChannel seekableByteChannel = file.openSeekable();
 
         try (ParquetReader<GenericRecord> reader =
-                 AvroParquetReader
-                   .<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel))
-                   .build()) {
+            AvroParquetReader.<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel))
+                .build()) {
           GenericRecord read;
           while ((read = reader.read()) != null) {
             processContext.output(read);
@@ -261,13 +250,9 @@ public class ParquetIO {
     }
   }
 
-  /**
-   * Creates a {@link Sink} that, for use with {@link FileIO#write}.
-   */
+  /** Creates a {@link Sink} that, for use with {@link FileIO#write}. */
   public static Sink sink(Schema schema) {
-    return new AutoValue_ParquetIO_Sink.Builder()
-      .setJsonSchema(schema.toString())
-      .build();
+    return new AutoValue_ParquetIO_Sink.Builder().setJsonSchema(schema.toString()).build();
   }
 
   /** Implementation of {@link #sink}. */
@@ -280,11 +265,11 @@ public class ParquetIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setJsonSchema(String jsonSchema);
+
       abstract Sink build();
     }
 
-    @Nullable
-    private transient ParquetWriter<GenericRecord> writer;
+    @Nullable private transient ParquetWriter<GenericRecord> writer;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -293,12 +278,13 @@ public class ParquetIO {
       Schema schema = new Schema.Parser().parse(getJsonSchema());
 
       BeamParquetOutputFile beamParquetOutputFile =
-        new BeamParquetOutputFile(Channels.newOutputStream(channel));
+          new BeamParquetOutputFile(Channels.newOutputStream(channel));
 
-      this.writer = AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
-        .withSchema(schema)
-        .withWriteMode(OVERWRITE)
-        .build();
+      this.writer =
+          AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
+              .withSchema(schema)
+              .withWriteMode(OVERWRITE)
+              .build();
     }
 
     @Override
@@ -349,11 +335,13 @@ public class ParquetIO {
         this.outputStream = outputStream;
       }
 
-      @Override public long getPos() throws IOException {
+      @Override
+      public long getPos() throws IOException {
         return position;
       }
 
-      @Override public void write(int b) throws IOException {
+      @Override
+      public void write(int b) throws IOException {
         position++;
         outputStream.write(b);
       }

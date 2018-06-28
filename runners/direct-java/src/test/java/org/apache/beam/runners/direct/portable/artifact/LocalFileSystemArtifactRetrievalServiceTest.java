@@ -60,9 +60,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalFileSystemArtifactRetrievalService}.
- */
+/** Tests for {@link LocalFileSystemArtifactRetrievalService}. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemArtifactRetrievalServiceTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
@@ -153,8 +151,8 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
 
   @Test
   public void retrieveArtifactNotPresent() throws Exception {
-    stageAndCreateRetrievalService(Collections.singletonMap(
-        "foo", "bar, baz, quux".getBytes(UTF_8)));
+    stageAndCreateRetrievalService(
+        Collections.singletonMap("foo", "bar, baz, quux".getBytes(UTF_8)));
 
     final CountDownLatch completed = new CountDownLatch(1);
     final AtomicReference<Throwable> thrown = new AtomicReference<>();

@@ -54,8 +54,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link PTransform}s for reading from and writing to
- * <a href="https://aws.amazon.com/kinesis/">Kinesis</a> streams.
+ * {@link PTransform}s for reading from and writing to <a
+ * href="https://aws.amazon.com/kinesis/">Kinesis</a> streams.
  *
  * <h3>Reading from Kinesis</h3>
  *
@@ -70,24 +70,25 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>As you can see you need to provide 3 things:
+ *
  * <ul>
- *   <li>name of the stream you're going to read</li>
+ *   <li>name of the stream you're going to read
  *   <li>position in the stream where reading should start. There are two options:
- *   <ul>
- *     <li>{@link InitialPositionInStream#LATEST} - reading will begin from end of the stream</li>
- *     <li>{@link InitialPositionInStream#TRIM_HORIZON} - reading will begin at
- *        the very beginning of the stream</li>
- *   </ul></li>
+ *       <ul>
+ *         <li>{@link InitialPositionInStream#LATEST} - reading will begin from end of the stream
+ *         <li>{@link InitialPositionInStream#TRIM_HORIZON} - reading will begin at the very
+ *             beginning of the stream
+ *       </ul>
  *   <li>data used to initialize {@link AmazonKinesis} and {@link AmazonCloudWatch} clients:
- *   <ul>
- *     <li>credentials (aws key, aws secret)</li>
- *    <li>region where the stream is located</li>
- *   </ul></li>
+ *       <ul>
+ *         <li>credentials (aws key, aws secret)
+ *         <li>region where the stream is located
+ *       </ul>
  * </ul>
  *
  * <p>In case when you want to set up {@link AmazonKinesis} or {@link AmazonCloudWatch} client by
- * your own (for example if you're using more sophisticated authorization methods like Amazon
- * STS, etc.) you can do it by implementing {@link AWSClientsProvider} class:
+ * your own (for example if you're using more sophisticated authorization methods like Amazon STS,
+ * etc.) you can do it by implementing {@link AWSClientsProvider} class:
  *
  * <pre>{@code
  * public class MyCustomKinesisClientProvider implements AWSClientsProvider {
@@ -113,8 +114,8 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
- * <p>There’s also possibility to start reading using arbitrary point in time -
- * in this case you need to provide {@link Instant} object:
+ * <p>There’s also possibility to start reading using arbitrary point in time - in this case you
+ * need to provide {@link Instant} object:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
@@ -138,23 +139,24 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>As a client, you need to provide at least 3 things:
+ *
  * <ul>
- *   <li>name of the stream where you're going to write</li>
+ *   <li>name of the stream where you're going to write
  *   <li>partition key (or implementation of {@link KinesisPartitioner}) that defines which
- *   partition will be used for writing</li>
+ *       partition will be used for writing
  *   <li>data used to initialize {@link AmazonKinesis} and {@link AmazonCloudWatch} clients:
- *   <ul>
- *     <li>credentials (aws key, aws secret)</li>
- *    <li>region where the stream is located</li>
- *   </ul></li>
+ *       <ul>
+ *         <li>credentials (aws key, aws secret)
+ *         <li>region where the stream is located
+ *       </ul>
  * </ul>
  *
- * <p>In case if you need to define more complicated logic for key partitioning then you can
- * create your own implementation of {@link KinesisPartitioner} and set it by
- * {@link KinesisIO.Write#withPartitioner(KinesisPartitioner)}</p>
+ * <p>In case if you need to define more complicated logic for key partitioning then you can create
+ * your own implementation of {@link KinesisPartitioner} and set it by {@link
+ * KinesisIO.Write#withPartitioner(KinesisPartitioner)}
  *
- * <p>Internally, {@link KinesisIO.Write} relies on Amazon Kinesis Producer Library (KPL).
- * This library can be configured with a set of {@link Properties} if needed.
+ * <p>Internally, {@link KinesisIO.Write} relies on Amazon Kinesis Producer Library (KPL). This
+ * library can be configured with a set of {@link Properties} if needed.
  *
  * <p>Example usage of KPL configuration:
  *
@@ -172,8 +174,9 @@ import org.slf4j.LoggerFactory;
  *     .withProducerProperties(properties));
  * }</pre>
  *
- * <p>For more information about configuratiom parameters, see the
- * <a href="https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties">sample of configuration file</a>.
+ * <p>For more information about configuratiom parameters, see the <a
+ * href="https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties">sample
+ * of configuration file</a>.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public final class KinesisIO {
@@ -240,38 +243,29 @@ public final class KinesisIO {
       abstract Read build();
     }
 
-    /**
-     * Specify reading from streamName.
-     */
+    /** Specify reading from streamName. */
     public Read withStreamName(String streamName) {
       return toBuilder().setStreamName(streamName).build();
     }
 
-    /**
-     * Specify reading from some initial position in stream.
-     */
+    /** Specify reading from some initial position in stream. */
     public Read withInitialPositionInStream(InitialPositionInStream initialPosition) {
-      return toBuilder()
-          .setInitialPosition(new StartingPoint(initialPosition))
-          .build();
+      return toBuilder().setInitialPosition(new StartingPoint(initialPosition)).build();
     }
 
     /**
-     * Specify reading beginning at given {@link Instant}.
-     * This {@link Instant} must be in the past, i.e. before {@link Instant#now()}.
+     * Specify reading beginning at given {@link Instant}. This {@link Instant} must be in the past,
+     * i.e. before {@link Instant#now()}.
      */
     public Read withInitialTimestampInStream(Instant initialTimestamp) {
-      return toBuilder()
-          .setInitialPosition(new StartingPoint(initialTimestamp))
-          .build();
+      return toBuilder().setInitialPosition(new StartingPoint(initialTimestamp)).build();
     }
 
     /**
-     * Allows to specify custom {@link AWSClientsProvider}.
-     * {@link AWSClientsProvider} provides {@link AmazonKinesis} and {@link AmazonCloudWatch}
-     * instances which are later used for communication with Kinesis.
-     * You should use this method if {@link Read#withAWSClientsProvider(String, String, Regions)}
-     * does not suit your needs.
+     * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} provides
+     * {@link AmazonKinesis} and {@link AmazonCloudWatch} instances which are later used for
+     * communication with Kinesis. You should use this method if {@link
+     * Read#withAWSClientsProvider(String, String, Regions)} does not suit your needs.
      */
     public Read withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return toBuilder().setAWSClientsProvider(awsClientsProvider).build();
@@ -316,8 +310,8 @@ public final class KinesisIO {
     /**
      * Specifies how late records consumed by this source can be to still be considered on time.
      * When this limit is exceeded the actual backlog size will be evaluated and the runner might
-     * decide to scale the amount of resources allocated to the pipeline in order to
-     * speed up ingestion.
+     * decide to scale the amount of resources allocated to the pipeline in order to speed up
+     * ingestion.
      */
     public Read withUpToDateThreshold(Duration upToDateThreshold) {
       checkArgument(upToDateThreshold != null, "upToDateThreshold can not be null");
@@ -327,8 +321,8 @@ public final class KinesisIO {
     /**
      * Specifies the maximum number of records in GetRecordsResult returned by GetRecords call which
      * is limited by 10K records. If should be adjusted according to average size of data record to
-     * prevent shard overloading. More details can be found here:
-     * <a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html">API_GetRecords</a>
+     * prevent shard overloading. More details can be found here: <a
+     * href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html">API_GetRecords</a>
      */
     public Read withRequestRecordsLimit(int limit) {
       checkArgument(limit > 0, "limit must be positive, but was: %s", limit);
@@ -363,14 +357,19 @@ public final class KinesisIO {
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
     @Nullable
     abstract String getStreamName();
+
     @Nullable
     abstract String getPartitionKey();
+
     @Nullable
     abstract KinesisPartitioner getPartitioner();
+
     @Nullable
     abstract Properties getProducerProperties();
+
     @Nullable
     abstract AWSClientsProvider getAWSClientsProvider();
+
     abstract int getRetries();
 
     abstract Builder builder();
@@ -378,11 +377,17 @@ public final class KinesisIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setStreamName(String streamName);
+
       abstract Builder setPartitionKey(String partitionKey);
+
       abstract Builder setPartitioner(KinesisPartitioner partitioner);
+
       abstract Builder setProducerProperties(Properties properties);
+
       abstract Builder setAWSClientsProvider(AWSClientsProvider clientProvider);
+
       abstract Builder setRetries(int retries);
+
       abstract Write build();
     }
 
@@ -395,8 +400,8 @@ public final class KinesisIO {
      * Specify default partition key.
      *
      * <p>In case if you need to define more complicated logic for key partitioning then you can
-     * create your own implementation of {@link KinesisPartitioner} and specify it by
-     * {@link KinesisIO.Write#withPartitioner(KinesisPartitioner)}
+     * create your own implementation of {@link KinesisPartitioner} and specify it by {@link
+     * KinesisIO.Write#withPartitioner(KinesisPartitioner)}
      *
      * <p>Using one of the methods {@link KinesisIO.Write#withPartitioner(KinesisPartitioner)} or
      * {@link KinesisIO.Write#withPartitionKey(String)} is required but not both in the same time.
@@ -423,8 +428,7 @@ public final class KinesisIO {
      *
      * <p>Example of creating new KPL configuration:
      *
-     * {@code
-     * Properties properties = new Properties();
+     * <p>{@code Properties properties = new Properties();
      * properties.setProperty("CollectionMaxCount", "1000");
      * properties.setProperty("ConnectTimeout", "10000");}
      */
@@ -436,8 +440,8 @@ public final class KinesisIO {
      * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} creates new
      * {@link IKinesisProducer} which is later used for writing to Kinesis.
      *
-     * <p>This method should be used if
-     * {@link Write#withAWSClientsProvider(String, String, Regions)} does not suit well.
+     * <p>This method should be used if {@link Write#withAWSClientsProvider(String, String,
+     * Regions)} does not suit well.
      */
     public Write withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return builder().setAWSClientsProvider(awsClientsProvider).build();
@@ -467,9 +471,9 @@ public final class KinesisIO {
     }
 
     /**
-     * Specify the number of retries that will be used to flush the outstanding records in
-     * case if they were not flushed from the first time. Default number of retries is
-     * {@code DEFAULT_NUM_RETRIES = 10}.
+     * Specify the number of retries that will be used to flush the outstanding records in case if
+     * they were not flushed from the first time. Default number of retries is {@code
+     * DEFAULT_NUM_RETRIES = 10}.
      *
      * <p>This is used for testing.
      */
@@ -510,7 +514,8 @@ public final class KinesisIO {
       public void setup() throws Exception {
         checkArgument(
             streamExists(spec.getAWSClientsProvider().getKinesisClient(), spec.getStreamName()),
-            "Stream %s does not exist", spec.getStreamName());
+            "Stream %s does not exist",
+            spec.getStreamName());
 
         // Init producer config
         Properties props = spec.getProducerProperties();
@@ -530,7 +535,7 @@ public final class KinesisIO {
           partitioner = spec.getPartitioner();
         }
 
-        /**  Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
+        /** Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
       }
 
@@ -542,9 +547,11 @@ public final class KinesisIO {
        * supports two types of batching - aggregation and collection - and they can be configured by
        * producer properties.
        *
-       * <p>More details can be found here:
-       * <a href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html">KPL Key Concepts</a> and
-       * <a href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-config.html">Configuring the KPL</a>
+       * <p>More details can be found here: <a
+       * href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html">KPL Key
+       * Concepts</a> and <a
+       * href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-config.html">Configuring
+       * the KPL</a>
        */
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
@@ -586,9 +593,9 @@ public final class KinesisIO {
       }
 
       /**
-       * Flush outstanding records until the total number will be less than required or
-       * the number of retries will be exhausted. The retry timeout starts from 1 second and it
-       * doubles on every iteration.
+       * Flush outstanding records until the total number will be less than required or the number
+       * of retries will be exhausted. The retry timeout starts from 1 second and it doubles on
+       * every iteration.
        */
       private void flush(int numMax) throws InterruptedException, IOException {
         int retries = spec.getRetries();
@@ -604,10 +611,11 @@ public final class KinesisIO {
         }
 
         if (numOutstandingRecords > numMax) {
-          String message = String.format(
-              "After [%d] retries, number of outstanding records [%d] is still greater than "
-                  + "required [%d].",
-              spec.getRetries(), numOutstandingRecords, numMax);
+          String message =
+              String.format(
+                  "After [%d] retries, number of outstanding records [%d] is still greater than "
+                      + "required [%d].",
+                  spec.getRetries(), numOutstandingRecords, numMax);
           LOG.error(message);
           throw new IOException(message);
         }
@@ -617,9 +625,7 @@ public final class KinesisIO {
         flush(0);
       }
 
-      /**
-       * If any write has asynchronously failed, fail the bundle with a useful error.
-       */
+      /** If any write has asynchronously failed, fail the bundle with a useful error. */
       private void checkForFailures() throws IOException {
         // Note that this function is never called by multiple threads and is the only place that
         // we remove from failures, so this code is safe.
@@ -639,8 +645,8 @@ public final class KinesisIO {
             logEntry.append(": ").append(cause.getMessage());
 
             if (cause instanceof UserRecordFailedException) {
-              List<Attempt> attempts = ((UserRecordFailedException) cause).getResult()
-                  .getAttempts();
+              List<Attempt> attempts =
+                  ((UserRecordFailedException) cause).getResult().getAttempts();
               for (Attempt attempt : attempts) {
                 if (attempt.getErrorMessage() != null) {
                   logEntry.append("\n").append(attempt.getErrorMessage());
@@ -654,21 +660,23 @@ public final class KinesisIO {
         String message =
             String.format(
                 "Some errors occurred writing to Kinesis. First %d errors: %s",
-                i,
-                logEntry.toString());
+                i, logEntry.toString());
         throw new IOException(message);
       }
 
       private class UserRecordResultFutureCallback implements FutureCallback<UserRecordResult> {
 
-        @Override public void onFailure(Throwable cause) {
+        @Override
+        public void onFailure(Throwable cause) {
           failures.offer(new KinesisWriteException(cause));
         }
 
-        @Override public void onSuccess(UserRecordResult result) {
+        @Override
+        public void onSuccess(UserRecordResult result) {
           if (!result.isSuccessful()) {
-            failures.offer(new KinesisWriteException("Put record was not successful.",
-                new UserRecordFailedException(result)));
+            failures.offer(
+                new KinesisWriteException(
+                    "Put record was not successful.", new UserRecordFailedException(result)));
           }
         }
       }
@@ -686,9 +694,7 @@ public final class KinesisIO {
     return false;
   }
 
-  /**
-   * An exception that puts information about the failed record.
-   */
+  /** An exception that puts information about the failed record. */
   static class KinesisWriteException extends IOException {
     KinesisWriteException(String message, Throwable cause) {
       super(message, cause);

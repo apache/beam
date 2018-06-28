@@ -24,13 +24,9 @@ import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-/**
- * A direct implementation of {@link Query0}.
- */
+/** A direct implementation of {@link Query0}. */
 public class Query0Model extends NexmarkQueryModel {
-  /**
-   * Simulator for query 0.
-   */
+  /** Simulator for query 0. */
   private static class Simulator extends AbstractSimulator<Event, Event> {
     public Simulator(NexmarkConfiguration configuration) {
       super(NexmarkUtils.standardEventIterator(configuration));

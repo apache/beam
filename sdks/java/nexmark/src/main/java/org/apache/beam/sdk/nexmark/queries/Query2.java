@@ -29,8 +29,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Query 2, 'Filtering. Find bids with specific auction ids and show their bid price.
- * In CQL syntax:
+ * Query 2, 'Filtering. Find bids with specific auction ids and show their bid price. In CQL syntax:
  *
  * <pre>
  * SELECT Rstream(auction, price)
@@ -38,9 +37,9 @@ import org.apache.beam.sdk.values.PCollection;
  * WHERE auction = 1007 OR auction = 1020 OR auction = 2001 OR auction = 2019 OR auction = 2087;
  * </pre>
  *
- * <p>As written that query will only yield a few hundred results over event streams of
- * arbitrary size. To make it more interesting we instead choose bids for every
- * {@code auctionSkip}'th auction.
+ * <p>As written that query will only yield a few hundred results over event streams of arbitrary
+ * size. To make it more interesting we instead choose bids for every {@code auctionSkip}'th
+ * auction.
  */
 public class Query2 extends NexmarkQuery {
   public Query2(NexmarkConfiguration configuration) {

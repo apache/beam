@@ -34,9 +34,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 
-/**
- * Maps Java model classes to Beam SQL record types.
- */
+/** Maps Java model classes to Beam SQL record types. */
 public class ModelAdaptersMapping {
 
   public static final Map<Class, ModelFieldsAdapter> ADAPTERS =
@@ -74,17 +72,18 @@ public class ModelAdaptersMapping {
                 new DateTime(p.dateTime),
                 p.extra));
       }
+
       @Override
       public Person getRowModel(Row row) {
         return new Person(
-           row.getInt64("id"),
-           row.getString("name"),
-           row.getString("emailAddress"),
-           row.getString("creditCard"),
-           row.getString("city"),
-           row.getString("state"),
-           row.getDateTime("dateTime").getMillis(),
-           row.getString("extra"));
+            row.getInt64("id"),
+            row.getString("name"),
+            row.getString("emailAddress"),
+            row.getString("creditCard"),
+            row.getString("city"),
+            row.getString("state"),
+            row.getDateTime("dateTime").getMillis(),
+            row.getString("extra"));
       }
     };
   }
@@ -101,13 +100,9 @@ public class ModelAdaptersMapping {
       @Override
       public List<Object> getFieldsValues(Bid b) {
         return Collections.unmodifiableList(
-            Arrays.asList(
-                b.auction,
-                b.bidder,
-                b.price,
-                new DateTime(b.dateTime),
-                b.extra));
+            Arrays.asList(b.auction, b.bidder, b.price, new DateTime(b.dateTime), b.extra));
       }
+
       @Override
       public Bid getRowModel(Row row) {
         return new Bid(
@@ -169,44 +164,30 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<AuctionCount> auctionCountAdapter() {
     return new ModelFieldsAdapter<AuctionCount>(
-        Schema.builder()
-            .addInt64Field("auction")
-            .addInt64Field("num")
-            .build()) {
+        Schema.builder().addInt64Field("auction").addInt64Field("num").build()) {
       @Override
       public List<Object> getFieldsValues(AuctionCount a) {
-        return Collections.unmodifiableList(
-            Arrays.asList(
-                a.auction,
-                a.num));
+        return Collections.unmodifiableList(Arrays.asList(a.auction, a.num));
       }
+
       @Override
       public AuctionCount getRowModel(Row row) {
-        return new AuctionCount(
-            row.getInt64("auction"),
-            row.getInt64("num"));
+        return new AuctionCount(row.getInt64("auction"), row.getInt64("num"));
       }
     };
   }
 
   private static ModelFieldsAdapter<AuctionPrice> auctionPriceAdapter() {
     return new ModelFieldsAdapter<AuctionPrice>(
-        Schema.builder()
-            .addInt64Field("auction")
-            .addInt64Field("price")
-            .build()) {
+        Schema.builder().addInt64Field("auction").addInt64Field("price").build()) {
       @Override
       public List<Object> getFieldsValues(AuctionPrice a) {
-        return Collections.unmodifiableList(
-            Arrays.asList(
-                a.auction,
-                a.price));
+        return Collections.unmodifiableList(Arrays.asList(a.auction, a.price));
       }
+
       @Override
       public AuctionPrice getRowModel(Row row) {
-        return new AuctionPrice(
-            row.getInt64("auction"),
-            row.getInt64("price"));
+        return new AuctionPrice(row.getInt64("auction"), row.getInt64("price"));
       }
     };
   }
@@ -221,13 +202,9 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(NameCityStateId a) {
-        return Collections.unmodifiableList(
-            Arrays.asList(
-                a.name,
-                a.city,
-                a.state,
-                a.id));
+        return Collections.unmodifiableList(Arrays.asList(a.name, a.city, a.state, a.id));
       }
+
       @Override
       public NameCityStateId getRowModel(Row row) {
         return new NameCityStateId(

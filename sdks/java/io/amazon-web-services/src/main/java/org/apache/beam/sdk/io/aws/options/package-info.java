@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 /**
- * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
- * configuring pipeline execution for Amazon Web Services components.
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
+ * for Amazon Web Services components.
  */
 package org.apache.beam.sdk.io.aws.options;

@@ -27,8 +27,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
- * {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten} {@link
+ * PTransform}.
  */
 class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private final BundleFactory bundleFactory;
@@ -42,7 +42,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      PTransformNode application,  CommittedBundle<?> inputBundle) {
+      PTransformNode application, CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator = createInMemoryEvaluator(application);
     return evaluator;

@@ -89,8 +89,11 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, BigDecimal::new)
           .put(TypeName.BOOLEAN, Boolean::valueOf)
           .put(TypeName.STRING, str -> str)
-          .put(TypeName.DATETIME, str -> new DateTime((long) (Double.parseDouble(str) * 1000),
-              ISOChronology.getInstanceUTC()))
+          .put(
+              TypeName.DATETIME,
+              str ->
+                  new DateTime(
+                      (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC()))
           .build();
 
   private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
@@ -110,8 +113,9 @@ public class BigQueryUtils {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
     if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata() != null) {
-      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
-          new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
+      sqlType =
+          BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
+              new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
     }
 
     return sqlType;
@@ -195,9 +199,10 @@ public class BigQueryUtils {
           value = toTableRow((Row) value);
           break;
         case DATETIME:
-          DateTimeFormatter patternFormat = new DateTimeFormatterBuilder()
-              .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
-              .toFormatter();
+          DateTimeFormatter patternFormat =
+              new DateTimeFormatterBuilder()
+                  .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
+                  .toFormatter();
           value = ((Instant) value).toDateTime().toString(patternFormat);
           break;
         default:

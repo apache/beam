@@ -48,8 +48,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A InMemoryJobService that prepares and runs jobs on behalf of a client using a
- * {@link JobInvoker}.
+ * A InMemoryJobService that prepares and runs jobs on behalf of a client using a {@link
+ * JobInvoker}.
  *
  * <p>Job management is handled in-memory rather than any persistent storage, running the risk of
  * leaking jobs if the InMemoryJobService crashes.
@@ -94,8 +94,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   @Override
   public void prepare(
-      PrepareJobRequest request,
-      StreamObserver<PrepareJobResponse> responseObserver) {
+      PrepareJobRequest request, StreamObserver<PrepareJobResponse> responseObserver) {
     try {
       LOG.trace("{} {}", PrepareJobRequest.class.getSimpleName(), request);
       // insert preparation
@@ -107,8 +106,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       }
       LOG.trace("PIPELINE OPTIONS {} {}", pipelineOptions.getClass(), pipelineOptions);
       JobPreparation preparation =
-          JobPreparation
-              .builder()
+          JobPreparation.builder()
               .setId(preparationId)
               .setPipeline(request.getPipeline())
               .setOptions(pipelineOptions)
@@ -125,8 +123,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       // send response
       PrepareJobResponse response =
-          PrepareJobResponse
-              .newBuilder()
+          PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
               .setStagingSessionToken(stagingServiceTokenProvider.apply(preparationId))
@@ -140,8 +137,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   }
 
   @Override
-  public void run(
-      RunJobRequest request, StreamObserver<RunJobResponse> responseObserver) {
+  public void run(RunJobRequest request, StreamObserver<RunJobResponse> responseObserver) {
     LOG.trace("{} {}", RunJobRequest.class.getSimpleName(), request);
 
     String preparationId = request.getPreparationId();
@@ -163,14 +159,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       // create new invocation
       JobInvocation invocation =
           invoker.invoke(
-              preparation.pipeline(),
-              preparation.options(),
-              request.getRetrievalToken());
+              preparation.pipeline(), preparation.options(), request.getRetrievalToken());
       String invocationId = invocation.getId();
       invocation.start();
       invocations.put(invocationId, invocation);
-      RunJobResponse response =
-          RunJobResponse.newBuilder().setJobId(invocationId).build();
+      RunJobResponse response = RunJobResponse.newBuilder().setJobId(invocationId).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -224,8 +217,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   @Override
   public void getStateStream(
-      GetJobStateRequest request,
-      StreamObserver<GetJobStateResponse> responseObserver) {
+      GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
     String invocationId = request.getJobId();
     try {
@@ -245,8 +237,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   @Override
   public void getMessageStream(
-      JobMessagesRequest request,
-      StreamObserver<JobMessagesResponse> responseObserver) {
+      JobMessagesRequest request, StreamObserver<JobMessagesResponse> responseObserver) {
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
@@ -255,13 +246,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       StreamObserver<JobMessagesResponse> syncResponseObserver =
           SynchronizedStreamObserver.wrapping(responseObserver);
       Consumer<JobState.Enum> stateListener =
-          state -> syncResponseObserver.onNext(
-              JobMessagesResponse.newBuilder().setStateResponse(
-                  GetJobStateResponse.newBuilder().setState(state).build()
-              ).build());
+          state ->
+              syncResponseObserver.onNext(
+                  JobMessagesResponse.newBuilder()
+                      .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
+                      .build());
       Consumer<JobMessage> messageListener =
-          message -> syncResponseObserver.onNext(
-              JobMessagesResponse.newBuilder().setMessageResponse(message).build());
+          message ->
+              syncResponseObserver.onNext(
+                  JobMessagesResponse.newBuilder().setMessageResponse(message).build());
 
       invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);

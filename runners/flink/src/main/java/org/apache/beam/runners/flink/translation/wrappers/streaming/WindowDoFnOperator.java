@@ -44,9 +44,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 
-/**
- * Flink operator for executing window {@link DoFn DoFns}.
- */
+/** Flink operator for executing window {@link DoFn DoFns}. */
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
@@ -80,7 +78,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         keySelector);
 
     this.systemReduceFn = systemReduceFn;
-
   }
 
   @Override
@@ -92,23 +89,18 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     //
     // for some K, V
 
-
     return DoFnRunners.lateDataDroppingRunner(
-        (DoFnRunner) doFnRunner,
-        timerInternals,
-        windowingStrategy);
+        (DoFnRunner) doFnRunner, timerInternals, windowingStrategy);
   }
 
   @Override
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
     // this will implicitly be keyed by the key of the incoming
     // element or by the key of a firing timer
-    StateInternalsFactory<K> stateInternalsFactory =
-        key -> (StateInternals) keyedStateInternals;
+    StateInternalsFactory<K> stateInternalsFactory = key -> (StateInternals) keyedStateInternals;
 
     // this will implicitly be keyed like the StateInternalsFactory
-    TimerInternalsFactory<K> timerInternalsFactory =
-        key -> timerInternals;
+    TimerInternalsFactory<K> timerInternalsFactory = key -> timerInternals;
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always
@@ -116,8 +108,13 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     @SuppressWarnings("unchecked")
     DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
-            windowingStrategy, stateInternalsFactory, timerInternalsFactory, sideInputReader,
-                (SystemReduceFn) systemReduceFn, outputManager, mainOutputTag);
+            windowingStrategy,
+            stateInternalsFactory,
+            timerInternalsFactory,
+            sideInputReader,
+            (SystemReduceFn) systemReduceFn,
+            outputManager,
+            mainOutputTag);
     return doFn;
   }
 
@@ -129,5 +126,4 @@ public class WindowDoFnOperator<K, InputT, OutputT>
                 (K) keyedStateInternals.getKey(),
                 Collections.singletonList(timer.getNamespace()))));
   }
-
 }

@@ -50,9 +50,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link WindowIntoTranslation}.
- */
+/** Tests for {@link WindowIntoTranslation}. */
 @RunWith(Parameterized.class)
 public class WindowIntoTranslationTest {
   @Parameters(name = "{index}: {0}")
@@ -70,8 +68,7 @@ public class WindowIntoTranslationTest {
   @Parameter(0)
   public WindowFn<?, ?> windowFn;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testToFromProto() throws InvalidProtocolBufferException {

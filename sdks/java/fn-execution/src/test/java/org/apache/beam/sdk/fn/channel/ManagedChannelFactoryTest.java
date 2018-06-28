@@ -29,7 +29,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
 /** Tests for {@link ManagedChannelFactory}. */
 @RunWith(JUnit4.class)
 public class ManagedChannelFactoryTest {

@@ -158,7 +158,8 @@ public class FlinkExecutableStageFunctionTest {
         new StageBundleFactory<Integer>() {
           @Override
           public RemoteBundle<Integer> getBundle(
-              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler,
+              OutputReceiverFactory receiverFactory,
+              StateRequestHandler stateRequestHandler,
               BundleProgressHandler progressHandler) {
             return new RemoteBundle<Integer>() {
               @Override

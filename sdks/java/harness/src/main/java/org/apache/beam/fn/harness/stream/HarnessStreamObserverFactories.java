@@ -30,8 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * to use in the java SDK harness.
  */
 public abstract class HarnessStreamObserverFactories {
-  public static OutboundObserverFactory fromOptions(
-      PipelineOptions options) {
+  public static OutboundObserverFactory fromOptions(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_buffered_stream")) {
       int bufferSize = getBufferSize(experiments);

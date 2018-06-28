@@ -87,13 +87,10 @@ import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
-/**
- * Supports translation between a Beam transform, and Spark's operations on DStreams.
- */
+/** Supports translation between a Beam transform, and Spark's operations on DStreams. */
 public final class StreamingTransformTranslator {
 
-  private StreamingTransformTranslator() {
-  }
+  private StreamingTransformTranslator() {}
 
   private static <T> TransformEvaluator<ConsoleIO.Write.Unbound<T>> print() {
     return new TransformEvaluator<ConsoleIO.Write.Unbound<T>>() {
@@ -326,8 +323,8 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, InputT, OutputT> TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>
-  combineGrouped() {
+  private static <K, InputT, OutputT>
+      TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>> combineGrouped() {
     return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
       @Override
       public void evaluate(
@@ -377,7 +374,8 @@ public final class StreamingTransformTranslator {
 
   private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
-      @Override public void evaluate(
+      @Override
+      public void evaluate(
           final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
@@ -501,9 +499,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(Reshuffle.class, reshuffle());
   }
 
-  /**
-   * Translator matches Beam transformation with the appropriate evaluator.
-   */
+  /** Translator matches Beam transformation with the appropriate evaluator. */
   public static class Translator implements SparkPipelineTranslator {
 
     private final SparkPipelineTranslator batchTranslator;
@@ -519,21 +515,26 @@ public final class StreamingTransformTranslator {
     }
 
     @Override
-    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
-        translateBounded(Class<TransformT> clazz) {
+    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateBounded(
+        Class<TransformT> clazz) {
       TransformEvaluator<TransformT> transformEvaluator = batchTranslator.translateBounded(clazz);
-      checkState(transformEvaluator != null,
-          "No TransformEvaluator registered for BOUNDED transform %s", clazz);
+      checkState(
+          transformEvaluator != null,
+          "No TransformEvaluator registered for BOUNDED transform %s",
+          clazz);
       return transformEvaluator;
     }
 
     @Override
-    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
-        translateUnbounded(Class<TransformT> clazz) {
-      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> transformEvaluator =
+    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateUnbounded(
+        Class<TransformT> clazz) {
+      @SuppressWarnings("unchecked")
+      TransformEvaluator<TransformT> transformEvaluator =
           (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
-      checkState(transformEvaluator != null,
-          "No TransformEvaluator registered for UNBOUNDED transform %s", clazz);
+      checkState(
+          transformEvaluator != null,
+          "No TransformEvaluator registered for UNBOUNDED transform %s",
+          clazz);
       return transformEvaluator;
     }
   }

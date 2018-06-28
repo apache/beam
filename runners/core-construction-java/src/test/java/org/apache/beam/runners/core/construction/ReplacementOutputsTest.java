@@ -42,9 +42,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ReplacementOutputs}.
- */
+/** Tests for {@link ReplacementOutputs}. */
 @RunWith(JUnit4.class)
 public class ReplacementOutputsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();

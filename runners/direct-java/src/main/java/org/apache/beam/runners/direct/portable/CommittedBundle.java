@@ -29,29 +29,27 @@ import org.joda.time.Instant;
 
 /**
  * Part of a {@link PCollection}. Elements are output to an {@link UncommittedBundle}, which will
- * eventually committed. Committed elements are executed by the {@link PTransform PTransforms}
- * that consume the {@link PCollection} this bundle is
- * a part of at a later point.
+ * eventually committed. Committed elements are executed by the {@link PTransform PTransforms} that
+ * consume the {@link PCollection} this bundle is a part of at a later point.
+ *
  * @param <T> the type of elements contained within this bundle
  */
 interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
-  /**
-   * Returns the PCollection that the elements of this bundle belong to.
-   */
+  /** Returns the PCollection that the elements of this bundle belong to. */
   @Nullable
   @Override
   PCollectionNode getPCollection();
 
   /**
-   * Returns the key that was output in the most recent {@code GroupByKey} in the
-   * execution of this bundle.
+   * Returns the key that was output in the most recent {@code GroupByKey} in the execution of this
+   * bundle.
    */
   @Override
   StructuralKey<?> getKey();
 
   /**
-   * Returns an {@link Iterable} containing all of the elements that have been added to this
-   * {@link CommittedBundle}.
+   * Returns an {@link Iterable} containing all of the elements that have been added to this {@link
+   * CommittedBundle}.
    */
   Iterable<WindowedValue<T>> getElements();
 
@@ -66,8 +64,8 @@ interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
 
   /**
    * Returns the processing time output watermark at the time the producing {@code Executable}
-   * committed this bundle. Downstream synchronized processing time watermarks cannot progress
-   * past this point before consuming this bundle.
+   * committed this bundle. Downstream synchronized processing time watermarks cannot progress past
+   * this point before consuming this bundle.
    *
    * <p>This value is no greater than the earliest incomplete processing time or synchronized
    * processing time {@link TimerData timer} at the time this bundle was committed, including any
@@ -76,14 +74,14 @@ interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
   @Override
   Instant getSynchronizedProcessingOutputWatermark();
   /**
-   * Return a new {@link CommittedBundle} that is like this one, except calls to
-   * {@link #getElements()} will return the provided elements. This bundle is unchanged.
+   * Return a new {@link CommittedBundle} that is like this one, except calls to {@link
+   * #getElements()} will return the provided elements. This bundle is unchanged.
    *
-   * <p>The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized
-   * processing output watermark} of the returned {@link CommittedBundle} is equal to the value
-   * returned from the current bundle. This is used to ensure a {@link PTransform} that could not
-   * complete processing on input elements properly holds the synchronized processing time to the
-   * appropriate value.
+   * <p>The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized processing
+   * output watermark} of the returned {@link CommittedBundle} is equal to the value returned from
+   * the current bundle. This is used to ensure a {@link PTransform} that could not complete
+   * processing on input elements properly holds the synchronized processing time to the appropriate
+   * value.
    */
   CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
 }

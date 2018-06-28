@@ -47,43 +47,50 @@ public class ExternalSorterTest {
 
   @AfterClass
   public static void cleanupTempDir() throws IOException {
-    Files.walkFileTree(tmpLocation, new SimpleFileVisitor<Path>() {
-      @Override
-      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        Files.delete(file);
-        return FileVisitResult.CONTINUE;
-      }
+    Files.walkFileTree(
+        tmpLocation,
+        new SimpleFileVisitor<Path>() {
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+          }
 
-      @Override
-      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-        Files.delete(dir);
-        return FileVisitResult.CONTINUE;
-      }
-    });
+          @Override
+          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+          }
+        });
   }
 
   @Test
   public void testEmpty() throws Exception {
-    SorterTestUtils.testEmpty(ExternalSorter.create(new ExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())));
+    SorterTestUtils.testEmpty(
+        ExternalSorter.create(
+            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testSingleElement() throws Exception {
-    SorterTestUtils.testSingleElement(ExternalSorter.create(new ExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())));
+    SorterTestUtils.testSingleElement(
+        ExternalSorter.create(
+            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testEmptyKeyValueElement() throws Exception {
-    SorterTestUtils.testEmptyKeyValueElement(ExternalSorter.create(new ExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())));
+    SorterTestUtils.testEmptyKeyValueElement(
+        ExternalSorter.create(
+            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testMultipleIterations() throws Exception {
-    SorterTestUtils.testMultipleIterations(ExternalSorter.create(new ExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())));
+    SorterTestUtils.testMultipleIterations(
+        ExternalSorter.create(
+            new ExternalSorter.Options().setTempLocation(tmpLocation.toString())));
   }
 
   @Test
@@ -98,15 +105,17 @@ public class ExternalSorterTest {
 
   @Test
   public void testAddAfterSort() throws Exception {
-    SorterTestUtils.testAddAfterSort(ExternalSorter.create(new ExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())), thrown);
+    SorterTestUtils.testAddAfterSort(
+        ExternalSorter.create(new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+        thrown);
     fail();
   }
 
   @Test
   public void testSortTwice() throws Exception {
-    SorterTestUtils.testSortTwice(ExternalSorter.create(new ExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())), thrown);
+    SorterTestUtils.testSortTwice(
+        ExternalSorter.create(new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
+        thrown);
     fail();
   }
 

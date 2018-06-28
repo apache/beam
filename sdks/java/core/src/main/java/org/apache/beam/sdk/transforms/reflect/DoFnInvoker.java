@@ -110,18 +110,13 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     BoundedWindow window();
 
-    /**
-     * Provides a {@link PaneInfo}.
-     */
+    /** Provides a {@link PaneInfo}. */
     PaneInfo paneInfo(DoFn<InputT, OutputT> doFn);
-
 
     /** Provide {@link PipelineOptions}. */
     PipelineOptions pipelineOptions();
 
-    /**
-     * Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}.
-     */
+    /** Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link DoFn.FinishBundleContext} to use with the given {@link DoFn}. */
@@ -139,18 +134,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a link to the time domain for a timer firing.
-     */
+    /** Provide a link to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a {@link OutputReceiver} for outputting to the default output.
-     */
+    /** Provide a {@link OutputReceiver} for outputting to the default output. */
     OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a {@link MultiOutputReceiver} for outputing to the default output.
-     */
+    /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
 
     /**

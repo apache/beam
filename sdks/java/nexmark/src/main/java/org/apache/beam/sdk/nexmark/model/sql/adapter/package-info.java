@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * org.apache.beam.sdk.nexmark.model.sql.adapter.
- */
+/** org.apache.beam.sdk.nexmark.model.sql.adapter. */
 
-/**
- * Model adapter which contains a mapping between specific Java model to a Row.
- */
+/** Model adapter which contains a mapping between specific Java model to a Row. */
 package org.apache.beam.sdk.nexmark.model.sql.adapter;

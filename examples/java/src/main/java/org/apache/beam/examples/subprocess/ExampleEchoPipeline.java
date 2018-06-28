@@ -36,15 +36,12 @@ import org.slf4j.LoggerFactory;
 /**
  * In this example batch pipeline we will invoke a simple Echo C++ library within a DoFn The sample
  * makes use of a ExternalLibraryDoFn class which abstracts the setup and processing of the
- * executable, logs and results.
- * For this example we are using commands passed to the library based
+ * executable, logs and results. For this example we are using commands passed to the library based
  * on ordinal position but for a production system you should use a mechanism like ProtoBuffers with
- * Base64 encoding to pass the parameters to the library
- * To test this example you will need to build the files Echo.cc and EchoAgain.cc in a
- * linux env matching the runner that you are using (using g++ with static option).
- * Once built copy them to the SourcePath defined in
- * {@link SubProcessPipelineOptions}
- *
+ * Base64 encoding to pass the parameters to the library To test this example you will need to build
+ * the files Echo.cc and EchoAgain.cc in a linux env matching the runner that you are using (using
+ * g++ with static option). Once built copy them to the SourcePath defined in {@link
+ * SubProcessPipelineOptions}
  */
 public class ExampleEchoPipeline {
   static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipeline.class);
@@ -52,8 +49,8 @@ public class ExampleEchoPipeline {
   public static void main(String[] args) throws Exception {
 
     // Read in the options for the pipeline
-    SubProcessPipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-        .as(SubProcessPipelineOptions.class);
+    SubProcessPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(SubProcessPipelineOptions.class);
 
     Pipeline p = Pipeline.create(options);
 
@@ -69,17 +66,13 @@ public class ExampleEchoPipeline {
 
     // Define the pipeline which is two transforms echoing the inputs out to Logs
     p.apply(Create.of(sampleData))
-        .apply("Echo inputs round 1", ParDo.of(
-            new EchoInputDoFn(configuration, "Echo")))
-        .apply("Echo inputs round 2", ParDo.of(
-            new EchoInputDoFn(configuration, "EchoAgain")));
+        .apply("Echo inputs round 1", ParDo.of(new EchoInputDoFn(configuration, "Echo")))
+        .apply("Echo inputs round 2", ParDo.of(new EchoInputDoFn(configuration, "EchoAgain")));
 
     p.run();
   }
 
-  /**
-   * Simple DoFn that echos the element, used as an example of running a C++ library.
-   */
+  /** Simple DoFn that echos the element, used as an example of running a C++ library. */
   @SuppressWarnings("serial")
   public static class EchoInputDoFn extends DoFn<KV<String, String>, KV<String, String>> {
 
@@ -123,13 +116,13 @@ public class ExampleEchoPipeline {
     }
   }
 
-  private static String getTestShellEcho(){
+  private static String getTestShellEcho() {
     return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
   }
 
-  private static String getTestShellEchoAgain(){
-    return "#!/bin/sh\n" + "filename=$1;\n"
+  private static String getTestShellEchoAgain() {
+    return "#!/bin/sh\n"
+        + "filename=$1;\n"
         + "echo \"You again? Well ok, here is your word again.\" >> $2 >> $filename;";
   }
-
 }

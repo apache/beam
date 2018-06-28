@@ -38,9 +38,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 @Internal
 public class Impulse extends PTransform<PBegin, PCollection<byte[]>> {
-  /**
-   * Create a new {@link Impulse} {@link PTransform}.
-   */
+  /** Create a new {@link Impulse} {@link PTransform}. */
   public static Impulse create() {
     return new Impulse();
   }

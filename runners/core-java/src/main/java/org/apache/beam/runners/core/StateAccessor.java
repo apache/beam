@@ -31,8 +31,8 @@ public interface StateAccessor<K> {
   /**
    * Access the storage for the given {@code address} in the current window.
    *
-   * <p>Never accounts for merged windows. When windows are merged, any state accessed via
-   * this method must be eagerly combined and written into the result window.
+   * <p>Never accounts for merged windows. When windows are merged, any state accessed via this
+   * method must be eagerly combined and written into the result window.
    */
   <StateT extends State> StateT access(StateTag<StateT> address);
 }

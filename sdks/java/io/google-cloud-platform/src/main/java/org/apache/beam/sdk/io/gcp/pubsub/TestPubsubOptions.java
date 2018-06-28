@@ -21,8 +21,5 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * {@link PipelineOptions} for {@link TestPubsub}.
- */
-public interface TestPubsubOptions extends TestPipelineOptions, PubsubOptions, GcpOptions {
-}
+/** {@link PipelineOptions} for {@link TestPubsub}. */
+public interface TestPubsubOptions extends TestPipelineOptions, PubsubOptions, GcpOptions {}

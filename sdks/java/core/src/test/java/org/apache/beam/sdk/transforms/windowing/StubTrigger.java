@@ -21,9 +21,7 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import org.joda.time.Instant;
 
-/**
- * No-op {@link OnceTrigger} implementation for testing.
- */
+/** No-op {@link OnceTrigger} implementation for testing. */
 abstract class StubTrigger extends Trigger.OnceTrigger {
   /**
    * Create a stub {@link Trigger} instance which returns the specified name on {@link #toString()}.

@@ -31,19 +31,14 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
-/**
- * An interface for real or fake implementations of Cloud Bigtable.
- */
+/** An interface for real or fake implementations of Cloud Bigtable. */
 interface BigtableService extends Serializable {
 
-  /**
-   * The interface of a class that can write to Cloud Bigtable.
-   */
+  /** The interface of a class that can write to Cloud Bigtable. */
   interface Writer {
     /**
-     * Writes a single row transaction to Cloud Bigtable. The key of the {@code record} is the
-     * row key to be mutated and the iterable of mutations represent the changes to be made to the
-     * row.
+     * Writes a single row transaction to Cloud Bigtable. The key of the {@code record} is the row
+     * key to be mutated and the iterable of mutations represent the changes to be made to the row.
      *
      * @throws IOException if there is an error submitting the write.
      */
@@ -65,9 +60,7 @@ interface BigtableService extends Serializable {
     void close() throws IOException;
   }
 
-  /**
-   * The interface of a class that reads from Cloud Bigtable.
-   */
+  /** The interface of a class that reads from Cloud Bigtable. */
   interface Reader {
     /**
      * Reads the first element (including initialization, such as opening a network connection) and
@@ -75,9 +68,7 @@ interface BigtableService extends Serializable {
      */
     boolean start() throws IOException;
 
-    /**
-     * Attempts to read the next element, and returns true if an element has been read.
-     */
+    /** Attempts to read the next element, and returns true if an element has been read. */
     boolean advance() throws IOException;
 
     /**
@@ -94,24 +85,16 @@ interface BigtableService extends Serializable {
     Row getCurrentRow() throws NoSuchElementException;
   }
 
-  /**
-   * Returns the BigtableOptions used to configure this BigtableService.
-   */
+  /** Returns the BigtableOptions used to configure this BigtableService. */
   BigtableOptions getBigtableOptions();
 
-  /**
-   * Returns {@code true} if the table with the give name exists.
-   */
+  /** Returns {@code true} if the table with the give name exists. */
   boolean tableExists(String tableId) throws IOException;
 
-  /**
-   * Returns a {@link Reader} that will read from the specified source.
-   */
+  /** Returns a {@link Reader} that will read from the specified source. */
   Reader createReader(BigtableSource source) throws IOException;
 
-  /**
-   * Returns a {@link Writer} that will write to the specified table.
-   */
+  /** Returns a {@link Writer} that will write to the specified table. */
   Writer openForWriting(String tableId) throws IOException;
 
   /**

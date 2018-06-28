@@ -34,30 +34,35 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class TopWikipediaSessionsTest {
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
   public void testComputeTopUsers() {
 
     PCollection<String> output =
-        p.apply(Create.of(Arrays.asList(
-            new TableRow().set("timestamp", 0).set("contributor_username", "user1"),
-            new TableRow().set("timestamp", 1).set("contributor_username", "user1"),
-            new TableRow().set("timestamp", 2).set("contributor_username", "user1"),
-            new TableRow().set("timestamp", 0).set("contributor_username", "user2"),
-            new TableRow().set("timestamp", 1).set("contributor_username", "user2"),
-            new TableRow().set("timestamp", 3601).set("contributor_username", "user2"),
-            new TableRow().set("timestamp", 3602).set("contributor_username", "user2"),
-            new TableRow().set("timestamp", 35 * 24 * 3600).set("contributor_username", "user3"))))
-        .apply(new TopWikipediaSessions.ComputeTopSessions(1.0));
+        p.apply(
+                Create.of(
+                    Arrays.asList(
+                        new TableRow().set("timestamp", 0).set("contributor_username", "user1"),
+                        new TableRow().set("timestamp", 1).set("contributor_username", "user1"),
+                        new TableRow().set("timestamp", 2).set("contributor_username", "user1"),
+                        new TableRow().set("timestamp", 0).set("contributor_username", "user2"),
+                        new TableRow().set("timestamp", 1).set("contributor_username", "user2"),
+                        new TableRow().set("timestamp", 3601).set("contributor_username", "user2"),
+                        new TableRow().set("timestamp", 3602).set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", 35 * 24 * 3600)
+                            .set("contributor_username", "user3"))))
+            .apply(new TopWikipediaSessions.ComputeTopSessions(1.0));
 
-    PAssert.that(output).containsInAnyOrder(Arrays.asList(
-        "user1 : [1970-01-01T00:00:00.000Z..1970-01-01T01:00:02.000Z)"
-        + " : 3 : 1970-01-01T00:00:00.000Z",
-        "user3 : [1970-02-05T00:00:00.000Z..1970-02-05T01:00:00.000Z)"
-        + " : 1 : 1970-02-01T00:00:00.000Z"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Arrays.asList(
+                "user1 : [1970-01-01T00:00:00.000Z..1970-01-01T01:00:02.000Z)"
+                    + " : 3 : 1970-01-01T00:00:00.000Z",
+                "user3 : [1970-02-05T00:00:00.000Z..1970-02-05T01:00:00.000Z)"
+                    + " : 1 : 1970-02-01T00:00:00.000Z"));
 
     p.run().waitUntilFinish();
   }

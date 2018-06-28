@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from Apache Kafka.
- */
+/** Transforms for reading and writing from Apache Kafka. */
 package org.apache.beam.sdk.io.kafka;

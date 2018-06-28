@@ -27,15 +27,13 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * Static utility methods for creating and working with {@link CoderProvider}s.
- */
+/** Static utility methods for creating and working with {@link CoderProvider}s. */
 public final class CoderProviders {
-  private CoderProviders() { } // Static utility class
+  private CoderProviders() {} // Static utility class
 
   /**
-   * Creates a {@link CoderProvider} from a class's
-   * {@code static <T> Coder<T> of(TypeDescriptor<T>, List<Coder<?>>}) method.
+   * Creates a {@link CoderProvider} from a class's {@code static <T> Coder<T> of(TypeDescriptor<T>,
+   * List<Coder<?>>}) method.
    */
   public static CoderProvider fromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
     checkArgument(
@@ -46,17 +44,14 @@ public final class CoderProviders {
     return new CoderProviderFromStaticMethods(rawType, coderClazz);
   }
 
-  /**
-   * Creates a {@link CoderProvider} that always returns the
-   * given coder for the specified type.
-   */
+  /** Creates a {@link CoderProvider} that always returns the given coder for the specified type. */
   public static CoderProvider forCoder(TypeDescriptor<?> type, Coder<?> coder) {
     return new CoderProviderForCoder(type, coder);
   }
 
   /**
-   * See {@link #fromStaticMethods} for a detailed description
-   * of the characteristics of this {@link CoderProvider}.
+   * See {@link #fromStaticMethods} for a detailed description of the characteristics of this {@link
+   * CoderProvider}.
    */
   private static class CoderProviderFromStaticMethods extends CoderProvider {
 
@@ -64,22 +59,20 @@ public final class CoderProviders {
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {
       if (!this.rawType.equals(type.getRawType())) {
-        throw new CannotProvideCoderException(String.format(
-            "Unable to provide coder for %s, this factory can only provide coders for %s",
-            type,
-            this.rawType));
+        throw new CannotProvideCoderException(
+            String.format(
+                "Unable to provide coder for %s, this factory can only provide coders for %s",
+                type, this.rawType));
       }
       try {
-        return (Coder) factoryMethod.invoke(
-            null /* static */, componentCoders.toArray());
+        return (Coder) factoryMethod.invoke(null /* static */, componentCoders.toArray());
       } catch (IllegalAccessException
-           | IllegalArgumentException
-           | InvocationTargetException
-           | NullPointerException
-           | ExceptionInInitializerError exn) {
+          | IllegalArgumentException
+          | InvocationTargetException
+          | NullPointerException
+          | ExceptionInInitializerError exn) {
         throw new IllegalStateException(
-            "error when invoking Coder factory method " + factoryMethod,
-            exn);
+            "error when invoking Coder factory method " + factoryMethod, exn);
       }
     }
 
@@ -93,19 +86,15 @@ public final class CoderProviders {
     // this has type Coder<?> -> Coder<?> -> ... n times ... -> Coder<T>
     private final Method factoryMethod;
 
-    /**
-     * Returns a CoderProvider that invokes the given static factory method
-     * to create the Coder.
-     */
+    /** Returns a CoderProvider that invokes the given static factory method to create the Coder. */
     private CoderProviderFromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
       this.rawType = rawType;
       this.factoryMethod = getFactoryMethod(coderClazz);
     }
 
     /**
-     * Returns the static {@code of} constructor method on {@code coderClazz}
-     * if it exists. It is assumed to have one {@link Coder} parameter for
-     * each type parameter of {@code coderClazz}.
+     * Returns the static {@code of} constructor method on {@code coderClazz} if it exists. It is
+     * assumed to have one {@link Coder} parameter for each type parameter of {@code coderClazz}.
      */
     private Method getFactoryMethod(Class<?> coderClazz) {
       Method factoryMethodCandidate;
@@ -116,26 +105,35 @@ public final class CoderProviders {
       Class<?>[] factoryMethodArgTypes = new Class<?>[numTypeParameters];
       Arrays.fill(factoryMethodArgTypes, Coder.class);
       try {
-        factoryMethodCandidate =
-            coderClazz.getDeclaredMethod("of", factoryMethodArgTypes);
+        factoryMethodCandidate = coderClazz.getDeclaredMethod("of", factoryMethodArgTypes);
       } catch (NoSuchMethodException | SecurityException exn) {
         throw new IllegalArgumentException(
-            "cannot register Coder " + coderClazz + ": "
-            + "does not have an accessible method named 'of' with "
-            + numTypeParameters + " arguments of Coder type",
+            "cannot register Coder "
+                + coderClazz
+                + ": "
+                + "does not have an accessible method named 'of' with "
+                + numTypeParameters
+                + " arguments of Coder type",
             exn);
       }
       if (!Modifier.isStatic(factoryMethodCandidate.getModifiers())) {
         throw new IllegalArgumentException(
-            "cannot register Coder " + coderClazz + ": "
-            + "method named 'of' with " + numTypeParameters
-            + " arguments of Coder type is not static");
+            "cannot register Coder "
+                + coderClazz
+                + ": "
+                + "method named 'of' with "
+                + numTypeParameters
+                + " arguments of Coder type is not static");
       }
       if (!coderClazz.isAssignableFrom(factoryMethodCandidate.getReturnType())) {
         throw new IllegalArgumentException(
-            "cannot register Coder " + coderClazz + ": "
-            + "method named 'of' with " + numTypeParameters
-            + " arguments of Coder type does not return a " + coderClazz);
+            "cannot register Coder "
+                + coderClazz
+                + ": "
+                + "method named 'of' with "
+                + numTypeParameters
+                + " arguments of Coder type does not return a "
+                + coderClazz);
       }
       try {
         if (!factoryMethodCandidate.isAccessible()) {
@@ -143,9 +141,12 @@ public final class CoderProviders {
         }
       } catch (SecurityException exn) {
         throw new IllegalArgumentException(
-            "cannot register Coder " + coderClazz + ": "
-            + "method named 'of' with " + numTypeParameters
-            + " arguments of Coder type is not accessible",
+            "cannot register Coder "
+                + coderClazz
+                + ": "
+                + "method named 'of' with "
+                + numTypeParameters
+                + " arguments of Coder type is not accessible",
             exn);
       }
 
@@ -161,9 +162,7 @@ public final class CoderProviders {
     }
   }
 
-  /**
-   * See {@link #forCoder} for a detailed description of this {@link CoderProvider}.
-   */
+  /** See {@link #forCoder} for a detailed description of this {@link CoderProvider}. */
   private static class CoderProviderForCoder extends CoderProvider {
     private final Coder<?> coder;
     private final TypeDescriptor<?> type;
@@ -177,10 +176,10 @@ public final class CoderProviders {
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {
       if (!this.type.equals(type)) {
-        throw new CannotProvideCoderException(String.format(
-            "Unable to provide coder for %s, this factory can only provide coders for %s",
-            type,
-            this.type));
+        throw new CannotProvideCoderException(
+            String.format(
+                "Unable to provide coder for %s, this factory can only provide coders for %s",
+                type, this.type));
       }
       return (Coder) coder;
     }

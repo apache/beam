@@ -18,15 +18,11 @@
 
 package org.apache.beam.runners.local;
 
-/**
- * Drives the execution of a {@code Pipeline} by scheduling work.
- */
+/** Drives the execution of a {@code Pipeline} by scheduling work. */
 public interface ExecutionDriver {
   DriverState drive();
 
-  /**
-   * The state of the driver. If the state is terminal, the driver can no longer make progress.
-   */
+  /** The state of the driver. If the state is terminal, the driver can no longer make progress. */
   enum DriverState {
     CONTINUE(false),
     FAILED(true),

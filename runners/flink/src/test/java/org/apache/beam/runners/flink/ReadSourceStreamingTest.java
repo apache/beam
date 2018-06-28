@@ -26,19 +26,16 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
-/**
- * Reads from a bounded source in streaming.
- */
+/** Reads from a bounded source in streaming. */
 public class ReadSourceStreamingTest extends StreamingProgramTestBase {
 
   protected String resultDir;
   protected String resultPath;
 
-  public ReadSourceStreamingTest() {
-  }
+  public ReadSourceStreamingTest() {}
 
-  private static final String[] EXPECTED_RESULT = new String[] {
-     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+  private static final String[] EXPECTED_RESULT =
+      new String[] {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
   @Override
   protected void preSubmit() throws Exception {
@@ -63,18 +60,17 @@ public class ReadSourceStreamingTest extends StreamingProgramTestBase {
 
     Pipeline p = FlinkTestPipeline.createForStreaming();
 
-    p
-      .apply(GenerateSequence.from(0).to(10))
-      .apply(ParDo.of(new DoFn<Long, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            c.output(c.element().toString());
-          }
-        }))
-      .apply(TextIO.write().to(resultPath));
+    p.apply(GenerateSequence.from(0).to(10))
+        .apply(
+            ParDo.of(
+                new DoFn<Long, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    c.output(c.element().toString());
+                  }
+                }))
+        .apply(TextIO.write().to(resultPath));
 
     p.run();
   }
 }
-
-

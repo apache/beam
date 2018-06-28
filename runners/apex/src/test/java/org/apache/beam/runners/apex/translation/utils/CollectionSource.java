@@ -31,9 +31,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
 
-/**
- * collection as {@link UnboundedSource}, used for tests.
- */
+/** collection as {@link UnboundedSource}, used for tests. */
 public class CollectionSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
   private static final long serialVersionUID = 1L;
   private final Collection<T> collection;
@@ -51,8 +49,8 @@ public class CollectionSource<T> extends UnboundedSource<T, UnboundedSource.Chec
   }
 
   @Override
-  public UnboundedReader<T> createReader(PipelineOptions options,
-      @Nullable UnboundedSource.CheckpointMark checkpointMark) {
+  public UnboundedReader<T> createReader(
+      PipelineOptions options, @Nullable UnboundedSource.CheckpointMark checkpointMark) {
     return new CollectionReader<>(collection, this);
   }
 
@@ -124,7 +122,6 @@ public class CollectionSource<T> extends UnboundedSource<T, UnboundedSource.Chec
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
   }
 }

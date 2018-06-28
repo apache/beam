@@ -67,9 +67,7 @@ import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
 import org.apache.samza.system.SystemStreamPartition;
 import org.junit.Test;
 
-/**
- * Tests for SamzaStoreStateInternals.
- */
+/** Tests for SamzaStoreStateInternals. */
 public class SamzaStoreStateInternalsTest {
   public final TestPipeline pipeline = TestPipeline.create();
 
@@ -84,15 +82,16 @@ public class SamzaStoreStateInternalsTest {
           @StateId(stateId)
           private final StateSpec<MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
+
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
-              ProcessContext c, @StateId(stateId) MapState<String, Integer> mapState,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer>
-                  count) {
+              ProcessContext c,
+              @StateId(stateId) MapState<String, Integer> mapState,
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
             SamzaMapState<String, Integer> state = (SamzaMapState<String, Integer>) mapState;
             KV<String, Integer> value = c.element().getValue();
             state.put(value.getKey(), value.getValue());
@@ -106,23 +105,29 @@ public class SamzaStoreStateInternalsTest {
                 c.output(KV.of(entry.getKey(), entry.getValue()));
               }
 
-              assertEquals(content,
-                  ImmutableList.of(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12)));
+              assertEquals(
+                  content, ImmutableList.of(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12)));
             }
           }
         };
 
     PCollection<KV<String, Integer>> output =
-        pipeline.apply(
-            Create.of(KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
-                KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+        pipeline
+            .apply(
+                Create.of(
+                    KV.of("hello", KV.of("a", 97)),
+                    KV.of("hello", KV.of("b", 42)),
+                    KV.of("hello", KV.of("b", 42)),
+                    KV.of("hello", KV.of("c", 12))))
             .apply(ParDo.of(fn));
 
     PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
 
     TestSamzaRunner.fromOptions(
-        PipelineOptionsFactory.fromArgs("--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-            .create()).run(pipeline);
+            PipelineOptionsFactory.fromArgs(
+                    "--runner=org.apache.beam.runners.samza.TestSamzaRunner")
+                .create())
+        .run(pipeline);
   }
 
   @Test
@@ -134,8 +139,8 @@ public class SamzaStoreStateInternalsTest {
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<SetState<Integer>> setState =
-              StateSpecs.set(VarIntCoder.of());
+          private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
+
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -144,8 +149,7 @@ public class SamzaStoreStateInternalsTest {
           public void processElement(
               ProcessContext c,
               @StateId(stateId) SetState<Integer> setState,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer>
-                  count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
             SamzaSetState<Integer> state = (SamzaSetState<Integer>) setState;
             ReadableState<Boolean> isEmpty = state.isEmpty();
             state.add(c.element().getValue());
@@ -166,39 +170,40 @@ public class SamzaStoreStateInternalsTest {
         };
 
     PCollection<Set<Integer>> output =
-        pipeline.apply(
-            Create.of(
-                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+        pipeline
+            .apply(
+                Create.of(
+                    KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
             .apply(ParDo.of(fn));
 
     PAssert.that(output).containsInAnyOrder(Sets.newHashSet(97, 42, 12));
 
     TestSamzaRunner.fromOptions(
-        PipelineOptionsFactory.fromArgs("--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-            .create()).run(pipeline);
+            PipelineOptionsFactory.fromArgs(
+                    "--runner=org.apache.beam.runners.samza.TestSamzaRunner")
+                .create())
+        .run(pipeline);
   }
 
-  /**
-   * A storage engine to create test stores.
-   */
+  /** A storage engine to create test stores. */
   public static class TestStorageEngine extends InMemoryKeyValueStorageEngineFactory {
 
     @Override
-    public KeyValueStore<byte[], byte[]> getKVStore(String storeName, File storeDir,
-        MetricsRegistry registry, SystemStreamPartition changeLogSystemStreamPartition,
+    public KeyValueStore<byte[], byte[]> getKVStore(
+        String storeName,
+        File storeDir,
+        MetricsRegistry registry,
+        SystemStreamPartition changeLogSystemStreamPartition,
         SamzaContainerContext containerContext) {
       KeyValueStoreMetrics metrics = new KeyValueStoreMetrics(storeName, registry);
       return new TestStore(metrics);
     }
   }
 
-  /**
-   * A test store based on InMemoryKeyValueStore.
-   */
+  /** A test store based on InMemoryKeyValueStore. */
   public static class TestStore extends InMemoryKeyValueStore {
     static List<TestKeyValueIteraor> iterators = Collections.synchronizedList(new ArrayList<>());
     private final KeyValueStoreMetrics metrics;
-
 
     public TestStore(KeyValueStoreMetrics metrics) {
       super(metrics);
@@ -220,6 +225,7 @@ public class SamzaStoreStateInternalsTest {
     static class TestKeyValueIteraor implements KeyValueIterator<byte[], byte[]> {
       private final KeyValueIterator<byte[], byte[]> iter;
       boolean closed = false;
+
       TestKeyValueIteraor(KeyValueIterator<byte[], byte[]> iter) {
         this.iter = iter;
       }
@@ -230,7 +236,8 @@ public class SamzaStoreStateInternalsTest {
         closed = true;
       }
 
-      @Override public boolean hasNext() {
+      @Override
+      public boolean hasNext() {
         return iter.hasNext();
       }
 
@@ -249,13 +256,11 @@ public class SamzaStoreStateInternalsTest {
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<SetState<Integer>> setState =
-              StateSpecs.set(VarIntCoder.of());
+          private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
-              @StateId(stateId) SetState<Integer> setState) {
+              ProcessContext c, @StateId(stateId) SetState<Integer> setState) {
             SamzaSetState<Integer> state = (SamzaSetState<Integer>) setState;
             state.add(c.element().getValue());
 
@@ -271,9 +276,10 @@ public class SamzaStoreStateInternalsTest {
           }
         };
 
-    pipeline.apply(
-        Create.of(
-            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+    pipeline
+        .apply(
+            Create.of(
+                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
         .apply(ParDo.of(fn));
 
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
@@ -287,8 +293,6 @@ public class SamzaStoreStateInternalsTest {
     // The test code creates 7 underlying iterators, and 1 more is created during state.clear()
     // Verify all of them are closed
     assertEquals(8, TestStore.iterators.size());
-    TestStore.iterators.forEach(iter ->
-        assertTrue(iter.closed)
-    );
+    TestStore.iterators.forEach(iter -> assertTrue(iter.closed));
   }
 }

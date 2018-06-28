@@ -29,28 +29,20 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 
-
 /**
  * Stateless Java Serializer.
  *
- * <p>
- * Solves state re-use issue in Kryo version 2.21 used in Spark 1.x
- * See:
+ * <p>Solves state re-use issue in Kryo version 2.21 used in Spark 1.x See:
  * https://issues.apache.org/jira/browse/SPARK-7708
  * https://github.com/EsotericSoftware/kryo/issues/312
- * </p>
  *
- * <p>
- * Also, solves class loading issue in cluster caused by ${@link ObjectInputStream}
- * by using ${@link ObjectInputStreamWithClassLoader}
- * ${@link ObjectInputStream} uses the last user-defined class loader in the stack which can be the
- * wrong class loader.
- * This is a known Java issue and a similar solution is often used.
- * See:
+ * <p>Also, solves class loading issue in cluster caused by ${@link ObjectInputStream} by using
+ * ${@link ObjectInputStreamWithClassLoader} ${@link ObjectInputStream} uses the last user-defined
+ * class loader in the stack which can be the wrong class loader. This is a known Java issue and a
+ * similar solution is often used. See:
  * https://github.com/apache/spark/blob/v1.6.3/streaming/src/main/scala/org/apache/spark/streaming/Checkpoint.scala#L154
  * https://issues.apache.org/jira/browse/GROOVY-1627
  * https://github.com/spring-projects/spring-loaded/issues/107
- * </p>
  */
 class StatelessJavaSerializer extends Serializer {
 
@@ -76,7 +68,7 @@ class StatelessJavaSerializer extends Serializer {
   }
 
   @Override
-  public Object read (Kryo kryo, Input input, Class type) {
+  public Object read(Kryo kryo, Input input, Class type) {
     try {
       return new ObjectInputStreamWithClassLoader(input, kryo.getClassLoader()).readObject();
     } catch (Exception e) {
@@ -84,9 +76,7 @@ class StatelessJavaSerializer extends Serializer {
     }
   }
 
-  /**
-   * ObjectInputStream with specific ClassLoader.
-   */
+  /** ObjectInputStream with specific ClassLoader. */
   private static class ObjectInputStreamWithClassLoader extends ObjectInputStream {
     private final ClassLoader classLoader;
 

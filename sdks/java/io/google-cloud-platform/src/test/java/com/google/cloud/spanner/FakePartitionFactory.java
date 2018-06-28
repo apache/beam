@@ -31,13 +31,18 @@ public class FakePartitionFactory {
   private FakePartitionFactory() {}
 
   public static Partition createFakeQueryPartition(ByteString token) {
-    return Partition.createQueryPartition(token, PartitionOptions.getDefaultInstance(), Statement
-        .of(""), Options.fromQueryOptions());
+    return Partition.createQueryPartition(
+        token, PartitionOptions.getDefaultInstance(), Statement.of(""), Options.fromQueryOptions());
   }
 
   public static Partition createFakeReadPartition(ByteString token) {
-    return Partition
-        .createReadPartition(token, PartitionOptions.getDefaultInstance(), "", "", KeySet.all(),
-            Arrays.asList(), Options.fromReadOptions());
+    return Partition.createReadPartition(
+        token,
+        PartitionOptions.getDefaultInstance(),
+        "",
+        "",
+        KeySet.all(),
+        Arrays.asList(),
+        Options.fromReadOptions());
   }
 }

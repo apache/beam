@@ -27,17 +27,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the {@link AfterProcessingTime}.
- */
+/** Tests the {@link AfterProcessingTime}. */
 @RunWith(JUnit4.class)
 public class AfterProcessingTimeTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
-        AfterProcessingTime.pastFirstElementInPane().getWatermarkThatGuaranteesFiring(
-            new IntervalWindow(new Instant(0), new Instant(10))));
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MAX_VALUE,
+        AfterProcessingTime.pastFirstElementInPane()
+            .getWatermarkThatGuaranteesFiring(new IntervalWindow(new Instant(0), new Instant(10))));
   }
 
   @Test
@@ -49,15 +48,13 @@ public class AfterProcessingTimeTest {
         firstElementPlus1.getContinuationTrigger());
   }
 
-  /**
-   * Basic test of compatibility check between identical triggers.
-   */
+  /** Basic test of compatibility check between identical triggers. */
   @Test
   public void testCompatibilityIdentical() throws Exception {
-    Trigger t1 = AfterProcessingTime.pastFirstElementInPane()
-            .plusDelayOf(Duration.standardMinutes(1L));
-    Trigger t2 = AfterProcessingTime.pastFirstElementInPane()
-            .plusDelayOf(Duration.standardMinutes(1L));
+    Trigger t1 =
+        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1L));
+    Trigger t2 =
+        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1L));
     assertTrue(t1.isCompatible(t2));
   }
 
@@ -69,24 +66,26 @@ public class AfterProcessingTimeTest {
 
   @Test
   public void testWithDelayToString() {
-    Trigger trigger = AfterProcessingTime.pastFirstElementInPane()
-        .plusDelayOf(Duration.standardMinutes(5));
+    Trigger trigger =
+        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(5));
 
-    assertEquals("AfterProcessingTime.pastFirstElementInPane().plusDelayOf(5 minutes)",
-        trigger.toString());
+    assertEquals(
+        "AfterProcessingTime.pastFirstElementInPane().plusDelayOf(5 minutes)", trigger.toString());
   }
 
   @Test
   public void testBuiltUpToString() {
-    Trigger trigger = AfterWatermark.pastEndOfWindow()
-        .withLateFirings(AfterProcessingTime
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.standardMinutes(10)));
+    Trigger trigger =
+        AfterWatermark.pastEndOfWindow()
+            .withLateFirings(
+                AfterProcessingTime.pastFirstElementInPane()
+                    .plusDelayOf(Duration.standardMinutes(10)));
 
-    String expected = "AfterWatermark.pastEndOfWindow()"
-        + ".withLateFirings(AfterProcessingTime"
-        + ".pastFirstElementInPane()"
-        + ".plusDelayOf(10 minutes))";
+    String expected =
+        "AfterWatermark.pastEndOfWindow()"
+            + ".withLateFirings(AfterProcessingTime"
+            + ".pastFirstElementInPane()"
+            + ".plusDelayOf(10 minutes))";
 
     assertEquals(expected, trigger.toString());
   }

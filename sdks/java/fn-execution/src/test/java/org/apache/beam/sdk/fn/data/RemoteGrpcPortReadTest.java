@@ -30,9 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link RemoteGrpcPortRead}.
- */
+/** Tests for {@link RemoteGrpcPortRead}. */
 @RunWith(JUnit4.class)
 public class RemoteGrpcPortReadTest {
   @Test
@@ -65,8 +63,7 @@ public class RemoteGrpcPortReadTest {
 
     RemoteGrpcPortRead read = RemoteGrpcPortRead.readFromPort(port, "myPort");
     PTransform ptransform = PTransform.parseFrom(read.toPTransform().toByteArray());
-    RemoteGrpcPortRead serDeRead =
-        RemoteGrpcPortRead.fromPTransform(ptransform);
+    RemoteGrpcPortRead serDeRead = RemoteGrpcPortRead.fromPTransform(ptransform);
 
     assertThat(serDeRead, equalTo(read));
     assertThat(serDeRead.getPort(), equalTo(read.getPort()));

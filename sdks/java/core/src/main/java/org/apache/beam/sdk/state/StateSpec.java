@@ -70,19 +70,19 @@ public interface StateSpec<StateT extends State> extends Serializable {
   @Internal
   void finishSpecifying();
 
-  /**
-   * Cases for doing a "switch" on the type of {@link StateSpec}.
-   */
+  /** Cases for doing a "switch" on the type of {@link StateSpec}. */
   interface Cases<ResultT> {
     ResultT dispatchValue(Coder<?> valueCoder);
+
     ResultT dispatchBag(Coder<?> elementCoder);
+
     ResultT dispatchCombining(Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder);
+
     ResultT dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder);
+
     ResultT dispatchSet(Coder<?> elementCoder);
 
-    /**
-     * A base class for a visitor with a default method for cases it is not interested in.
-     */
+    /** A base class for a visitor with a default method for cases it is not interested in. */
     abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
       protected abstract ResultT dispatchDefault();

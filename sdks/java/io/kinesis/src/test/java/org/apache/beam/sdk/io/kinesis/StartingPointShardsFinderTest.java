@@ -31,9 +31,7 @@ import java.util.List;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/**
- * Tests StartingPointShardsFinder.
- */
+/** Tests StartingPointShardsFinder. */
 public class StartingPointShardsFinderTest {
 
   private static final String STREAM_NAME = "streamName";
@@ -60,30 +58,23 @@ public class StartingPointShardsFinderTest {
    */
   private final Shard shard00 = createClosedShard("0000");
   private final Shard shard01 = createClosedShard("0001");
-  private final Shard shard02 = createClosedShard("0002")
-      .withParentShardId("0000");
-  private final Shard shard03 = createClosedShard("0003")
-      .withParentShardId("0000");
-  private final Shard shard04 = createClosedShard("0004")
-      .withParentShardId("0001");
-  private final Shard shard05 = createClosedShard("0005")
-      .withParentShardId("0001");
-  private final Shard shard06 = createClosedShard("0006")
-      .withParentShardId("0003")
-      .withAdjacentParentShardId("0004");
-  private final Shard shard07 = createClosedShard("0007")
-      .withParentShardId("0006");
-  private final Shard shard08 = createClosedShard("0008")
-      .withParentShardId("0006");
-  private final Shard shard09 = createOpenShard("0009")
-      .withParentShardId("0002")
-      .withAdjacentParentShardId("0007");
-  private final Shard shard10 = createOpenShard("0010")
-      .withParentShardId("0008")
-      .withAdjacentParentShardId("0005");
+  private final Shard shard02 = createClosedShard("0002").withParentShardId("0000");
+  private final Shard shard03 = createClosedShard("0003").withParentShardId("0000");
+  private final Shard shard04 = createClosedShard("0004").withParentShardId("0001");
+  private final Shard shard05 = createClosedShard("0005").withParentShardId("0001");
+  private final Shard shard06 =
+      createClosedShard("0006").withParentShardId("0003").withAdjacentParentShardId("0004");
+  private final Shard shard07 = createClosedShard("0007").withParentShardId("0006");
+  private final Shard shard08 = createClosedShard("0008").withParentShardId("0006");
+  private final Shard shard09 =
+      createOpenShard("0009").withParentShardId("0002").withAdjacentParentShardId("0007");
+  private final Shard shard10 =
+      createOpenShard("0010").withParentShardId("0008").withAdjacentParentShardId("0005");
 
-  private final List<Shard> allShards = ImmutableList.of(shard00, shard01, shard02, shard03,
-      shard04, shard05, shard06, shard07, shard08, shard09, shard10);
+  private final List<Shard> allShards =
+      ImmutableList.of(
+          shard00, shard01, shard02, shard03, shard04, shard05, shard06, shard07, shard08, shard09,
+          shard10);
 
   private StartingPointShardsFinder underTest = new StartingPointShardsFinder();
 
@@ -98,8 +89,8 @@ public class StartingPointShardsFinderTest {
     given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
 
     // when
-    Iterable<Shard> shardsAtStartingPoint = underTest
-        .findShardsAtStartingPoint(kinesis, STREAM_NAME, startingPointAtTheBeginning);
+    Iterable<Shard> shardsAtStartingPoint =
+        underTest.findShardsAtStartingPoint(kinesis, STREAM_NAME, startingPointAtTheBeginning);
 
     // then
     assertThat(shardsAtStartingPoint).containsExactlyInAnyOrder(shard00, shard01);
@@ -109,8 +100,8 @@ public class StartingPointShardsFinderTest {
   public void shouldFind3StartingShardsInTheMiddle() throws Exception {
     // given
     Instant timestampAfterShards3And4Merge = new Instant();
-    StartingPoint startingPointAfterFirstSplitsAndMerge = new StartingPoint(
-        timestampAfterShards3And4Merge);
+    StartingPoint startingPointAfterFirstSplitsAndMerge =
+        new StartingPoint(timestampAfterShards3And4Merge);
 
     expiredAtTimestamp(shard00, timestampAfterShards3And4Merge);
     expiredAtTimestamp(shard01, timestampAfterShards3And4Merge);
@@ -127,8 +118,9 @@ public class StartingPointShardsFinderTest {
     given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
 
     // when
-    Iterable<Shard> shardsAtStartingPoint = underTest
-        .findShardsAtStartingPoint(kinesis, STREAM_NAME, startingPointAfterFirstSplitsAndMerge);
+    Iterable<Shard> shardsAtStartingPoint =
+        underTest.findShardsAtStartingPoint(
+            kinesis, STREAM_NAME, startingPointAfterFirstSplitsAndMerge);
 
     // then
     assertThat(shardsAtStartingPoint).containsExactlyInAnyOrder(shard02, shard05, shard06);
@@ -155,8 +147,8 @@ public class StartingPointShardsFinderTest {
     given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
 
     // when
-    Iterable<Shard> shardsAtStartingPoint = underTest
-        .findShardsAtStartingPoint(kinesis, STREAM_NAME, startingPointAtTheEnd);
+    Iterable<Shard> shardsAtStartingPoint =
+        underTest.findShardsAtStartingPoint(kinesis, STREAM_NAME, startingPointAtTheEnd);
 
     // then
     assertThat(shardsAtStartingPoint).containsExactlyInAnyOrder(shard09, shard10);
@@ -169,8 +161,8 @@ public class StartingPointShardsFinderTest {
     given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
 
     // when
-    Iterable<Shard> shardsAtStartingPoint = underTest
-        .findShardsAtStartingPoint(kinesis, STREAM_NAME, latestStartingPoint);
+    Iterable<Shard> shardsAtStartingPoint =
+        underTest.findShardsAtStartingPoint(kinesis, STREAM_NAME, latestStartingPoint);
 
     // then
     assertThat(shardsAtStartingPoint).containsExactlyInAnyOrder(shard09, shard10);
@@ -179,13 +171,13 @@ public class StartingPointShardsFinderTest {
   @Test
   public void shouldFindEarliestShardsWhenTrimHorizonStartingPointRequested() throws Exception {
     // given
-    StartingPoint trimHorizonStartingPoint = new StartingPoint(
-        InitialPositionInStream.TRIM_HORIZON);
+    StartingPoint trimHorizonStartingPoint =
+        new StartingPoint(InitialPositionInStream.TRIM_HORIZON);
     given(kinesis.listShards(STREAM_NAME)).willReturn(allShards);
 
     // when
-    Iterable<Shard> shardsAtStartingPoint = underTest
-        .findShardsAtStartingPoint(kinesis, STREAM_NAME, trimHorizonStartingPoint);
+    Iterable<Shard> shardsAtStartingPoint =
+        underTest.findShardsAtStartingPoint(kinesis, STREAM_NAME, trimHorizonStartingPoint);
 
     // then
     assertThat(shardsAtStartingPoint).containsExactlyInAnyOrder(shard00, shard01);
@@ -195,11 +187,21 @@ public class StartingPointShardsFinderTest {
   public void shouldThrowExceptionWhenSuccessorsNotFoundForExpiredShard() throws Exception {
     // given
     StartingPoint latestStartingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    Shard closedShard10 = createClosedShard("0010")
-        .withParentShardId("0008")
-        .withAdjacentParentShardId("0005");
-    List<Shard> shards = ImmutableList.of(shard00, shard01, shard02, shard03,
-        shard04, shard05, shard06, shard07, shard08, shard09, closedShard10);
+    Shard closedShard10 =
+        createClosedShard("0010").withParentShardId("0008").withAdjacentParentShardId("0005");
+    List<Shard> shards =
+        ImmutableList.of(
+            shard00,
+            shard01,
+            shard02,
+            shard03,
+            shard04,
+            shard05,
+            shard06,
+            shard07,
+            shard08,
+            shard09,
+            closedShard10);
 
     given(kinesis.listShards(STREAM_NAME)).willReturn(shards);
 
@@ -230,7 +232,10 @@ public class StartingPointShardsFinderTest {
   }
 
   private void activeAtTimestamp(Shard shard, Instant startTimestamp) {
-    prepareShard(shard, "timestampIterator-" + shard.getShardId(), ShardIteratorType.AT_TIMESTAMP,
+    prepareShard(
+        shard,
+        "timestampIterator-" + shard.getShardId(),
+        ShardIteratorType.AT_TIMESTAMP,
         startTimestamp);
   }
 
@@ -238,22 +243,35 @@ public class StartingPointShardsFinderTest {
     prepareShard(shard, shardIteratorType.toString() + shard.getShardId(), shardIteratorType, null);
   }
 
-  private void prepareShard(Shard shard, String nextIterator, ShardIteratorType shardIteratorType,
+  private void prepareShard(
+      Shard shard,
+      String nextIterator,
+      ShardIteratorType shardIteratorType,
       Instant startTimestamp) {
     try {
       String shardIterator = shardIteratorType + shard.getShardId() + "-current";
       if (shardIteratorType == ShardIteratorType.AT_TIMESTAMP) {
-        given(kinesis.getShardIterator(STREAM_NAME, shard.getShardId(),
-            ShardIteratorType.AT_TIMESTAMP, null, startTimestamp))
+        given(
+                kinesis.getShardIterator(
+                    STREAM_NAME,
+                    shard.getShardId(),
+                    ShardIteratorType.AT_TIMESTAMP,
+                    null,
+                    startTimestamp))
             .willReturn(shardIterator);
       } else {
-        given(kinesis.getShardIterator(STREAM_NAME, shard.getShardId(), shardIteratorType,
-            null, null))
+        given(
+                kinesis.getShardIterator(
+                    STREAM_NAME, shard.getShardId(), shardIteratorType, null, null))
             .willReturn(shardIterator);
       }
-      GetKinesisRecordsResult result = new GetKinesisRecordsResult(
-          Collections.<UserRecord>emptyList(), nextIterator, 0, STREAM_NAME, shard
-          .getShardId());
+      GetKinesisRecordsResult result =
+          new GetKinesisRecordsResult(
+              Collections.<UserRecord>emptyList(),
+              nextIterator,
+              0,
+              STREAM_NAME,
+              shard.getShardId());
       given(kinesis.getRecords(shardIterator, STREAM_NAME, shard.getShardId())).willReturn(result);
     } catch (TransientKinesisException e) {
       throw new RuntimeException(e);

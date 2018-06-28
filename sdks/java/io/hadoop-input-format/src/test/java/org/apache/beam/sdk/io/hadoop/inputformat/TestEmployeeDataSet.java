@@ -33,8 +33,8 @@ class TestEmployeeDataSet {
   /**
    * Returns List of employee details. Employee details are available in the form of {@link KV} in
    * which, key indicates employee id and value indicates employee details such as name and address
-   * separated by '_'. This is data input to {@link EmployeeInputFormat} and
-   * {@link ReuseObjectsEmployeeInputFormat}.
+   * separated by '_'. This is data input to {@link EmployeeInputFormat} and {@link
+   * ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<String, String>> populateEmployeeData() {
     if (!data.isEmpty()) {
@@ -59,8 +59,8 @@ class TestEmployeeDataSet {
   }
 
   /**
-   * This is a helper function used in unit tests for validating data against data read using
-   * {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
+   * This is a helper function used in unit tests for validating data against data read using {@link
+   * EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<Text, Employee>> getEmployeeData() {
     return (data.isEmpty() ? populateEmployeeData() : data)

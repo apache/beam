@@ -99,9 +99,10 @@ public class StateSpecs {
    * <p>If automatic coder inference fails, use this method.
    */
   public static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
+      StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    checkArgument(accumCoder != null,
+    checkArgument(
+        accumCoder != null,
         "accumCoder should not be null. "
             + "Consider using combining(CombineFn<> combineFn) instead.");
     return combiningInternal(accumCoder, combineFn);
@@ -123,8 +124,8 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link BagState}, optimized for adding values frequently
-   * and occasionally retrieving all the values that have been added.
+   * Create a {@link StateSpec} for a {@link BagState}, optimized for adding values frequently and
+   * occasionally retrieving all the values that have been added.
    *
    * <p>This method attempts to infer the element coder automatically.
    *
@@ -210,14 +211,14 @@ public class StateSpecs {
   }
 
   private static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
+      StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new CombiningStateSpec<>(accumCoder, combineFn);
   }
 
   private static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
-      Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+      StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
+          Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
     return new CombiningWithContextStateSpec<>(accumCoder, combineFn);
   }
 
@@ -227,9 +228,8 @@ public class StateSpecs {
    * <p>Create a state spec for a watermark hold.
    */
   @Internal
-  public static
-      StateSpec<WatermarkHoldState> watermarkStateInternal(
-          TimestampCombiner timestampCombiner) {
+  public static StateSpec<WatermarkHoldState> watermarkStateInternal(
+      TimestampCombiner timestampCombiner) {
     return new WatermarkStateSpecInternal(timestampCombiner);
   }
 
@@ -239,9 +239,8 @@ public class StateSpecs {
    * <p>Convert a combining state spec to a bag of accumulators.
    */
   @Internal
-  public static <InputT, AccumT, OutputT>
-      StateSpec<BagState<AccumT>> convertToBagSpecInternal(
-          StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningSpec) {
+  public static <InputT, AccumT, OutputT> StateSpec<BagState<AccumT>> convertToBagSpecInternal(
+      StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningSpec) {
     if (combiningSpec instanceof CombiningStateSpec) {
       // Checked above; conversion to a bag spec depends on the provided spec being one of those
       // created via the factory methods in this class.
@@ -266,8 +265,7 @@ public class StateSpecs {
    */
   private static class ValueStateSpec<T> implements StateSpec<ValueState<T>> {
 
-    @Nullable
-    private Coder<T> coder;
+    @Nullable private Coder<T> coder;
 
     private ValueStateSpec(@Nullable Coder<T> coder) {
       this.coder = coder;
@@ -291,12 +289,14 @@ public class StateSpecs {
       }
     }
 
-    @Override public void finishSpecifying() {
+    @Override
+    public void finishSpecifying() {
       if (coder == null) {
-        throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
-            + " Pipeline's CoderRegistry.");
+        throw new IllegalStateException(
+            "Unable to infer a coder for ValueState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
+                + " Pipeline's CoderRegistry.");
       }
     }
 
@@ -328,20 +328,17 @@ public class StateSpecs {
   private static class CombiningStateSpec<InputT, AccumT, OutputT>
       implements StateSpec<CombiningState<InputT, AccumT, OutputT>> {
 
-    @Nullable
-    private Coder<AccumT> accumCoder;
+    @Nullable private Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningStateSpec(
-        @Nullable Coder<AccumT> accumCoder,
-        CombineFn<InputT, AccumT, OutputT> combineFn) {
+        @Nullable Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
       this.accumCoder = accumCoder;
     }
 
     @Override
-    public CombiningState<InputT, AccumT, OutputT> bind(
-        String id, StateBinder visitor) {
+    public CombiningState<InputT, AccumT, OutputT> bind(String id, StateBinder visitor) {
       return visitor.bindCombining(id, this, accumCoder, combineFn);
     }
 
@@ -358,14 +355,16 @@ public class StateSpecs {
       }
     }
 
-    @Override public void finishSpecifying() {
+    @Override
+    public void finishSpecifying() {
       if (accumCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for"
-            + " CombiningState and no Coder was specified."
-            + " Please set a coder by either invoking"
-            + " StateSpecs.combining(Coder<AccumT> accumCoder,"
-            + " CombineFn<InputT, AccumT, OutputT> combineFn)"
-            + " or by registering the coder in the Pipeline's CoderRegistry.");
+        throw new IllegalStateException(
+            "Unable to infer a coder for"
+                + " CombiningState and no Coder was specified."
+                + " Please set a coder by either invoking"
+                + " StateSpecs.combining(Coder<AccumT> accumCoder,"
+                + " CombineFn<InputT, AccumT, OutputT> combineFn)"
+                + " or by registering the coder in the Pipeline's CoderRegistry.");
       }
     }
 
@@ -379,8 +378,7 @@ public class StateSpecs {
         return false;
       }
 
-      CombiningStateSpec<?, ?, ?> that =
-          (CombiningStateSpec<?, ?, ?>) obj;
+      CombiningStateSpec<?, ?, ?> that = (CombiningStateSpec<?, ?, ?>) obj;
       return Objects.equals(this.accumCoder, that.accumCoder);
     }
 
@@ -395,8 +393,7 @@ public class StateSpecs {
   }
 
   /**
-   * A specification for a state cell that is combined according to a {@link
-   * CombineFnWithContext}.
+   * A specification for a state cell that is combined according to a {@link CombineFnWithContext}.
    *
    * <p>Includes the {@link CombineFnWithContext} and the coder for the accumulator type.
    */
@@ -414,8 +411,7 @@ public class StateSpecs {
     }
 
     @Override
-    public CombiningState<InputT, AccumT, OutputT> bind(
-        String id, StateBinder visitor) {
+    public CombiningState<InputT, AccumT, OutputT> bind(String id, StateBinder visitor) {
       return visitor.bindCombiningWithContext(id, this, accumCoder, combineFn);
     }
 
@@ -473,15 +469,14 @@ public class StateSpecs {
   }
 
   /**
-   * A specification for a state cell supporting for bag-like access patterns
-   * (frequent additions, occasional reads of all the values).
+   * A specification for a state cell supporting for bag-like access patterns (frequent additions,
+   * occasional reads of all the values).
    *
-   * <p>Includes the coder for the element type {@code T}</p>
+   * <p>Includes the coder for the element type {@code T}
    */
   private static class BagStateSpec<T> implements StateSpec<BagState<T>> {
 
-    @Nullable
-    private Coder<T> elemCoder;
+    @Nullable private Coder<T> elemCoder;
 
     private BagStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -505,12 +500,14 @@ public class StateSpecs {
       }
     }
 
-    @Override public void finishSpecifying() {
+    @Override
+    public void finishSpecifying() {
       if (elemCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for BagState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.bag(Coder<T> elemCoder) or by registering the coder in the"
-            + " Pipeline's CoderRegistry.");
+        throw new IllegalStateException(
+            "Unable to infer a coder for BagState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.bag(Coder<T> elemCoder) or by registering the coder in the"
+                + " Pipeline's CoderRegistry.");
       }
     }
 
@@ -536,10 +533,8 @@ public class StateSpecs {
 
   private static class MapStateSpec<K, V> implements StateSpec<MapState<K, V>> {
 
-    @Nullable
-    private Coder<K> keyCoder;
-    @Nullable
-    private Coder<V> valueCoder;
+    @Nullable private Coder<K> keyCoder;
+    @Nullable private Coder<V> valueCoder;
 
     private MapStateSpec(@Nullable Coder<K> keyCoder, @Nullable Coder<V> valueCoder) {
       this.keyCoder = keyCoder;
@@ -567,12 +562,14 @@ public class StateSpecs {
       }
     }
 
-    @Override public void finishSpecifying() {
+    @Override
+    public void finishSpecifying() {
       if (keyCoder == null || valueCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for MapState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
-            + " coder in the Pipeline's CoderRegistry.");
+        throw new IllegalStateException(
+            "Unable to infer a coder for MapState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
+                + " coder in the Pipeline's CoderRegistry.");
       }
     }
 
@@ -600,12 +597,11 @@ public class StateSpecs {
   /**
    * A specification for a state cell supporting for set-like access patterns.
    *
-   * <p>Includes the coder for the element type {@code T}</p>
+   * <p>Includes the coder for the element type {@code T}
    */
   private static class SetStateSpec<T> implements StateSpec<SetState<T>> {
 
-    @Nullable
-    private Coder<T> elemCoder;
+    @Nullable private Coder<T> elemCoder;
 
     private SetStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -629,12 +625,14 @@ public class StateSpecs {
       }
     }
 
-    @Override public void finishSpecifying() {
+    @Override
+    public void finishSpecifying() {
       if (elemCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.set(Coder<T> elemCoder) or by registering the coder in the"
-            + " Pipeline's CoderRegistry.");
+        throw new IllegalStateException(
+            "Unable to infer a coder for SetState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.set(Coder<T> elemCoder) or by registering the coder in the"
+                + " Pipeline's CoderRegistry.");
       }
     }
 
@@ -661,8 +659,7 @@ public class StateSpecs {
   /**
    * A specification for a state cell tracking a combined watermark hold.
    *
-   * <p>Includes the {@link TimestampCombiner} according to which the output times
-   * are combined.
+   * <p>Includes the {@link TimestampCombiner} according to which the output times are combined.
    */
   private static class WatermarkStateSpecInternal implements StateSpec<WatermarkHoldState> {
 
@@ -691,10 +688,10 @@ public class StateSpecs {
     }
 
     @Override
-    public void offerCoders(Coder[] coders) {
-    }
+    public void offerCoders(Coder[] coders) {}
 
-    @Override public void finishSpecifying() {
+    @Override
+    public void finishSpecifying() {
       // Currently an empty implementation as there are no coders to validate.
     }
 

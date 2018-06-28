@@ -63,10 +63,6 @@ class BeamModulePlugin implements Plugin<Project> {
      */
     List<String> disableLintWarnings = []
 
-    /** Controls whether spotless plugin enforces autoformat. */
-    //TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this default to true?
-    boolean enableSpotless = false
-
     /** Controls whether tests are run with shadowJar. */
     boolean testShadowJar = false
 
@@ -624,10 +620,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
-      if (configuration.enableSpotless) {
-        project.apply plugin: "com.diffplug.gradle.spotless"
-        project.spotless { java { googleJavaFormat() } }
-      }
+      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.spotless { java { googleJavaFormat() } }
 
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.

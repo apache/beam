@@ -39,5 +39,4 @@ public class ExecutableStageTranslation {
     checkArgument(ExecutableStage.URN.equals(transform.getSpec().getUrn()));
     return ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
   }
-
 }

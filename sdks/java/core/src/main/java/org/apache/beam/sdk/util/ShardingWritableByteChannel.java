@@ -25,39 +25,30 @@ import java.util.ArrayList;
 /**
  * Implements a WritableByteChannel that may contain multiple output shards.
  *
- * <p>This provides {@link #writeToShard}, which takes a shard number for
- * writing to a particular shard.
+ * <p>This provides {@link #writeToShard}, which takes a shard number for writing to a particular
+ * shard.
  *
- * <p>The channel is considered open if all downstream channels are open, and
- * closes all downstream channels when closed.
+ * <p>The channel is considered open if all downstream channels are open, and closes all downstream
+ * channels when closed.
  */
 public class ShardingWritableByteChannel implements WritableByteChannel {
 
-  /**
-   * Special shard number that causes a write to all shards.
-   */
+  /** Special shard number that causes a write to all shards. */
   public static final int ALL_SHARDS = -2;
-
 
   private final ArrayList<WritableByteChannel> writers = new ArrayList<>();
 
-  /**
-   * Returns the number of output shards.
-   */
+  /** Returns the number of output shards. */
   public int getNumShards() {
     return writers.size();
   }
 
-  /**
-   * Adds another shard output channel.
-   */
+  /** Adds another shard output channel. */
   public void addChannel(WritableByteChannel writer) {
     writers.add(writer);
   }
 
-  /**
-   * Returns the WritableByteChannel associated with the given shard number.
-   */
+  /** Returns the WritableByteChannel associated with the given shard number. */
   public WritableByteChannel getChannel(int shardNum) {
     return writers.get(shardNum);
   }
@@ -67,9 +58,8 @@ public class ShardingWritableByteChannel implements WritableByteChannel {
    *
    * <p>This does not change the current output shard.
    *
-   * @return The total number of bytes written.  If the shard number is
-   * {@link #ALL_SHARDS}, then the total is the sum of each individual shard
-   * write.
+   * @return The total number of bytes written. If the shard number is {@link #ALL_SHARDS}, then the
+   *     total is the sum of each individual shard write.
    */
   public int writeToShard(int shardNum, ByteBuffer src) throws IOException {
     if (shardNum >= 0) {

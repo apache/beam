@@ -34,5 +34,6 @@ public abstract class RemoteOutputReceiver<T> {
   }
 
   public abstract Coder<T> getCoder();
+
   public abstract FnDataReceiver<T> getReceiver();
 }

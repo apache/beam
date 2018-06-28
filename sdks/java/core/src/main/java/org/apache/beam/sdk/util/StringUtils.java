@@ -22,17 +22,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Utilities for working with JSON and other human-readable string formats.
- */
+/** Utilities for working with JSON and other human-readable string formats. */
 public class StringUtils {
   /**
    * Converts the given array of bytes into a legal JSON string.
    *
-   * <p>Uses a simple strategy of converting each byte to a single char,
-   * except for non-printable chars, non-ASCII chars, and '%', '\',
-   * and '"', which are encoded as three chars in '%xx' format, where
-   * 'xx' is the hexadecimal encoding of the byte.
+   * <p>Uses a simple strategy of converting each byte to a single char, except for non-printable
+   * chars, non-ASCII chars, and '%', '\', and '"', which are encoded as three chars in '%xx'
+   * format, where 'xx' is the hexadecimal encoding of the byte.
    */
   public static String byteArrayToJsonString(byte[] bytes) {
     StringBuilder sb = new StringBuilder(bytes.length * 2);
@@ -54,8 +51,7 @@ public class StringUtils {
   }
 
   /**
-   * Converts the given string, encoded using {@link #byteArrayToJsonString},
-   * into a byte array.
+   * Converts the given string, encoded using {@link #byteArrayToJsonString}, into a byte array.
    *
    * @throws IllegalArgumentException if the argument string is not legal
    */
@@ -71,7 +67,11 @@ public class StringUtils {
         } catch (IndexOutOfBoundsException | NumberFormatException exn) {
           throw new IllegalArgumentException(
               "not in legal encoded format; "
-              + "substring [" + i + ".." + (i + 2) + "] not in format \"%xx\"",
+                  + "substring ["
+                  + i
+                  + ".."
+                  + (i + 2)
+                  + "] not in format \"%xx\"",
               exn);
         }
         i += 3;

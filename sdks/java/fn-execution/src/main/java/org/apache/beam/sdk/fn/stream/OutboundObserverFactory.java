@@ -81,8 +81,7 @@ public abstract class OutboundObserverFactory {
    * @param inboundObserver The inbound observer.
    */
   public abstract <ReqT, RespT> StreamObserver<RespT> outboundObserverFor(
-      BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
-      StreamObserver<ReqT> inboundObserver);
+      BasicFactory<ReqT, RespT> baseOutboundObserverFactory, StreamObserver<ReqT> inboundObserver);
 
   private static class DirectClient extends OutboundObserverFactory {
     @Override

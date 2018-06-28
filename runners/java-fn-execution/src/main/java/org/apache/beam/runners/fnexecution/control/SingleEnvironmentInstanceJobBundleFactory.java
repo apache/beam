@@ -150,7 +150,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
 
     @Override
     public RemoteBundle<T> getBundle(
-        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler,
+        OutputReceiverFactory outputReceiverFactory,
+        StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler) {
       Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
       for (Map.Entry<Target, Coder<WindowedValue<?>>> targetCoders :

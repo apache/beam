@@ -27,22 +27,22 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
- * Factory to wrap calls to pojo getters into instances of {@link FieldValueGetter}
- * using reflection.
+ * Factory to wrap calls to pojo getters into instances of {@link FieldValueGetter} using
+ * reflection.
  *
- * <p>Returns instances of {@link FieldValueGetter}s backed getter methods of a pojo class.
- * Getters are invoked using {@link java.lang.reflect.Method#invoke(Object, Object...)}
- * from {@link FieldValueGetter#get(Object)}.
+ * <p>Returns instances of {@link FieldValueGetter}s backed getter methods of a pojo class. Getters
+ * are invoked using {@link java.lang.reflect.Method#invoke(Object, Object...)} from {@link
+ * FieldValueGetter#get(Object)}.
  *
- * <p>Caching is not handled at this level, {@link RowFactory} should cache getters
- * for each {@link Schema}.
+ * <p>Caching is not handled at this level, {@link RowFactory} should cache getters for each {@link
+ * Schema}.
  */
 @Internal
 public class ReflectionGetterFactory implements GetterFactory {
 
   /**
-   * Returns a list of {@link FieldValueGetter}s.
-   * One for each public getter of the {@code pojoClass}.
+   * Returns a list of {@link FieldValueGetter}s. One for each public getter of the {@code
+   * pojoClass}.
    */
   @Override
   public List<FieldValueGetter> generateGetters(Class pojoClass) {

@@ -79,103 +79,103 @@ public class MetricsHttpSinkTest {
     @Override
     public List<MetricResult<Long>> getCounters() {
       return Collections.singletonList(
-              new MetricResult<Long>() {
+          new MetricResult<Long>() {
 
-                @Override
-                public MetricName getName() {
-                  return MetricName.named("ns1", "n1");
-                }
+            @Override
+            public MetricName getName() {
+              return MetricName.named("ns1", "n1");
+            }
 
-                @Override
-                public String getStep() {
-                  return "s1";
-                }
+            @Override
+            public String getStep() {
+              return "s1";
+            }
 
-                @Override
-                public Long getCommitted() {
-                  if (!isCommittedSupported) {
-                    // This is what getCommitted code is like for AccumulatedMetricResult on runners
-                    // that do not support committed metrics
-                    throw new UnsupportedOperationException(
-                        "This runner does not currently support committed"
-                            + " metrics results. Please use 'attempted' instead.");
-                  }
-                  return 10L;
-                }
+            @Override
+            public Long getCommitted() {
+              if (!isCommittedSupported) {
+                // This is what getCommitted code is like for AccumulatedMetricResult on runners
+                // that do not support committed metrics
+                throw new UnsupportedOperationException(
+                    "This runner does not currently support committed"
+                        + " metrics results. Please use 'attempted' instead.");
+              }
+              return 10L;
+            }
 
-                @Override
-                public Long getAttempted() {
-                  return 20L;
-                }
-              });
+            @Override
+            public Long getAttempted() {
+              return 20L;
+            }
+          });
     }
 
     @Override
     public List<MetricResult<DistributionResult>> getDistributions() {
       return Collections.singletonList(
-              new MetricResult<DistributionResult>() {
+          new MetricResult<DistributionResult>() {
 
-                @Override
-                public MetricName getName() {
-                  return MetricName.named("ns1", "n2");
-                }
+            @Override
+            public MetricName getName() {
+              return MetricName.named("ns1", "n2");
+            }
 
-                @Override
-                public String getStep() {
-                  return "s2";
-                }
+            @Override
+            public String getStep() {
+              return "s2";
+            }
 
-                @Override
-                public DistributionResult getCommitted() {
-                  if (!isCommittedSupported) {
-                    // This is what getCommitted code is like for AccumulatedMetricResult on runners
-                    // that do not support committed metrics
-                    throw new UnsupportedOperationException(
-                        "This runner does not currently support committed"
-                            + " metrics results. Please use 'attempted' instead.");
-                  }
-                  return DistributionResult.create(10L, 2L, 5L, 8L);
-                }
+            @Override
+            public DistributionResult getCommitted() {
+              if (!isCommittedSupported) {
+                // This is what getCommitted code is like for AccumulatedMetricResult on runners
+                // that do not support committed metrics
+                throw new UnsupportedOperationException(
+                    "This runner does not currently support committed"
+                        + " metrics results. Please use 'attempted' instead.");
+              }
+              return DistributionResult.create(10L, 2L, 5L, 8L);
+            }
 
-                @Override
-                public DistributionResult getAttempted() {
-                  return DistributionResult.create(25L, 4L, 3L, 9L);
-                }
-              });
+            @Override
+            public DistributionResult getAttempted() {
+              return DistributionResult.create(25L, 4L, 3L, 9L);
+            }
+          });
     }
 
     @Override
     public List<MetricResult<GaugeResult>> getGauges() {
       return Collections.singletonList(
-              new MetricResult<GaugeResult>() {
+          new MetricResult<GaugeResult>() {
 
-                @Override
-                public MetricName getName() {
-                  return MetricName.named("ns1", "n3");
-                }
+            @Override
+            public MetricName getName() {
+              return MetricName.named("ns1", "n3");
+            }
 
-                @Override
-                public String getStep() {
-                  return "s3";
-                }
+            @Override
+            public String getStep() {
+              return "s3";
+            }
 
-                @Override
-                public GaugeResult getCommitted() {
-                  if (!isCommittedSupported) {
-                    // This is what getCommitted code is like for AccumulatedMetricResult on runners
-                    // that do not support committed metrics
-                    throw new UnsupportedOperationException(
-                        "This runner does not currently support committed"
-                            + " metrics results. Please use 'attempted' instead.");
-                  }
-                  return GaugeResult.create(100L, new Instant(0L));
-                }
+            @Override
+            public GaugeResult getCommitted() {
+              if (!isCommittedSupported) {
+                // This is what getCommitted code is like for AccumulatedMetricResult on runners
+                // that do not support committed metrics
+                throw new UnsupportedOperationException(
+                    "This runner does not currently support committed"
+                        + " metrics results. Please use 'attempted' instead.");
+              }
+              return GaugeResult.create(100L, new Instant(0L));
+            }
 
-                @Override
-                public GaugeResult getAttempted() {
-                  return GaugeResult.create(120L, new Instant(0L));
-                }
-              });
+            @Override
+            public GaugeResult getAttempted() {
+              return GaugeResult.create(120L, new Instant(0L));
+            }
+          });
     }
   }
 }

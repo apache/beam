@@ -25,25 +25,25 @@ import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Construct an oauth credential to be used by the SDK and the SDK workers.
- * Returns a GCP credential.
+ * Construct an oauth credential to be used by the SDK and the SDK workers. Returns a GCP
+ * credential.
  */
 public class GcpCredentialFactory implements CredentialFactory {
   /**
-   * The scope cloud-platform provides access to all Cloud Platform resources.
-   * cloud-platform isn't sufficient yet for talking to datastore so we request
-   * those resources separately.
+   * The scope cloud-platform provides access to all Cloud Platform resources. cloud-platform isn't
+   * sufficient yet for talking to datastore so we request those resources separately.
    *
-   * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for
-   * services we access directly (GCS) as opposed to through the backend
-   * (BigQuery, GCE), we need to explicitly request that scope.
+   * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for services we access
+   * directly (GCS) as opposed to through the backend (BigQuery, GCE), we need to explicitly request
+   * that scope.
    */
-  private static final List<String> SCOPES = Arrays.asList(
-      "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/devstorage.full_control",
-      "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/datastore",
-      "https://www.googleapis.com/auth/pubsub");
+  private static final List<String> SCOPES =
+      Arrays.asList(
+          "https://www.googleapis.com/auth/cloud-platform",
+          "https://www.googleapis.com/auth/devstorage.full_control",
+          "https://www.googleapis.com/auth/userinfo.email",
+          "https://www.googleapis.com/auth/datastore",
+          "https://www.googleapis.com/auth/pubsub");
 
   private static final GcpCredentialFactory INSTANCE = new GcpCredentialFactory();
 
@@ -51,9 +51,7 @@ public class GcpCredentialFactory implements CredentialFactory {
     return INSTANCE;
   }
 
-  /**
-   * Returns a default GCP {@link Credentials} or null when it fails.
-   */
+  /** Returns a default GCP {@link Credentials} or null when it fails. */
   @Override
   public Credentials getCredential() {
     try {

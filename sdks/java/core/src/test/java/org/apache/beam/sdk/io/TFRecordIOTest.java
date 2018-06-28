@@ -56,9 +56,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for TFRecordIO Read and Write transforms.
- */
+/** Tests for TFRecordIO Read and Write transforms. */
 @RunWith(JUnit4.class)
 public class TFRecordIOTest {
 
@@ -88,17 +86,13 @@ public class TFRecordIOTest {
   private static final Iterable<String> EMPTY = Collections.emptyList();
   private static final Iterable<String> LARGE = makeLines(1000);
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline writePipeline = TestPipeline.create();
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testReadNamed() {
@@ -116,10 +110,8 @@ public class TFRecordIOTest {
 
   @Test
   public void testReadDisplayData() {
-    TFRecordIO.Read read = TFRecordIO.read()
-        .from("foo.*")
-        .withCompression(GZIP)
-        .withoutValidation();
+    TFRecordIO.Read read =
+        TFRecordIO.read().from("foo.*").withCompression(GZIP).withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -130,12 +122,13 @@ public class TFRecordIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    TFRecordIO.Write write = TFRecordIO.write()
-        .to("/foo")
-        .withSuffix("bar")
-        .withShardNameTemplate("-SS-of-NN-")
-        .withNumShards(100)
-        .withCompression(GZIP);
+    TFRecordIO.Write write =
+        TFRecordIO.write()
+            .to("/foo")
+            .withSuffix("bar")
+            .withShardNameTemplate("-SS-of-NN-")
+            .withNumShards(100)
+            .withCompression(GZIP);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -219,13 +212,15 @@ public class TFRecordIOTest {
     writePipeline.run();
   }
 
-  private void runTestWrite(String[] elems, String ...base64) throws IOException {
+  private void runTestWrite(String[] elems, String... base64) throws IOException {
     File tmpFile =
         Files.createTempFile(tempFolder.getRoot().toPath(), "file", ".tfrecords").toFile();
     String filename = tmpFile.getPath();
 
-    PCollection<byte[]> input = writePipeline.apply(Create.of(Arrays.asList(elems)))
-        .apply(ParDo.of(new StringToByteArray()));
+    PCollection<byte[]> input =
+        writePipeline
+            .apply(Create.of(Arrays.asList(elems)))
+            .apply(ParDo.of(new StringToByteArray()));
 
     TFRecordIO.Write write = TFRecordIO.write().to(filename).withoutSharding();
     input.apply(write);
@@ -292,11 +287,13 @@ public class TFRecordIOTest {
     runTestRoundTrip(LARGE, 10, ".tfrecords", DEFLATE, AUTO);
   }
 
-  private void runTestRoundTrip(Iterable<String> elems,
-                                int numShards,
-                                String suffix,
-                                Compression writeCompression,
-                                Compression readCompression) throws IOException {
+  private void runTestRoundTrip(
+      Iterable<String> elems,
+      int numShards,
+      String suffix,
+      Compression writeCompression,
+      Compression readCompression)
+      throws IOException {
     Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "test-rt");
     String outputNameViaWrite = "via-write";
     String baseFilenameViaWrite = baseDir.resolve(outputNameViaWrite).toString();
@@ -304,16 +301,16 @@ public class TFRecordIOTest {
     String baseFilenameViaSink = baseDir.resolve(outputNameViaSink).toString();
 
     PCollection<byte[]> data =
-        writePipeline.apply(Create.of(elems).withCoder(StringUtf8Coder.of()))
+        writePipeline
+            .apply(Create.of(elems).withCoder(StringUtf8Coder.of()))
             .apply(ParDo.of(new StringToByteArray()));
-    data
-        .apply(
-            "Write via TFRecordIO.write",
-            TFRecordIO.write()
-                .to(baseFilenameViaWrite)
-                .withNumShards(numShards)
-                .withSuffix(suffix)
-                .withCompression(writeCompression));
+    data.apply(
+        "Write via TFRecordIO.write",
+        TFRecordIO.write()
+            .to(baseFilenameViaWrite)
+            .withNumShards(numShards)
+            .withSuffix(suffix)
+            .withCompression(writeCompression));
 
     data.apply(
         "Write via TFRecordIO.sink",
@@ -368,5 +365,4 @@ public class TFRecordIOTest {
       c.output(c.element().getBytes(Charsets.UTF_8));
     }
   }
-
 }

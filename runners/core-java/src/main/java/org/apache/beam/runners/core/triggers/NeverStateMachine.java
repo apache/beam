@@ -23,8 +23,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 /**
  * A {@link TriggerStateMachine} which never fires.
  *
- * <p>Using this trigger will only produce output when the watermark passes the end of the
- * {@link BoundedWindow window} plus the allowed lateness.
+ * <p>Using this trigger will only produce output when the watermark passes the end of the {@link
+ * BoundedWindow window} plus the allowed lateness.
  */
 public final class NeverStateMachine extends TriggerStateMachine {
   /**

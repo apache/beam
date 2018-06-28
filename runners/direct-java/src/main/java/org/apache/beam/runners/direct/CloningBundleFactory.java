@@ -39,6 +39,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   private final ImmutableListBundleFactory underlying;
+
   private CloningBundleFactory() {
     this.underlying = ImmutableListBundleFactory.create();
   }
@@ -50,8 +51,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(
-      PCollection<T> output) {
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
     return new CloningBundle<>(underlying.createBundle(output));
   }
 

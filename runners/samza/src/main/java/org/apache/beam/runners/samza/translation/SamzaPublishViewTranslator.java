@@ -27,34 +27,34 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.samza.operators.MessageStream;
 
-/**
- * Translates {@link SamzaPublishView} to a view {@link MessageStream} as side input.
- */
+/** Translates {@link SamzaPublishView} to a view {@link MessageStream} as side input. */
 class SamzaPublishViewTranslator<ElemT, ViewT>
     implements TransformTranslator<SamzaPublishView<ElemT, ViewT>> {
   @Override
-  public void translate(SamzaPublishView<ElemT, ViewT> transform,
-                        TransformHierarchy.Node node,
-                        TranslationContext ctx) {
+  public void translate(
+      SamzaPublishView<ElemT, ViewT> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<List<ElemT>> input = ctx.getInput(transform);
     final MessageStream<OpMessage<Iterable<ElemT>>> inputStream = ctx.getMessageStream(input);
     @SuppressWarnings("unchecked")
     final Coder<WindowedValue<Iterable<ElemT>>> elementCoder = (Coder) SamzaCoders.of(input);
 
-    final MessageStream<WindowedValue<Iterable<ElemT>>> elementStream = inputStream
-        .filter(msg -> msg.getType() == OpMessage.Type.ELEMENT)
-        .map(OpMessage::getElement);
+    final MessageStream<WindowedValue<Iterable<ElemT>>> elementStream =
+        inputStream
+            .filter(msg -> msg.getType() == OpMessage.Type.ELEMENT)
+            .map(OpMessage::getElement);
 
     // TODO: once SAMZA-1580 is resolved, this optimization will go directly inside Samza
     final MessageStream<WindowedValue<Iterable<ElemT>>> broadcastStream =
         ctx.getPipelineOptions().getMaxSourceParallelism() == 1
-          ? elementStream
-          : elementStream
-            .broadcast(SamzaCoders.toSerde(elementCoder), "view-" + ctx.getCurrentTopologicalId());
+            ? elementStream
+            : elementStream.broadcast(
+                SamzaCoders.toSerde(elementCoder), "view-" + ctx.getCurrentTopologicalId());
 
     final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =
-        broadcastStream
-            .map(element -> OpMessage.ofSideInput(ctx.getViewId(transform.getView()), element));
+        broadcastStream.map(
+            element -> OpMessage.ofSideInput(ctx.getViewId(transform.getView()), element));
 
     ctx.registerViewStream(transform.getView(), outputStream);
   }

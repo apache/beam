@@ -25,8 +25,8 @@ import io.grpc.stub.StreamObserver;
 /**
  * A {@link ClientResponseObserver} which delegates all {@link StreamObserver} calls.
  *
- * <p>Used to wrap existing {@link StreamObserver}s to be able to install an
- * {@link ClientCallStreamObserver#setOnReadyHandler(Runnable) onReadyHandler}.
+ * <p>Used to wrap existing {@link StreamObserver}s to be able to install an {@link
+ * ClientCallStreamObserver#setOnReadyHandler(Runnable) onReadyHandler}.
  *
  * <p>This is as thread-safe as the underlying stream observer that is being wrapped.
  */
@@ -40,8 +40,7 @@ public final class ForwardingClientResponseObserver<ReqT, RespT>
   private final Runnable onReadyHandler;
   private final StreamObserver<ReqT> inboundObserver;
 
-  ForwardingClientResponseObserver(
-      StreamObserver<ReqT> inboundObserver, Runnable onReadyHandler) {
+  ForwardingClientResponseObserver(StreamObserver<ReqT> inboundObserver, Runnable onReadyHandler) {
     this.inboundObserver = inboundObserver;
     this.onReadyHandler = onReadyHandler;
   }

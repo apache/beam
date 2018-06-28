@@ -25,10 +25,9 @@ import java.io.OutputStream;
 /**
  * Variable-length encoding for integers.
  *
- * <p>Handles, in a common encoding format, signed bytes, shorts, ints, and longs.
- * Takes between 1 and 10 bytes.
- * Less efficient than BigEndian{Int,Long} coder for negative or large numbers.
- * All negative ints are encoded using 5 bytes, longs take 10 bytes.
+ * <p>Handles, in a common encoding format, signed bytes, shorts, ints, and longs. Takes between 1
+ * and 10 bytes. Less efficient than BigEndian{Int,Long} coder for negative or large numbers. All
+ * negative ints are encoded using 5 bytes, longs take 10 bytes.
  */
 public class VarInt {
 
@@ -36,16 +35,12 @@ public class VarInt {
     return v & 0xFFFFFFFFL;
   }
 
-  /**
-   * Encodes the given value onto the stream.
-   */
+  /** Encodes the given value onto the stream. */
   public static void encode(int v, OutputStream stream) throws IOException {
     encode(convertIntToLongNoSignExtend(v), stream);
   }
 
-  /**
-   * Encodes the given value onto the stream.
-   */
+  /** Encodes the given value onto the stream. */
   public static void encode(long v, OutputStream stream) throws IOException {
     do {
       // Encode next 7 bits + terminator bit
@@ -56,9 +51,7 @@ public class VarInt {
     } while (v != 0);
   }
 
-  /**
-   * Decodes an integer value from the given stream.
-   */
+  /** Decodes an integer value from the given stream. */
   public static int decodeInt(InputStream stream) throws IOException {
     long r = decodeLong(stream);
     if (r < 0 || r >= 1L << 32) {
@@ -67,9 +60,7 @@ public class VarInt {
     return (int) r;
   }
 
-  /**
-   * Decodes a long value from the given stream.
-   */
+  /** Decodes a long value from the given stream. */
   public static long decodeLong(InputStream stream) throws IOException {
     long result = 0;
     int shift = 0;
@@ -95,16 +86,12 @@ public class VarInt {
     return result;
   }
 
-  /**
-   * Returns the length of the encoding of the given value (in bytes).
-   */
+  /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(int v) {
     return getLength(convertIntToLongNoSignExtend(v));
   }
 
-  /**
-   * Returns the length of the encoding of the given value (in bytes).
-   */
+  /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(long v) {
     int result = 0;
     do {

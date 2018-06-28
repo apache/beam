@@ -38,12 +38,13 @@ public class StringDelegateCoderTest {
 
   private static final Coder<URI> uriCoder = StringDelegateCoder.of(URI.class);
 
-  private static final List<String> TEST_URI_STRINGS = Arrays.asList(
-      "http://www.example.com",
-      "gs://myproject/mybucket/some/gcs/path",
-      "/just/some/path",
-      "file:/path/with/no/authority",
-      "file:///path/with/empty/authority");
+  private static final List<String> TEST_URI_STRINGS =
+      Arrays.asList(
+          "http://www.example.com",
+          "gs://myproject/mybucket/some/gcs/path",
+          "/just/some/path",
+          "file:/path/with/no/authority",
+          "file:///path/with/empty/authority");
 
   // Tests
 

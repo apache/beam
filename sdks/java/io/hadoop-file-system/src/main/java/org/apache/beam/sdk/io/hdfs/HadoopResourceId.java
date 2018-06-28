@@ -26,9 +26,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
 
-/**
- * {@link ResourceId} implementation for the {@link HadoopFileSystem}.
- */
+/** {@link ResourceId} implementation for the {@link HadoopFileSystem}. */
 class HadoopResourceId implements ResourceId {
   private final URI uri;
 

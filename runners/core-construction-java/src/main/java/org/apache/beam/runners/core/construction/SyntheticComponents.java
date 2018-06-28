@@ -20,9 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import java.util.function.Predicate;
 
-/**
- * A utility class to interact with synthetic pipeline components.
- */
+/** A utility class to interact with synthetic pipeline components. */
 public class SyntheticComponents {
   private SyntheticComponents() {}
 

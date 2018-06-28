@@ -51,8 +51,8 @@ public class PTransformMatchers {
   private PTransformMatchers() {}
 
   /**
-   * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the URN of the
-   * {@link PTransform} is equal to the URN provided ot this matcher.
+   * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the URN of the {@link
+   * PTransform} is equal to the URN provided ot this matcher.
    */
   public static PTransformMatcher urnEqualTo(String urn) {
     return new EqualUrnPTransformMatcher(urn);
@@ -72,9 +72,7 @@ public class PTransformMatchers {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("urn", urn)
-          .toString();
+      return MoreObjects.toStringHelper(this).add("urn", urn).toString();
     }
   }
 
@@ -211,8 +209,8 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo} transform by URN
-   * and whether it contains state or timers as specified by {@link ParDoTranslation}.
+   * A {@link PTransformMatcher} that matches a {@link ParDo} transform by URN and whether it
+   * contains state or timers as specified by {@link ParDoTranslation}.
    */
   public static PTransformMatcher stateOrTimerParDo() {
     return new PTransformMatcher() {
@@ -243,8 +241,8 @@ public class PTransformMatchers {
 
   /**
    * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
-   * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and
-   * {@link DoFnSignature#usesTimers()}.
+   * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and {@link
+   * DoFnSignature#usesTimers()}.
    */
   public static PTransformMatcher stateOrTimerParDoMulti() {
     return new PTransformMatcher() {
@@ -307,8 +305,8 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
-   * consumes no input {@link PCollection PCollections}.
+   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which consumes no
+   * input {@link PCollection PCollections}.
    */
   public static PTransformMatcher emptyFlatten() {
     return new PTransformMatcher() {
@@ -326,8 +324,8 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
-   * consumes a single input {@link PCollection} multiple times.
+   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which consumes a
+   * single input {@link PCollection} multiple times.
    */
   public static PTransformMatcher flattenWithDuplicateInputs() {
     return new PTransformMatcher() {

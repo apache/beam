@@ -34,8 +34,11 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 public abstract class DistributionData implements Serializable {
 
   public abstract long sum();
+
   public abstract long count();
+
   public abstract long min();
+
   public abstract long max();
 
   public static final DistributionData EMPTY = create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);

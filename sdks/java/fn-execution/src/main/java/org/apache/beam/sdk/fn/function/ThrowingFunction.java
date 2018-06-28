@@ -23,8 +23,8 @@ import java.util.function.Function;
 /**
  * A {@link Function} which can throw {@link Exception}s.
  *
- * <p>Used to expand the allowed set of method references to be used by Java 8
- * functional interfaces.
+ * <p>Used to expand the allowed set of method references to be used by Java 8 functional
+ * interfaces.
  */
 @FunctionalInterface
 public interface ThrowingFunction<T1, T2> {

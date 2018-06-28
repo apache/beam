@@ -33,8 +33,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Provides interface to create {@link Schema} and then {@link Row} instances
- * based on the element type.
+ * Provides interface to create {@link Schema} and then {@link Row} instances based on the element
+ * type.
  *
  * <p>Relies on delegate {@code elementCoder} to encode original elements.
  */
@@ -43,20 +43,22 @@ import org.apache.beam.sdk.values.Row;
 public abstract class InferredRowCoder<T> extends CustomCoder<T> {
 
   abstract RowFactory rowFactory();
+
   abstract Coder<T> delegateCoder();
+
   abstract Class<T> elementType();
 
   /**
-   * Creates a {@link InferredRowCoder} delegating to the {@link SerializableCoder}
-   * for encoding the {@link PCollection} elements.
+   * Creates a {@link InferredRowCoder} delegating to the {@link SerializableCoder} for encoding the
+   * {@link PCollection} elements.
    */
   public static <W extends Serializable> InferredRowCoder<W> ofSerializable(Class<W> elementType) {
     return of(elementType, SerializableCoder.of(elementType));
   }
 
   /**
-   * Creates a {@link InferredRowCoder} delegating to the {@code elementCoder}
-   * for encoding the {@link PCollection} elements.
+   * Creates a {@link InferredRowCoder} delegating to the {@code elementCoder} for encoding the
+   * {@link PCollection} elements.
    */
   public static <W> InferredRowCoder<W> of(Class<W> elementType, Coder<W> elementCoder) {
     return InferredRowCoder.<W>builder()
@@ -109,7 +111,9 @@ public abstract class InferredRowCoder<T> extends CustomCoder<T> {
   @AutoValue.Builder
   abstract static class Builder<T> {
     abstract Builder<T> setRowFactory(RowFactory rowFactory);
+
     abstract Builder<T> setElementType(Class<T> clazz);
+
     abstract Builder<T> setDelegateCoder(Coder<T> coder);
 
     abstract InferredRowCoder<T> build();

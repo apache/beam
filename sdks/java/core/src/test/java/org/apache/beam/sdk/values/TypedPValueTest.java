@@ -34,20 +34,17 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TypedPValue}, primarily focusing on Coder inference.
- */
+/** Tests for {@link TypedPValue}, primarily focusing on Coder inference. */
 @RunWith(JUnit4.class)
 public class TypedPValueTest {
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static class IdentityDoFn extends DoFn<Integer, Integer> {
     private static final long serialVersionUID = 0;
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
@@ -57,10 +54,10 @@ public class TypedPValueTest {
   private PCollectionTuple buildPCollectionTupleWithTags(
       TupleTag<Integer> mainOutputTag, TupleTag<Integer> additionalOutputTag) {
     PCollection<Integer> input = p.apply(Create.of(1, 2, 3));
-    PCollectionTuple tuple = input.apply(
-        ParDo
-        .of(new IdentityDoFn())
-        .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
+    PCollectionTuple tuple =
+        input.apply(
+            ParDo.of(new IdentityDoFn())
+                .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
     return tuple;
   }
 
@@ -121,11 +118,11 @@ public class TypedPValueTest {
    * This type is incompatible with all known coder providers such as Serializable,
    * {@code @DefaultCoder} which allows testing coder registry lookup failure cases.
    */
-  static class EmptyClass {
-  }
+  static class EmptyClass {}
 
   private static class EmptyClassDoFn extends DoFn<Integer, EmptyClass> {
     private static final long serialVersionUID = 0;
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(new EmptyClass());
@@ -153,8 +150,7 @@ public class TypedPValueTest {
     p.enableAbandonedNodeEnforcement(false);
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     ParDo.SingleOutput<Integer, EmptyClass> uninferrableParDo = ParDo.of(new EmptyClassDoFn());
-    PCollection<EmptyClass> unencodable =
-        created.apply(uninferrableParDo);
+    PCollection<EmptyClass> unencodable = created.apply(uninferrableParDo);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder");

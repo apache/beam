@@ -35,8 +35,11 @@ public abstract class JobInfo implements Serializable {
   }
 
   public abstract String jobId();
+
   public abstract String jobName();
+
   public abstract String retrievalToken();
+
   public abstract Struct pipelineOptions();
 
   public ProvisionApi.ProvisionInfo toProvisionInfo() {

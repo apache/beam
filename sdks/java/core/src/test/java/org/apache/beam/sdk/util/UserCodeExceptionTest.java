@@ -35,14 +35,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link UserCodeException} functionality.
- */
+/** Tests for {@link UserCodeException} functionality. */
 @RunWith(JUnit4.class)
 public class UserCodeExceptionTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void existingUserCodeExceptionsNotWrapped() {
@@ -146,7 +143,7 @@ public class UserCodeExceptionTest {
   }
 
   static class ThrowableBottomStackFrameMethodMatcher
-    extends FeatureMatcher<Throwable, StackTraceElement> {
+      extends FeatureMatcher<Throwable, StackTraceElement> {
 
     public ThrowableBottomStackFrameMethodMatcher(Matcher<StackTraceElement> subMatcher) {
       super(subMatcher, "Throwable with bottom stack frame:", "stack frame");

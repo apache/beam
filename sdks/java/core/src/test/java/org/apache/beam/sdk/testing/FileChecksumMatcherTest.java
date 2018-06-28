@@ -38,13 +38,10 @@ import org.mockito.Mockito;
 /** Tests for {@link FileChecksumMatcher}. */
 @RunWith(JUnit4.class)
 public class FileChecksumMatcherTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock
-  private PipelineResult pResult = Mockito.mock(PipelineResult.class);
+  @Mock private PipelineResult pResult = Mockito.mock(PipelineResult.class);
 
   @Test
   public void testPreconditionChecksumIsNull() throws IOException {
@@ -84,7 +81,7 @@ public class FileChecksumMatcherTest {
   }
 
   @Test
-  public void testMatcherThatVerifiesSingleFile() throws IOException{
+  public void testMatcherThatVerifiesSingleFile() throws IOException {
     File tmpFile = tmpFolder.newFile("result-000-of-001");
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
     FileChecksumMatcher matcher =
@@ -132,10 +129,11 @@ public class FileChecksumMatcherTest {
 
     Pattern customizedTemplate =
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
-    FileChecksumMatcher matcher = new FileChecksumMatcher(
-        "90552392c28396935fe4f123bd0b5c2d0f6260c8",
-        tmpFolder.getRoot().toPath().resolve("*").toString(),
-        customizedTemplate);
+    FileChecksumMatcher matcher =
+        new FileChecksumMatcher(
+            "90552392c28396935fe4f123bd0b5c2d0f6260c8",
+            tmpFolder.getRoot().toPath().resolve("*").toString(),
+            customizedTemplate);
 
     assertThat(pResult, matcher);
   }

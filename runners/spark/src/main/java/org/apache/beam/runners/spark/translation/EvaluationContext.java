@@ -46,8 +46,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 /**
- * The EvaluationContext allows us to define pipeline instructions and translate between
- * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
+ * The EvaluationContext allows us to define pipeline instructions and translate between {@code
+ * PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
 public class EvaluationContext {
   private final JavaSparkContext jsc;
@@ -112,8 +112,9 @@ public class EvaluationContext {
   }
 
   public <T> Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
-    checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
-        "can only be called with current transform");
+    checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
+    checkArgument(
+        currentTransform.getTransform() == transform, "can only be called with current transform");
     return currentTransform.getInputs();
   }
 
@@ -124,8 +125,9 @@ public class EvaluationContext {
   }
 
   public Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
-    checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
-        "can only be called with current transform");
+    checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
+    checkArgument(
+        currentTransform.getTransform() == transform, "can only be called with current transform");
     return currentTransform.getOutputs();
   }
 
@@ -138,14 +140,13 @@ public class EvaluationContext {
     return false;
   }
 
-  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset,
-      boolean forceCache) {
+  public void putDataset(
+      PTransform<?, ? extends PValue> transform, Dataset dataset, boolean forceCache) {
     putDataset(getOutput(transform), dataset, forceCache);
   }
 
-
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(transform, dataset,  false);
+    putDataset(transform, dataset, false);
   }
 
   public void putDataset(PValue pvalue, Dataset dataset, boolean forceCache) {
@@ -175,8 +176,9 @@ public class EvaluationContext {
       WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
           WindowedValue.getValueOnlyCoder(coder);
       JavaRDD<WindowedValue<T>> rdd =
-          getSparkContext().parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
-          .map(CoderHelpers.fromByteFunction(windowCoder));
+          getSparkContext()
+              .parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
+              .map(CoderHelpers.fromByteFunction(windowCoder));
       putDataset(transform, new BoundedDataset<>(rdd));
     } else {
       // create a BoundedDataset that would create a RDD on demand
@@ -208,7 +210,7 @@ public class EvaluationContext {
    * Retrieve an object of Type T associated with the PValue passed in.
    *
    * @param value PValue to retrieve associated data for.
-   * @param <T>  Type of object to return.
+   * @param <T> Type of object to return.
    * @return Native object.
    */
   @SuppressWarnings("TypeParameterUnusedInFormals")
@@ -268,5 +270,4 @@ public class EvaluationContext {
   public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
   }
-
 }

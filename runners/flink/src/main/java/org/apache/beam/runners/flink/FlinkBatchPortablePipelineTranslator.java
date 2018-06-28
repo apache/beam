@@ -130,8 +130,7 @@ public class FlinkBatchPortablePipelineTranslator
 
   /** Creates a batch translator. */
   public static FlinkBatchPortablePipelineTranslator createTranslator() {
-    ImmutableMap.Builder<String, PTransformTranslator> translatorMap =
-        ImmutableMap.builder();
+    ImmutableMap.Builder<String, PTransformTranslator> translatorMap = ImmutableMap.builder();
     translatorMap.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN,
         FlinkBatchPortablePipelineTranslator::translateFlatten);
@@ -320,7 +319,7 @@ public class FlinkBatchPortablePipelineTranslator
     Map<String, String> outputs = transform.getTransform().getOutputsMap();
     // Mapping from PCollection id to coder tag id.
     BiMap<String, Integer> outputMap =
-            FlinkPipelineTranslatorUtils.createOutputMap(outputs.values());
+        FlinkPipelineTranslatorUtils.createOutputMap(outputs.values());
     // Collect all output Coders and create a UnionCoder for our tagged outputs.
     List<Coder<?>> unionCoders = Lists.newArrayList();
     // Enforce tuple tag sorting by union tag index.
@@ -615,5 +614,4 @@ public class FlinkBatchPortablePipelineTranslator
             String.format("%s/out.%d", transformName, unionTag));
     context.addDataSet(collectionId, pruningOperator);
   }
-
 }

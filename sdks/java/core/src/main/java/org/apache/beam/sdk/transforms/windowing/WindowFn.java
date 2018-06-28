@@ -28,95 +28,72 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
 /**
- * The argument to the {@link Window} transform used to assign elements into
- * windows and to determine how windows are merged.  See {@link Window} for more
- * information on how {@code WindowFn}s are used and for a library of
- * predefined {@link WindowFn WindowFns}.
+ * The argument to the {@link Window} transform used to assign elements into windows and to
+ * determine how windows are merged. See {@link Window} for more information on how {@code
+ * WindowFn}s are used and for a library of predefined {@link WindowFn WindowFns}.
  *
- * <p>Users will generally want to use the predefined
- * {@link WindowFn WindowFns}, but it is also possible to create new
- * subclasses.
+ * <p>Users will generally want to use the predefined {@link WindowFn WindowFns}, but it is also
+ * possible to create new subclasses.
  *
  * <p>To create a custom {@link WindowFn}, inherit from this class and override all required
- * methods.  If no merging is required, inherit from {@link NonMergingWindowFn}
- * instead.  If no merging is required and each element is assigned to a single window, inherit from
- * {@link PartitioningWindowFn}.  Inheriting from the most specific subclass will enable more
- * optimizations in the runner.
+ * methods. If no merging is required, inherit from {@link NonMergingWindowFn} instead. If no
+ * merging is required and each element is assigned to a single window, inherit from {@link
+ * PartitioningWindowFn}. Inheriting from the most specific subclass will enable more optimizations
+ * in the runner.
  *
  * @param <T> type of elements being windowed
- * @param <W> {@link BoundedWindow} subclass used to represent the
- *            windows used by this {@link WindowFn}
+ * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this {@link
+ *     WindowFn}
  */
-public abstract class WindowFn<T, W extends BoundedWindow>
-    implements Serializable, HasDisplayData {
-  /**
-   * Information available when running {@link #assignWindows}.
-   */
+public abstract class WindowFn<T, W extends BoundedWindow> implements Serializable, HasDisplayData {
+  /** Information available when running {@link #assignWindows}. */
   public abstract class AssignContext {
-    /**
-     * Returns the current element.
-     */
+    /** Returns the current element. */
     public abstract T element();
 
-    /**
-     * Returns the timestamp of the current element.
-     */
+    /** Returns the timestamp of the current element. */
     public abstract Instant timestamp();
 
-    /**
-     * Returns the window of the current element prior to this
-     * {@code WindowFn} being called.
-     */
+    /** Returns the window of the current element prior to this {@code WindowFn} being called. */
     public abstract BoundedWindow window();
   }
 
-  /**
-   * Given a timestamp and element, returns the set of windows into which it
-   * should be placed.
-   */
+  /** Given a timestamp and element, returns the set of windows into which it should be placed. */
   public abstract Collection<W> assignWindows(AssignContext c) throws Exception;
 
-  /**
-   * Information available when running {@link #mergeWindows}.
-   */
+  /** Information available when running {@link #mergeWindows}. */
   public abstract class MergeContext {
-    /**
-     * Returns the current set of windows.
-     */
+    /** Returns the current set of windows. */
     public abstract Collection<W> windows();
 
     /**
-     * Signals to the framework that the windows in {@code toBeMerged} should
-     * be merged together to form {@code mergeResult}.
+     * Signals to the framework that the windows in {@code toBeMerged} should be merged together to
+     * form {@code mergeResult}.
      *
-     * <p>{@code toBeMerged} should be a subset of {@link #windows}
-     * and disjoint from the {@code toBeMerged} set of previous calls
-     * to {@code merge}.
+     * <p>{@code toBeMerged} should be a subset of {@link #windows} and disjoint from the {@code
+     * toBeMerged} set of previous calls to {@code merge}.
      *
-     * <p>{@code mergeResult} must either not be in {@link #windows} or be in
-     * {@code toBeMerged}.
+     * <p>{@code mergeResult} must either not be in {@link #windows} or be in {@code toBeMerged}.
      *
-     * @throws IllegalArgumentException if any elements of toBeMerged are not
-     * in windows(), or have already been merged
+     * @throws IllegalArgumentException if any elements of toBeMerged are not in windows(), or have
+     *     already been merged
      */
-    public abstract void merge(Collection<W> toBeMerged, W mergeResult)
-        throws Exception;
+    public abstract void merge(Collection<W> toBeMerged, W mergeResult) throws Exception;
   }
 
   /**
    * Does whatever merging of windows is necessary.
    *
-   * <p>See {@link MergeOverlappingIntervalWindows#mergeWindows} for an
-   * example of how to override this method.
+   * <p>See {@link MergeOverlappingIntervalWindows#mergeWindows} for an example of how to override
+   * this method.
    */
   public abstract void mergeWindows(MergeContext c) throws Exception;
 
   /**
-   * Returns whether this performs the same merging as the given
-   * {@code WindowFn}.
+   * Returns whether this performs the same merging as the given {@code WindowFn}.
    *
-   * @deprecated please override verifyCompatibility to throw a useful error message;
-   *     we will remove isCompatible at version 3.0.0
+   * @deprecated please override verifyCompatibility to throw a useful error message; we will remove
+   *     isCompatible at version 3.0.0
    */
   @Deprecated
   public abstract boolean isCompatible(WindowFn<?, ?> other);
@@ -133,15 +110,11 @@ public abstract class WindowFn<T, W extends BoundedWindow>
           other,
           String.format(
               "%s is not compatible with %s",
-              this.getClass().getSimpleName(),
-              other.getClass().getSimpleName()));
+              this.getClass().getSimpleName(), other.getClass().getSimpleName()));
     }
   }
 
-  /**
-   * Returns the {@link Coder} used for serializing the windows used
-   * by this windowFn.
-   */
+  /** Returns the {@link Coder} used for serializing the windows used by this windowFn. */
   public abstract Coder<W> windowCoder();
 
   /**
@@ -152,29 +125,27 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract WindowMappingFn<W> getDefaultWindowMappingFn();
 
   /**
-   * Returns the output timestamp to use for data depending on the given
-   * {@code inputTimestamp} in the specified {@code window}.
+   * Returns the output timestamp to use for data depending on the given {@code inputTimestamp} in
+   * the specified {@code window}.
    *
-   * <p>The result of this method must be between {@code inputTimestamp} and
-   * {@code window.maxTimestamp()} (inclusive on both sides).
+   * <p>The result of this method must be between {@code inputTimestamp} and {@code
+   * window.maxTimestamp()} (inclusive on both sides).
    *
    * <p>This function must be monotonic across input timestamps. Specifically, if {@code A < B},
    * then {@code getOutputTime(A, window) <= getOutputTime(B, window)}.
    *
    * <p>For a {@link WindowFn} that doesn't produce overlapping windows, this can (and typically
    * should) just return {@code inputTimestamp}. In the presence of overlapping windows, it is
-   * suggested that the result in later overlapping windows is past the end of earlier windows
-   * so that the later windows don't prevent the watermark from
-   * progressing past the end of the earlier window.
+   * suggested that the result in later overlapping windows is past the end of earlier windows so
+   * that the later windows don't prevent the watermark from progressing past the end of the earlier
+   * window.
    */
   @Experimental(Kind.OUTPUT_TIME)
   public Instant getOutputTime(Instant inputTimestamp, W window) {
     return inputTimestamp;
   }
 
-  /**
-   * Returns true if this {@code WindowFn} never needs to merge any windows.
-   */
+  /** Returns true if this {@code WindowFn} never needs to merge any windows. */
   public boolean isNonMerging() {
     return false;
   }
@@ -204,10 +175,9 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   /**
    * {@inheritDoc}
    *
-   * <p>By default, does not register any display data. Implementors may override this method
-   * to provide their own display data.
+   * <p>By default, does not register any display data. Implementors may override this method to
+   * provide their own display data.
    */
   @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-  }
+  public void populateDisplayData(DisplayData.Builder builder) {}
 }

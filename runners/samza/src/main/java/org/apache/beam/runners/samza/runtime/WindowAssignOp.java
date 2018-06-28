@@ -23,9 +23,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * Samza operator for {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}.
- */
+/** Samza operator for {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}. */
 public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void> {
   private final WindowFn<T, W> windowFn;
 
@@ -42,12 +40,15 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
       throw new RuntimeException(e);
     }
 
-    windows.stream()
-        .map(window -> WindowedValue.of(
-            inputElement.getValue(),
-            inputElement.getTimestamp(),
-            window,
-            inputElement.getPane()))
+    windows
+        .stream()
+        .map(
+            window ->
+                WindowedValue.of(
+                    inputElement.getValue(),
+                    inputElement.getTimestamp(),
+                    window,
+                    inputElement.getPane()))
         .forEach(outputElement -> emitter.emitElement(outputElement));
   }
 }

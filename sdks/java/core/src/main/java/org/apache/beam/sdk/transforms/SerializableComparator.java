@@ -25,5 +25,4 @@ import java.util.Comparator;
  *
  * @param <T> type of values being compared
  */
-public interface SerializableComparator<T> extends Comparator<T>, Serializable {
-}
+public interface SerializableComparator<T> extends Comparator<T>, Serializable {}

@@ -70,7 +70,8 @@ public class PrepareWrite<T, DestinationT>
                     checkArgument(
                         tableRow != null,
                         "formatFunction may not return null, but %s returned null on element %s",
-                        formatFunction, context.element());
+                        formatFunction,
+                        context.element());
                     context.output(KV.of(tableDestination, tableRow));
                   }
                 })

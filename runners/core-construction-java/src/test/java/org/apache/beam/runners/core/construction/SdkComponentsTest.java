@@ -50,10 +50,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link SdkComponents}. */
 @RunWith(JUnit4.class)
 public class SdkComponentsTest {
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private SdkComponents components = SdkComponents.create();
 
@@ -144,9 +142,7 @@ public class SdkComponentsTest {
     components.registerPTransform(transform, null);
   }
 
-  /**
-   * Tests that trying to register a transform which has unregistered children throws.
-   */
+  /** Tests that trying to register a transform which has unregistered children throws. */
   @Test
   public void registerTransformWithUnregisteredChildren() throws IOException {
     Create.Values<Long> create = Create.of(1L, 2L, 3L);

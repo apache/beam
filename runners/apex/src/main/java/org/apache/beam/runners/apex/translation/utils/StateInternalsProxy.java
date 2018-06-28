@@ -62,8 +62,8 @@ public class StateInternalsProxy<K> implements StateInternals, Serializable {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address,
-      StateContext<?> c) {
+  public <T extends State> T state(
+      StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
     return factory.stateInternalsForKey(currentKey).state(namespace, address, c);
   }
 }

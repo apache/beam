@@ -60,9 +60,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link PTransformTranslation}.
- */
+/** Tests for {@link PTransformTranslation}. */
 @RunWith(Parameterized.class)
 public class PTransformTranslationTest {
 
@@ -110,6 +108,7 @@ public class PTransformTranslationTest {
     }
 
     abstract AppliedPTransform<?, ?, ?> getTransform();
+
     abstract Collection<ToAndFromProtoSpec> getChildren();
   }
 
@@ -148,8 +147,8 @@ public class PTransformTranslationTest {
       // Sanity call
       components.getExistingPTransformId(child.getTransform());
     }
-    RunnerApi.PTransform convert = PTransformTranslation
-        .toProto(spec.getTransform(), childTransforms, components);
+    RunnerApi.PTransform convert =
+        PTransformTranslation.toProto(spec.getTransform(), childTransforms, components);
     // Make sure the converted transform is registered. Convert it independently, but if this is a
     // child spec, the child must be in the components.
     components.registerPTransform(spec.getTransform(), childTransforms);
@@ -158,7 +157,8 @@ public class PTransformTranslationTest {
 
   private static class TestDoFn extends DoFn<Long, KV<Long, String>> {
     // Exists to stop the ParDo application from throwing
-    @ProcessElement public void process(ProcessContext context) {}
+    @ProcessElement
+    public void process(ProcessContext context) {}
   }
 
   private static AppliedPTransform<?, ?, ?> generateSequence(Pipeline pipeline) {

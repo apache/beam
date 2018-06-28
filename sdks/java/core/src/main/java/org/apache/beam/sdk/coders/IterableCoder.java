@@ -23,8 +23,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
 /**
- * An {@link IterableCoder} encodes any {@link Iterable} in the format
- * of {@link IterableLikeCoder}.
+ * An {@link IterableCoder} encodes any {@link Iterable} in the format of {@link IterableLikeCoder}.
  *
  * @param <T> the type of the elements of the iterables being transcoded
  */

@@ -26,23 +26,23 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /**
- * {@link DoFnRunner} wrapper with metrics. The class uses {@link SamzaMetricsContainer}
- * to keep BEAM metrics results and update Samza metrics.
+ * {@link DoFnRunner} wrapper with metrics. The class uses {@link SamzaMetricsContainer} to keep
+ * BEAM metrics results and update Samza metrics.
  */
 public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
   private final DoFnRunner<InT, OutT> underlying;
   private final SamzaMetricsContainer metricsContainer;
   private final FnWithMetricsWrapper metricsWrapper;
 
-  private DoFnRunnerWithMetrics(DoFnRunner<InT, OutT> underlying,
-      SamzaMetricsContainer metricsContainer, String stepName) {
+  private DoFnRunnerWithMetrics(
+      DoFnRunner<InT, OutT> underlying, SamzaMetricsContainer metricsContainer, String stepName) {
     this.underlying = underlying;
     this.metricsContainer = metricsContainer;
     this.metricsWrapper = new FnWithMetricsWrapper(metricsContainer, stepName);
   }
 
-  public static <InT, OutT> DoFnRunner<InT, OutT> wrap(DoFnRunner<InT, OutT> doFnRunner,
-      SamzaMetricsContainer metricsContainer, String stepName) {
+  public static <InT, OutT> DoFnRunner<InT, OutT> wrap(
+      DoFnRunner<InT, OutT> doFnRunner, SamzaMetricsContainer metricsContainer, String stepName) {
     return new DoFnRunnerWithMetrics<>(doFnRunner, metricsContainer, stepName);
   }
 
@@ -57,27 +57,30 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-      TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     withMetrics(() -> underlying.onTimer(timerId, window, timestamp, timeDomain));
   }
 
-  @Override public void finishBundle() {
+  @Override
+  public void finishBundle() {
     withMetrics(() -> underlying.finishBundle());
 
     metricsContainer.updateMetrics();
   }
 
-  @Override public DoFn<InT, OutT> getFn() {
+  @Override
+  public DoFn<InT, OutT> getFn() {
     return underlying.getFn();
   }
 
   private void withMetrics(Runnable runnable) {
     try {
-      metricsWrapper.wrap(() -> {
-        runnable.run();
-        return (Void) null;
-      });
+      metricsWrapper.wrap(
+          () -> {
+            runnable.run();
+            return (Void) null;
+          });
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

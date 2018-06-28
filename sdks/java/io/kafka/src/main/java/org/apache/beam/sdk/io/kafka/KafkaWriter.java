@@ -35,8 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A DoFn to write to Kafka, used in KafkaIO Write transform.
- * See {@link KafkaIO} for user visible documentation and example usage.
+ * A DoFn to write to Kafka, used in KafkaIO Write transform. See {@link KafkaIO} for user visible
+ * documentation and example usage.
  */
 class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
@@ -56,12 +56,14 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
     checkForFailures();
 
     KV<K, V> kv = ctx.element();
-    Long timestampMillis = spec.getPublishTimestampFunction() != null
-      ? spec.getPublishTimestampFunction().getTimestamp(kv, ctx.timestamp()).getMillis()
-      : null;
+    Long timestampMillis =
+        spec.getPublishTimestampFunction() != null
+            ? spec.getPublishTimestampFunction().getTimestamp(kv, ctx.timestamp()).getMillis()
+            : null;
 
-    producer.send(new ProducerRecord<>(
-        spec.getTopic(), null, timestampMillis, kv.getKey(), kv.getValue()), new SendCallback());
+    producer.send(
+        new ProducerRecord<>(spec.getTopic(), null, timestampMillis, kv.getKey(), kv.getValue()),
+        new SendCallback());
 
     elementsWritten.inc();
   }
@@ -96,10 +98,9 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
     this.producerConfig = new HashMap<>(spec.getProducerConfig());
 
-    this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                            spec.getKeySerializer());
-    this.producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                            spec.getValueSerializer());
+    this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, spec.getKeySerializer());
+    this.producerConfig.put(
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer());
   }
 
   private synchronized void checkForFailures() throws IOException {
@@ -107,8 +108,9 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
       return;
     }
 
-    String msg = String.format(
-        "KafkaWriter : failed to send %d records (since last report)", numSendFailures);
+    String msg =
+        String.format(
+            "KafkaWriter : failed to send %d records (since last report)", numSendFailures);
 
     Exception e = sendException;
     sendException = null;

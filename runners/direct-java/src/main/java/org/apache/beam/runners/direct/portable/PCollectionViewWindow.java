@@ -22,9 +22,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * A pair of a {@link PCollectionView} and a {@link BoundedWindow}, which can
- * be thought of as window "of" the view. This is a value class for use e.g.
- * as a compound cache key.
+ * A pair of a {@link PCollectionView} and a {@link BoundedWindow}, which can be thought of as
+ * window "of" the view. This is a value class for use e.g. as a compound cache key.
  *
  * @param <T> the type of the underlying PCollectionView
  */

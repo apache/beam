@@ -33,22 +33,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of SerializableAvroCodecFactory.
- */
+/** Tests of SerializableAvroCodecFactory. */
 @RunWith(JUnit4.class)
 public class SerializableAvroCodecFactoryTest {
-  private final List<String> avroCodecs = Arrays.asList(NULL_CODEC,
-      SNAPPY_CODEC,
-      DEFLATE_CODEC,
-      XZ_CODEC,
-      BZIP2_CODEC);
+  private final List<String> avroCodecs =
+      Arrays.asList(NULL_CODEC, SNAPPY_CODEC, DEFLATE_CODEC, XZ_CODEC, BZIP2_CODEC);
 
   @Test
   public void testDefaultCodecsIn() throws Exception {
     for (String codec : avroCodecs) {
-      SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory(
-          CodecFactory.fromString(codec));
+      SerializableAvroCodecFactory codecFactory =
+          new SerializableAvroCodecFactory(CodecFactory.fromString(codec));
 
       assertEquals((CodecFactory.fromString(codec).toString()), codecFactory.getCodec().toString());
     }
@@ -57,8 +52,8 @@ public class SerializableAvroCodecFactoryTest {
   @Test
   public void testDefaultCodecsSerDe() throws Exception {
     for (String codec : avroCodecs) {
-      SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory(
-          CodecFactory.fromString(codec));
+      SerializableAvroCodecFactory codecFactory =
+          new SerializableAvroCodecFactory(CodecFactory.fromString(codec));
 
       SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
 
@@ -69,8 +64,8 @@ public class SerializableAvroCodecFactoryTest {
   @Test
   public void testDeflateCodecSerDeWithLevels() throws Exception {
     for (int i = 0; i < 10; ++i) {
-      SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory(
-          CodecFactory.deflateCodec(i));
+      SerializableAvroCodecFactory codecFactory =
+          new SerializableAvroCodecFactory(CodecFactory.deflateCodec(i));
 
       SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
 
@@ -81,8 +76,8 @@ public class SerializableAvroCodecFactoryTest {
   @Test
   public void testXZCodecSerDeWithLevels() throws Exception {
     for (int i = 0; i < 10; ++i) {
-      SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory(
-          CodecFactory.xzCodec(i));
+      SerializableAvroCodecFactory codecFactory =
+          new SerializableAvroCodecFactory(CodecFactory.xzCodec(i));
 
       SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
 
@@ -97,4 +92,3 @@ public class SerializableAvroCodecFactoryTest {
     codec.toString();
   }
 }
-

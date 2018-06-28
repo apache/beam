@@ -60,25 +60,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkRunner translate operations defined on a pipeline to a representation executable
- * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam
- * pipeline with the default options of a single threaded spark instance in local mode, we would do
- * the following:
+ * The SparkRunner translate operations defined on a pipeline to a representation executable by
+ * Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam pipeline
+ * with the default options of a single threaded spark instance in local mode, we would do the
+ * following:
  *
- * {@code
- * Pipeline p = [logic for pipeline creation]
- * SparkPipelineResult result = (SparkPipelineResult) p.run();
- * }
+ * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineResult result =
+ * (SparkPipelineResult) p.run(); }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
- * {@code
- * Pipeline p = [logic for pipeline creation]
- * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
- * options.setSparkMaster("spark://host:port");
- * SparkPipelineResult result = (SparkPipelineResult) p.run();
- * }
+ * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineOptions options =
+ * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
+ * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
@@ -158,8 +153,9 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static void awaitWatermarksOrTimeout(
       TestSparkPipelineOptions testSparkPipelineOptions, SparkPipelineResult result) {
-    Long timeoutMillis = Duration.standardSeconds(
-        checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds())).getMillis();
+    Long timeoutMillis =
+        Duration.standardSeconds(checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds()))
+            .getMillis();
     Long batchDurationMillis = testSparkPipelineOptions.getBatchIntervalMillis();
     Instant stopPipelineWatermark =
         new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
@@ -176,7 +172,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       // let another batch-interval period of execution, just to reason about WM propagation.
       Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
     } while ((timeoutMillis -= batchDurationMillis) > 0
-          && globalWatermark.isBefore(stopPipelineWatermark));
+        && globalWatermark.isBefore(stopPipelineWatermark));
   }
 
   @VisibleForTesting
@@ -200,8 +196,10 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     public PCollection<T> expand(PBegin input) {
       PTransform<PBegin, ? extends PCollection<ValueWithRecordId<T>>> replacingTransform =
           new UnboundedReadFromBoundedSource<>(source.getAdaptedSource());
-      return (PCollection<T>) input.apply(replacingTransform)
-          .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
+      return (PCollection<T>)
+          input
+              .apply(replacingTransform)
+              .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
     }
 
     static class Factory<T>

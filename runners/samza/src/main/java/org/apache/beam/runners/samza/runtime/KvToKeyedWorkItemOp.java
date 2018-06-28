@@ -22,19 +22,16 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
-/**
- * Samza operator to map input stream of {@link KV} to {@link KeyedWorkItem}.
- */
+/** Samza operator to map input stream of {@link KV} to {@link KeyedWorkItem}. */
 public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, V>, K> {
 
   @Override
-  public void processElement(WindowedValue<KV<K, V>> inputElement,
-                             OpEmitter<KeyedWorkItem<K, V>> emitter) {
+  public void processElement(
+      WindowedValue<KV<K, V>> inputElement, OpEmitter<KeyedWorkItem<K, V>> emitter) {
     final KV<K, V> kv = inputElement.getValue();
     for (WindowedValue<KV<K, V>> windowedValue : inputElement.explodeWindows()) {
-      final KeyedWorkItem<K, V> workItem = new SingletonKeyedWorkItem<>(
-          kv.getKey(),
-          windowedValue.withValue(kv.getValue()));
+      final KeyedWorkItem<K, V> workItem =
+          new SingletonKeyedWorkItem<>(kv.getKey(), windowedValue.withValue(kv.getValue()));
       emitter.emitElement(windowedValue.withValue(workItem));
     }
   }

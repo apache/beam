@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,8 +27,8 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
- * A {@link Coder} for {@link TableDestination} that includes time partitioning information. This
- * is a new coder (instead of extending the old {@link TableDestinationCoder}) for compatibility
+ * A {@link Coder} for {@link TableDestination} that includes time partitioning information. This is
+ * a new coder (instead of extending the old {@link TableDestinationCoder}) for compatibility
  * reasons. The old coder is kept around for the same compatibility reasons.
  */
 public class TableDestinationCoderV2 extends AtomicCoder<TableDestination> {

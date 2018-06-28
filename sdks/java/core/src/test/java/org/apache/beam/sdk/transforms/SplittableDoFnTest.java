@@ -244,8 +244,8 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
-    PCollection<Integer> outputs = p.apply(Create.of("foo"))
-        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock(3)));
+    PCollection<Integer> outputs =
+        p.apply(Create.of("foo")).apply(ParDo.of(new SDFWithMultipleOutputsPerBlock(3)));
     PAssert.thatSingleton(outputs.apply(Count.globally()))
         .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
     p.run();

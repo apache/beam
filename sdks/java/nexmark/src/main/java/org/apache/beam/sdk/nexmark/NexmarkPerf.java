@@ -23,34 +23,27 @@ import java.io.IOException;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/**
- * Summary of performance for a particular run of a configuration.
- */
+/** Summary of performance for a particular run of a configuration. */
 public class NexmarkPerf {
   /**
-   * A sample of the number of events and number of results (if known) generated at
-   * a particular time.
+   * A sample of the number of events and number of results (if known) generated at a particular
+   * time.
    */
   public static class ProgressSnapshot {
     /** Seconds since job was started (in wallclock time). */
-    @JsonProperty
-    double secSinceStart;
+    @JsonProperty double secSinceStart;
 
     /** Job runtime in seconds (time from first event to last generated event or output result). */
-    @JsonProperty
-    double runtimeSec;
+    @JsonProperty double runtimeSec;
 
     /** Cumulative number of events generated. -1 if not known. */
-    @JsonProperty
-    long numEvents;
+    @JsonProperty long numEvents;
 
     /** Cumulative number of results emitted. -1 if not known. */
-    @JsonProperty
-    long numResults;
+    @JsonProperty long numResults;
 
     /**
-     * Return true if there looks to be activity between {@code this} and {@code that}
-     * snapshots.
+     * Return true if there looks to be activity between {@code this} and {@code that} snapshots.
      */
     public boolean anyActivity(ProgressSnapshot that) {
       if (runtimeSec != that.runtimeSec) {
@@ -69,102 +62,60 @@ public class NexmarkPerf {
     }
   }
 
-  /**
-   * Progess snapshots. Null if not yet calculated.
-   */
-  @JsonProperty
-  @Nullable
-  public List<ProgressSnapshot> snapshots = null;
+  /** Progess snapshots. Null if not yet calculated. */
+  @JsonProperty @Nullable public List<ProgressSnapshot> snapshots = null;
 
   /**
    * Effective runtime, in seconds. Measured from timestamp of first generated event to latest of
    * timestamp of last generated event and last emitted result. -1 if not known.
    */
-  @JsonProperty
-  public double runtimeSec = -1.0;
+  @JsonProperty public double runtimeSec = -1.0;
+
+  /** Number of events generated. -1 if not known. */
+  @JsonProperty public long numEvents = -1;
 
   /**
-   * Number of events generated. -1 if not known.
+   * Number of events generated per second of runtime. For batch this is number of events over the
+   * above runtime. For streaming this is the 'steady-state' event generation rate sampled over the
+   * lifetime of the job. -1 if not known.
    */
-  @JsonProperty
-  public long numEvents = -1;
+  @JsonProperty public double eventsPerSec = -1.0;
+
+  /** Number of event bytes generated per second of runtime. -1 if not known. */
+  @JsonProperty public double eventBytesPerSec = -1.0;
+
+  /** Number of results emitted. -1 if not known. */
+  @JsonProperty public long numResults = -1;
+
+  /** Number of results generated per second of runtime. -1 if not known. */
+  @JsonProperty public double resultsPerSec = -1.0;
+
+  /** Number of result bytes generated per second of runtime. -1 if not known. */
+  @JsonProperty public double resultBytesPerSec = -1.0;
+
+  /** Delay between start of job and first event in second. -1 if not known. */
+  @JsonProperty public double startupDelaySec = -1.0;
+
+  /** Delay between first event and first result in seconds. -1 if not known. */
+  @JsonProperty public double processingDelaySec = -1.0;
+
+  /** Delay between last result and job completion in seconds. -1 if not known. */
+  @JsonProperty public double shutdownDelaySec = -1.0;
 
   /**
-   * Number of events generated per second of runtime. For batch this is number of events
-   * over the above runtime. For streaming this is the 'steady-state' event generation rate sampled
-   * over the lifetime of the job. -1 if not known.
+   * Time-dilation factor. Calculate as event time advancement rate relative to real time. Greater
+   * than one implies we processed events faster than they would have been generated in real time.
+   * Less than one implies we could not keep up with events in real time. -1 if not known.
    */
-  @JsonProperty
-  public double eventsPerSec = -1.0;
+  @JsonProperty double timeDilation = -1.0;
 
-  /**
-   * Number of event bytes generated per second of runtime. -1 if not known.
-   */
-  @JsonProperty
-  public double eventBytesPerSec = -1.0;
+  /** List of errors encountered during job execution. */
+  @JsonProperty @Nullable public List<String> errors = null;
 
-  /**
-   * Number of results emitted. -1 if not known.
-   */
-  @JsonProperty
-  public long numResults = -1;
+  /** The job id this perf was drawn from. Null if not known. */
+  @JsonProperty @Nullable public String jobId = null;
 
-  /**
-   * Number of results generated per second of runtime. -1 if not known.
-   */
-  @JsonProperty
-  public double resultsPerSec = -1.0;
-
-  /**
-   * Number of result bytes generated per second of runtime. -1 if not known.
-   */
-  @JsonProperty
-  public double resultBytesPerSec = -1.0;
-
-  /**
-   * Delay between start of job and first event in second. -1 if not known.
-   */
-  @JsonProperty
-  public double startupDelaySec = -1.0;
-
-  /**
-   * Delay between first event and first result in seconds. -1 if not known.
-   */
-  @JsonProperty
-  public double processingDelaySec = -1.0;
-
-  /**
-   * Delay between last result and job completion in seconds. -1 if not known.
-   */
-  @JsonProperty
-  public double shutdownDelaySec = -1.0;
-
-  /**
-   * Time-dilation factor.  Calculate as event time advancement rate relative to real time.
-   * Greater than one implies we processed events faster than they would have been generated
-   * in real time. Less than one implies we could not keep up with events in real time.
-   * -1 if not known.
-   */
-  @JsonProperty
-  double timeDilation = -1.0;
-
-  /**
-   * List of errors encountered during job execution.
-   */
-  @JsonProperty
-  @Nullable
-  public List<String> errors = null;
-
-  /**
-   * The job id this perf was drawn from. Null if not known.
-   */
-  @JsonProperty
-  @Nullable
-  public String jobId = null;
-
-  /**
-   * Return a JSON representation of performance.
-   */
+  /** Return a JSON representation of performance. */
   @Override
   public String toString() {
     try {
@@ -174,9 +125,7 @@ public class NexmarkPerf {
     }
   }
 
-  /**
-   * Parse a {@link NexmarkPerf} object from JSON {@code string}.
-   */
+  /** Parse a {@link NexmarkPerf} object from JSON {@code string}. */
   public static NexmarkPerf fromString(String string) {
     try {
       return NexmarkUtils.MAPPER.readValue(string, NexmarkPerf.class);
@@ -186,8 +135,7 @@ public class NexmarkPerf {
   }
 
   /**
-   * Return true if there looks to be activity between {@code this} and {@code that}
-   * perf values.
+   * Return true if there looks to be activity between {@code this} and {@code that} perf values.
    */
   public boolean anyActivity(NexmarkPerf that) {
     if (runtimeSec != that.runtimeSec) {

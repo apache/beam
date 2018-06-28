@@ -21,9 +21,7 @@ import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.Arrays;
 
-/**
- * Serializable byte array.
- */
+/** Serializable byte array. */
 public class ByteArray implements Serializable, Comparable<ByteArray> {
 
   private final byte[] value;

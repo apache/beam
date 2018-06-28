@@ -37,14 +37,12 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link BigQuerySourceBase} for reading BigQuery tables.
- */
+/** A {@link BigQuerySourceBase} for reading BigQuery tables. */
 @VisibleForTesting
 class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 
-  static <T>BigQueryTableSource<T> create(
+  static <T> BigQueryTableSource<T> create(
       String stepUuid,
       ValueProvider<TableReference> table,
       BigQueryServices bqServices,
@@ -61,8 +59,7 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       ValueProvider<TableReference> table,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn
-  ) {
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
     super(stepUuid, bqServices, coder, parseFn);
     this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
     this.tableSizeBytes = new AtomicReference<>();
@@ -100,11 +97,13 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table = setDefaultProjectIfAbsent(options.as(BigQueryOptions.class),
-          BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
+      TableReference table =
+          setDefaultProjectIfAbsent(
+              options.as(BigQueryOptions.class),
+              BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
 
-      Table tableRef = bqServices.getDatasetService(options.as(BigQueryOptions.class))
-              .getTable(table);
+      Table tableRef =
+          bqServices.getDatasetService(options.as(BigQueryOptions.class)).getTable(table);
       Long numBytes = tableRef.getNumBytes();
       if (tableRef.getStreamingBuffer() != null) {
         numBytes += tableRef.getStreamingBuffer().getEstimatedBytes().longValue();

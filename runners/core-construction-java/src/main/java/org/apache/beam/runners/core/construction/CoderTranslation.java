@@ -76,8 +76,8 @@ public class CoderTranslation {
         .build();
   }
 
-  public static RunnerApi.Coder toProto(
-      Coder<?> coder, SdkComponents components) throws IOException {
+  public static RunnerApi.Coder toProto(Coder<?> coder, SdkComponents components)
+      throws IOException {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }

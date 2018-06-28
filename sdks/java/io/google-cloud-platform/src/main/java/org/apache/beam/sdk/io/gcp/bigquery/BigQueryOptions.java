@@ -24,16 +24,17 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
-/**
- * Properties needed when using Google BigQuery with the Apache Beam SDK.
- */
-@Description("Options that are used to configure Google BigQuery. See "
-    + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
-public interface BigQueryOptions extends ApplicationNameOptions, GcpOptions,
-    PipelineOptions, StreamingOptions {
-  @Description("Temporary dataset for BigQuery table operations. "
-      + "Supported values are \"bigquery.googleapis.com/{dataset}\"")
+/** Properties needed when using Google BigQuery with the Apache Beam SDK. */
+@Description(
+    "Options that are used to configure Google BigQuery. See "
+        + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
+public interface BigQueryOptions
+    extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {
+  @Description(
+      "Temporary dataset for BigQuery table operations. "
+          + "Supported values are \"bigquery.googleapis.com/{dataset}\"")
   @Default.String("bigquery.googleapis.com/cloud_dataflow")
   String getTempDatasetId();
+
   void setTempDatasetId(String value);
 }

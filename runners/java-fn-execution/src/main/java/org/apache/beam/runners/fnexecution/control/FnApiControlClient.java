@@ -136,9 +136,7 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
     onCloseListeners.add(onCloseListener);
   }
 
-  /**
-   * A private view of this class as a {@link StreamObserver} for connecting as a gRPC listener.
-   */
+  /** A private view of this class as a {@link StreamObserver} for connecting as a gRPC listener. */
   private class ResponseStreamObserver implements StreamObserver<BeamFnApi.InstructionResponse> {
     /**
      * Processes an incoming {@link BeamFnApi.InstructionResponse} by correlating it with the
@@ -155,10 +153,10 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
           responseFuture.complete(response);
         } else {
           responseFuture.completeExceptionally(
-              new RuntimeException(String.format(
-                  "Error received from SDK harness for instruction %s: %s",
-                  response.getInstructionId(),
-                  response.getError())));
+              new RuntimeException(
+                  String.format(
+                      "Error received from SDK harness for instruction %s: %s",
+                      response.getInstructionId(), response.getError())));
         }
       }
     }

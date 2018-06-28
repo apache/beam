@@ -44,11 +44,11 @@ import org.slf4j.LoggerFactory;
  * A {@link PTransform} that batches inputs to a desired batch size. Batches will contain only
  * elements of a single key.
  *
- * <p>Elements are buffered until there are {@code batchSize} elements
- * buffered, at which point they are output to the output {@link PCollection}.
+ * <p>Elements are buffered until there are {@code batchSize} elements buffered, at which point they
+ * are output to the output {@link PCollection}.
  *
- * <p>Windows are preserved (batches contain elements from the same window).
- * Batches may contain elements from more than one bundle
+ * <p>Windows are preserved (batches contain elements from the same window). Batches may contain
+ * elements from more than one bundle
  *
  * <p>Example (batch call a webservice and get return codes)
  *
@@ -115,8 +115,7 @@ public class GroupIntoBatches<K, InputT>
     private final StateSpec<BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<CombiningState<Long, long[], Long>>
-        numElementsInBatchSpec;
+    private final StateSpec<CombiningState<Long, long[], Long>> numElementsInBatchSpec;
 
     @StateId(KEY_ID)
     private final StateSpec<ValueState<K>> keySpec;
@@ -131,19 +130,20 @@ public class GroupIntoBatches<K, InputT>
       this.batchSize = batchSize;
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
-      this.numElementsInBatchSpec = StateSpecs.combining(new Combine.BinaryCombineLongFn() {
+      this.numElementsInBatchSpec =
+          StateSpecs.combining(
+              new Combine.BinaryCombineLongFn() {
 
-        @Override
-        public long identity() {
-          return 0L;
-        }
+                @Override
+                public long identity() {
+                  return 0L;
+                }
 
-        @Override
-        public long apply(long left, long right) {
-          return left + right;
-        }
-
-      });
+                @Override
+                public long apply(long left, long right) {
+                  return left + right;
+                }
+              });
 
       this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
@@ -154,8 +154,7 @@ public class GroupIntoBatches<K, InputT>
     public void processElement(
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            CombiningState<Long, long[], Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         @Element KV<K, InputT> element,
         BoundedWindow window,
@@ -164,7 +163,8 @@ public class GroupIntoBatches<K, InputT>
 
       LOG.debug(
           "*** SET TIMER *** to point in time {} for window {}",
-          windowExpires.toString(), window.toString());
+          windowExpires.toString(),
+          window.toString());
       timer.set(windowExpires);
       key.write(element.getKey());
       batch.add(element.getValue());
@@ -188,12 +188,12 @@ public class GroupIntoBatches<K, InputT>
         @Timestamp Instant timestamp,
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            CombiningState<Long, long[], Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
         BoundedWindow window) {
       LOG.debug(
           "*** END OF WINDOW *** for timer timestamp {} in windows {}",
-          timestamp, window.toString());
+          timestamp,
+          window.toString());
       flushBatch(receiver, key, batch, numElementsInBatch);
     }
 

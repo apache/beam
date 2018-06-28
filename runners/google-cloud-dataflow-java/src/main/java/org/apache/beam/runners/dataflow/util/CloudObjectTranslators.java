@@ -116,8 +116,7 @@ class CloudObjectTranslators {
       public CloudObject toCloudObject(IterableCoder target) {
         CloudObject result = CloudObject.forClassName(CloudObjectKinds.KIND_STREAM);
         Structs.addBoolean(result, PropertyNames.IS_STREAM_LIKE, true);
-        return addComponents(
-            result, Collections.<Coder<?>>singletonList(target.getElemCoder()));
+        return addComponents(result, Collections.<Coder<?>>singletonList(target.getElemCoder()));
       }
 
       @Override
@@ -247,8 +246,7 @@ class CloudObjectTranslators {
       @Override
       public FullWindowedValueCoder fromCloudObject(CloudObject object) {
         List<Coder<?>> components = getComponents(object);
-        checkArgument(components.size() == 2,
-            "Expecting 2 components, got " + components.size());
+        checkArgument(components.size() == 2, "Expecting 2 components, got " + components.size());
         @SuppressWarnings("unchecked")
         Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
         return FullWindowedValueCoder.of(components.get(0), window);
@@ -325,6 +323,7 @@ class CloudObjectTranslators {
 
   private static final String CODER_FIELD = "serialized_coder";
   private static final String TYPE_FIELD = "type";
+
   public static CloudObjectTranslator<Coder> javaSerialized() {
     return new CloudObjectTranslator<Coder>() {
       @Override
@@ -385,6 +384,7 @@ class CloudObjectTranslators {
       }
     };
   }
+
   public static CloudObjectTranslator<IterableLikeCoder> iterableLike(
       final Class<? extends IterableLikeCoder> clazz) {
     return new CloudObjectTranslator<IterableLikeCoder>() {

@@ -37,16 +37,16 @@ public interface SetState<T> extends GroupingState<T, Iterable<T>> {
    * Ensures a value is a member of the set, returning {@code true} if it was added and {@code
    * false} otherwise.
    *
-   * <p>Elements added will not be reflected in {@code OutputT} objects returned by
-   * previous calls to {@link #read}.
+   * <p>Elements added will not be reflected in {@code OutputT} objects returned by previous calls
+   * to {@link #read}.
    */
   ReadableState<Boolean> addIfAbsent(T t);
 
   /**
    * Removes the specified element from this set if it is present.
    *
-   * <p>Changes will not be reflected in {@code OutputT} objects returned by
-   * previous calls to {@link #read}.
+   * <p>Changes will not be reflected in {@code OutputT} objects returned by previous calls to
+   * {@link #read}.
    */
   void remove(T t);
 

@@ -47,15 +47,13 @@ public class ShardedKeyCoder<KeyT> extends StructuredCoder<ShardedKey<KeyT>> {
   }
 
   @Override
-  public void encode(ShardedKey<KeyT> key, OutputStream outStream)
-      throws IOException {
+  public void encode(ShardedKey<KeyT> key, OutputStream outStream) throws IOException {
     keyCoder.encode(key.getKey(), outStream);
     shardNumberCoder.encode(key.getShardNumber(), outStream);
   }
 
   @Override
-  public ShardedKey<KeyT> decode(InputStream inStream)
-      throws IOException {
+  public ShardedKey<KeyT> decode(InputStream inStream) throws IOException {
     return ShardedKey.of(keyCoder.decode(inStream), shardNumberCoder.decode(inStream));
   }
 

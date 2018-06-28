@@ -31,8 +31,8 @@ import org.joda.time.Instant;
 /**
  * Policies for combining timestamps that occur within a window.
  *
- * <p>In particular, these govern the timestamp on the output of a grouping transform
- * such as {@link GroupByKey} or {@link Combine}.
+ * <p>In particular, these govern the timestamp on the output of a grouping transform such as {@link
+ * GroupByKey} or {@link Combine}.
  */
 @Experimental(Experimental.Kind.OUTPUT_TIME)
 public enum TimestampCombiner {
@@ -132,9 +132,9 @@ public enum TimestampCombiner {
    * {@link #merge}.
    *
    * <ul>
-   * <li>{@code combine} must be commutative: {@code combine(a, b).equals(combine(b, a))}.
-   * <li>{@code combine} must be associative: {@code combine(a, combine(b,
-   *     c)).equals(combine(combine(a, b), c))}.
+   *   <li>{@code combine} must be commutative: {@code combine(a, b).equals(combine(b, a))}.
+   *   <li>{@code combine} must be associative: {@code combine(a, combine(b,
+   *       c)).equals(combine(combine(a, b), c))}.
    * </ul>
    */
   public abstract Instant combine(Iterable<? extends Instant> timestamps);
@@ -147,8 +147,7 @@ public enum TimestampCombiner {
       BoundedWindow intoWindow, Iterable<? extends Instant> mergingTimestamps);
 
   /**
-   * Shorthand for {@link #merge} with just one element, to place it into the context of
-   * a window.
+   * Shorthand for {@link #merge} with just one element, to place it into the context of a window.
    *
    * <p>For example, the {@link #END_OF_WINDOW} policy moves the timestamp to the end of the window.
    */
@@ -156,16 +155,12 @@ public enum TimestampCombiner {
     return merge(intoWindow, Collections.singleton(timestamp));
   }
 
-  /**
-   * Varargs variant of {@link #combine}.
-   */
+  /** Varargs variant of {@link #combine}. */
   public final Instant combine(Instant... timestamps) {
     return combine(Arrays.asList(timestamps));
   }
 
-  /**
-   * Varargs variant of {@link #merge}.
-   */
+  /** Varargs variant of {@link #merge}. */
   public final Instant merge(BoundedWindow intoWindow, Instant... timestamps) {
     return merge(intoWindow, Arrays.asList(timestamps));
   }
@@ -174,15 +169,15 @@ public enum TimestampCombiner {
    * Returns {@code true} if the result of combination of many output timestamps actually depends
    * only on the earliest.
    *
-   * <p>This may allow optimizations when it is very efficient to retrieve the earliest timestamp
-   * to be combined.
+   * <p>This may allow optimizations when it is very efficient to retrieve the earliest timestamp to
+   * be combined.
    */
   public abstract boolean dependsOnlyOnEarliestTimestamp();
 
   /**
-   * Returns {@code true} if the result does not depend on what outputs were combined but only
-   * the window they are in. The canonical example is if all timestamps are sure to
-   * be the end of the window.
+   * Returns {@code true} if the result does not depend on what outputs were combined but only the
+   * window they are in. The canonical example is if all timestamps are sure to be the end of the
+   * window.
    *
    * <p>This may allow optimizations, since it is typically very efficient to retrieve the window
    * and combining output timestamps is not necessary.

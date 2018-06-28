@@ -31,48 +31,44 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * Result of Query4.
- */
+/** Result of Query4. */
 public class CategoryPrice implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<Integer> INT_CODER = VarIntCoder.of();
 
-  public static final Coder<CategoryPrice> CODER = new CustomCoder<CategoryPrice>() {
-    @Override
-    public void encode(CategoryPrice value, OutputStream outStream)
-        throws CoderException, IOException {
-      LONG_CODER.encode(value.category, outStream);
-      LONG_CODER.encode(value.price, outStream);
-      INT_CODER.encode(value.isLast ? 1 : 0, outStream);
-    }
+  public static final Coder<CategoryPrice> CODER =
+      new CustomCoder<CategoryPrice>() {
+        @Override
+        public void encode(CategoryPrice value, OutputStream outStream)
+            throws CoderException, IOException {
+          LONG_CODER.encode(value.category, outStream);
+          LONG_CODER.encode(value.price, outStream);
+          INT_CODER.encode(value.isLast ? 1 : 0, outStream);
+        }
 
-    @Override
-    public CategoryPrice decode(InputStream inStream)
-        throws CoderException, IOException {
-      long category = LONG_CODER.decode(inStream);
-      long price = LONG_CODER.decode(inStream);
-      boolean isLast = INT_CODER.decode(inStream) != 0;
-      return new CategoryPrice(category, price, isLast);
-    }
+        @Override
+        public CategoryPrice decode(InputStream inStream) throws CoderException, IOException {
+          long category = LONG_CODER.decode(inStream);
+          long price = LONG_CODER.decode(inStream);
+          boolean isLast = INT_CODER.decode(inStream) != 0;
+          return new CategoryPrice(category, price, isLast);
+        }
 
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
 
-    @Override
-    public Object structuralValue(CategoryPrice v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(CategoryPrice v) {
+          return v;
+        }
+      };
 
-  @JsonProperty
-  public final long category;
+  @JsonProperty public final long category;
 
   /** Price in cents. */
-  @JsonProperty
-  public final long price;
+  @JsonProperty public final long price;
 
-  @JsonProperty
-  public final boolean isLast;
+  @JsonProperty public final boolean isLast;
 
   // For Avro only.
   @SuppressWarnings("unused")

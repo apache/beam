@@ -35,8 +35,6 @@ public interface MetricCell<DataT> extends Serializable {
    */
   DirtyState getDirty();
 
-  /**
-   * Return the cumulative value of this metric.
-   */
+  /** Return the cumulative value of this metric. */
   DataT getCumulative();
 }

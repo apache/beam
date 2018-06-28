@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Classes to generate BeamRecords from pojos.
- */
+/** Classes to generate BeamRecords from pojos. */
 package org.apache.beam.sdk.values.reflect;

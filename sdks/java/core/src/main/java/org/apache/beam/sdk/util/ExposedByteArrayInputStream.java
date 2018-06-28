@@ -23,15 +23,13 @@ import java.io.IOException;
 /**
  * {@link ByteArrayInputStream} that allows accessing the entire internal buffer without copying.
  */
-public class ExposedByteArrayInputStream extends ByteArrayInputStream{
+public class ExposedByteArrayInputStream extends ByteArrayInputStream {
 
   public ExposedByteArrayInputStream(byte[] buf) {
     super(buf);
   }
 
-  /**
-   * Read all remaining bytes.
-   */
+  /** Read all remaining bytes. */
   public byte[] readAll() throws IOException {
     if (pos == 0 && count == buf.length) {
       pos = count;

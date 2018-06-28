@@ -28,11 +28,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.Function;
 import org.joda.time.Instant;
 
-
-/**
- * An implementation of {@link Assign} for the Spark
- * runner.
- */
+/** An implementation of {@link Assign} for the Spark runner. */
 public class SparkAssignWindowFn<T, W extends BoundedWindow>
     implements Function<WindowedValue<T>, WindowedValue<T>> {
 
@@ -49,23 +45,24 @@ public class SparkAssignWindowFn<T, W extends BoundedWindow>
     final T element = windowedValue.getValue();
     final Instant timestamp = windowedValue.getTimestamp();
     Collection<W> windows =
-        ((WindowFn<T, W>) fn).assignWindows(
-            ((WindowFn<T, W>) fn).new AssignContext() {
-                @Override
-                public T element() {
-                  return element;
-                }
+        ((WindowFn<T, W>) fn)
+            .assignWindows(
+                ((WindowFn<T, W>) fn).new AssignContext() {
+                  @Override
+                  public T element() {
+                    return element;
+                  }
 
-                @Override
-                public Instant timestamp() {
-                  return timestamp;
-                }
+                  @Override
+                  public Instant timestamp() {
+                    return timestamp;
+                  }
 
-                @Override
-                public BoundedWindow window() {
-                  return boundedWindow;
-                }
-              });
+                  @Override
+                  public BoundedWindow window() {
+                    return boundedWindow;
+                  }
+                });
     return WindowedValue.of(element, timestamp, windows, PaneInfo.NO_FIRING);
   }
 }

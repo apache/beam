@@ -30,16 +30,16 @@ import java.io.Serializable;
 import org.joda.time.Instant;
 
 /**
- * Checkpoint mark for single shard in the stream.
- * Current position in the shard is determined by either:
+ * Checkpoint mark for single shard in the stream. Current position in the shard is determined by
+ * either:
+ *
  * <ul>
- * <li>{@link #shardIteratorType} if it is equal to {@link ShardIteratorType#LATEST} or
- * {@link ShardIteratorType#TRIM_HORIZON}</li>
- * <li>combination of
- * {@link #sequenceNumber} and {@link #subSequenceNumber} if
- * {@link ShardIteratorType#AFTER_SEQUENCE_NUMBER} or
- * {@link ShardIteratorType#AT_SEQUENCE_NUMBER}</li>
+ *   <li>{@link #shardIteratorType} if it is equal to {@link ShardIteratorType#LATEST} or {@link
+ *       ShardIteratorType#TRIM_HORIZON}
+ *   <li>combination of {@link #sequenceNumber} and {@link #subSequenceNumber} if {@link
+ *       ShardIteratorType#AFTER_SEQUENCE_NUMBER} or {@link ShardIteratorType#AT_SEQUENCE_NUMBER}
  * </ul>
+ *
  * This class is immutable.
  */
 class ShardCheckpoint implements Serializable {
@@ -51,42 +51,52 @@ class ShardCheckpoint implements Serializable {
   private final Long subSequenceNumber;
   private final Instant timestamp;
 
-  public ShardCheckpoint(String streamName, String shardId, StartingPoint
-      startingPoint) {
-    this(streamName, shardId,
+  public ShardCheckpoint(String streamName, String shardId, StartingPoint startingPoint) {
+    this(
+        streamName,
+        shardId,
         ShardIteratorType.fromValue(startingPoint.getPositionName()),
         startingPoint.getTimestamp());
   }
 
-  public ShardCheckpoint(String streamName, String shardId, ShardIteratorType
-      shardIteratorType, Instant timestamp) {
+  public ShardCheckpoint(
+      String streamName, String shardId, ShardIteratorType shardIteratorType, Instant timestamp) {
     this(streamName, shardId, shardIteratorType, null, null, timestamp);
   }
 
-  public ShardCheckpoint(String streamName, String shardId, ShardIteratorType
-      shardIteratorType, String sequenceNumber, Long subSequenceNumber) {
+  public ShardCheckpoint(
+      String streamName,
+      String shardId,
+      ShardIteratorType shardIteratorType,
+      String sequenceNumber,
+      Long subSequenceNumber) {
     this(streamName, shardId, shardIteratorType, sequenceNumber, subSequenceNumber, null);
   }
 
-  private ShardCheckpoint(String streamName, String shardId, ShardIteratorType shardIteratorType,
-      String sequenceNumber, Long subSequenceNumber, Instant timestamp) {
+  private ShardCheckpoint(
+      String streamName,
+      String shardId,
+      ShardIteratorType shardIteratorType,
+      String sequenceNumber,
+      Long subSequenceNumber,
+      Instant timestamp) {
     this.shardIteratorType = checkNotNull(shardIteratorType, "shardIteratorType");
     this.streamName = checkNotNull(streamName, "streamName");
     this.shardId = checkNotNull(shardId, "shardId");
     if (shardIteratorType == AT_SEQUENCE_NUMBER || shardIteratorType == AFTER_SEQUENCE_NUMBER) {
-      checkNotNull(sequenceNumber,
-          "You must provide sequence number for AT_SEQUENCE_NUMBER"
-              + " or AFTER_SEQUENCE_NUMBER");
+      checkNotNull(
+          sequenceNumber,
+          "You must provide sequence number for AT_SEQUENCE_NUMBER" + " or AFTER_SEQUENCE_NUMBER");
     } else {
-      checkArgument(sequenceNumber == null,
+      checkArgument(
+          sequenceNumber == null,
           "Sequence number must be null for LATEST, TRIM_HORIZON or AT_TIMESTAMP");
     }
     if (shardIteratorType == AT_TIMESTAMP) {
-      checkNotNull(timestamp,
-          "You must provide timestamp for AT_TIMESTAMP");
+      checkNotNull(timestamp, "You must provide timestamp for AT_TIMESTAMP");
     } else {
-      checkArgument(timestamp == null,
-          "Timestamp must be null for an iterator type other than AT_TIMESTAMP");
+      checkArgument(
+          timestamp == null, "Timestamp must be null for an iterator type other than AT_TIMESTAMP");
     }
 
     this.subSequenceNumber = subSequenceNumber;
@@ -95,9 +105,9 @@ class ShardCheckpoint implements Serializable {
   }
 
   /**
-   * Used to compare {@link ShardCheckpoint} object to {@link KinesisRecord}. Depending
-   * on the the underlying shardIteratorType, it will either compare the timestamp or the
-   * {@link ExtendedSequenceNumber}.
+   * Used to compare {@link ShardCheckpoint} object to {@link KinesisRecord}. Depending on the the
+   * underlying shardIteratorType, it will either compare the timestamp or the {@link
+   * ExtendedSequenceNumber}.
    *
    * @param other
    * @return if current checkpoint mark points before or at given {@link ExtendedSequenceNumber}
@@ -123,21 +133,19 @@ class ShardCheckpoint implements Serializable {
 
   @Override
   public String toString() {
-    return String.format("Checkpoint %s for stream %s, shard %s: %s", shardIteratorType,
-        streamName, shardId,
-        sequenceNumber);
+    return String.format(
+        "Checkpoint %s for stream %s, shard %s: %s",
+        shardIteratorType, streamName, shardId, sequenceNumber);
   }
 
   public String getShardIterator(SimplifiedKinesisClient kinesisClient)
       throws TransientKinesisException {
     if (checkpointIsInTheMiddleOfAUserRecord()) {
-      return kinesisClient.getShardIterator(streamName,
-          shardId, AT_SEQUENCE_NUMBER,
-          sequenceNumber, null);
+      return kinesisClient.getShardIterator(
+          streamName, shardId, AT_SEQUENCE_NUMBER, sequenceNumber, null);
     }
-    return kinesisClient.getShardIterator(streamName,
-        shardId, shardIteratorType,
-        sequenceNumber, timestamp);
+    return kinesisClient.getShardIterator(
+        streamName, shardId, shardIteratorType, sequenceNumber, timestamp);
   }
 
   private boolean checkpointIsInTheMiddleOfAUserRecord() {
@@ -152,7 +160,8 @@ class ShardCheckpoint implements Serializable {
    */
   public ShardCheckpoint moveAfter(KinesisRecord record) {
     return new ShardCheckpoint(
-        streamName, shardId,
+        streamName,
+        shardId,
         AFTER_SEQUENCE_NUMBER,
         record.getSequenceNumber(),
         record.getSubSequenceNumber());

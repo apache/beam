@@ -64,15 +64,11 @@ import org.junit.runners.JUnit4;
 public class BeamFnDataGrpcClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
-          WindowedValue.getFullCoder(StringUtf8Coder.of(),
-              GlobalWindow.Coder.INSTANCE));
+          WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   private static final LogicalEndpoint ENDPOINT_A =
       LogicalEndpoint.of(
           "12L",
-          Target.newBuilder()
-              .setPrimitiveTransformReference("34L")
-              .setName("targetA")
-              .build());
+          Target.newBuilder().setPrimitiveTransformReference("34L").setName("targetA").build());
 
   private static final LogicalEndpoint ENDPOINT_B =
       LogicalEndpoint.of(
@@ -85,34 +81,51 @@ public class BeamFnDataGrpcClientTest {
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;
   private static final BeamFnApi.Elements ELEMENTS_B_1;
+
   static {
     try {
-    ELEMENTS_A_1 = BeamFnApi.Elements.newBuilder()
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(ENDPOINT_A.getInstructionId())
-            .setTarget(ENDPOINT_A.getTarget())
-            .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
-                .concat(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("DEF"))))))
-        .build();
-    ELEMENTS_A_2 = BeamFnApi.Elements.newBuilder()
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(ENDPOINT_A.getInstructionId())
-            .setTarget(ENDPOINT_A.getTarget())
-            .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(ENDPOINT_A.getInstructionId())
-            .setTarget(ENDPOINT_A.getTarget()))
-        .build();
-    ELEMENTS_B_1 = BeamFnApi.Elements.newBuilder()
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(ENDPOINT_B.getInstructionId())
-            .setTarget(ENDPOINT_B.getTarget())
-            .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
-                .concat(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("MNO"))))))
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(ENDPOINT_B.getInstructionId())
-            .setTarget(ENDPOINT_B.getTarget()))
-        .build();
+      ELEMENTS_A_1 =
+          BeamFnApi.Elements.newBuilder()
+              .addData(
+                  BeamFnApi.Elements.Data.newBuilder()
+                      .setInstructionReference(ENDPOINT_A.getInstructionId())
+                      .setTarget(ENDPOINT_A.getTarget())
+                      .setData(
+                          ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
+                              .concat(
+                                  ByteString.copyFrom(
+                                      encodeToByteArray(CODER, valueInGlobalWindow("DEF"))))))
+              .build();
+      ELEMENTS_A_2 =
+          BeamFnApi.Elements.newBuilder()
+              .addData(
+                  BeamFnApi.Elements.Data.newBuilder()
+                      .setInstructionReference(ENDPOINT_A.getInstructionId())
+                      .setTarget(ENDPOINT_A.getTarget())
+                      .setData(
+                          ByteString.copyFrom(
+                              encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
+              .addData(
+                  BeamFnApi.Elements.Data.newBuilder()
+                      .setInstructionReference(ENDPOINT_A.getInstructionId())
+                      .setTarget(ENDPOINT_A.getTarget()))
+              .build();
+      ELEMENTS_B_1 =
+          BeamFnApi.Elements.newBuilder()
+              .addData(
+                  BeamFnApi.Elements.Data.newBuilder()
+                      .setInstructionReference(ENDPOINT_B.getInstructionId())
+                      .setTarget(ENDPOINT_B.getTarget())
+                      .setData(
+                          ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
+                              .concat(
+                                  ByteString.copyFrom(
+                                      encodeToByteArray(CODER, valueInGlobalWindow("MNO"))))))
+              .addData(
+                  BeamFnApi.Elements.Data.newBuilder()
+                      .setInstructionReference(ENDPOINT_B.getInstructionId())
+                      .setTarget(ENDPOINT_B.getTarget()))
+              .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -133,30 +146,32 @@ public class BeamFnDataGrpcClientTest {
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-            .addService(new BeamFnDataGrpc.BeamFnDataImplBase() {
-              @Override
-              public StreamObserver<BeamFnApi.Elements> data(
-                  StreamObserver<BeamFnApi.Elements> outboundObserver) {
-                outboundServerObserver.set(outboundObserver);
-                waitForClientToConnect.countDown();
-                return inboundServerObserver;
-              }
-            })
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    waitForClientToConnect.countDown();
+                    return inboundServerObserver;
+                  }
+                })
             .build();
     server.start();
     try {
       ManagedChannel channel =
           InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
 
-    BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
-        PipelineOptionsFactory.create(),
-        (Endpoints.ApiServiceDescriptor descriptor) -> channel,
-        OutboundObserverFactory.trivial());
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
 
       InboundDataClient readFutureA =
-          clientFactory.receive(
-              apiServiceDescriptor, ENDPOINT_A, CODER, inboundValuesA::add);
+          clientFactory.receive(apiServiceDescriptor, ENDPOINT_A, CODER, inboundValuesA::add);
 
       waitForClientToConnect.await();
       outboundServerObserver.get().onNext(ELEMENTS_A_1);
@@ -166,18 +181,18 @@ public class BeamFnDataGrpcClientTest {
       Thread.sleep(100);
 
       InboundDataClient readFutureB =
-          clientFactory.receive(
-              apiServiceDescriptor, ENDPOINT_B, CODER, inboundValuesB::add);
+          clientFactory.receive(apiServiceDescriptor, ENDPOINT_B, CODER, inboundValuesB::add);
 
       // Show that out of order stream completion can occur.
       readFutureB.awaitCompletion();
-      assertThat(inboundValuesB, contains(
-          valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
+      assertThat(inboundValuesB, contains(valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
 
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
       readFutureA.awaitCompletion();
-      assertThat(inboundValuesA, contains(
-          valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
+      assertThat(
+          inboundValuesA,
+          contains(
+              valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
     } finally {
       server.shutdownNow();
     }
@@ -197,16 +212,18 @@ public class BeamFnDataGrpcClientTest {
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-            .addService(new BeamFnDataGrpc.BeamFnDataImplBase() {
-              @Override
-              public StreamObserver<BeamFnApi.Elements> data(
-                  StreamObserver<BeamFnApi.Elements> outboundObserver) {
-                outboundServerObserver.set(outboundObserver);
-                waitForClientToConnect.countDown();
-                return inboundServerObserver;
-              }
-            })
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    waitForClientToConnect.countDown();
+                    return inboundServerObserver;
+                  }
+                })
             .build();
     server.start();
     RuntimeException exceptionToThrow = new RuntimeException("TestFailure");
@@ -220,13 +237,15 @@ public class BeamFnDataGrpcClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
-      InboundDataClient readFuture = clientFactory.receive(
-          apiServiceDescriptor,
-          ENDPOINT_A,
-          CODER, t -> {
-            consumerInvoked.incrementAndGet();
-            throw exceptionToThrow;
-          });
+      InboundDataClient readFuture =
+          clientFactory.receive(
+              apiServiceDescriptor,
+              ENDPOINT_A,
+              CODER,
+              t -> {
+                consumerInvoked.incrementAndGet();
+                throw exceptionToThrow;
+              });
 
       waitForClientToConnect.await();
 
@@ -265,14 +284,16 @@ public class BeamFnDataGrpcClientTest {
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
-    Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
-            .addService(new BeamFnDataGrpc.BeamFnDataImplBase() {
-              @Override
-              public StreamObserver<BeamFnApi.Elements> data(
-                  StreamObserver<BeamFnApi.Elements> outboundObserver) {
-                return inboundServerObserver;
-              }
-            })
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    return inboundServerObserver;
+                  }
+                })
             .build();
     server.start();
     try {

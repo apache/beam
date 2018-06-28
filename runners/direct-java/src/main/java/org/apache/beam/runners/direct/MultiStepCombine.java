@@ -128,8 +128,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
 
   static class Factory<K, InputT, AccumT, OutputT>
       extends SingleInputOutputOverrideFactory<
-            PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
-            PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
+          PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
     public static PTransformOverrideFactory create() {
       return new Factory<>();
     }
@@ -144,13 +144,17 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>>
                 transform) {
       try {
-        GlobalCombineFn<?, ?, ?> globalFn = CombineTranslation.getCombineFn(transform).orElseThrow(
-            () -> new IOException(String
-                .format("%s.matcher() should only match %s instances using %s, but %s was missing",
-                    MultiStepCombine.class.getSimpleName(),
-                    PerKey.class.getSimpleName(),
-                    CombineFn.class.getSimpleName(),
-                    CombineFn.class.getSimpleName())));
+        GlobalCombineFn<?, ?, ?> globalFn =
+            CombineTranslation.getCombineFn(transform)
+                .orElseThrow(
+                    () ->
+                        new IOException(
+                            String.format(
+                                "%s.matcher() should only match %s instances using %s, but %s was missing",
+                                MultiStepCombine.class.getSimpleName(),
+                                PerKey.class.getSimpleName(),
+                                CombineFn.class.getSimpleName(),
+                                CombineFn.class.getSimpleName())));
         checkState(
             globalFn instanceof CombineFn,
             "%s.matcher() should only match %s instances using %s, got %s",
@@ -240,10 +244,11 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
     private final Coder<K> keyCoder;
 
     /**
-     * Per-bundle state. Accumulators and output timestamps should only be tracked while a bundle
-     * is being processed, and must be cleared when a bundle is completed.
+     * Per-bundle state. Accumulators and output timestamps should only be tracked while a bundle is
+     * being processed, and must be cleared when a bundle is completed.
      */
     private transient Map<WindowedStructuralKey<K>, AccumT> accumulators;
+
     private transient Map<WindowedStructuralKey<K>, Instant> timestamps;
 
     private CombineInputs(
@@ -263,8 +268,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext context, BoundedWindow window) {
-      WindowedStructuralKey<K>
-          key = WindowedStructuralKey.create(keyCoder, context.element().getKey(), window);
+      WindowedStructuralKey<K> key =
+          WindowedStructuralKey.create(keyCoder, context.element().getKey(), window);
       AccumT accumulator = accumulators.get(key);
       Instant assignedTs = timestampCombiner.assign(window, context.timestamp());
       if (accumulator == null) {
@@ -331,8 +336,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   /**
    * A primitive {@link PTransform} that merges iterables of accumulators and extracts the output.
    *
-   * <p>Required to ensure that Immutability Enforcement is not applied. Accumulators
-   * are explicitly mutable.
+   * <p>Required to ensure that Immutability Enforcement is not applied. Accumulators are explicitly
+   * mutable.
    */
   static class MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>
       extends RawPTransform<PCollection<KV<K, Iterable<AccumT>>>, PCollection<KV<K, OutputT>>> {
@@ -429,9 +434,12 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
       Iterable<AccumT> inputAccumulators = element.getValue().getValue();
       try {
         AccumT first = combineFn.createAccumulator();
-        AccumT merged = combineFn.mergeAccumulators(Iterables.concat(Collections.singleton(first),
-            inputAccumulators,
-            Collections.singleton(combineFn.createAccumulator())));
+        AccumT merged =
+            combineFn.mergeAccumulators(
+                Iterables.concat(
+                    Collections.singleton(first),
+                    inputAccumulators,
+                    Collections.singleton(combineFn.createAccumulator())));
         OutputT extracted = combineFn.extractOutput(merged);
         output.add(element.withValue(KV.of(element.getValue().getKey(), extracted)));
       } catch (Exception e) {

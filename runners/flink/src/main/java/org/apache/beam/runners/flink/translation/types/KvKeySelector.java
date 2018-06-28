@@ -26,8 +26,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
- * {@link KeySelector} that extracts the key from a {@link KV} and returns
- * it in encoded form as a {@code byte} array.
+ * {@link KeySelector} that extracts the key from a {@link KV} and returns it in encoded form as a
+ * {@code byte} array.
  */
 public class KvKeySelector<InputT, K>
     implements KeySelector<WindowedValue<KV<K, InputT>>, byte[]>, ResultTypeQueryable<byte[]> {

@@ -160,8 +160,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     }
 
     private static RunnerApi.ParDoPayload payloadForParDoSingle(
-        final ParDoSingle<?, ?> parDo, SdkComponents components)
-        throws IOException {
+        final ParDoSingle<?, ?> parDo, SdkComponents components) throws IOException {
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       checkArgument(

@@ -27,9 +27,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PaneInfo}.
- */
+/** Tests for {@link PaneInfo}. */
 @RunWith(JUnit4.class)
 public class PaneInfoTest {
 
@@ -49,28 +47,40 @@ public class PaneInfoTest {
           coder, PaneInfo.createPane(false, false, timing, 389, onTimeIndex));
       CoderProperties.coderDecodeEncodeEqual(
           coder, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex));
-      CoderProperties.coderDecodeEncodeEqual(
-          coder, PaneInfo.createPane(true, false, timing, 0, 0));
-      CoderProperties.coderDecodeEncodeEqual(
-          coder, PaneInfo.createPane(true, true, timing, 0, 0));
+      CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, false, timing, 0, 0));
+      CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, true, timing, 0, 0));
     }
   }
 
   @Test
   public void testEncodings() {
-    assertEquals("PaneInfo encoding assumes that there are only 4 Timing values.",
-        4, Timing.values().length);
-    assertEquals("PaneInfo encoding should remain the same.",
-        0x0, PaneInfo.createPane(false, false, Timing.EARLY, 1, -1).getEncodedByte());
-    assertEquals("PaneInfo encoding should remain the same.",
-        0x1, PaneInfo.createPane(true, false, Timing.EARLY).getEncodedByte());
-    assertEquals("PaneInfo encoding should remain the same.",
-        0x3, PaneInfo.createPane(true, true, Timing.EARLY).getEncodedByte());
-    assertEquals("PaneInfo encoding should remain the same.",
-        0x7, PaneInfo.createPane(true, true, Timing.ON_TIME).getEncodedByte());
-    assertEquals("PaneInfo encoding should remain the same.",
-        0xB, PaneInfo.createPane(true, true, Timing.LATE).getEncodedByte());
-    assertEquals("PaneInfo encoding should remain the same.",
-        0xF, PaneInfo.createPane(true, true, Timing.UNKNOWN).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding assumes that there are only 4 Timing values.",
+        4,
+        Timing.values().length);
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0x0,
+        PaneInfo.createPane(false, false, Timing.EARLY, 1, -1).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0x1,
+        PaneInfo.createPane(true, false, Timing.EARLY).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0x3,
+        PaneInfo.createPane(true, true, Timing.EARLY).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0x7,
+        PaneInfo.createPane(true, true, Timing.ON_TIME).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0xB,
+        PaneInfo.createPane(true, true, Timing.LATE).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0xF,
+        PaneInfo.createPane(true, true, Timing.UNKNOWN).getEncodedByte());
   }
 }

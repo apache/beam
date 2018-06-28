@@ -33,41 +33,41 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FilterExamplesTest {
 
-  private static final TableRow row1 = new TableRow()
-      .set("month", "6").set("day", "21")
-      .set("year", "2014").set("mean_temp", "85.3")
-      .set("tornado", true);
-  private static final TableRow row2 = new TableRow()
-      .set("month", "7").set("day", "20")
-      .set("year", "2014").set("mean_temp", "75.4")
-      .set("tornado", false);
-  private static final TableRow row3 = new TableRow()
-      .set("month", "6").set("day", "18")
-      .set("year", "2014").set("mean_temp", "45.3")
-      .set("tornado", true);
-  static final TableRow[] ROWS_ARRAY = new TableRow[] {
-    row1, row2, row3
-  };
+  private static final TableRow row1 =
+      new TableRow()
+          .set("month", "6")
+          .set("day", "21")
+          .set("year", "2014")
+          .set("mean_temp", "85.3")
+          .set("tornado", true);
+  private static final TableRow row2 =
+      new TableRow()
+          .set("month", "7")
+          .set("day", "20")
+          .set("year", "2014")
+          .set("mean_temp", "75.4")
+          .set("tornado", false);
+  private static final TableRow row3 =
+      new TableRow()
+          .set("month", "6")
+          .set("day", "18")
+          .set("year", "2014")
+          .set("mean_temp", "45.3")
+          .set("tornado", true);
+  static final TableRow[] ROWS_ARRAY = new TableRow[] {row1, row2, row3};
   static final List<TableRow> ROWS = Arrays.asList(ROWS_ARRAY);
 
-  private static final TableRow outRow1 = new TableRow()
-      .set("year", 2014).set("month", 6)
-      .set("day", 21).set("mean_temp", 85.3);
-  private static final TableRow outRow2 = new TableRow()
-      .set("year", 2014).set("month", 7)
-      .set("day", 20).set("mean_temp", 75.4);
-  private static final TableRow outRow3 = new TableRow()
-      .set("year", 2014).set("month", 6)
-      .set("day", 18).set("mean_temp", 45.3);
-  private static final TableRow[] PROJROWS_ARRAY = new TableRow[] {
-    outRow1, outRow2, outRow3
-  };
-
+  private static final TableRow outRow1 =
+      new TableRow().set("year", 2014).set("month", 6).set("day", 21).set("mean_temp", 85.3);
+  private static final TableRow outRow2 =
+      new TableRow().set("year", 2014).set("month", 7).set("day", 20).set("mean_temp", 75.4);
+  private static final TableRow outRow3 =
+      new TableRow().set("year", 2014).set("month", 6).set("day", 18).set("mean_temp", 45.3);
+  private static final TableRow[] PROJROWS_ARRAY = new TableRow[] {outRow1, outRow2, outRow3};
 
   @Test
   public void testProjectionFn() throws Exception {
-    DoFnTester<TableRow, TableRow> projectionFn =
-        DoFnTester.of(new ProjectionFn());
+    DoFnTester<TableRow, TableRow> projectionFn = DoFnTester.of(new ProjectionFn());
     List<TableRow> results = projectionFn.processBundle(ROWS_ARRAY);
     Assert.assertThat(results, CoreMatchers.hasItem(outRow1));
     Assert.assertThat(results, CoreMatchers.hasItem(outRow2));

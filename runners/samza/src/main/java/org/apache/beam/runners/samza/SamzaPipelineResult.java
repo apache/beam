@@ -32,9 +32,7 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The result from executing a Samza Pipeline.
- */
+/** The result from executing a Samza Pipeline. */
 public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
 
@@ -42,9 +40,8 @@ public class SamzaPipelineResult implements PipelineResult {
   private final ApplicationRunner runner;
   private final StreamApplication app;
 
-  public SamzaPipelineResult(StreamApplication app,
-                             ApplicationRunner runner,
-                             SamzaExecutionContext executionContext) {
+  public SamzaPipelineResult(
+      StreamApplication app, ApplicationRunner runner, SamzaExecutionContext executionContext) {
     this.executionContext = executionContext;
     this.runner = runner;
     this.app = app;
@@ -108,8 +105,8 @@ public class SamzaPipelineResult implements PipelineResult {
         return new StateInfo(State.DONE);
       case UnsuccessfulFinish:
         LOG.error(status.getThrowable().getMessage(), status.getThrowable());
-        return new StateInfo(State.FAILED,
-            new Pipeline.PipelineExecutionException(status.getThrowable()));
+        return new StateInfo(
+            State.FAILED, new Pipeline.PipelineExecutionException(status.getThrowable()));
       default:
         return new StateInfo(State.UNKNOWN);
     }

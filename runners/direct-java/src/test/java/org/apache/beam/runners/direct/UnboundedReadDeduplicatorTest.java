@@ -39,9 +39,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link UnboundedReadDeduplicator}.
- */
+/** Tests for {@link UnboundedReadDeduplicator}. */
 @RunWith(JUnit4.class)
 public class UnboundedReadDeduplicatorTest {
   @Test
@@ -71,19 +69,16 @@ public class UnboundedReadDeduplicatorTest {
     final CountDownLatch readyLatch = new CountDownLatch(numThreads);
     final CountDownLatch finishLine = new CountDownLatch(numThreads);
 
-    ListeningExecutorService executor = MoreExecutors.listeningDecorator(
-        Executors.newCachedThreadPool());
+    ListeningExecutorService executor =
+        MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
     AtomicInteger successCount = new AtomicInteger();
     AtomicInteger noOutputCount = new AtomicInteger();
     List<ListenableFuture<?>> futures = new ArrayList<>();
     for (int i = 0; i < numThreads; i++) {
-      futures.add(executor.submit(new TryOutputIdRunnable(dedupper,
-          id,
-          successCount,
-          noOutputCount,
-          readyLatch,
-          startSignal,
-          finishLine)));
+      futures.add(
+          executor.submit(
+              new TryOutputIdRunnable(
+                  dedupper, id, successCount, noOutputCount, readyLatch, startSignal, finishLine)));
     }
 
     readyLatch.await();

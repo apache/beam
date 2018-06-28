@@ -24,9 +24,7 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-/**
- * {@link TypeSerializer} for values that were encoded using a {@link Coder}.
- */
+/** {@link TypeSerializer} for values that were encoded using a {@link Coder}. */
 public final class EncodedValueSerializer extends TypeSerializerSingleton<byte[]> {
 
   private static final long serialVersionUID = 1L;
@@ -93,5 +91,4 @@ public final class EncodedValueSerializer extends TypeSerializerSingleton<byte[]
   public boolean canEqual(Object obj) {
     return obj instanceof EncodedValueSerializer;
   }
-
 }

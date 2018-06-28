@@ -27,9 +27,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link VoidCoder}.
- */
+/** Test case for {@link VoidCoder}. */
 @RunWith(JUnit4.class)
 public class VoidCoderTest {
   private static final Coder<Void> TEST_CODER = VoidCoder.of();

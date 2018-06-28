@@ -92,10 +92,11 @@ public class PipelineTranslation {
             }
           }
         });
-    RunnerApi.Pipeline res = RunnerApi.Pipeline.newBuilder()
-        .setComponents(components.toComponents())
-        .addAllRootTransformIds(rootIds)
-        .build();
+    RunnerApi.Pipeline res =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(components.toComponents())
+            .addAllRootTransformIds(rootIds)
+            .build();
     // Validate that translation didn't produce an invalid pipeline.
     PipelineValidator.validate(res);
     return res;

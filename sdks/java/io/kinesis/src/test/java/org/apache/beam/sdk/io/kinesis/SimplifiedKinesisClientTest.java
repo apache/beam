@@ -57,8 +57,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
-/***
- */
+/** * */
 @RunWith(MockitoJUnitRunner.class)
 public class SimplifiedKinesisClientTest {
 
@@ -69,25 +68,24 @@ public class SimplifiedKinesisClientTest {
   private static final String SHARD_ITERATOR = "iterator";
   private static final String SEQUENCE_NUMBER = "abc123";
 
-  @Mock
-  private AmazonKinesis kinesis;
-  @Mock
-  private AmazonCloudWatch cloudWatch;
-  @InjectMocks
-  private SimplifiedKinesisClient underTest;
+  @Mock private AmazonKinesis kinesis;
+  @Mock private AmazonCloudWatch cloudWatch;
+  @InjectMocks private SimplifiedKinesisClient underTest;
 
   @Test
   public void shouldReturnIteratorStartingWithSequenceNumber() throws Exception {
-    given(kinesis.getShardIterator(new GetShardIteratorRequest()
-        .withStreamName(STREAM)
-        .withShardId(SHARD_1)
-        .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
-        .withStartingSequenceNumber(SEQUENCE_NUMBER)
-    )).willReturn(new GetShardIteratorResult()
-        .withShardIterator(SHARD_ITERATOR));
+    given(
+            kinesis.getShardIterator(
+                new GetShardIteratorRequest()
+                    .withStreamName(STREAM)
+                    .withShardId(SHARD_1)
+                    .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
+                    .withStartingSequenceNumber(SEQUENCE_NUMBER)))
+        .willReturn(new GetShardIteratorResult().withShardIterator(SHARD_ITERATOR));
 
-    String stream = underTest.getShardIterator(STREAM, SHARD_1,
-        ShardIteratorType.AT_SEQUENCE_NUMBER, SEQUENCE_NUMBER, null);
+    String stream =
+        underTest.getShardIterator(
+            STREAM, SHARD_1, ShardIteratorType.AT_SEQUENCE_NUMBER, SEQUENCE_NUMBER, null);
 
     assertThat(stream).isEqualTo(SHARD_ITERATOR);
   }
@@ -95,63 +93,64 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldReturnIteratorStartingWithTimestamp() throws Exception {
     Instant timestamp = Instant.now();
-    given(kinesis.getShardIterator(new GetShardIteratorRequest()
-        .withStreamName(STREAM)
-        .withShardId(SHARD_1)
-        .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
-        .withTimestamp(timestamp.toDate())
-    )).willReturn(new GetShardIteratorResult()
-        .withShardIterator(SHARD_ITERATOR));
+    given(
+            kinesis.getShardIterator(
+                new GetShardIteratorRequest()
+                    .withStreamName(STREAM)
+                    .withShardId(SHARD_1)
+                    .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
+                    .withTimestamp(timestamp.toDate())))
+        .willReturn(new GetShardIteratorResult().withShardIterator(SHARD_ITERATOR));
 
-    String stream = underTest.getShardIterator(STREAM, SHARD_1,
-        ShardIteratorType.AT_SEQUENCE_NUMBER, null, timestamp);
+    String stream =
+        underTest.getShardIterator(
+            STREAM, SHARD_1, ShardIteratorType.AT_SEQUENCE_NUMBER, null, timestamp);
 
     assertThat(stream).isEqualTo(SHARD_ITERATOR);
   }
 
   @Test
   public void shouldHandleExpiredIterationExceptionForGetShardIterator() {
-    shouldHandleGetShardIteratorError(new ExpiredIteratorException(""),
-        ExpiredIteratorException.class);
+    shouldHandleGetShardIteratorError(
+        new ExpiredIteratorException(""), ExpiredIteratorException.class);
   }
 
   @Test
   public void shouldHandleLimitExceededExceptionForGetShardIterator() {
-    shouldHandleGetShardIteratorError(new LimitExceededException(""),
-        TransientKinesisException.class);
+    shouldHandleGetShardIteratorError(
+        new LimitExceededException(""), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForGetShardIterator() {
-    shouldHandleGetShardIteratorError(new ProvisionedThroughputExceededException(""),
-        TransientKinesisException.class);
+    shouldHandleGetShardIteratorError(
+        new ProvisionedThroughputExceededException(""), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleServiceErrorForGetShardIterator() {
-    shouldHandleGetShardIteratorError(newAmazonServiceException(ErrorType.Service),
-        TransientKinesisException.class);
+    shouldHandleGetShardIteratorError(
+        newAmazonServiceException(ErrorType.Service), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleClientErrorForGetShardIterator() {
-    shouldHandleGetShardIteratorError(newAmazonServiceException(ErrorType.Client),
-        RuntimeException.class);
+    shouldHandleGetShardIteratorError(
+        newAmazonServiceException(ErrorType.Client), RuntimeException.class);
   }
 
   @Test
   public void shouldHandleUnexpectedExceptionForGetShardIterator() {
-    shouldHandleGetShardIteratorError(new NullPointerException(),
-        RuntimeException.class);
+    shouldHandleGetShardIteratorError(new NullPointerException(), RuntimeException.class);
   }
 
   private void shouldHandleGetShardIteratorError(
-      Exception thrownException,
-      Class<? extends Exception> expectedExceptionClass) {
-    GetShardIteratorRequest request = new GetShardIteratorRequest()
-        .withStreamName(STREAM)
-        .withShardId(SHARD_1)
-        .withShardIteratorType(ShardIteratorType.LATEST);
+      Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
+    GetShardIteratorRequest request =
+        new GetShardIteratorRequest()
+            .withStreamName(STREAM)
+            .withShardId(SHARD_1)
+            .withShardIteratorType(ShardIteratorType.LATEST);
 
     given(kinesis.getShardIterator(request)).willThrow(thrownException);
 
@@ -170,14 +169,16 @@ public class SimplifiedKinesisClientTest {
     Shard shard1 = new Shard().withShardId(SHARD_1);
     Shard shard2 = new Shard().withShardId(SHARD_2);
     Shard shard3 = new Shard().withShardId(SHARD_3);
-    given(kinesis.describeStream(STREAM, null)).willReturn(new DescribeStreamResult()
-        .withStreamDescription(new StreamDescription()
-            .withShards(shard1, shard2)
-            .withHasMoreShards(true)));
-    given(kinesis.describeStream(STREAM, SHARD_2)).willReturn(new DescribeStreamResult()
-        .withStreamDescription(new StreamDescription()
-            .withShards(shard3)
-            .withHasMoreShards(false)));
+    given(kinesis.describeStream(STREAM, null))
+        .willReturn(
+            new DescribeStreamResult()
+                .withStreamDescription(
+                    new StreamDescription().withShards(shard1, shard2).withHasMoreShards(true)));
+    given(kinesis.describeStream(STREAM, SHARD_2))
+        .willReturn(
+            new DescribeStreamResult()
+                .withStreamDescription(
+                    new StreamDescription().withShards(shard3).withHasMoreShards(false)));
 
     List<Shard> shards = underTest.listShards(STREAM);
 
@@ -186,43 +187,39 @@ public class SimplifiedKinesisClientTest {
 
   @Test
   public void shouldHandleExpiredIterationExceptionForShardListing() {
-    shouldHandleShardListingError(new ExpiredIteratorException(""),
-        ExpiredIteratorException.class);
+    shouldHandleShardListingError(new ExpiredIteratorException(""), ExpiredIteratorException.class);
   }
 
   @Test
   public void shouldHandleLimitExceededExceptionForShardListing() {
-    shouldHandleShardListingError(new LimitExceededException(""),
-        TransientKinesisException.class);
+    shouldHandleShardListingError(new LimitExceededException(""), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
-    shouldHandleShardListingError(new ProvisionedThroughputExceededException(""),
-        TransientKinesisException.class);
+    shouldHandleShardListingError(
+        new ProvisionedThroughputExceededException(""), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleServiceErrorForShardListing() {
-    shouldHandleShardListingError(newAmazonServiceException(ErrorType.Service),
-        TransientKinesisException.class);
+    shouldHandleShardListingError(
+        newAmazonServiceException(ErrorType.Service), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleClientErrorForShardListing() {
-    shouldHandleShardListingError(newAmazonServiceException(ErrorType.Client),
-        RuntimeException.class);
+    shouldHandleShardListingError(
+        newAmazonServiceException(ErrorType.Client), RuntimeException.class);
   }
 
   @Test
   public void shouldHandleUnexpectedExceptionForShardListing() {
-    shouldHandleShardListingError(new NullPointerException(),
-        RuntimeException.class);
+    shouldHandleShardListingError(new NullPointerException(), RuntimeException.class);
   }
 
   private void shouldHandleShardListingError(
-      Exception thrownException,
-      Class<? extends Exception> expectedExceptionClass) {
+      Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
     given(kinesis.describeStream(STREAM, null)).willThrow(thrownException);
     try {
       underTest.listShards(STREAM);
@@ -241,8 +238,8 @@ public class SimplifiedKinesisClientTest {
     Minutes periodTime = Minutes.minutesBetween(countSince, countTo);
     GetMetricStatisticsRequest metricStatisticsRequest =
         underTest.createMetricStatisticsRequest(STREAM, countSince, countTo, periodTime);
-    GetMetricStatisticsResult result = new GetMetricStatisticsResult()
-        .withDatapoints(new Datapoint().withSum(1.0));
+    GetMetricStatisticsResult result =
+        new GetMetricStatisticsResult().withDatapoints(new Datapoint().withSum(1.0));
 
     given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willReturn(result);
 
@@ -258,12 +255,12 @@ public class SimplifiedKinesisClientTest {
     Minutes periodTime = Minutes.minutesBetween(countSince, countTo);
     GetMetricStatisticsRequest metricStatisticsRequest =
         underTest.createMetricStatisticsRequest(STREAM, countSince, countTo, periodTime);
-    GetMetricStatisticsResult result = new GetMetricStatisticsResult()
-        .withDatapoints(
-            new Datapoint().withSum(1.0),
-            new Datapoint().withSum(3.0),
-            new Datapoint().withSum(2.0)
-        );
+    GetMetricStatisticsResult result =
+        new GetMetricStatisticsResult()
+            .withDatapoints(
+                new Datapoint().withSum(1.0),
+                new Datapoint().withSum(3.0),
+                new Datapoint().withSum(2.0));
 
     given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willReturn(result);
 
@@ -285,37 +282,35 @@ public class SimplifiedKinesisClientTest {
 
   @Test
   public void shouldHandleLimitExceededExceptionForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(new LimitExceededException(""),
-        TransientKinesisException.class);
+    shouldHandleGetBacklogBytesError(
+        new LimitExceededException(""), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(new ProvisionedThroughputExceededException(""),
-        TransientKinesisException.class);
+    shouldHandleGetBacklogBytesError(
+        new ProvisionedThroughputExceededException(""), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleServiceErrorForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(newAmazonServiceException(ErrorType.Service),
-        TransientKinesisException.class);
+    shouldHandleGetBacklogBytesError(
+        newAmazonServiceException(ErrorType.Service), TransientKinesisException.class);
   }
 
   @Test
   public void shouldHandleClientErrorForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(newAmazonServiceException(ErrorType.Client),
-        RuntimeException.class);
+    shouldHandleGetBacklogBytesError(
+        newAmazonServiceException(ErrorType.Client), RuntimeException.class);
   }
 
   @Test
   public void shouldHandleUnexpectedExceptionForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(new NullPointerException(),
-        RuntimeException.class);
+    shouldHandleGetBacklogBytesError(new NullPointerException(), RuntimeException.class);
   }
 
   private void shouldHandleGetBacklogBytesError(
-      Exception thrownException,
-      Class<? extends Exception> expectedExceptionClass) {
+      Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
     Instant countSince = new Instant("2017-04-06T10:00:00.000Z");
     Instant countTo = new Instant("2017-04-06T11:00:00.000Z");
     Minutes periodTime = Minutes.minutesBetween(countSince, countTo);
@@ -343,11 +338,15 @@ public class SimplifiedKinesisClientTest {
   public void shouldReturnLimitedNumberOfRecords() throws Exception {
     final Integer limit = 100;
 
-    doAnswer((Answer<GetRecordsResult>) invocation -> {
-      GetRecordsRequest request = (GetRecordsRequest) invocation.getArguments()[0];
-      List<Record> records = generateRecords(request.getLimit());
-      return new GetRecordsResult().withRecords(records).withMillisBehindLatest(1000L);
-    }).when(kinesis).getRecords(any(GetRecordsRequest.class));
+    doAnswer(
+            (Answer<GetRecordsResult>)
+                invocation -> {
+                  GetRecordsRequest request = (GetRecordsRequest) invocation.getArguments()[0];
+                  List<Record> records = generateRecords(request.getLimit());
+                  return new GetRecordsResult().withRecords(records).withMillisBehindLatest(1000L);
+                })
+        .when(kinesis)
+        .getRecords(any(GetRecordsRequest.class));
 
     GetKinesisRecordsResult result = underTest.getRecords(SHARD_ITERATOR, STREAM, SHARD_1, limit);
     assertThat(result.getRecords().size()).isEqualTo(limit);
@@ -358,8 +357,11 @@ public class SimplifiedKinesisClientTest {
     for (int i = 0; i < num; i++) {
       byte[] value = new byte[1024];
       Arrays.fill(value, (byte) i);
-      records.add(new Record().withSequenceNumber(String.valueOf(i)).withPartitionKey("key")
-          .withData(ByteBuffer.wrap(value)));
+      records.add(
+          new Record()
+              .withSequenceNumber(String.valueOf(i))
+              .withPartitionKey("key")
+              .withData(ByteBuffer.wrap(value)));
     }
     return records;
   }

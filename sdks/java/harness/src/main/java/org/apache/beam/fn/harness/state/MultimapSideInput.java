@@ -63,8 +63,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
       keyCoder.encode(k, output);
     } catch (IOException e) {
       throw new IllegalStateException(
-          String.format("Failed to encode key %s for side input id %s.", k, sideInputId),
-          e);
+          String.format("Failed to encode key %s for side input id %s.", k, sideInputId), e);
     }
     StateRequest.Builder requestBuilder = StateRequest.newBuilder();
     requestBuilder
@@ -77,10 +76,9 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         .setKey(output.toByteString());
 
     return new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(valueCoder,
+        new DataStreams.DataStreamDecoder(
+            valueCoder,
             DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(
-                    beamFnStateClient,
-                    requestBuilder.build()))));
+                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
   }
 }
