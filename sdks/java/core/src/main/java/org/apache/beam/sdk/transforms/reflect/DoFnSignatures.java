@@ -84,18 +84,18 @@ public class DoFnSignatures {
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
-      ImmutableList.of(
-          Parameter.ProcessContextParameter.class,
-          Parameter.ElementParameter.class,
-          Parameter.RowParameter.class,
-          Parameter.TimestampParameter.class,
-          Parameter.OutputReceiverParameter.class,
-          Parameter.TaggedOutputReceiverParameter.class,
-          Parameter.WindowParameter.class,
-          Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class,
-          Parameter.TimerParameter.class,
-          Parameter.StateParameter.class);
+          ImmutableList.of(
+              Parameter.ProcessContextParameter.class,
+              Parameter.ElementParameter.class,
+              Parameter.RowParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.PaneInfoParameter.class,
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.TimerParameter.class,
+              Parameter.StateParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -839,12 +839,13 @@ public class DoFnSignatures {
         // anything special.
         return Parameter.rowParameter(null);
       } else {
-        methodErrors.checkArgument(paramT.equals(inputT),
-            "@Element argument must have type %s", inputT);
+        methodErrors.checkArgument(
+            paramT.equals(inputT), "@Element argument must have type %s", inputT);
         return Parameter.elementParameter(paramT);
       }
-    }  else if (hasTimestampAnnotation(param.getAnnotations())) {
-      methodErrors.checkArgument(rawType.equals(Instant.class),
+    } else if (hasTimestampAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
     } else if (rawType.equals(TimeDomain.class)) {
@@ -872,8 +873,9 @@ public class DoFnSignatures {
     } else if (rawType.equals(OutputReceiver.class)) {
       // It's a schema row receiver if it's an OutputReceiver<Row> _and_ the output type is not
       // already Row.
-      boolean schemaRowReceiver = paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
-          && !outputT.equals(TypeDescriptor.of(Row.class));
+      boolean schemaRowReceiver =
+          paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
+              && !outputT.equals(TypeDescriptor.of(Row.class));
       if (!schemaRowReceiver) {
         TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
         paramErrors.checkArgument(
@@ -882,7 +884,7 @@ public class DoFnSignatures {
             outputT);
       }
       return Parameter.outputReceiverParameter(schemaRowReceiver);
-    }  else if (rawType.equals(MultiOutputReceiver.class)) {
+    } else if (rawType.equals(MultiOutputReceiver.class)) {
       return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {
       methodErrors.checkArgument(
@@ -971,14 +973,11 @@ public class DoFnSignatures {
     } else if (rawType.equals(Row.class)) {
       String id = getFieldAccessId(param.getAnnotations());
       paramErrors.checkArgument(
-          id != null,
-          "missing %s annotation",
-          DoFn.FieldAccess.class.getSimpleName());
+          id != null, "missing %s annotation", DoFn.FieldAccess.class.getSimpleName());
       FieldAccessDeclaration fieldAccessDeclaration =
           fnContext.getFieldAccessDeclarations().get(id);
       paramErrors.checkArgument(
-          fieldAccessDeclaration != null,
-          "No FieldAccessDescriptor defined.");
+          fieldAccessDeclaration != null, "No FieldAccessDescriptor defined.");
       return Parameter.rowParameter(id);
     } else {
       List<String> allowedParamTypes =
@@ -1310,8 +1309,7 @@ public class DoFnSignatures {
   }
 
   private static Map<String, DoFnSignature.FieldAccessDeclaration> analyzeFieldAccessDeclaration(
-      ErrorReporter errors,
-      Class<?> fnClazz) {
+      ErrorReporter errors, Class<?> fnClazz) {
     Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
     for (Field field : declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
       field.setAccessible(true);
@@ -1319,8 +1317,7 @@ public class DoFnSignatures {
       if (!Modifier.isFinal(field.getModifiers())) {
         errors.throwIllegalArgument(
             "Non-final field %s annotated with %s. Field access declarations must be final.",
-            field.toString(),
-            DoFn.FieldAccess.class.getSimpleName());
+            field.toString(), DoFn.FieldAccess.class.getSimpleName());
         continue;
       }
       Class<?> fieldAccessRawType = field.getType();

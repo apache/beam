@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.beam.sdk.schemas;
+
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
@@ -48,11 +48,12 @@ public class FieldAccessDescriptor implements Serializable {
   private Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById;
   private Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName;
 
-  FieldAccessDescriptor(boolean allFields,
-                        Set<Integer> fieldsIdsAccessed,
-                        Set<String> fieldNamesAccessed,
-                        Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById,
-                        Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName) {
+  FieldAccessDescriptor(
+      boolean allFields,
+      Set<Integer> fieldsIdsAccessed,
+      Set<String> fieldNamesAccessed,
+      Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById,
+      Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName) {
     this.allFields = allFields;
     this.fieldIdsAccessed = fieldsIdsAccessed;
     this.fieldNamesAccessed = fieldNamesAccessed;
@@ -62,16 +63,20 @@ public class FieldAccessDescriptor implements Serializable {
 
   // Return a descriptor that accesses all fields in a row.
   public static FieldAccessDescriptor withAllFields() {
-    return new FieldAccessDescriptor(true, Collections.emptySet(), Collections.emptySet(),
-        Collections.emptyMap(), Collections.emptyMap());
+    return new FieldAccessDescriptor(
+        true,
+        Collections.emptySet(),
+        Collections.emptySet(),
+        Collections.emptyMap(),
+        Collections.emptyMap());
   }
 
   /**
    * Return a descriptor that access the specified fields.
    *
    * <p>By default, if the field is a nested row (or a container containing a row), all fields of
-   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
-   * pass in a recursive {@link FieldAccessDescriptor}.
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and pass
+   * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(String... names) {
     return withFieldNames(Arrays.asList(names));
@@ -81,20 +86,24 @@ public class FieldAccessDescriptor implements Serializable {
    * Return a descriptor that access the specified fields.
    *
    * <p>By default, if the field is a nested row (or a container containing a row), all fields of
-   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
-   * pass in a recursive {@link FieldAccessDescriptor}.
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and pass
+   * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(Iterable<String> fieldNames) {
-    return new FieldAccessDescriptor(false, Collections.emptySet(),
-        Sets.newHashSet(fieldNames), Collections.emptyMap(), Collections.emptyMap());
+    return new FieldAccessDescriptor(
+        false,
+        Collections.emptySet(),
+        Sets.newHashSet(fieldNames),
+        Collections.emptyMap(),
+        Collections.emptyMap());
   }
 
   /**
    * Return a descriptor that access the specified fields.
    *
    * <p>By default, if the field is a nested row (or a container containing a row), all fields of
-   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
-   * pass in a recursive {@link FieldAccessDescriptor}.
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and pass
+   * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Integer... ids) {
     return withFieldIds(Arrays.asList(ids));
@@ -104,14 +113,17 @@ public class FieldAccessDescriptor implements Serializable {
    * Return a descriptor that access the specified fields.
    *
    * <p>By default, if the field is a nested row (or a container containing a row), all fields of
-   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
-   * pass in a recursive {@link FieldAccessDescriptor}.
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and pass
+   * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Iterable<Integer> ids) {
-    return new FieldAccessDescriptor(false, Sets.newHashSet(ids),
-        Collections.emptySet(), Collections.emptyMap(), Collections.emptyMap());
+    return new FieldAccessDescriptor(
+        false,
+        Sets.newHashSet(ids),
+        Collections.emptySet(),
+        Collections.emptyMap(),
+        Collections.emptyMap());
   }
-
 
   /**
    * Return a descriptor that access the specified nested field. The nested field must be of type
@@ -122,11 +134,15 @@ public class FieldAccessDescriptor implements Serializable {
       int nestedFieldId, FieldAccessDescriptor fieldAccess) {
     Map<Integer, FieldAccessDescriptor> newNestedFieldAccess =
         ImmutableMap.<Integer, FieldAccessDescriptor>builder()
-        .putAll(nestedFieldsAccessedById)
-        .put(nestedFieldId, fieldAccess)
-        .build();
-    return new FieldAccessDescriptor(false, fieldIdsAccessed,
-        fieldNamesAccessed, newNestedFieldAccess, nestedFieldsAccessedByName);
+            .putAll(nestedFieldsAccessedById)
+            .put(nestedFieldId, fieldAccess)
+            .build();
+    return new FieldAccessDescriptor(
+        false,
+        fieldIdsAccessed,
+        fieldNamesAccessed,
+        newNestedFieldAccess,
+        nestedFieldsAccessedByName);
   }
 
   /**
@@ -141,8 +157,12 @@ public class FieldAccessDescriptor implements Serializable {
             .putAll(nestedFieldsAccessedByName)
             .put(nestedFieldName, fieldAccess)
             .build();
-    return new FieldAccessDescriptor(false, fieldIdsAccessed,
-        fieldNamesAccessed, nestedFieldsAccessedById, newNestedFieldAccess);
+    return new FieldAccessDescriptor(
+        false,
+        fieldIdsAccessed,
+        fieldNamesAccessed,
+        nestedFieldsAccessedById,
+        newNestedFieldAccess);
   }
 
   public boolean allFields() {
@@ -161,14 +181,16 @@ public class FieldAccessDescriptor implements Serializable {
     Set<Integer> fieldIdsAccessed = resolveFieldIdsAccessed(schema);
     Map<Integer, FieldAccessDescriptor> nestedFieldsAccessed = resolveNestedFieldsAccessed(schema);
 
-    checkState(!allFields || nestedFieldsAccessed.isEmpty(),
-    "nested fields cannot be set if allFields is also set");
+    checkState(
+        !allFields || nestedFieldsAccessed.isEmpty(),
+        "nested fields cannot be set if allFields is also set");
 
     // If a recursive access is set for any nested fields, remove those fields from
     // fieldIdsAccessed.
     fieldIdsAccessed.removeAll(nestedFieldsAccessed.keySet());
 
-    return new FieldAccessDescriptor(this.allFields,
+    return new FieldAccessDescriptor(
+        this.allFields,
         fieldIdsAccessed,
         Collections.emptySet(),
         nestedFieldsAccessed,
@@ -197,17 +219,17 @@ public class FieldAccessDescriptor implements Serializable {
         && TypeName.ROW.equals(type.getCollectionElementType().getTypeName())) {
       return type.getCollectionElementType().getRowSchema();
     } else if (TypeName.MAP.equals(type.getTypeName())
-      && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
+        && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
       return type.getMapValueType().getRowSchema();
     } else {
-      checkState(false, "Field " + field + " must be either a row or "
-      + " a container containing rows");
+      checkState(
+          false, "Field " + field + " must be either a row or " + " a container containing rows");
     }
     return null;
   }
 
-  private FieldAccessDescriptor resolvedNestedFieldsHelper(Field field,
-                                                           FieldAccessDescriptor subDescriptor) {
+  private FieldAccessDescriptor resolvedNestedFieldsHelper(
+      Field field, FieldAccessDescriptor subDescriptor) {
     return subDescriptor.resolve(getFieldSchema(field));
   }
 
@@ -215,23 +237,28 @@ public class FieldAccessDescriptor implements Serializable {
     Map<Integer, FieldAccessDescriptor> nestedFields = Maps.newHashMap();
 
     nestedFields.putAll(
-        nestedFieldsAccessedByName.entrySet().stream()
-        .collect(Collectors.toMap(
-            e -> schema.indexOf(e.getKey()),
-            e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
+        nestedFieldsAccessedByName
+            .entrySet()
+            .stream()
+            .collect(
+                Collectors.toMap(
+                    e -> schema.indexOf(e.getKey()),
+                    e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
     nestedFields.putAll(
-        nestedFieldsAccessedById.entrySet().stream()
-        .collect(Collectors.toMap(
-            e -> validateFieldId(schema, e.getKey()),
-            e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
+        nestedFieldsAccessedById
+            .entrySet()
+            .stream()
+            .collect(
+                Collectors.toMap(
+                    e -> validateFieldId(schema, e.getKey()),
+                    e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
 
     return nestedFields;
   }
 
   private int validateFieldId(Schema schema, int fieldId) {
     if (fieldId < 0 || fieldId >= schema.getFieldCount()) {
-      throw new IllegalArgumentException(
-          "Invalid field id " + fieldId + " for schema " + schema);
+      throw new IllegalArgumentException("Invalid field id " + fieldId + " for schema " + schema);
     }
     return fieldId;
   }

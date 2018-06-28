@@ -28,9 +28,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * {@link SchemaCoder} is used as the coder for types that have schemas registered.
- */
+/** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
 @Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
   private Schema schema;
@@ -38,7 +36,8 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   private SerializableFunction<T, Row> toRowFunction;
   private SerializableFunction<Row, T> fromRowFunction;
 
-  private SchemaCoder(Schema schema,
+  private SchemaCoder(
+      Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
     this.schema = schema;
@@ -58,23 +57,17 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
   }
 
-  /**
-   * Returns the schema associated with this type.
-   */
+  /** Returns the schema associated with this type. */
   public Schema getSchema() {
     return schema;
   }
 
-  /**
-   * Returns the toRow conversion function.
-   */
+  /** Returns the toRow conversion function. */
   public SerializableFunction<Row, T> getFromRowFunction() {
     return fromRowFunction;
   }
 
-  /**
-   * Returns the fromRow conversion function.
-   */
+  /** Returns the fromRow conversion function. */
   public SerializableFunction<T, Row> getToRowFunction() {
     return toRowFunction;
   }

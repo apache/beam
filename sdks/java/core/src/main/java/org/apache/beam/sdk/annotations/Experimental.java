@@ -99,9 +99,7 @@ public @interface Experimental {
      */
     CONTEXTFUL,
 
-    /**
-     * PCollection Schema support in Beam.
-     */
+    /** PCollection Schema support in Beam. */
     SCHEMAS,
   }
 }

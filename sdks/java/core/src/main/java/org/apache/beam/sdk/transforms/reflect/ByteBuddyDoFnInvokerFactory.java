@@ -610,8 +610,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(RowParameter p) {
-            StackManipulation parameter = (p.fieldAccessId() == null)
-                ? NullConstant.INSTANCE : new TextConstant(p.fieldAccessId());
+            StackManipulation parameter =
+                (p.fieldAccessId() == null)
+                    ? NullConstant.INSTANCE
+                    : new TextConstant(p.fieldAccessId());
             return new StackManipulation.Compound(
                 parameter,
                 MethodInvocation.invoke(
@@ -638,13 +640,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(OutputReceiverParameter p) {
-            String method = p.isRowReceiver()
-                ? OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
+            String method =
+                p.isRowReceiver() ? OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        method, DoFn.class)));
+                    getExtraContextFactoryMethodDescription(method, DoFn.class)));
           }
 
           @Override

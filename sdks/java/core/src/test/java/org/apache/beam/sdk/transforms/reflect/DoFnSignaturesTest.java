@@ -171,22 +171,27 @@ public class DoFnSignaturesTest {
 
   @Test
   public void testRowParameterWithoutFieldAccess() {
-    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
-      @ProcessElement
-      public void process(@Element Row row) {}
-    }.getClass());
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(@Element Row row) {}
+            }.getClass());
     assertThat(sig.processElement().getRowParameter(), notNullValue());
   }
 
   @Test
   public void testFieldAccess() {
     FieldAccessDescriptor descriptor = FieldAccessDescriptor.withFieldNames("foo", "bar");
-    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
-      @FieldAccess("foo")
-      final FieldAccessDescriptor fieldAccess = descriptor;
-      @ProcessElement
-      public void process(@FieldAccess("foo") Row row) {}
-    }.getClass());
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @FieldAccess("foo")
+              final FieldAccessDescriptor fieldAccess = descriptor;
+
+              @ProcessElement
+              public void process(@FieldAccess("foo") Row row) {}
+            }.getClass());
     assertThat(sig.fieldAccessDeclarations().get("foo"), equalTo(descriptor));
     assertThat(sig.processElement().getRowParameter(), notNullValue());
   }
@@ -195,18 +200,22 @@ public class DoFnSignaturesTest {
   public void testMissingFieldAccess() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("No FieldAccessDescriptor defined.");
-    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
-      @ProcessElement
-      public void process(@FieldAccess("foo") Row row) {}
-    }.getClass());
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(@FieldAccess("foo") Row row) {}
+            }.getClass());
   }
 
   @Test
   public void testRowReceiver() {
-    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
-      @ProcessElement
-      public void process(OutputReceiver<Row> rowReceiver) {}
-    }.getClass());
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(OutputReceiver<Row> rowReceiver) {}
+            }.getClass());
     assertThat(sig.processElement().getMainOutputReceiver().isRowReceiver(), is(true));
   }
 

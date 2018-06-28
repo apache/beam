@@ -276,8 +276,8 @@ public class Create<T> {
     }
 
     /**
-     * Returns a {@link Create.Values} PTransform like this one that uses the given
-     * {@code Schema} to represent objects.
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
+     * to represent objects.
      */
     @Experimental(Kind.SCHEMAS)
     public Values<T> withSchema(
@@ -288,10 +288,10 @@ public class Create<T> {
     }
 
     /**
-     * Returns a {@link Create.Values} PTransform like this one that uses the given
-     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
-     * objects into a value of type {@code T}. Note that a default coder must be registered for the
-     * class described in the {@code TypeDescriptor<T>}.
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code
+     * TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects into a
+     * value of type {@code T}. Note that a default coder must be registered for the class described
+     * in the {@code TypeDescriptor<T>}.
      *
      * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
      * all elements have the same non-parameterized run-time class, and a default coder is
@@ -318,10 +318,11 @@ public class Create<T> {
         if (coder == null) {
           if (typeDescriptor.isPresent()) {
             try {
-              coder = SchemaCoder.of(
-                  schemaRegistry.getSchema(typeDescriptor.get()),
-                  schemaRegistry.getToRowFunction(typeDescriptor.get()),
-                  schemaRegistry.getFromRowFunction(typeDescriptor.get()));
+              coder =
+                  SchemaCoder.of(
+                      schemaRegistry.getSchema(typeDescriptor.get()),
+                      schemaRegistry.getToRowFunction(typeDescriptor.get()),
+                      schemaRegistry.getFromRowFunction(typeDescriptor.get()));
             } catch (NoSuchSchemaException e) {
               // No schema registered.
             }
@@ -333,9 +334,11 @@ public class Create<T> {
           }
         }
       } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
-            + "Please set a coder by invoking Create.withCoder() explicitly "
-            + " or a schema by invoking Create.withSchema().", e);
+        throw new IllegalArgumentException(
+            "Unable to infer a coder and no Coder was specified. "
+                + "Please set a coder by invoking Create.withCoder() explicitly "
+                + " or a schema by invoking Create.withSchema().",
+            e);
       }
       try {
         CreateSource<T> source = CreateSource.fromIterable(elems, coder);
@@ -562,9 +565,9 @@ public class Create<T> {
 
     /**
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
-     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
-     * objects into a value of type {@code T}. Note that a default coder must be registered for the
-     * class described in the {@code TypeDescriptor<T>}.
+     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects
+     * into a value of type {@code T}. Note that a default coder must be registered for the class
+     * described in the {@code TypeDescriptor<T>}.
      *
      * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
      * to use if all elements have the same non-parameterized run-time class, and a default coder is
@@ -588,10 +591,11 @@ public class Create<T> {
           coder = elementCoder.get();
         } else if (typeDescriptor.isPresent()) {
           try {
-            coder = SchemaCoder.of(
-                schemaRegistry.getSchema(typeDescriptor.get()),
-                schemaRegistry.getToRowFunction(typeDescriptor.get()),
-                schemaRegistry.getFromRowFunction(typeDescriptor.get()));
+            coder =
+                SchemaCoder.of(
+                    schemaRegistry.getSchema(typeDescriptor.get()),
+                    schemaRegistry.getToRowFunction(typeDescriptor.get()),
+                    schemaRegistry.getFromRowFunction(typeDescriptor.get()));
           } catch (NoSuchSchemaException e) {
             // No schema registered.
           }
@@ -677,11 +681,12 @@ public class Create<T> {
     TypeDescriptor<T> typeDescriptor = (TypeDescriptor<T>) TypeDescriptor.of(elementClazz);
     if (elementClazz.getTypeParameters().length == 0) {
       try {
-        Coder<T> coder = SchemaCoder.of(
-            schemaRegistry.getSchema(typeDescriptor),
-            schemaRegistry.getToRowFunction(typeDescriptor),
-            schemaRegistry.getFromRowFunction(typeDescriptor));
-        return  coder;
+        Coder<T> coder =
+            SchemaCoder.of(
+                schemaRegistry.getSchema(typeDescriptor),
+                schemaRegistry.getToRowFunction(typeDescriptor),
+                schemaRegistry.getFromRowFunction(typeDescriptor));
+        return coder;
       } catch (NoSuchSchemaException e) {
         // No schema.
       }
@@ -704,8 +709,8 @@ public class Create<T> {
    * equivalent for all elements.
    */
   private static Coder<?> inferCoderFromObjects(
-      CoderRegistry coderRegistry, SchemaRegistry schemaRegistry, Iterable<?> elems) throws
-      CannotProvideCoderException {
+      CoderRegistry coderRegistry, SchemaRegistry schemaRegistry, Iterable<?> elems)
+      throws CannotProvideCoderException {
     Optional<Coder<?>> coder = Optional.absent();
     for (Object elem : elems) {
       Coder<?> c = inferCoderFromObject(coderRegistry, schemaRegistry, elem);
@@ -747,7 +752,8 @@ public class Create<T> {
     }
 
     try {
-      return SchemaCoder.of(schemaRegistry.getSchema(o.getClass()),
+      return SchemaCoder.of(
+          schemaRegistry.getSchema(o.getClass()),
           (SerializableFunction) schemaRegistry.getToRowFunction(o.getClass()),
           schemaRegistry.getFromRowFunction(o.getClass()));
     } catch (NoSuchSchemaException e) {
@@ -762,8 +768,8 @@ public class Create<T> {
     } else if (o instanceof Set) {
       return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Collection) {
-      return CollectionCoder.of(inferCoderFromObjects(
-          coderRegistry, schemaRegistry, ((Iterable) o)));
+      return CollectionCoder.of(
+          inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Iterable) {
       return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Map) {

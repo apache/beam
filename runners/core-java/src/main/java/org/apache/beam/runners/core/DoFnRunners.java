@@ -103,19 +103,18 @@ public class DoFnRunners {
   }
 
   public static <InputT, OutputT, RestrictionT>
-  ProcessFnRunner<InputT, OutputT, RestrictionT>
-  newProcessFnRunner(
-      ProcessFn<InputT, OutputT, RestrictionT, ?> fn,
-      PipelineOptions options,
-      Collection<PCollectionView<?>> views,
-      ReadyCheckingSideInputReader sideInputReader,
-      OutputManager outputManager,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> additionalOutputTags,
-      StepContext stepContext,
-      @Nullable Coder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> inputCoder,
-      Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      ProcessFnRunner<InputT, OutputT, RestrictionT> newProcessFnRunner(
+          ProcessFn<InputT, OutputT, RestrictionT, ?> fn,
+          PipelineOptions options,
+          Collection<PCollectionView<?>> views,
+          ReadyCheckingSideInputReader sideInputReader,
+          OutputManager outputManager,
+          TupleTag<OutputT> mainOutputTag,
+          List<TupleTag<?>> additionalOutputTags,
+          StepContext stepContext,
+          @Nullable Coder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> inputCoder,
+          Map<TupleTag<?>, Coder<?>> outputCoders,
+          WindowingStrategy<?, ?> windowingStrategy) {
     return new ProcessFnRunner<>(
         simpleRunner(
             options,

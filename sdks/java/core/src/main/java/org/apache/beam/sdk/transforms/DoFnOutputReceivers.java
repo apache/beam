@@ -35,9 +35,11 @@ public class DoFnOutputReceivers {
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
     WindowedContextOutputReceiver<T> outputReceiver;
     SchemaCoder<T> schemaCoder;
-    public RowOutputReceiver(DoFn<?, ?>.WindowedContext context,
-                             @Nullable TupleTag<T> outputTag,
-                             SchemaCoder<T> schemaCoder) {
+
+    public RowOutputReceiver(
+        DoFn<?, ?>.WindowedContext context,
+        @Nullable TupleTag<T> outputTag,
+        SchemaCoder<T> schemaCoder) {
       outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
       this.schemaCoder = checkNotNull(schemaCoder);
     }
@@ -49,8 +51,7 @@ public class DoFnOutputReceivers {
 
     @Override
     public void outputWithTimestamp(Row output, Instant timestamp) {
-      outputReceiver.outputWithTimestamp(
-          schemaCoder.getFromRowFunction().apply(output), timestamp);
+      outputReceiver.outputWithTimestamp(schemaCoder.getFromRowFunction().apply(output), timestamp);
     }
   }
 
@@ -86,8 +87,9 @@ public class DoFnOutputReceivers {
   private static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
     DoFn<?, ?>.WindowedContext context;
     @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
-    public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context,
-                                              @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
+
+    public WindowedContextMultiOutputReceiver(
+        DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
       this.context = context;
       this.outputCoders = outputCoders;
     }
@@ -101,9 +103,9 @@ public class DoFnOutputReceivers {
     public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
       Coder<T> outputCoder = (Coder<T>) checkNotNull(outputCoders).get(tag);
       checkState(outputCoder != null, "No output tag for " + tag);
-      checkState(outputCoder instanceof SchemaCoder,
-          "Output with tag " + tag + " must have a schema in order to call "
-              + " getRowReceiver");
+      checkState(
+          outputCoder instanceof SchemaCoder,
+          "Output with tag " + tag + " must have a schema in order to call " + " getRowReceiver");
       return DoFnOutputReceivers.rowReceiver(context, tag, (SchemaCoder<T>) outputCoder);
     }
   }
@@ -114,21 +116,20 @@ public class DoFnOutputReceivers {
     return new WindowedContextOutputReceiver<>(context, outputTag);
   }
 
-  /**
-   * Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   */
+  /** Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
   public static <T> MultiOutputReceiver windowedMultiReceiver(
       DoFn<?, ?>.WindowedContext context, Map<TupleTag<?>, Coder<?>> outputCoders) {
     return new WindowedContextMultiOutputReceiver(context, outputCoders);
   }
 
   /**
-   * Returns a {@link OutputReceiver} that automatically converts a {@link Row} to the user's
-   * output type and delegates to {@link WindowedContextOutputReceiver}.
+   * Returns a {@link OutputReceiver} that automatically converts a {@link Row} to the user's output
+   * type and delegates to {@link WindowedContextOutputReceiver}.
    */
-  public static <T> OutputReceiver<Row> rowReceiver(DoFn<?, ?>.WindowedContext context,
-                                                    @Nullable TupleTag<T> outputTag,
-                                                    SchemaCoder<T> schemaCoder) {
+  public static <T> OutputReceiver<Row> rowReceiver(
+      DoFn<?, ?>.WindowedContext context,
+      @Nullable TupleTag<T> outputTag,
+      SchemaCoder<T> schemaCoder) {
     return new RowOutputReceiver<>(context, outputTag, schemaCoder);
   }
 }

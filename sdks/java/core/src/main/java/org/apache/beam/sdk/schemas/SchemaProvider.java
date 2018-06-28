@@ -25,27 +25,25 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Concrete implementations of this class allow creation of schema service objects that vend
- * a {@link Schema} for a specific type. One example use: creating a {@link SchemaProvider} that
+ * Concrete implementations of this class allow creation of schema service objects that vend a
+ * {@link Schema} for a specific type. One example use: creating a {@link SchemaProvider} that
  * contacts an external schema-registry service to determine the schema for a type.
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class SchemaProvider {
 
-  /**
-   * Lookup a schema for the given type. If no schema exists, returns null.
-   */
-  public abstract <T>  Schema schemaFor(TypeDescriptor<T> typeDescriptor);
+  /** Lookup a schema for the given type. If no schema exists, returns null. */
+  public abstract <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor);
 
   /**
-   * Given a type, return a function that converts that type to a {@link Row} object
-   * If no schema exists, returns null.
+   * Given a type, return a function that converts that type to a {@link Row} object If no schema
+   * exists, returns null.
    */
   public abstract <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor);
 
   /**
-   * Given a type, returns a function that converts from a {@link Row} object to that type.
-   * If no schema exists, returns null.
+   * Given a type, returns a function that converts from a {@link Row} object to that type. If no
+   * schema exists, returns null.
    */
   public abstract <T> SerializableFunction<Row, T> fromRowFunction(
       TypeDescriptor<T> typeDescriptor);

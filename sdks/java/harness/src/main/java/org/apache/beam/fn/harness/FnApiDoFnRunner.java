@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
@@ -105,12 +104,10 @@ public class FnApiDoFnRunner<InputT, OutputT>
   private BoundedWindow currentWindow;
 
   /** Following fields are only valid if a Schema is set, null otherwise. */
-  @Nullable
-  private final SchemaCoder<InputT> schemaCoder;
-  @Nullable
-  private final SchemaCoder<OutputT> mainOutputSchemaCoder;
-  @Nullable
-  private final FieldAccessDescriptor fieldAccessDescriptor;
+  @Nullable private final SchemaCoder<InputT> schemaCoder;
+
+  @Nullable private final SchemaCoder<OutputT> mainOutputSchemaCoder;
+  @Nullable private final FieldAccessDescriptor fieldAccessDescriptor;
 
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
@@ -156,12 +153,14 @@ public class FnApiDoFnRunner<InputT, OutputT>
           }
         };
 
-    this.schemaCoder = (context.inputCoder instanceof SchemaCoder)
-        ? (SchemaCoder<InputT>) context.inputCoder : null;
+    this.schemaCoder =
+        (context.inputCoder instanceof SchemaCoder)
+            ? (SchemaCoder<InputT>) context.inputCoder
+            : null;
     if (context.outputCoders != null) {
       Coder<OutputT> outputCoder = (Coder<OutputT>) context.outputCoders.get(context.mainOutputTag);
-      mainOutputSchemaCoder = (outputCoder instanceof SchemaCoder)
-          ? (SchemaCoder<OutputT>) outputCoder : null;
+      mainOutputSchemaCoder =
+          (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
     } else {
       mainOutputSchemaCoder = null;
     }
@@ -171,9 +170,13 @@ public class FnApiDoFnRunner<InputT, OutputT>
     RowParameter rowParameter = processElementMethod.getRowParameter();
     FieldAccessDescriptor fieldAccessDescriptor = null;
     if (rowParameter != null) {
-      checkArgument(schemaCoder != null,
+      checkArgument(
+          schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
-              + "DoFn " + context.doFn.getClass() + " Coder " + context.inputCoder.getClass());
+              + "DoFn "
+              + context.doFn.getClass()
+              + " Coder "
+              + context.inputCoder.getClass());
       String id = rowParameter.fieldAccessId();
       if (id == null) {
         // This is the case where no FieldId is defined, just an @Element Row row. Default to all
@@ -183,8 +186,8 @@ public class FnApiDoFnRunner<InputT, OutputT>
         // In this case, we expect to have a FieldAccessDescriptor defined in the class.
         FieldAccessDeclaration fieldAccessDeclaration =
             doFnSignature.fieldAccessDeclarations().get(id);
-        checkArgument(fieldAccessDeclaration != null,
-            "No FieldAccessDescriptor defined with id", id);
+        checkArgument(
+            fieldAccessDeclaration != null, "No FieldAccessDescriptor defined with id", id);
         checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
         try {
           fieldAccessDescriptor =
@@ -197,7 +200,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;
-
   }
 
   @Override
