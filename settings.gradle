@@ -40,6 +40,8 @@ include "beam-runners-extensions-java-metrics"
 project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
 include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
+include "beam-runners-flink_2.11-job-server"
+project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-gcp-gcemd"
 project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
 include "beam-runners-gcp-gcsproxy"
@@ -48,6 +50,10 @@ include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
 project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
+// These 2 projects will not be published to Maven so they don't get a special
+// dashed name.
+include ":runners:google-cloud-dataflow-java:examples"
+include ":runners:google-cloud-dataflow-java:examples-streaming"
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
 include "beam-runners-local-java-core"
@@ -56,6 +62,8 @@ include "beam-runners-reference-java"
 project(":beam-runners-reference-java").dir = file("runners/reference/java")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
+include "beam-runners-samza"
+project(":beam-runners-samza").dir = file("runners/samza")
 include "beam-sdks-go"
 project(":beam-sdks-go").dir = file("sdks/go")
 include "beam-sdks-go-container"
@@ -86,6 +94,8 @@ include "beam-sdks-java-extensions-sql"
 project(":beam-sdks-java-extensions-sql").dir = file("sdks/java/extensions/sql")
 include "beam-sdks-java-extensions-sql-jdbc"
 project(":beam-sdks-java-extensions-sql-jdbc").dir = file("sdks/java/extensions/sql/jdbc")
+include "beam-sdks-java-extensions-sql-shell"
+project(":beam-sdks-java-extensions-sql-shell").dir = file("sdks/java/extensions/sql/shell")
 include "beam-sdks-java-fn-execution"
 project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
 include "beam-sdks-java-harness"

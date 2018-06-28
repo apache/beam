@@ -24,9 +24,9 @@ job('beam_PerformanceTests_Python'){
   common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Run job in postcommit every 6 hours, don't trigger every push.
-  common_job_properties.setPostCommit(
+  common_job_properties.setAutoJob(
       delegate,
-      '0 */6 * * *',
+      'H */6 * * *',
       false,
       'commits@beam.apache.org')
 

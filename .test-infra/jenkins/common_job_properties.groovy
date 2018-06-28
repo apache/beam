@@ -24,7 +24,7 @@ class common_job_properties {
 
   static String checkoutDir = 'src'
 
-  static void setSCM(def context, String repositoryName) {
+  static void setSCM(def context, String repositoryName, boolean allowRemotePoll = true) {
     context.scm {
       git {
         remote {
@@ -39,6 +39,9 @@ class common_job_properties {
         extensions {
           cleanAfterCheckout()
           relativeTargetDirectory(checkoutDir)
+          if (!allowRemotePoll) {
+            disableRemotePoll()
+          }
         }
       }
     }
@@ -46,26 +49,26 @@ class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
   static void setTopLevelWebsiteJobProperties(def context,
-                                              String branch = 'asf-site') {
+                                              String branch = 'asf-site',
+                                              int timeout = 100) {
     setTopLevelJobProperties(
             context,
             'beam-site',
             branch,
-            'beam',
-            30)
+            timeout)
   }
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
                                            String branch = 'master',
                                            int timeout = 100,
-                                           String jenkinsExecutorLabel = 'beam') {
+                                           boolean allowRemotePoll = true) {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
-            jenkinsExecutorLabel,
-            timeout)
+            timeout,
+            allowRemotePoll)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -73,8 +76,9 @@ class common_job_properties {
   private static void setTopLevelJobProperties(def context,
                                                String repositoryName,
                                                String defaultBranch,
-                                               String jenkinsExecutorLabel,
-                                               int defaultTimeout) {
+                                               int defaultTimeout,
+                                               boolean allowRemotePoll = true) {
+    def jenkinsExecutorLabel = 'beam'
 
     // GitHub project.
     context.properties {
@@ -93,7 +97,7 @@ class common_job_properties {
     }
 
     // Source code management.
-    setSCM(context, repositoryName)
+    setSCM(context, repositoryName, allowRemotePoll)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -128,7 +132,7 @@ class common_job_properties {
                                          String commitStatusContext,
                                          String prTriggerPhrase = '',
                                          boolean onlyTriggerPhraseToggle = true,
-                                         String successComment = '--none--') {
+                                         List<String> triggerPathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -147,17 +151,20 @@ class common_job_properties {
         if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
+        if (!triggerPathPatterns.isEmpty()) {
+          includedRegions(triggerPathPatterns.join('\n'))
+        }
 
         extensions {
           commitStatus {
             // This is the name that will show up in the GitHub pull request UI
             // for this Jenkins project. It has a limit of 255 characters.
-            delegate.context(("Jenkins: " + commitStatusContext).take(255))
+            delegate.context commitStatusContext.take(255)
           }
 
           // Comment messages after build completes.
           buildStatus {
-            completedStatus('SUCCESS', successComment)
+            completedStatus('SUCCESS', '--none--')
             completedStatus('FAILURE', '--none--')
             completedStatus('ERROR', '--none--')
           }
@@ -196,10 +203,9 @@ class common_job_properties {
   // Sets common config for PreCommit jobs.
   static void setPreCommit(context,
                            String commitStatusName,
-                           String prTriggerPhrase = '',
-                           String successComment = '--none--') {
+                           String prTriggerPhrase = '') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false, successComment)
+    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false)
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -212,8 +218,7 @@ class common_job_properties {
       context,
       commitStatusName,
       prTriggerPhrase,
-      true,
-      '--none--')
+      true)
   }
 
   // Sets this as a cron job, running on a schedule.
@@ -223,8 +228,8 @@ class common_job_properties {
     }
   }
 
-  // Sets common config for PostCommit jobs.
-  static void setPostCommit(context,
+  // Sets common config for jobs which run on a schedule / push
+  static void setAutoJob(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
                             String notifyAddress = 'commits@beam.apache.org',

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import org.joda.time.DateTime;
 
 /** {@code BeamSqlExpression} for {@code =} operation. */
 public class BeamSqlEqualsExpression extends BeamSqlCompareExpression {
@@ -43,5 +44,10 @@ public class BeamSqlEqualsExpression extends BeamSqlCompareExpression {
         || (leftValue != null
             && rightValue != null
             && leftValue.floatValue() == (rightValue).floatValue());
+  }
+
+  @Override
+  public Boolean compare(DateTime leftValue, DateTime rightValue) {
+    return leftValue.isEqual(rightValue);
   }
 }

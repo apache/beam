@@ -23,6 +23,7 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -93,10 +94,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
 
   public static final String SPLITTABLE_PROCESS_URN =
-      "urn:beam:runners_core:transforms:splittable_process:v1";
+      "beam:runners_core:transforms:splittable_process:v1";
 
   public static final String SPLITTABLE_GBKIKWI_URN =
-      "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
+      "beam:runners_core:transforms:splittable_gbkikwi:v1";
 
   private SplittableParDo(
       DoFn<InputT, OutputT> doFn,
@@ -148,7 +149,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
-    PCollection<KV<String, KV<InputT, RestrictionT>>> keyedRestrictions =
+    PCollection<KV<byte[], KV<InputT, RestrictionT>>> keyedRestrictions =
         input
             .apply(
                 "Pair with initial restriction",
@@ -198,7 +199,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
   public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
-      extends PTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
@@ -269,7 +270,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<byte[], KV<InputT, RestrictionT>>> input) {
       return createPrimitiveOutputFor(
           input, fn, mainOutputTag, additionalOutputTags, outputTagsToCoders, windowingStrategy);
     }
@@ -395,10 +396,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * collection is effectively the same elements as input, but the per-key state and timers are now
    * effectively per-element.
    */
-  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, String> {
+  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, byte[]> {
     @Override
-    public String apply(T input) {
-      return UUID.randomUUID().toString();
+    public byte[] apply(T input) {
+      return UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
     }
   }
 

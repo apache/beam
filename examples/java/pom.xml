@@ -156,6 +156,18 @@
       </dependencies>
     </profile>
 
+    <!-- Include the Apache Samza runner -P samza-runner -->
+    <profile>
+      <id>samza-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-samza_2.11</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
     <!-- Custom set up for our Jenkins precommit tests that comment on GitHub -->
     <profile>
       <id>jenkins-precommit</id>

@@ -152,7 +152,9 @@ func (m *Entry) String() string            { return proto.CompactTextString(m) }
 func (*Entry) ProtoMessage()               {}
 func (*Entry) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
-type isEntry_Msg interface{ isEntry_Msg() }
+type isEntry_Msg interface {
+	isEntry_Msg()
+}
 
 type Entry_InstReq struct {
 	InstReq *org_apache_beam_model_fn_execution_v1.InstructionRequest `protobuf:"bytes,1000,opt,name=inst_req,json=instReq,oneof"`

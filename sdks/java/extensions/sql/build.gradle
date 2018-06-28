@@ -21,7 +21,6 @@ import groovy.json.JsonOutput
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
   enableSpotless: true,
-  failOnWarning: true,
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'],
   testShadowJar: true,
@@ -70,7 +69,6 @@ dependencies {
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
   compileOnly library.java.findbugs_jsr305
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api

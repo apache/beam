@@ -23,9 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
-import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -133,15 +132,12 @@ public class LengthPrefixUnknownCodersTest {
 
   @Test
   public void test() throws IOException {
-    MessageWithComponents originalCoderProto = CoderTranslation.toProto(original);
-    Components.Builder builder = originalCoderProto.getComponents().toBuilder();
-    String coderId = LengthPrefixUnknownCoders.generateUniqueId("rootTestId",
-        originalCoderProto.getComponents().getCodersMap().keySet());
-    builder.putCoders(coderId, originalCoderProto.getCoder());
-    MessageWithComponents updatedCoderProto = LengthPrefixUnknownCoders.forCoder(
-        coderId, builder.build(), replaceWithByteArray);
-    assertEquals(expected,
-        CoderTranslation.fromProto(updatedCoderProto.getCoder(),
-            RehydratedComponents.forComponents(updatedCoderProto.getComponents())));
+    SdkComponents sdkComponents = SdkComponents.create();
+    String coderId = sdkComponents.registerCoder(original);
+    Components.Builder components = sdkComponents.toComponents().toBuilder();
+    String updatedCoderId = LengthPrefixUnknownCoders.addLengthPrefixedCoder(
+        coderId, components, replaceWithByteArray);
+    assertEquals(
+        expected, RehydratedComponents.forComponents(components.build()).getCoder(updatedCoderId));
   }
 }

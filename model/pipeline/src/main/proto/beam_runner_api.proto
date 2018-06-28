@@ -228,17 +228,11 @@ message StandardPTransforms {
     // Payload: CombinePayload
     COMBINE_GLOBALLY = 1 [(beam_urn) = "beam:transform:combine_globally:v1"];
 
-    // Represents the Combine.groupedValues() operation.
-    // If this is produced by an SDK, it is assumed that the SDK understands
-    // each of CombineComponents.
-    // Payload: CombinePayload
-    COMBINE_GROUPED_VALUES = 2 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
-
     // Represents the Reshuffle operation.
-    RESHUFFLE = 3 [(beam_urn) = "beam:transform:reshuffle:v1"];
+    RESHUFFLE = 2 [(beam_urn) = "beam:transform:reshuffle:v1"];
 
     // Less well-known. Payload: WriteFilesPayload.
-    WRITE_FILES = 4 [(beam_urn) = "beam:transform:write_files:v1"];
+    WRITE_FILES = 3 [(beam_urn) = "beam:transform:write_files:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -249,23 +243,50 @@ message StandardPTransforms {
     // Represents the Pre-Combine part of a lifted Combine Per Key, as described
     // in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.ta0g6ase8z07
+    // Payload: CombinePayload
     COMBINE_PER_KEY_PRECOMBINE = 3 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
 
     // Represents the Merge Accumulators part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.jco9rvatld5m
+    // Payload: CombinePayload
     COMBINE_PER_KEY_MERGE_ACCUMULATORS = 4 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
 
     // Represents the Extract Outputs part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.i9i6p8gtl6ku
+    // Payload: CombinePayload
     COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
+
+    // Represents the Combine Grouped Values transform, as described in the
+    // following document:
+    // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
+    // Payload: CombinePayload
+    COMBINE_GROUPED_VALUES = 6 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
+    // Pairs the input element with its initial restriction.
+    // Input: element; output: KV(element, restriction).
     PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
+
+    // Splits the restriction inside an element/restriction pair.
+    // Input: KV(element, restriction); output: KV(element, restriction).
     SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
+
+    // Applies the DoFn to every element/restriction pair in a uniquely keyed
+    // collection, in a splittable fashion.
+    // Input: KV(bytes, KV(element, restriction)); output: DoFn's output.
+    // The first "bytes" is an opaque unique key using the standard bytes coder.
+    // Typically a runner would rewrite this into a runner-specific grouping
+    // operation supporting state and timers, followed by PROCESS_ELEMENTS,
+    // with some runner-specific glue code in between.
     PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
+
+    // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
+    // and restrictions.
+    // Input: KV(element, restriction); output: DoFn's output.
+    PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
   }
 }
 
@@ -554,13 +575,29 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
-    // Components: None
-    TIMESTAMP = 4 [(beam_urn) = "beam:coder:timestamp:v1"];
+    // Encodes a timer containing a timestamp and a user specified payload.
+    // The encoding is represented as: timestamp payload
+    //   timestamp - a big endian 8 byte integer representing millis-since-epoch.
+    //     The encoded representation is shifted so that the byte representation of
+    //     negative values are lexicographically ordered before the byte representation
+    //     of positive values. This is typically done by subtracting -9223372036854775808
+    //     from the value and encoding it as a signed big endian integer. Example values:
+    //
+    //     -9223372036854775808: 00 00 00 00 00 00 00 00
+    //                     -255: 7F FF FF FF FF FF FF 01
+    //                       -1: 7F FF FF FF FF FF FF FF
+    //                        0: 80 00 00 00 00 00 00 00
+    //                        1: 80 00 00 00 00 00 00 01
+    //                      256: 80 00 00 00 00 00 01 00
+    //      9223372036854775807: FF FF FF FF FF FF FF FF
+    //   payload - user defined data, uses the component coder
+    // Components: Coder for the payload.
+    TIMER = 4 [(beam_urn) = "beam:coder:timer:v1"];
+
     /*
-     * The following coders are typically not specified by manually by the user,
+     * The following coders are typically not specified manually by the user,
      * but are used at runtime and must be supported by every SDK.
      */
-
     // Components: None
     INTERVAL_WINDOW = 5 [(beam_urn) = "beam:coder:interval_window:v1"];
 

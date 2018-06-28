@@ -79,9 +79,9 @@ class DirectMetrics(MetricResults):
               for k, v in self._gauges.items()
               if self.matches(filter, k)]
 
-    return {'counters': counters,
-            'distributions': distributions,
-            'gauges': gauges}
+    return {self.COUNTERS: counters,
+            self.DISTRIBUTIONS: distributions,
+            self.GAUGES: gauges}
 
 
 class DirectMetric(object):

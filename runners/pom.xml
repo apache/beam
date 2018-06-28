@@ -46,6 +46,7 @@
     <module>apex</module>
     <module>gcp</module>
     <module>extensions-java</module>
+    <module>samza</module>
   </modules>
 
   <profiles>

@@ -40,6 +40,7 @@ public class Environments {
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
           .put(PTransformTranslation.COMBINE_TRANSFORM_URN, Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
+          .put(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN, Environments::parDoExtractor)
           .put(PTransformTranslation.READ_TRANSFORM_URN, Environments::readExtractor)
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
           .build();

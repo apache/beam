@@ -8,6 +8,19 @@ authors:
   - fjp
   - takidau
 ---
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 
 Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of [Apache Beam presentation materials]({{ site.baseurl }}/contribute/presentation-materials/) which anyone can use to give a presentation about Apache Beam.
 

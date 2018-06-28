@@ -41,6 +41,11 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
+import org.joda.time.chrono.ISOChronology;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 
 /**
  * Utility methods for BigQuery related operations.
@@ -84,15 +89,17 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, BigDecimal::new)
           .put(TypeName.BOOLEAN, Boolean::valueOf)
           .put(TypeName.STRING, str -> str)
+          .put(TypeName.DATETIME, str -> new DateTime((long) (Double.parseDouble(str) * 1000),
+              ISOChronology.getInstanceUTC()))
           .build();
 
-  private static final Map<byte[], StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
-      ImmutableMap.<byte[], StandardSQLTypeName>builder()
-          .put("DATE".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.DATE)
-          .put("TIME".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
-          .put("TIME_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
-          .put("TS".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
-          .put("TS_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
+  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
+      ImmutableMap.<String, StandardSQLTypeName>builder()
+          .put("DATE", StandardSQLTypeName.DATE)
+          .put("TIME", StandardSQLTypeName.TIME)
+          .put("TIME_WITH_LOCAL_TZ", StandardSQLTypeName.TIME)
+          .put("TS", StandardSQLTypeName.TIMESTAMP)
+          .put("TS_WITH_LOCAL_TZ", StandardSQLTypeName.TIMESTAMP)
           .build();
 
   /**
@@ -103,7 +110,8 @@ public class BigQueryUtils {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
     if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata() != null) {
-      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(fieldType.getMetadata());
+      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
+          new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
     }
 
     return sqlType;
@@ -171,18 +179,30 @@ public class BigQueryUtils {
       Field schemaField = row.getSchema().getField(i);
       TypeName type = schemaField.getType().getTypeName();
 
-      if (TypeName.ARRAY == type) {
-        type = schemaField.getType().getCollectionElementType().getTypeName();
-        if (TypeName.ROW == type) {
-          List<Row> rows = (List<Row>) value;
-          List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
-          for (int j = 0; j < rows.size(); j++) {
-            tableRows.add(toTableRow(rows.get(j)));
+      switch (type) {
+        case ARRAY:
+          type = schemaField.getType().getCollectionElementType().getTypeName();
+          if (TypeName.ROW == type) {
+            List<Row> rows = (List<Row>) value;
+            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+            for (int j = 0; j < rows.size(); j++) {
+              tableRows.add(toTableRow(rows.get(j)));
+            }
+            value = tableRows;
           }
-          value = tableRows;
-        }
-      } else if (TypeName.ROW == type) {
-        value = toTableRow((Row) value);
+          break;
+        case ROW:
+          value = toTableRow((Row) value);
+          break;
+        case DATETIME:
+          DateTimeFormatter patternFormat = new DateTimeFormatterBuilder()
+              .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
+              .toFormatter();
+          value = ((Instant) value).toDateTime().toString(patternFormat);
+          break;
+        default:
+          value = row.getValue(i);
+          break;
       }
 
       output = output.set(schemaField.getName(), value);

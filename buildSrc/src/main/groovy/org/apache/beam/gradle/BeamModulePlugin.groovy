@@ -56,12 +56,6 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the findbugs plugin is enabled and configured. */
     boolean enableFindbugs = true
 
-    /** Controls whether the errorprone plugin is enabled and configured. */
-    boolean enableErrorProne = true
-
-    /** Controls whether compiler warnings are treated as errors. */
-    boolean failOnWarning = false
-
     /**
      * List of additional lint warnings to disable.
      * In addition, defaultLintSuppressions defined below
@@ -87,6 +81,9 @@ class BeamModulePlugin implements Plugin<Project> {
      * }
      */
     Closure shadowClosure;
+
+    /** Controls whether this project is published to Maven. */
+    boolean publish = true
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -194,8 +191,6 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   void apply(Project project) {
-
-    println "Applying BeamModulePlugin to $project.name"
 
     /** ***********************************************************************************************/
     // Apply common properties/repositories and tasks to all projects.
@@ -351,7 +346,6 @@ class BeamModulePlugin implements Plugin<Project> {
         datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.4.0",
         datastore_v1_protos                         : "com.google.cloud.datastore:datastore-v1-protos:1.3.0",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
-        findbugs_annotations                        : "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1",
         findbugs_jsr305                             : "com.google.code.findbugs:jsr305:3.0.1",
         gax_grpc                                    : "com.google.api:gax-grpc:0.20.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -513,7 +507,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // main and test source set runtimes.
 
     project.ext.applyJavaNature = {
-      println "applyJavaNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
       if (!configuration.shadowClosure) {
@@ -541,19 +534,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
-        options.compilerArgs += ['-parameters', '-Xlint:all']+ (
-        defaultLintSuppressions + configuration.disableLintWarnings
-        ).collect { "-Xlint:-${it}" }
-        if (configuration.enableErrorProne) {
-          options.compilerArgs += [
-            "-XepDisableWarningsInGeneratedCode",
-            "-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*",
-            "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
-          ]
-        }
-        if (configuration.failOnWarning) {
-          options.compilerArgs += "-Werror"
-        }
+        options.compilerArgs += ([
+          '-parameters',
+          '-Xlint:all',
+          '-Werror',
+          '-XepDisableWarningsInGeneratedCode',
+          '-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*',
+          '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
+        ]
+        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
 
       // Configure the default test tasks set of tests executed
@@ -595,6 +584,18 @@ class BeamModulePlugin implements Plugin<Project> {
         apt auto_service
         testCompileOnly auto_service
         testApt auto_service
+
+        // These dependencies are needed to avoid error-prone warnings on package-info.java files,
+        // also to include the annotations to suppress warnings.
+        //
+        // findbugs-annotations artifact is licensed under LGPL and cannot be included in the
+        // Apache Beam distribution, but may be relied on during build.
+        // See: https://www.apache.org/legal/resolved.html#prohibited
+        def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
+        compileOnly findbugs_annotations
+        apt findbugs_annotations
+        testCompileOnly findbugs_annotations
+        testApt findbugs_annotations
       }
 
       // Add the optional and provided configurations for dependencies
@@ -644,11 +645,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      // Enable errorprone, not by default right now
-      if (configuration.enableErrorProne) {
-        project.apply plugin: 'net.ltgt.errorprone'
-        project.tasks.withType(JavaCompile) { options.compilerArgs += "-XepDisableWarningsInGeneratedCode" }
-      }
+      // Enable errorprone static analysis
+      project.apply plugin: 'net.ltgt.errorprone'
+      project.tasks.withType(JavaCompile) { options.compilerArgs += "-XepDisableWarningsInGeneratedCode" }
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
@@ -711,7 +710,8 @@ class BeamModulePlugin implements Plugin<Project> {
         project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
       }
 
-      if (isRelease(project) || project.hasProperty('publishing')) {
+      if ((isRelease(project) || project.hasProperty('publishing')) &&
+      configuration.publish) {
         project.apply plugin: "maven-publish"
 
         // Create a task which emulates the maven-archiver plugin in generating a
@@ -1044,7 +1044,6 @@ artifactId=${project.name}
     // When applied in a module's build.gradle file, this closure provides task for running
     // IO integration tests (manually, without PerfKitBenchmarker).
     project.ext.enableJavaPerformanceTesting = {
-      println "enableJavaPerformanceTesting with " + (it ? "$it" : "default configuration") + "for project ${project.name}"
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       // See: http://groovy-lang.org/closures.html#implicit-it
@@ -1064,7 +1063,6 @@ artifactId=${project.name}
     // When applied in a module's build.gradle file, this closure adds task providing
     // additional dependencies that might be needed while running integration tests.
     project.ext.provideIntegrationTestingDependencies = {
-      println "provideIntegrationTestingDependencies with " + (it ? "$it" : "default configuration") + "for project ${project.name}"
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       // See: http://groovy-lang.org/closures.html#implicit-it
@@ -1077,22 +1075,22 @@ artifactId=${project.name}
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testCompile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testCompile project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+          testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
         }
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
-          shadowTest library.java.hadoop_client
+          testCompile it.project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
+          shadowTest project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
+          testCompile it.project.project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
         }
       }
 
@@ -1102,7 +1100,6 @@ artifactId=${project.name}
     // When applied in a module's build gradle file, this closure provides a task
     // that will involve PerfKitBenchmarker for running integrationTests.
     project.ext.createPerformanceTestHarness = {
-      println "createPerformanceTestHarness with " + (it ? "$it" : "default configuration") + " for project ${project.name}"
 
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       // See: http://groovy-lang.org/closures.html#implicit-it
@@ -1155,7 +1152,6 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     project.ext.applyGoNature = {
-      println "applyGoNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       project.apply plugin: "com.github.blindpirate.gogradle"
       project.golang { goVersion = '1.10' }
 
@@ -1186,7 +1182,6 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     project.ext.applyDockerNature = {
-      println "applyDockerNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       project.apply plugin: "com.palantir.docker"
       project.docker { noCache true }
     }
@@ -1198,20 +1193,19 @@ artifactId=${project.name}
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
-      println "containerImageName with " + (it ? "$it" : "default configuration") + " for project $project.name"
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       ContainerImageNameConfiguration configuration = it ? it as ContainerImageNameConfiguration : new ContainerImageNameConfiguration()
 
       if (configuration.root == null) {
         if (project.rootProject.hasProperty(["docker-repository-root"])) {
-          configuration.root = rootProject["docker-repository-root"]
+          configuration.root = project.rootProject["docker-repository-root"]
         } else {
           configuration.root = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
         }
       }
       if (configuration.tag == null) {
         if (project.rootProject.hasProperty(["docker-tag"])) {
-          configuration.tag = rootProject["docker-tag"]
+          configuration.tag = project.rootProject["docker-tag"]
         } else {
           configuration.tag = 'latest'
         }
@@ -1222,7 +1216,6 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     project.ext.applyGrpcNature = {
-      println "applyGrpcNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
@@ -1272,10 +1265,7 @@ artifactId=${project.name}
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = {
-      println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.apply plugin: "com.commercehub.gradle.plugin.avro"
-    }
+    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
 
     // Creates a task to run the quickstart for a runner.
     // Releases version and URL, can be overriden for a RC release with
@@ -1283,7 +1273,6 @@ artifactId=${project.name}
     project.ext.createJavaExamplesArchetypeValidationTask = {
       JavaExamplesArchetypeValidationConfiguration config = it as JavaExamplesArchetypeValidationConfiguration
       def taskName = "run${config.type}Java${config.runner}"
-      println "Generating :${taskName} in ${project.name}"
       def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
       def argsNeeded = [

@@ -312,7 +312,7 @@ class CompressedFile(object):
     Seeking behavior:
 
       * seeking from the end :data:`os.SEEK_END` the whole file is decompressed
-        once to determine it's size. Therefore it is preferred to use
+        once to determine its size. Therefore it is preferred to use
         :data:`os.SEEK_SET` or :data:`os.SEEK_CUR` to avoid the processing
         overhead
       * seeking backwards from the current position rewinds the file to ``0``

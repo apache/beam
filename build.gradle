@@ -33,6 +33,13 @@ buildscript {
   repositories {
     maven { url offlineRepositoryRoot }
 
+    if (gradle.hasProperty('extraMavenUrls')) {
+      gradle.ext.extraMavenUrls.each {
+        mavenUrl ->
+          return maven { url mavenUrl }
+      }
+    }
+
     // To run gradle in offline mode, one must first invoke
     // 'updateOfflineRepository' to create an offline repo
     // inside the root project directory. See the application
@@ -64,6 +71,7 @@ buildscript {
     classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
+    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
   }
 }
 
@@ -73,6 +81,7 @@ buildscript {
 apply plugin: "base"
 
 apply plugin: "com.gradle.build-scan"
+apply plugin: 'com.github.ben-manes.versions'
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
@@ -113,8 +122,16 @@ rat {
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
 
-    // TODO: [BEAM-4568] Website sources need to have apache headers
-    "website/**/*",
+    // Ruby build files
+    "**/Gemfile.lock",
+    "**/Rakefile",
+    "**/_config.yml",
+    "**/_config_test.yml",
+    "**/.htaccess",
+    "website/src/_sass/_bootstrap.scss",
+    "website/src/_sass/bootstrap/**/*",
+    "website/src/js/bootstrap*.js",
+    "website/src/js/bootstrap/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -190,6 +207,11 @@ task pythonPreCommit() {
 
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
+}
+
+task runBeamDependencyCheck() {
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependencyUpdates"
 }
 
 apply plugin: 'net.researchgate.release'

@@ -18,8 +18,6 @@
 
 package org.apache.beam.fn.harness;
 
-import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -31,25 +29,22 @@ import static org.junit.Assert.fail;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
@@ -60,8 +55,6 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -73,14 +66,13 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.DoFnInfo;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -90,136 +82,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FnApiDoFnRunner}. */
 @RunWith(JUnit4.class)
-public class FnApiDoFnRunnerTest {
+public class FnApiDoFnRunnerTest implements Serializable {
 
   public static final String TEST_PTRANSFORM_ID = "pTransformId";
-
-  private static class TestDoFn extends DoFn<String, String> {
-    private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-    private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
-
-    private enum State {
-      NOT_SET_UP,
-      OUTSIDE_BUNDLE,
-      INSIDE_BUNDLE,
-    }
-
-    private State state = State.NOT_SET_UP;
-
-    private BoundedWindow window;
-
-    @Setup
-    public void setUp() {
-      checkState(State.NOT_SET_UP.equals(state), "Unexpected state: %s", state);
-      state = State.OUTSIDE_BUNDLE;
-    }
-
-    // No testing for TearDown - it's currently not supported by FnHarness.
-
-    @StartBundle
-    public void startBundle() {
-      checkState(State.OUTSIDE_BUNDLE.equals(state), "Unexpected state: %s", state);
-      state = State.INSIDE_BUNDLE;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context, BoundedWindow window) {
-      checkState(State.INSIDE_BUNDLE.equals(state), "Unexpected state: %s", state);
-      context.output("MainOutput" + context.element());
-      context.output(additionalOutput, "AdditionalOutput" + context.element());
-      this.window = window;
-    }
-
-    @FinishBundle
-    public void finishBundle(FinishBundleContext context) {
-      checkState(State.INSIDE_BUNDLE.equals(state), "Unexpected state: %s", state);
-      state = State.OUTSIDE_BUNDLE;
-      if (window != null) {
-        context.output("FinishBundle", window.maxTimestamp(), window);
-        window = null;
-      }
-    }
-  }
-
-  /**
-   * Create a DoFn that has 3 inputs (inputATarget1, inputATarget2, inputBTarget) and 2 outputs
-   * (mainOutput, output). Validate that inputs are fed to the {@link DoFn} and that outputs
-   * are directed to the correct consumers.
-   */
-  @Test
-  public void testCreatingAndProcessingDoFn() throws Exception {
-    String pTransformId = "pTransformId";
-
-    DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
-        new TestDoFn(),
-        WindowingStrategy.globalDefault(),
-        ImmutableList.of(),
-        StringUtf8Coder.of(),
-        TestDoFn.mainOutput);
-    RunnerApi.FunctionSpec functionSpec =
-        RunnerApi.FunctionSpec.newBuilder()
-            .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
-            .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
-            .build();
-    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
-        .setSpec(functionSpec)
-        .putInputs("inputA", "inputATarget")
-        .putInputs("inputB", "inputBTarget")
-        .putOutputs(TestDoFn.mainOutput.getId(), "mainOutputTarget")
-        .putOutputs(TestDoFn.additionalOutput.getId(), "additionalOutputTarget")
-        .build();
-
-    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put("mainOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.put("additionalOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
-
-    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
-        PipelineOptionsFactory.create(),
-        null /* beamFnDataClient */,
-        null /* beamFnStateClient */,
-        pTransformId,
-        pTransform,
-        Suppliers.ofInstance("57L")::get,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        consumers,
-        startFunctions::add,
-        finishFunctions::add);
-
-    Iterables.getOnlyElement(startFunctions).run();
-    mainOutputValues.clear();
-
-    assertThat(consumers.keySet(), containsInAnyOrder(
-        "inputATarget", "inputBTarget", "mainOutputTarget", "additionalOutputTarget"));
-
-    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
-    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
-    Iterables.getOnlyElement(consumers.get("inputBTarget")).accept(valueInGlobalWindow("B"));
-    assertThat(mainOutputValues, contains(
-        valueInGlobalWindow("MainOutputA1"),
-        valueInGlobalWindow("MainOutputA2"),
-        valueInGlobalWindow("MainOutputB")));
-    assertThat(additionalOutputValues, contains(
-        valueInGlobalWindow("AdditionalOutputA1"),
-        valueInGlobalWindow("AdditionalOutputA2"),
-        valueInGlobalWindow("AdditionalOutputB")));
-    mainOutputValues.clear();
-    additionalOutputValues.clear();
-
-    Iterables.getOnlyElement(finishFunctions).run();
-    assertThat(
-        mainOutputValues,
-        contains(
-            timestampedValueInGlobalWindow("FinishBundle", GlobalWindow.INSTANCE.maxTimestamp())));
-    mainOutputValues.clear();
-  }
 
   private static class ConcatCombineFn extends CombineFn<String, String, String> {
     @Override
@@ -247,33 +112,6 @@ public class FnApiDoFnRunnerTest {
     }
   }
 
-  private static class ConcatCombineFnWithContext
-      extends CombineFnWithContext<String, String, String> {
-    @Override
-    public String createAccumulator(Context c) {
-      return "";
-    }
-
-    @Override
-    public String addInput(String accumulator, String input, Context c) {
-      return accumulator.concat(input);
-    }
-
-    @Override
-    public String mergeAccumulators(Iterable<String> accumulators, Context c) {
-      StringBuilder builder = new StringBuilder();
-      for (String value : accumulators) {
-        builder.append(value);
-      }
-      return builder.toString();
-    }
-
-    @Override
-    public String extractOutput(String accumulator, Context c) {
-      return accumulator;
-    }
-  }
-
   private static class TestStatefulDoFn extends DoFn<KV<String, String>, String> {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
     private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
@@ -287,17 +125,12 @@ public class FnApiDoFnRunnerTest {
     @StateId("combine")
     private final StateSpec<CombiningState<String, String, String>> combiningStateSpec =
         StateSpecs.combining(StringUtf8Coder.of(), new ConcatCombineFn());
-    @StateId("combineWithContext")
-    private final StateSpec<CombiningState<String, String, String>> combiningWithContextStateSpec =
-        StateSpecs.combining(StringUtf8Coder.of(), new ConcatCombineFnWithContext());
 
     @ProcessElement
     public void processElement(ProcessContext context,
         @StateId("value") ValueState<String> valueState,
         @StateId("bag") BagState<String> bagState,
-        @StateId("combine") CombiningState<String, String, String> combiningState,
-        @StateId("combineWithContext")
-            CombiningState<String, String, String> combiningWithContextState) {
+        @StateId("combine") CombiningState<String, String, String> combiningState) {
       context.output("value:" + valueState.read());
       valueState.write(context.element().getValue());
 
@@ -306,41 +139,34 @@ public class FnApiDoFnRunnerTest {
 
       context.output("combine:" + combiningState.read());
       combiningState.add(context.element().getValue());
-
-      context.output("combineWithContext:" + combiningWithContextState.read());
-      combiningWithContextState.add(context.element().getValue());
     }
   }
 
   @Test
   public void testUsingUserState() throws Exception {
-    DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
-        new TestStatefulDoFn(),
-        WindowingStrategy.globalDefault(),
-        ImmutableList.of(),
-        KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
-        new TupleTag<>("mainOutput"));
-    RunnerApi.FunctionSpec functionSpec =
-        RunnerApi.FunctionSpec.newBuilder()
-            .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
-            .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
-            .build();
-    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
-        .setSpec(functionSpec)
-        .putInputs("input", "inputTarget")
-        .putOutputs("mainOutput", "mainOutputTarget")
-        .build();
+    Pipeline p = Pipeline.create();
+    PCollection<KV<String, String>> valuePCollection =
+        p.apply(Create.of(KV.of("unused", "unused")));
+    PCollection<String> outputPCollection =
+        valuePCollection.apply(TEST_PTRANSFORM_ID, ParDo.of(new TestStatefulDoFn()));
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+    String outputPCollectionId =
+        sdkComponents.registerPCollection(outputPCollection);
+    RunnerApi.PTransform pTransform = pProto.getComponents().getTransformsOrThrow(
+        pProto.getComponents().getTransformsOrThrow(TEST_PTRANSFORM_ID).getSubtransforms(0));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(ImmutableMap.of(
         bagUserStateKey("value", "X"), encode("X0"),
         bagUserStateKey("bag", "X"), encode("X0"),
-        bagUserStateKey("combine", "X"), encode("X0"),
-        bagUserStateKey("combineWithContext", "X"), encode("X0")
+        bagUserStateKey("combine", "X"), encode("X0")
     ));
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put("mainOutputTarget",
+    consumers.put(outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -352,22 +178,23 @@ public class FnApiDoFnRunnerTest {
         TEST_PTRANSFORM_ID,
         pTransform,
         Suppliers.ofInstance("57L")::get,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        Collections.emptyMap(),
+        pProto.getComponents().getPcollectionsMap(),
+        pProto.getComponents().getCodersMap(),
+        pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
 
-    assertThat(consumers.keySet(), containsInAnyOrder("inputTarget", "mainOutputTarget"));
+    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get("inputTarget"));
+        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X1")));
     mainInput.accept(valueInGlobalWindow(KV.of("Y", "Y1")));
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X2")));
@@ -376,19 +203,15 @@ public class FnApiDoFnRunnerTest {
         valueInGlobalWindow("value:X0"),
         valueInGlobalWindow("bag:[X0]"),
         valueInGlobalWindow("combine:X0"),
-        valueInGlobalWindow("combineWithContext:X0"),
         valueInGlobalWindow("value:null"),
         valueInGlobalWindow("bag:[]"),
         valueInGlobalWindow("combine:"),
-        valueInGlobalWindow("combineWithContext:"),
         valueInGlobalWindow("value:X1"),
         valueInGlobalWindow("bag:[X0, X1]"),
         valueInGlobalWindow("combine:X0X1"),
-        valueInGlobalWindow("combineWithContext:X0X1"),
         valueInGlobalWindow("value:Y1"),
         valueInGlobalWindow("bag:[Y1]"),
-        valueInGlobalWindow("combine:Y1"),
-        valueInGlobalWindow("combineWithContext:Y1")));
+        valueInGlobalWindow("combine:Y1")));
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctions).run();
@@ -399,11 +222,9 @@ public class FnApiDoFnRunnerTest {
             .put(bagUserStateKey("value", "X"), encode("X2"))
             .put(bagUserStateKey("bag", "X"), encode("X0", "X1", "X2"))
             .put(bagUserStateKey("combine", "X"), encode("X0X1X2"))
-            .put(bagUserStateKey("combineWithContext", "X"), encode("X0X1X2"))
             .put(bagUserStateKey("value", "Y"), encode("Y2"))
             .put(bagUserStateKey("bag", "Y"), encode("Y1", "Y2"))
             .put(bagUserStateKey("combine", "Y"), encode("Y1Y2"))
-            .put(bagUserStateKey("combineWithContext", "Y"), encode("Y1Y2"))
             .build(),
         fakeClient.getData());
     mainOutputValues.clear();
@@ -425,13 +246,17 @@ public class FnApiDoFnRunnerTest {
     private final PCollectionView<String> defaultSingletonSideInput;
     private final PCollectionView<String> singletonSideInput;
     private final PCollectionView<Iterable<String>> iterableSideInput;
+    private final TupleTag<String> additionalOutput;
+
     private TestSideInputDoFn(
         PCollectionView<String> defaultSingletonSideInput,
         PCollectionView<String> singletonSideInput,
-        PCollectionView<Iterable<String>> iterableSideInput) {
+        PCollectionView<Iterable<String>> iterableSideInput,
+        TupleTag<String> additionalOutput) {
       this.defaultSingletonSideInput = defaultSingletonSideInput;
       this.singletonSideInput = singletonSideInput;
       this.iterableSideInput = iterableSideInput;
+      this.additionalOutput = additionalOutput;
     }
 
     @ProcessElement
@@ -441,11 +266,12 @@ public class FnApiDoFnRunnerTest {
       for (String sideInputValue : context.sideInput(iterableSideInput)) {
         context.output(context.element() + ":" + sideInputValue);
       }
+      context.output(additionalOutput, context.element() + ":additional");
     }
   }
 
   @Test
-  public void testUsingSideInput() throws Exception {
+  public void testBasicWithSideInputsAndOutputs() throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
     PCollectionView<String> defaultSingletonSideInputView = valuePCollection.apply(
@@ -453,21 +279,31 @@ public class FnApiDoFnRunnerTest {
     PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
     PCollectionView<Iterable<String>> iterableSideInputView =
         valuePCollection.apply(View.asIterable());
-    PCollection<String> outputPCollection = valuePCollection.apply(TEST_PTRANSFORM_ID, ParDo.of(
-        new TestSideInputDoFn(
-            defaultSingletonSideInputView,
-            singletonSideInputView,
-            iterableSideInputView))
-        .withSideInputs(
-            defaultSingletonSideInputView, singletonSideInputView, iterableSideInputView));
+    TupleTag<String> mainOutput = new TupleTag<String>("main") {};
+    TupleTag<String> additionalOutput = new TupleTag<String>("additional") {};
+    PCollectionTuple outputPCollection =
+        valuePCollection.apply(
+            TEST_PTRANSFORM_ID,
+            ParDo.of(
+                    new TestSideInputDoFn(
+                        defaultSingletonSideInputView,
+                        singletonSideInputView,
+                        iterableSideInputView,
+                        additionalOutput))
+                .withSideInputs(
+                    defaultSingletonSideInputView, singletonSideInputView, iterableSideInputView)
+                .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
 
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
-    String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+    String outputPCollectionId =
+        sdkComponents.registerPCollection(outputPCollection.get(mainOutput));
+    String additionalPCollectionId =
+        sdkComponents.registerPCollection(outputPCollection.get(additionalOutput));
 
-    RunnerApi.PTransform pTransform = pProto.getComponents().getTransformsOrThrow(
-        pProto.getComponents().getTransformsOrThrow(TEST_PTRANSFORM_ID).getSubtransforms(0));
+    RunnerApi.PTransform pTransform =
+        pProto.getComponents().getTransformsOrThrow(TEST_PTRANSFORM_ID);
 
     ImmutableMap<StateKey, ByteString> stateData = ImmutableMap.of(
         multimapSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
@@ -478,13 +314,16 @@ public class FnApiDoFnRunnerTest {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+    List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put(Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+    consumers.put(outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+    consumers.put(additionalPCollectionId,
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new FnApiDoFnRunner.NewFactory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         fakeClient,
@@ -496,12 +335,15 @@ public class FnApiDoFnRunnerTest {
         pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
 
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+    assertThat(
+        consumers.keySet(),
+        containsInAnyOrder(inputPCollectionId, outputPCollectionId, additionalPCollectionId));
 
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
@@ -520,6 +362,9 @@ public class FnApiDoFnRunnerTest {
         valueInGlobalWindow("Y:iterableValue1"),
         valueInGlobalWindow("Y:iterableValue2"),
         valueInGlobalWindow("Y:iterableValue3")));
+    assertThat(
+        additionalOutputValues,
+        contains(valueInGlobalWindow("X:additional"), valueInGlobalWindow("Y:additional")));
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctions).run();
@@ -589,7 +434,7 @@ public class FnApiDoFnRunnerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new FnApiDoFnRunner.NewFactory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         fakeClient,
@@ -601,7 +446,8 @@ public class FnApiDoFnRunnerTest {
         pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -661,11 +507,11 @@ public class FnApiDoFnRunnerTest {
 
   @Test
   public void testRegistration() {
-    for (Registrar registrar :
-        ServiceLoader.load(Registrar.class)) {
+    for (PTransformRunnerFactory.Registrar registrar :
+        ServiceLoader.load(PTransformRunnerFactory.Registrar.class)) {
       if (registrar instanceof FnApiDoFnRunner.Registrar) {
         assertThat(registrar.getPTransformRunnerFactories(),
-            IsMapContaining.hasKey(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN));
+            IsMapContaining.hasKey(PTransformTranslation.PAR_DO_TRANSFORM_URN));
         return;
       }
     }

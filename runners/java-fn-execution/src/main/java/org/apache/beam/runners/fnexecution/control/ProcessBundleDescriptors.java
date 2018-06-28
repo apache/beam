@@ -25,6 +25,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,15 +33,12 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -98,39 +96,39 @@ public class ProcessBundleDescriptors {
       ExecutableStage stage,
       ApiServiceDescriptor dataEndpoint,
       @Nullable ApiServiceDescriptor stateEndpoint) throws IOException {
-    Components components = stage.getComponents();
     // Create with all of the processing transforms, and all of the components.
     // TODO: Remove the unreachable subcomponents if the size of the descriptor matters.
+    Map<String, PTransform> stageTransforms =
+        stage
+            .getTransforms()
+            .stream()
+            .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform));
+
+    Components.Builder components =
+        stage.getComponents().toBuilder().clearTransforms().putAllTransforms(stageTransforms);
+
+    // The order of these 3 does not matter.
+    RemoteInputDestination<WindowedValue<?>> inputDestination =
+        addStageInput(dataEndpoint, stage.getInputPCollection(), components);
+
+    Map<Target, Coder<WindowedValue<?>>> outputTargetCoders =
+        addStageOutputs(dataEndpoint, stage.getOutputPCollections(), components);
+
+    Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs =
+        addMultimapSideInputs(stage, components);
+
+    // Copy data from components to ProcessBundleDescriptor.
     ProcessBundleDescriptor.Builder bundleDescriptorBuilder =
-        ProcessBundleDescriptor.newBuilder()
-            .setId(id)
-            .putAllCoders(components.getCodersMap())
-            .putAllEnvironments(components.getEnvironmentsMap())
-            .putAllPcollections(components.getPcollectionsMap())
-            .putAllWindowingStrategies(components.getWindowingStrategiesMap())
-            .putAllTransforms(
-                stage
-                    .getTransforms()
-                    .stream()
-                    .collect(
-                        Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)));
+        ProcessBundleDescriptor.newBuilder().setId(id);
     if (stateEndpoint != null) {
       bundleDescriptorBuilder.setStateApiServiceDescriptor(stateEndpoint);
     }
-
-    RemoteInputDestination<WindowedValue<?>> inputDestination =
-        addStageInput(
-            stage.getInputPCollection(), components, dataEndpoint, bundleDescriptorBuilder);
-
-    Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders = new LinkedHashMap<>();
-    for (PCollectionNode outputPCollection : stage.getOutputPCollections()) {
-      TargetEncoding targetEncoding =
-          addStageOutput(components, dataEndpoint, bundleDescriptorBuilder, outputPCollection);
-      outputTargetCoders.put(targetEncoding.getTarget(), targetEncoding.getCoder());
-    }
-
-    Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs =
-        forMultimapSideInputs(stage, components, bundleDescriptorBuilder);
+    bundleDescriptorBuilder
+        .putAllCoders(components.getCodersMap())
+        .putAllEnvironments(components.getEnvironmentsMap())
+        .putAllPcollections(components.getPcollectionsMap())
+        .putAllWindowingStrategies(components.getWindowingStrategiesMap())
+        .putAllTransforms(components.getTransformsMap());
 
     return ExecutableProcessBundleDescriptor.of(
         bundleDescriptorBuilder.build(),
@@ -139,16 +137,26 @@ public class ProcessBundleDescriptors {
         multimapSideInputSpecs);
   }
 
+  private static Map<Target, Coder<WindowedValue<?>>> addStageOutputs(
+      ApiServiceDescriptor dataEndpoint, Collection<PCollectionNode> outputPCollections,
+      Components.Builder components) throws IOException {
+    Map<Target, Coder<WindowedValue<?>>> outputTargetCoders = new LinkedHashMap<>();
+    for (PCollectionNode outputPCollection : outputPCollections) {
+      TargetEncoding targetEncoding =
+          addStageOutput(dataEndpoint, components, outputPCollection);
+      outputTargetCoders.put(targetEncoding.getTarget(), targetEncoding.getCoder());
+    }
+    return outputTargetCoders;
+  }
+
   private static RemoteInputDestination<WindowedValue<?>> addStageInput(
-      PCollectionNode inputPCollection,
-      Components components,
-      ApiServiceDescriptor dataEndpoint,
-      ProcessBundleDescriptor.Builder bundleDescriptorBuilder)
+      ApiServiceDescriptor dataEndpoint, PCollectionNode inputPCollection,
+      Components.Builder components)
       throws IOException {
-    String inputWireCoderId = addWireCoder(inputPCollection, components, bundleDescriptorBuilder);
+    String inputWireCoderId = WireCoders.addSdkWireCoder(inputPCollection, components);
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<?>> wireCoder =
-        (Coder) WireCoders.instantiateRunnerWireCoder(inputPCollection, components);
+        (Coder) WireCoders.instantiateRunnerWireCoder(inputPCollection, components.build());
 
     RemoteGrpcPort inputPort =
         RemoteGrpcPort.newBuilder()
@@ -158,10 +166,10 @@ public class ProcessBundleDescriptors {
     String inputId =
         uniqueId(
             String.format("fn/read/%s", inputPCollection.getId()),
-            bundleDescriptorBuilder::containsTransforms);
+            components::containsTransforms);
     PTransform inputTransform =
         RemoteGrpcPortRead.readFromPort(inputPort, inputPCollection.getId()).toPTransform();
-    bundleDescriptorBuilder.putTransforms(inputId, inputTransform);
+    components.putTransforms(inputId, inputTransform);
     return RemoteInputDestination.of(
         wireCoder,
         Target.newBuilder()
@@ -171,15 +179,14 @@ public class ProcessBundleDescriptors {
   }
 
   private static TargetEncoding addStageOutput(
-      Components components,
       ApiServiceDescriptor dataEndpoint,
-      Builder bundleDescriptorBuilder,
+      Components.Builder components,
       PCollectionNode outputPCollection)
       throws IOException {
-    String outputWireCoderId = addWireCoder(outputPCollection, components, bundleDescriptorBuilder);
+    String outputWireCoderId = WireCoders.addSdkWireCoder(outputPCollection, components);
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<?>> wireCoder =
-        (Coder) WireCoders.instantiateRunnerWireCoder(outputPCollection, components);
+        (Coder) WireCoders.instantiateRunnerWireCoder(outputPCollection, components.build());
     RemoteGrpcPort outputPort =
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(dataEndpoint)
@@ -190,9 +197,9 @@ public class ProcessBundleDescriptors {
     String outputId =
         uniqueId(
             String.format("fn/write/%s", outputPCollection.getId()),
-            bundleDescriptorBuilder::containsTransforms);
+            components::containsTransforms);
     PTransform outputTransform = outputWrite.toPTransform();
-    bundleDescriptorBuilder.putTransforms(outputId, outputTransform);
+    components.putTransforms(outputId, outputTransform);
     return new AutoValue_ProcessBundleDescriptors_TargetEncoding(
         Target.newBuilder()
             .setPrimitiveTransformReference(outputId)
@@ -201,44 +208,30 @@ public class ProcessBundleDescriptors {
         wireCoder);
   }
 
-  private static Map<String, Map<String, MultimapSideInputSpec>> forMultimapSideInputs(
+  public static Map<String, Map<String, MultimapSideInputSpec>> getMultimapSideInputs(
+      ExecutableStage stage) throws IOException {
+    return addMultimapSideInputs(stage, stage.getComponents().toBuilder());
+  }
+
+  private static Map<String, Map<String, MultimapSideInputSpec>> addMultimapSideInputs(
       ExecutableStage stage,
-      Components components,
-      ProcessBundleDescriptor.Builder bundleDescriptorBuilder) throws IOException {
+      Components.Builder components) throws IOException {
     ImmutableTable.Builder<String, String, MultimapSideInputSpec> idsToSpec =
         ImmutableTable.builder();
     for (SideInputReference sideInputReference : stage.getSideInputs()) {
       // Update the coder specification for side inputs to be length prefixed so that the
       // SDK and Runner agree on how to encode/decode the key, window, and values for multimap
       // side inputs.
-      String pCollectionId = sideInputReference.collection().getId();
-      RunnerApi.MessageWithComponents lengthPrefixedSideInputCoder =
-          LengthPrefixUnknownCoders.forCoder(
-              components.getPcollectionsOrThrow(pCollectionId).getCoderId(),
-              components,
-              false);
-      String lengthPrefixedSideInputCoderId = SyntheticComponents.uniqueId(
-          String.format(
-              "fn/side_input/%s",
-              components.getPcollectionsOrThrow(pCollectionId).getCoderId()),
-          bundleDescriptorBuilder.getCodersMap().keySet()::contains);
-
-      bundleDescriptorBuilder.putCoders(
-          lengthPrefixedSideInputCoderId, lengthPrefixedSideInputCoder.getCoder());
-      bundleDescriptorBuilder.putAllCoders(
-          lengthPrefixedSideInputCoder.getComponents().getCodersMap());
-      bundleDescriptorBuilder.putPcollections(
-          pCollectionId,
-          bundleDescriptorBuilder
-              .getPcollectionsMap()
-              .get(pCollectionId)
-              .toBuilder()
-              .setCoderId(lengthPrefixedSideInputCoderId)
-              .build());
+      PCollectionNode pcNode = sideInputReference.collection();
+      PCollection pc = pcNode.getPCollection();
+      String lengthPrefixedCoderId =
+          LengthPrefixUnknownCoders.addLengthPrefixedCoder(pc.getCoderId(), components, false);
+      components.putPcollections(
+          pcNode.getId(), pc.toBuilder().setCoderId(lengthPrefixedCoderId).build());
 
       FullWindowedValueCoder<KV<?, ?>> coder =
-          (FullWindowedValueCoder) WireCoders.instantiateRunnerWireCoder(
-              sideInputReference.collection(), components);
+          (FullWindowedValueCoder)
+              WireCoders.instantiateRunnerWireCoder(pcNode, components.build());
       idsToSpec.put(
           sideInputReference.transform().getId(),
           sideInputReference.localName(),
@@ -280,26 +273,6 @@ public class ProcessBundleDescriptors {
     public abstract Coder<K> keyCoder();
     public abstract Coder<V> valueCoder();
     public abstract Coder<W> windowCoder();
-  }
-
-  /**
-   * Add a {@link RunnerApi.Coder} suitable for using as the wire coder to the provided {@link
-   * ProcessBundleDescriptor.Builder} and return the ID of that Coder.
-   */
-  private static String addWireCoder(
-      PCollectionNode pCollection,
-      Components components,
-      ProcessBundleDescriptor.Builder bundleDescriptorBuilder) {
-    MessageWithComponents wireCoder =
-        WireCoders.createSdkWireCoder(
-            pCollection, components, bundleDescriptorBuilder::containsCoders);
-    bundleDescriptorBuilder.putAllCoders(wireCoder.getComponents().getCodersMap());
-    String wireCoderId =
-        uniqueId(
-            String.format("fn/wire/%s", pCollection.getId()),
-            bundleDescriptorBuilder::containsCoders);
-    bundleDescriptorBuilder.putCoders(wireCoderId, wireCoder.getCoder());
-    return wireCoderId;
   }
 
   /** */

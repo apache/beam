@@ -145,6 +145,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
             .setPipelineOptions(PipelineOptionsTranslation.toProto(options))
             .build();
 
+    LOG.info("Using job server endpoint: {}", endpoint);
     ManagedChannel jobServiceChannel =
         channelFactory.forDescriptor(
             ApiServiceDescriptor.newBuilder()

@@ -64,10 +64,10 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -166,8 +166,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
 
     if (doFn instanceof ProcessFn) {
-      // we know that it is keyed on String
-      Coder<?> keyCoder = StringUtf8Coder.of();
+      // we know that it is keyed on byte[]
+      Coder<?> keyCoder = ByteArrayCoder.of();
       this.currentKeyStateInternals = new StateInternalsProxy<>(
           stateBackend.newStateInternalsFactory(keyCoder));
     } else {
@@ -470,14 +470,14 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     if (doFn instanceof ProcessFn) {
 
       @SuppressWarnings("unchecked")
-      StateInternalsFactory<String> stateInternalsFactory =
-          (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
+      StateInternalsFactory<byte[]> stateInternalsFactory =
+          (StateInternalsFactory<byte[]>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
       ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object, Object>>
         splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
-      TimerInternalsFactory<String> timerInternalsFactory = key -> currentKeyTimerInternals;
+      TimerInternalsFactory<byte[]> timerInternalsFactory = key -> currentKeyTimerInternals;
       splittableDoFn.setTimerInternalsFactory(timerInternalsFactory);
       splittableDoFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(

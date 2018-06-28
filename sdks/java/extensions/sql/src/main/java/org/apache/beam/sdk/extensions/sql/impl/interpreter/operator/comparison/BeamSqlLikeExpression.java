@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.runtime.SqlFunctions;
+import org.joda.time.DateTime;
 
 /** {@code BeamSqlExpression} for 'LIKE' operation. */
 public class BeamSqlLikeExpression extends BeamSqlCompareExpression {
@@ -41,5 +42,10 @@ public class BeamSqlLikeExpression extends BeamSqlCompareExpression {
   @Override
   public Boolean compare(Number leftValue, Number rightValue) {
     throw new IllegalArgumentException("LIKE is not supported for Number.");
+  }
+
+  @Override
+  public Boolean compare(DateTime leftValue, DateTime rightValue) {
+    throw new IllegalArgumentException("LIKE is not supported for DateTime.");
   }
 }

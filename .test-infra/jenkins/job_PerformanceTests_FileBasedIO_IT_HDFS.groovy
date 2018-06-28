@@ -114,9 +114,9 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
 
         // Run job in postcommit every 6 hours, don't trigger every push, and
         // don't email individual committers.
-        common_job_properties.setPostCommit(
+        common_job_properties.setAutoJob(
                 delegate,
-                '0 */6 * * *',
+                'H */6 * * *',
                 false,
                 'commits@beam.apache.org',
                 false)

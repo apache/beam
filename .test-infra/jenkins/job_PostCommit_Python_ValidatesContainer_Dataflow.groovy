@@ -17,11 +17,11 @@
  */
 
 import common_job_properties
-import JobBuilder
+import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
-JobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
   'Run Python Dataflow ValidatesContainer', 'Google Cloud Dataflow Runner Python ValidatesContainer Tests', this) {
   description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 

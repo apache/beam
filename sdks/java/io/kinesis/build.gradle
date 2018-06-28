@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -32,7 +32,6 @@ test {
 def aws_version = "1.11.255"
 
 dependencies {
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.slf4j_api
@@ -53,5 +52,4 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:2.5.0"
-  testCompileOnly library.java.findbugs_annotations
 }
