@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.graph;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,7 +26,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -166,7 +166,7 @@ public class DAG<T> {
   public DAG<T> parentSubGraph(T elem) {
     DAG<T> ret = new DAG<>();
     LinkedHashSet<Node<T>> nodeList = new LinkedHashSet<>();
-    LinkedList<Node<T>> notYetAdded = new LinkedList<>();
+    Deque<Node<T>> notYetAdded = new ArrayDeque<>();
     notYetAdded.add(getNode(elem));
     while (!notYetAdded.isEmpty()) {
       Node<T> node = notYetAdded.pollLast();
@@ -176,7 +176,7 @@ public class DAG<T> {
       notYetAdded.addAll(node.parents);
     }
     // reverse the nodeList
-    LinkedList<Node<T>> reversedNodes = new LinkedList<>();
+    Deque<Node<T>> reversedNodes = new ArrayDeque<>(nodeList.size());
     for (Node<T> n : nodeList) {
       reversedNodes.addFirst(n);
     }
@@ -210,9 +210,9 @@ public class DAG<T> {
    * @return a stream of all nodes in traversal order
    */
   public Stream<Node<T>> traverse() {
-    List<Node<T>> ret = new LinkedList<>();
+    List<Node<T>> ret = new ArrayList<>();
     Set<Node<T>> closed = new HashSet<>();
-    Queue<Node<T>> open = new LinkedList<>();
+    Queue<Node<T>> open = new ArrayDeque<>();
     open.addAll(this.roots);
 
     while (!open.isEmpty()) {
@@ -238,7 +238,7 @@ public class DAG<T> {
   public String toString() {
     // iterate the DAG DFS and write it to string
     StringBuilder sb = new StringBuilder();
-    Deque<Pair<Integer, Node<T>>> open = new LinkedList<>();
+    Deque<Pair<Integer, Node<T>>> open = new ArrayDeque<>();
     this.roots.forEach(r -> open.add(Pair.of(0, r)));
     while (!open.isEmpty()) {
       Pair<Integer, Node<T>> poll = open.removeFirst();

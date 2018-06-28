@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -84,7 +83,6 @@ public class BeamFlowTest implements Serializable {
               .apply(
                   ParDo.of(
                       new DoFn<Integer, Integer>() {
-                        @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
                         @ProcessElement
                         public void process(ProcessContext context) {
                           context.output(context.element() + 1);
@@ -108,7 +106,6 @@ public class BeamFlowTest implements Serializable {
             .apply(
                 ParDo.of(
                     new DoFn<Integer, Integer>() {
-                      @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
                       @ProcessElement
                       public void process(ProcessContext context) {
                         context.output(context.element() + 1);

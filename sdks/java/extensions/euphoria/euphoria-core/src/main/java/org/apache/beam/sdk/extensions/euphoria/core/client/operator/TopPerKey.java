@@ -405,6 +405,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       this.params = params;
     }
 
+    @Override
     public AccumulatorModeBuilder<InputT, K, V, ScoreT, W> triggeredBy(Trigger trigger) {
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
@@ -425,6 +426,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       this.params = params;
     }
 
+    @Override
     public OutputBuilder<InputT, K, V, ScoreT, W> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
 

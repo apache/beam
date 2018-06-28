@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(enableFindbugs: false, enableErrorProne: false, failOnWarning: false)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL :: Core"
 
@@ -35,6 +35,7 @@ dependencies {
     shadow 'com.google.code.findbugs:annotations:3.0.+'
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
+    testCompile library.java.hamcrest_library
     testCompile library.java.slf4j_simple
     testCompile library.java.mockito_core
     testCompile project(path: ":beam-sdks-java-core", configuration: "testArtifact")

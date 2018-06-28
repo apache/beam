@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import static org.junit.Assert.assertEquals;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -572,7 +571,6 @@ public class JoinTest extends AbstractOperatorTest {
     private static final NamedGlobalWindow EVEN_WIN = new NamedGlobalWindow("even");
 
     @Override
-    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
     public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
       KV<Integer, Number> element = c.element();
 

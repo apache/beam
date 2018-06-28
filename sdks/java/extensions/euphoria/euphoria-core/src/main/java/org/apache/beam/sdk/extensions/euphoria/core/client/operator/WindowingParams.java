@@ -40,6 +40,7 @@ class WindowingParams<W extends BoundedWindow>
   Windowing euphoriaWindowing;
 
   @Nullable
+  @Override
   public WindowingDesc<Object, W> getWindowing() {
     if (windowFn == null || trigger == null || accumulationMode == null) {
       return null;
