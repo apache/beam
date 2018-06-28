@@ -173,7 +173,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     if (rowParameter != null) {
       checkArgument(schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
-              + "DoFn " + doFn.getClass() + " Coder " + inputCoder.getClass());
+              + "DoFn " + context.doFn.getClass() + " Coder " + context.inputCoder.getClass());
       String id = rowParameter.fieldAccessId();
       if (id == null) {
         // This is the case where no FieldId is defined, just an @Element Row row. Default to all
@@ -326,7 +326,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, context.outputCoders);
     }
 
     @Override
