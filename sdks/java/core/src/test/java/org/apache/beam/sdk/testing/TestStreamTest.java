@@ -337,48 +337,50 @@ public class TestStreamTest implements Serializable {
   @Test
   @Category({NeedsRunner.class, UsesTestStream.class})
   public void testEarlyPanesOfWindow() {
-    TestStream<Long> source = TestStream.create(VarLongCoder.of())
-        .addElements(TimestampedValue.of(1L, new Instant(1000L)))
-        .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
-        .addElements(TimestampedValue.of(2L, new Instant(2000L)))
-        .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
-        .addElements(TimestampedValue.of(3L, new Instant(3000L)))
-        .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
-        .advanceWatermarkToInfinity(); // Fire on-time pane
+    TestStream<Long> source =
+        TestStream.create(VarLongCoder.of())
+            .addElements(TimestampedValue.of(1L, new Instant(1000L)))
+            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
+            .addElements(TimestampedValue.of(2L, new Instant(2000L)))
+            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
+            .addElements(TimestampedValue.of(3L, new Instant(3000L)))
+            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
+            .advanceWatermarkToInfinity(); // Fire on-time pane
 
-    PCollection<KV<String, Long>> sum = p.apply(source)
-        .apply(Window.<Long>into(FixedWindows.of(Duration.standardMinutes(30)))
-            .triggering(AfterWatermark.pastEndOfWindow()
-                .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
-                    .plusDelayOf(Duration.standardMinutes(5)))).accumulatingFiredPanes()
-            .withAllowedLateness(Duration.ZERO))
-        .apply(
-            MapElements.into(
-                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
-                    .via(v -> KV.of("key", v))
-        )
-        .apply(Sum.longsPerKey());
+    PCollection<KV<String, Long>> sum =
+        p.apply(source)
+            .apply(
+                Window.<Long>into(FixedWindows.of(Duration.standardMinutes(30)))
+                    .triggering(
+                        AfterWatermark.pastEndOfWindow()
+                            .withEarlyFirings(
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(Duration.standardMinutes(5))))
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(
+                MapElements.into(
+                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                    .via(v -> KV.of("key", v)))
+            .apply(Sum.longsPerKey());
 
-    IntervalWindow window = new IntervalWindow(
-        new Instant(0L),
-        new Instant(0L).plus(Duration.standardMinutes(30))
-    );
+    IntervalWindow window =
+        new IntervalWindow(new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(30)));
 
     PAssert.that(sum)
         .inEarlyPanes(window)
-        .satisfies(input -> {
-          assertThat(StreamSupport.stream(input.spliterator(), false).count(), is(3L));
-          return null;
-        })
-        .containsInAnyOrder(
-            KV.of("key", 1L),
-            KV.of("key", 3L),
-            KV.of("key", 6L))
+        .satisfies(
+            input -> {
+              assertThat(StreamSupport.stream(input.spliterator(), false).count(), is(3L));
+              return null;
+            })
+        .containsInAnyOrder(KV.of("key", 1L), KV.of("key", 3L), KV.of("key", 6L))
         .inOnTimePane(window)
-        .satisfies(input -> {
-            assertThat(StreamSupport.stream(input.spliterator(), false).count(), is(1L));
-            return null;
-        })
+        .satisfies(
+            input -> {
+              assertThat(StreamSupport.stream(input.spliterator(), false).count(), is(1L));
+              return null;
+            })
         .containsInAnyOrder(KV.of("key", 6L));
 
     p.run().waitUntilFinish();
