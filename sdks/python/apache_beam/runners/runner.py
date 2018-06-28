@@ -43,12 +43,14 @@ _TEST_RUNNER_PATH = 'apache_beam.runners.test.'
 _PYTHON_RPC_DIRECT_RUNNER = (
     'apache_beam.runners.experimental.python_rpc_direct.'
     'python_rpc_direct_runner.')
+_PORTABLE_RUNNER_PATH = ('apache_beam.runners.portability.portable_runner.')
 
 _KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'BundleBasedDirectRunner',
                          'SwitchingDirectRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
+_KNOWN_PORTABLE_RUNNERS = ('PortableRunner',)
 
 _RUNNER_MAP = {}
 _RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
@@ -59,9 +61,12 @@ _RUNNER_MAP.update(_get_runner_map(_KNOWN_PYTHON_RPC_DIRECT_RUNNER,
                                    _PYTHON_RPC_DIRECT_RUNNER))
 _RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
                                    _TEST_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_PORTABLE_RUNNERS,
+                                   _PORTABLE_RUNNER_PATH))
 
 _ALL_KNOWN_RUNNERS = (
-    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
+    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS +
+    _KNOWN_PORTABLE_RUNNERS)
 
 
 def create_runner(runner_name):
