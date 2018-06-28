@@ -33,8 +33,8 @@ from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
-from apache_beam.io.avroio import _AvroSink as AvroSink # For testing
-from apache_beam.io.avroio import _AvroSource as AvroSource # For testing
+from apache_beam.io.avroio import _create_avro_sink  # For testing
+from apache_beam.io.avroio import _create_avro_source  # For testing
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -52,6 +52,10 @@ except ImportError:
 class TestAvro(unittest.TestCase):
 
   _temp_files = []
+
+  def __init__(self, methodName='runTest'):
+    super(TestAvro, self).__init__(methodName)
+    self.use_fastavro = False
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
@@ -123,7 +127,7 @@ class TestAvro(unittest.TestCase):
 
   def _run_avro_test(self, pattern, desired_bundle_size, perform_splitting,
                      expected_result):
-    source = AvroSource(pattern)
+    source = _create_avro_source(pattern, use_fastavro=self.use_fastavro)
 
     read_records = []
     if perform_splitting:
@@ -158,7 +162,12 @@ class TestAvro(unittest.TestCase):
 
   def test_source_display_data(self):
     file_name = 'some_avro_source'
-    source = AvroSource(file_name, validate=False)
+    source = \
+        _create_avro_source(
+            file_name,
+            validate=False,
+            use_fastavro=self.use_fastavro
+        )
     dd = DisplayData.create_from(source)
 
     # No extra avro parameters for AvroSource.
@@ -169,7 +178,11 @@ class TestAvro(unittest.TestCase):
 
   def test_read_display_data(self):
     file_name = 'some_avro_source'
-    read = avroio.ReadFromAvro(file_name, validate=False)
+    read = \
+        avroio.ReadFromAvro(
+            file_name,
+            validate=False,
+            use_fastavro=self.use_fastavro)
     dd = DisplayData.create_from(read)
 
     # No extra avro parameters for AvroSource.
@@ -180,13 +193,15 @@ class TestAvro(unittest.TestCase):
 
   def test_sink_display_data(self):
     file_name = 'some_avro_sink'
-    sink = AvroSink(file_name,
-                    self.SCHEMA,
-                    'null',
-                    '.end',
-                    0,
-                    None,
-                    'application/x-avro')
+    sink = _create_avro_sink(
+        file_name,
+        self.SCHEMA,
+        'null',
+        '.end',
+        0,
+        None,
+        'application/x-avro',
+        use_fastavro=self.use_fastavro)
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
@@ -206,7 +221,8 @@ class TestAvro(unittest.TestCase):
   def test_write_display_data(self):
     file_name = 'some_avro_sink'
     write = avroio.WriteToAvro(file_name,
-                               self.SCHEMA)
+                               self.SCHEMA,
+                               use_fastavro=self.use_fastavro)
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher(
@@ -225,12 +241,12 @@ class TestAvro(unittest.TestCase):
 
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
-    source = AvroSource(file_name)
+    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reantrant_with_splitting(self):
     file_name = self._write_data()
-    source = AvroSource(file_name)
+    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
     splits = [
         split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
@@ -249,7 +265,7 @@ class TestAvro(unittest.TestCase):
 
   def test_split_points(self):
     file_name = self._write_data(count=12000)
-    source = AvroSource(file_name)
+    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
 
     splits = [
         split
@@ -316,7 +332,7 @@ class TestAvro(unittest.TestCase):
     try:
       avro.datafile.SYNC_INTERVAL = 2
       file_name = self._write_data(count=5)
-      source = AvroSource(file_name)
+      source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
       splits = [split
                 for split in source.split(desired_bundle_size=float('inf'))]
       assert len(splits) == 1
@@ -339,7 +355,8 @@ class TestAvro(unittest.TestCase):
       f.write(corrupted_data)
       corrupted_file_name = f.name
 
-    source = AvroSource(corrupted_file_name)
+    source = _create_avro_source(
+        corrupted_file_name, use_fastavro=self.use_fastavro)
     with self.assertRaises(ValueError) as exn:
       source_test_utils.read_from_source(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
@@ -347,47 +364,64 @@ class TestAvro(unittest.TestCase):
   def test_read_from_avro(self):
     path = self._write_data()
     with TestPipeline() as p:
-      assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
+      assert_that(
+          p | avroio.ReadFromAvro(path, use_fastavro=self.use_fastavro),
+          equal_to(self.RECORDS))
 
   def test_read_all_from_avro_single_file(self):
     path = self._write_data()
     with TestPipeline() as p:
-      assert_that(p | Create([path]) | avroio.ReadAllFromAvro(),
-                  equal_to(self.RECORDS))
+      assert_that(
+          p \
+          | Create([path]) \
+          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          equal_to(self.RECORDS))
 
   def test_read_all_from_avro_many_single_files(self):
     path1 = self._write_data()
     path2 = self._write_data()
     path3 = self._write_data()
     with TestPipeline() as p:
-      assert_that(p | Create([path1, path2, path3]) | avroio.ReadAllFromAvro(),
-                  equal_to(self.RECORDS * 3))
+      assert_that(
+          p \
+          | Create([path1, path2, path3]) \
+          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          equal_to(self.RECORDS * 3))
 
   def test_read_all_from_avro_file_pattern(self):
     file_pattern = self._write_pattern(5)
     with TestPipeline() as p:
-      assert_that(p | Create([file_pattern]) | avroio.ReadAllFromAvro(),
-                  equal_to(self.RECORDS * 5))
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          equal_to(self.RECORDS * 5))
 
   def test_read_all_from_avro_many_file_patterns(self):
     file_pattern1 = self._write_pattern(5)
     file_pattern2 = self._write_pattern(2)
     file_pattern3 = self._write_pattern(3)
     with TestPipeline() as p:
-      assert_that(p
-                  | Create([file_pattern1, file_pattern2, file_pattern3])
-                  | avroio.ReadAllFromAvro(),
-                  equal_to(self.RECORDS * 10))
+      assert_that(
+          p \
+          | Create([file_pattern1, file_pattern2, file_pattern3]) \
+          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          equal_to(self.RECORDS * 10))
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
         # pylint: disable=expression-not-assigned
-        p | beam.Create(self.RECORDS) | avroio.WriteToAvro(path, self.SCHEMA)
+        p \
+        | beam.Create(self.RECORDS) \
+        | avroio.WriteToAvro(path, self.SCHEMA, use_fastavro=self.use_fastavro)
       with TestPipeline() as p:
         # json used for stable sortability
-        readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+        readback = \
+            p \
+            | avroio.ReadFromAvro(path + '*', use_fastavro=self.use_fastavro) \
+            | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
   @unittest.skipIf(snappy is None, 'snappy not installed.')
@@ -396,12 +430,26 @@ class TestAvro(unittest.TestCase):
       path = dst.name
       with TestPipeline() as p:
         # pylint: disable=expression-not-assigned
-        p | beam.Create(self.RECORDS) | avroio.WriteToAvro(
-            path, self.SCHEMA, codec='snappy')
+        p \
+        | beam.Create(self.RECORDS) \
+        | avroio.WriteToAvro(
+            path,
+            self.SCHEMA,
+            codec='snappy',
+            use_fastavro=self.use_fastavro)
       with TestPipeline() as p:
         # json used for stable sortability
-        readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+        readback = \
+            p \
+            | avroio.ReadFromAvro(path + '*', use_fastavro=self.use_fastavro) \
+            | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+
+class TestFastAvro(TestAvro):
+  def __init__(self, methodName='runTest'):
+    super(TestFastAvro, self).__init__(methodName)
+    self.use_fastavro = True
 
 
 if __name__ == '__main__':
