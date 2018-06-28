@@ -39,6 +39,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputH
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -96,7 +97,10 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
       Coder<V> outputCoder = (Coder<V>) elementCoder;
       return forIterableSideInput(
           runtimeContext.getBroadcastVariable(collectionNode.getId()), outputCoder, windowCoder);
-    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())) {
+    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())
+        || Materializations.MULTIMAP_MATERIALIZATION_URN.equals(accessPattern.getUrn())) {
+      // TODO: Remove non standard URN.
+      // Using non standard version of multimap urn as dataflow uses the non standard urn.
       @SuppressWarnings("unchecked") // T == KV<?, V>
       KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
       return forMultimapSideInput(

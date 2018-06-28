@@ -20,8 +20,6 @@ package org.apache.beam.runners.fnexecution.control;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collection;
