@@ -24,12 +24,11 @@ import grpc
 from apache_beam import metrics
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+from apache_beam.runners.portability import portable_stager
 
 __all__ = ['PortableRunner']
 
@@ -92,16 +91,12 @@ class PortableRunner(runner.PipelineRunner):
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job', pipeline=proto_pipeline))
     if prepare_response.artifact_staging_endpoint.url:
-      # Must commit something to get a retrieval token,
-      # committing empty manifest for now.
-      # TODO(BEAM-3883): Actually stage required files.
-      artifact_service = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url))
-      commit_manifest = artifact_service.CommitManifest(
-          beam_artifact_api_pb2.CommitManifestRequest(
-              manifest=beam_artifact_api_pb2.Manifest(),
-              staging_session_token=prepare_response.staging_session_token))
-      retrieval_token = commit_manifest.retrieval_token
+      stager = portable_stager.PortableStager(
+          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
+          prepare_response.staging_session_token)
+      retrieval_token, _ = stager.stage_job_resources(
+          pipeline._options,
+          staging_location='')
     else:
       retrieval_token = None
     run_response = job_service.Run(
