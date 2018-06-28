@@ -142,7 +142,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   @classmethod
   def get_runner(cls):
-    return portable_runner.PortableRunner()
+    return portable_runner.PortableRunner(is_embedded_fnapi_runner=True)
 
   @classmethod
   def tearDownClass(cls):
