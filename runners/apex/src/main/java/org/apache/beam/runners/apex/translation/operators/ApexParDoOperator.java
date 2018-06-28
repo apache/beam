@@ -118,6 +118,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   @Bind(JavaSerializer.class)
   private final Coder<WindowedValue<InputT>> inputCoder;
 
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
+
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
 
@@ -140,7 +142,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
-      Coder<InputT> linputCoder,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -150,6 +153,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.sideInputs = sideInputs;
     this.sideInputStateInternals =
         new StateInternalsProxy<>(stateBackend.newStateInternalsFactory(VoidCoder.of()));
+    this.outputCoders = outputCoders;
 
     if (additionalOutputTags.size() > additionalOutputPorts.length) {
       String msg =
@@ -160,7 +164,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     }
 
     WindowedValueCoder<InputT> wvCoder =
-        FullWindowedValueCoder.of(linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
+        FullWindowedValueCoder.of(inputCoder, this.windowingStrategy.getWindowFn().windowCoder());
     Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(), listCoder);
     this.inputCoder = wvCoder;
@@ -177,9 +181,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     } else {
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       if (signature.usesState()) {
-        checkArgument(linputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
+        checkArgument(inputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
         @SuppressWarnings("rawtypes")
-        Coder<?> keyCoder = ((KvCoder) linputCoder).getKeyCoder();
+        Coder<?> keyCoder = ((KvCoder) inputCoder).getKeyCoder();
         this.currentKeyStateInternals =
             new StateInternalsProxy<>(stateBackend.newStateInternalsFactory(keyCoder));
       }
@@ -197,6 +201,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.pushedBack = null;
     this.sideInputStateInternals = null;
     this.inputCoder = null;
+    this.outputCoders = null;
     this.currentKeyTimerInternals = null;
   }
 
@@ -453,6 +458,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             additionalOutputTags,
             stepContext,
             null,
+            outputCoders,
             windowingStrategy);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);

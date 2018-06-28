@@ -118,7 +118,7 @@ public class DoFnOutputReceivers {
 
   /** Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
   public static <T> MultiOutputReceiver windowedMultiReceiver(
-      DoFn<?, ?>.WindowedContext context, Map<TupleTag<?>, Coder<?>> outputCoders) {
+      DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
     return new WindowedContextMultiOutputReceiver(context, outputCoders);
   }
 
