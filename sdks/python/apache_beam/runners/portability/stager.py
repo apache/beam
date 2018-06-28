@@ -219,6 +219,10 @@ class Stager(object):
         resources.extend(
             self._stage_beam_sdk(sdk_remote_location, staging_location,
                                  temp_dir))
+      elif setup_options.sdk_location == 'container':
+        # Use the SDK that's built into the container, rather than re-staging
+        # it.
+        pass
       else:
         # This branch is also used by internal tests running with the SDK built
         # at head.
@@ -252,8 +256,8 @@ class Stager(object):
 
     # Delete all temp files created while staging job resources.
     shutil.rmtree(temp_dir)
-    self.commit_manifest()
-    return resources
+    retrieval_token = self.commit_manifest()
+    return retrieval_token, resources
 
   @staticmethod
   def _download_file(from_url, to_path):
