@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.protobuf.Struct;
@@ -66,6 +67,11 @@ public class FlinkJobInvoker implements JobInvoker {
     flinkOptions.setRunner(null);
 
     return FlinkJobInvocation.create(
-        invocationId, retrievalToken, executorService, pipeline, flinkOptions);
+        invocationId,
+        retrievalToken,
+        executorService,
+        pipeline,
+        flinkOptions,
+        detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
   }
 }
