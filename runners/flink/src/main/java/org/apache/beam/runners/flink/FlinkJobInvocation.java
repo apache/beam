@@ -55,8 +55,8 @@ public class FlinkJobInvocation implements JobInvocation {
       Pipeline pipeline,
       FlinkPipelineOptions pipelineOptions,
       List<String> filesToStage) {
-    return new FlinkJobInvocation(id, retrievalToken, executorService, pipeline, pipelineOptions,
-        filesToStage);
+    return new FlinkJobInvocation(
+        id, retrievalToken, executorService, pipeline, pipelineOptions, filesToStage);
   }
 
   private final String id;
@@ -75,7 +75,8 @@ public class FlinkJobInvocation implements JobInvocation {
       String retrievalToken,
       ListeningExecutorService executorService,
       Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
+      FlinkPipelineOptions pipelineOptions,
+      List<String> filesToStage) {
     this.id = id;
     this.retrievalToken = retrievalToken;
     this.executorService = executorService;

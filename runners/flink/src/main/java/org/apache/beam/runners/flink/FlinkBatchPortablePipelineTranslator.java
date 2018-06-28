@@ -115,8 +115,8 @@ public class FlinkBatchPortablePipelineTranslator
    * Creates a batch translation context. The resulting Flink execution dag will live in a new
    * {@link ExecutionEnvironment}.
    */
-  public static BatchTranslationContext createTranslationContext(JobInfo jobInfo,
-      List<String> filesToStage) {
+  public static BatchTranslationContext createTranslationContext(
+      JobInfo jobInfo, List<String> filesToStage) {
     PipelineOptions pipelineOptions;
     try {
       pipelineOptions = PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());

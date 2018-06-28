@@ -37,8 +37,8 @@ public class FlinkExecutionEnvironments {
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
    * org.apache.flink.api.java.ExecutionEnvironment} depending on the user-specified options.
    */
-  public static ExecutionEnvironment createBatchExecutionEnvironment(FlinkPipelineOptions options,
-      List<String> filesToStage) {
+  public static ExecutionEnvironment createBatchExecutionEnvironment(
+      FlinkPipelineOptions options, List<String> filesToStage) {
 
     LOG.info("Creating a Batch Execution Environment.");
 
