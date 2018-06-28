@@ -24,18 +24,23 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -65,6 +70,10 @@ public class FlinkBatchSideInputHandlerFactoryTest {
   private static final String TRANSFORM_ID = "transform-id";
   private static final String SIDE_INPUT_NAME = "side-input";
   private static final String COLLECTION_ID = "collection";
+  private static final RunnerApi.FunctionSpec MULTIMAP_ACCESS =
+      RunnerApi.FunctionSpec.newBuilder().setUrn(PTransformTranslation.MULTIMAP_SIDE_INPUT).build();
+  private static final RunnerApi.FunctionSpec ITERABLE_ACCESS =
+      RunnerApi.FunctionSpec.newBuilder().setUrn(PTransformTranslation.ITERABLE_SIDE_INPUT).build();
   private static final ExecutableStage EXECUTABLE_STAGE =
       createExecutableStage(
           Arrays.asList(
@@ -73,6 +82,8 @@ public class FlinkBatchSideInputHandlerFactoryTest {
                   SIDE_INPUT_NAME,
                   PipelineNode.pCollection(
                       COLLECTION_ID, RunnerApi.PCollection.getDefaultInstance()))));
+  private static final byte[] ENCODED_NULL = encode(null, VoidCoder.of());
+  private static final byte[] ENCODED_FOO = encode("foo", StringUtf8Coder.of());
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -90,23 +101,27 @@ public class FlinkBatchSideInputHandlerFactoryTest {
         FlinkBatchSideInputHandlerFactory.forStage(stage, context);
     thrown.expect(instanceOf(IllegalArgumentException.class));
     factory.forSideInput(
-        "transform-id", "side-input", VoidCoder.of(), VoidCoder.of(), GlobalWindow.Coder.INSTANCE);
+        "transform-id",
+        "side-input",
+        MULTIMAP_ACCESS,
+        KvCoder.of(VoidCoder.of(), VoidCoder.of()),
+        GlobalWindow.Coder.INSTANCE);
   }
 
   @Test
   public void emptyResultForEmptyCollection() {
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<Void, Integer, GlobalWindow> handler =
+    SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
-            VoidCoder.of(),
-            VarIntCoder.of(),
+            MULTIMAP_ACCESS,
+            KvCoder.of(VoidCoder.of(), VarIntCoder.of()),
             GlobalWindow.Coder.INSTANCE);
     // We never populated the broadcast variable for "side-input", so the mock will return an empty
     // list.
-    Iterable<Integer> result = handler.get(null, GlobalWindow.INSTANCE);
+    Iterable<Integer> result = handler.get(ENCODED_NULL, GlobalWindow.INSTANCE);
     assertThat(result, emptyIterable());
   }
 
@@ -118,14 +133,14 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<Void, Integer, GlobalWindow> handler =
+    SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
-            VoidCoder.of(),
-            VarIntCoder.of(),
+            MULTIMAP_ACCESS,
+            KvCoder.of(VoidCoder.of(), VarIntCoder.of()),
             GlobalWindow.Coder.INSTANCE);
-    Iterable<Integer> result = handler.get(null, GlobalWindow.INSTANCE);
+    Iterable<Integer> result = handler.get(ENCODED_NULL, GlobalWindow.INSTANCE);
     assertThat(result, contains(3));
   }
 
@@ -140,14 +155,14 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<String, Integer, GlobalWindow> handler =
+    SideInputHandler<Integer, GlobalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
-            StringUtf8Coder.of(),
-            VarIntCoder.of(),
+            MULTIMAP_ACCESS,
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             GlobalWindow.Coder.INSTANCE);
-    Iterable<Integer> result = handler.get("foo", GlobalWindow.INSTANCE);
+    Iterable<Integer> result = handler.get(ENCODED_FOO, GlobalWindow.INSTANCE);
     assertThat(result, containsInAnyOrder(2, 5));
   }
 
@@ -170,17 +185,47 @@ public class FlinkBatchSideInputHandlerFactoryTest {
 
     FlinkBatchSideInputHandlerFactory factory =
         FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
-    MultimapSideInputHandler<String, Integer, IntervalWindow> handler =
+    SideInputHandler<Integer, IntervalWindow> handler =
         factory.forSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
-            StringUtf8Coder.of(),
-            VarIntCoder.of(),
+            MULTIMAP_ACCESS,
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             IntervalWindowCoder.of());
-    Iterable<Integer> resultA = handler.get("foo", windowA);
-    Iterable<Integer> resultB = handler.get("foo", windowB);
+    Iterable<Integer> resultA = handler.get(ENCODED_FOO, windowA);
+    Iterable<Integer> resultB = handler.get(ENCODED_FOO, windowB);
     assertThat(resultA, containsInAnyOrder(1, 3));
     assertThat(resultB, containsInAnyOrder(4, 6));
+  }
+
+  @Test
+  public void iterableAccessPattern() {
+    Instant instantA = new DateTime(2018, 1, 1, 1, 1, DateTimeZone.UTC).toInstant();
+    Instant instantB = new DateTime(2018, 1, 1, 1, 2, DateTimeZone.UTC).toInstant();
+    Instant instantC = new DateTime(2018, 1, 1, 1, 3, DateTimeZone.UTC).toInstant();
+    IntervalWindow windowA = new IntervalWindow(instantA, instantB);
+    IntervalWindow windowB = new IntervalWindow(instantB, instantC);
+    when(context.getBroadcastVariable(COLLECTION_ID))
+        .thenReturn(
+            Arrays.asList(
+                WindowedValue.of(1, instantA, windowA, PaneInfo.NO_FIRING),
+                WindowedValue.of(2, instantA, windowA, PaneInfo.NO_FIRING),
+                WindowedValue.of(3, instantB, windowB, PaneInfo.NO_FIRING),
+                WindowedValue.of(4, instantB, windowB, PaneInfo.NO_FIRING)));
+
+    FlinkBatchSideInputHandlerFactory factory =
+        FlinkBatchSideInputHandlerFactory.forStage(EXECUTABLE_STAGE, context);
+    SideInputHandler<Integer, IntervalWindow> handler =
+        factory.forSideInput(
+            TRANSFORM_ID,
+            SIDE_INPUT_NAME,
+            ITERABLE_ACCESS,
+            VarIntCoder.of(),
+            IntervalWindowCoder.of());
+    Iterable<Integer> resultA = handler.get(null, windowA);
+    Iterable<Integer> resultB = handler.get(null, windowB);
+    assertThat(resultA, containsInAnyOrder(1, 2));
+    assertThat(resultB, containsInAnyOrder(3, 4));
   }
 
   private static ExecutableStage createExecutableStage(Collection<SideInputReference> sideInputs) {
@@ -195,5 +240,15 @@ public class FlinkBatchSideInputHandlerFactoryTest {
         sideInputs,
         Collections.emptyList(),
         Collections.emptyList());
+  }
+
+  private static <T> byte[] encode(T value, Coder<T> coder) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    try {
+      coder.encode(value, out);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return out.toByteArray();
   }
 }
