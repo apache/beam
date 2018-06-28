@@ -904,7 +904,7 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("sideParDo"),
             ExecutableStageMatcher.withInput("sideImpulse.out")
-                .withNoOutputs()
+                .withOutputs("sideRead.out")
                 .withTransforms("sideRead")));
   }
 
