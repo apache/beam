@@ -650,6 +650,7 @@ class CallableWrapperCombineFn(CombineFn):
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     filter_fn = lambda x: x is not self._EMPTY
+
     class ReiterableNonEmptyAccumulators(object):
       def __iter__(self):
         return itertools.ifilter(filter_fn, accumulators)
