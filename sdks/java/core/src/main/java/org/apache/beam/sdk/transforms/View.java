@@ -207,8 +207,6 @@ public class View {
    * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
    * PCollectionView<Map<K, Iterable<V>>> output = input.apply(View.<K, V>asMultimap());
    * }</pre>
-   *
-   * <p>Currently, the resulting map is required to fit into memory.
    */
   public static <K, V> AsMultimap<K, V> asMultimap() {
     return new AsMultimap<>();
