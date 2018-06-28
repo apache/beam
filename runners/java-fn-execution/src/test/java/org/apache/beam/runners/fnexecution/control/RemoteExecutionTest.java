@@ -328,16 +328,21 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getMultimapSideInputSpecs(),
             new MultimapSideInputHandlerFactory() {
               @Override
-              public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+              public <T, V, W extends BoundedWindow> MultimapSideInputHandler<V, W> forSideInput(
                   String pTransformId,
                   String sideInputId,
-                  Coder<K> keyCoder,
-                  Coder<V> valueCoder,
+                  RunnerApi.FunctionSpec accessPattern,
+                  Coder<T> elementCoder,
                   Coder<W> windowCoder) {
-                return new MultimapSideInputHandler<K, V, W>() {
+                return new MultimapSideInputHandler<V, W>() {
                   @Override
-                  public Iterable<V> get(K key, W window) {
+                  public Iterable<V> get(byte[] key, W window) {
                     return (Iterable) sideInputData;
+                  }
+
+                  @Override
+                  public Coder<V> resultCoder() {
+                    return ((KvCoder) elementCoder).getValueCoder();
                   }
                 };
               }

@@ -24,6 +24,7 @@ import static org.apache.beam.runners.core.construction.SyntheticComponents.uniq
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,6 +37,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -47,7 +49,6 @@ import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -239,11 +240,23 @@ public class ProcessBundleDescriptors {
           MultimapSideInputSpec.of(
               sideInputReference.transform().getId(),
               sideInputReference.localName(),
-              ((KvCoder) coder.getValueCoder()).getKeyCoder(),
-              ((KvCoder) coder.getValueCoder()).getValueCoder(),
+              getAccessPattern(sideInputReference),
+              coder.getValueCoder(),
               coder.getWindowCoder()));
     }
     return idsToSpec.build().rowMap();
+  }
+
+  private static RunnerApi.FunctionSpec getAccessPattern(SideInputReference sideInputReference) {
+    try {
+      return RunnerApi.ParDoPayload.parseFrom(
+              sideInputReference.transform().getTransform().getSpec().getPayload())
+          .getSideInputsMap()
+          .get(sideInputReference.localName())
+          .getAccessPattern();
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @AutoValue
@@ -258,24 +271,24 @@ public class ProcessBundleDescriptors {
    * handling multimap side input state requests.
    */
   @AutoValue
-  public abstract static class MultimapSideInputSpec<K, V, W extends BoundedWindow> {
-    static <K, V, W extends BoundedWindow> MultimapSideInputSpec<K, V, W> of(
+  public abstract static class MultimapSideInputSpec<K, T, W extends BoundedWindow> {
+    public static <T, W extends BoundedWindow> MultimapSideInputSpec of(
         String transformId,
         String sideInputId,
-        Coder<K> keyCoder,
-        Coder<V> valueCoder,
+        RunnerApi.FunctionSpec accessPattern,
+        Coder<T> elementCoder,
         Coder<W> windowCoder) {
       return new AutoValue_ProcessBundleDescriptors_MultimapSideInputSpec(
-          transformId, sideInputId, keyCoder, valueCoder, windowCoder);
+          transformId, sideInputId, accessPattern, elementCoder, windowCoder);
     }
 
     public abstract String transformId();
 
     public abstract String sideInputId();
 
-    public abstract Coder<K> keyCoder();
+    public abstract RunnerApi.FunctionSpec accessPattern();
 
-    public abstract Coder<V> valueCoder();
+    public abstract Coder<T> elementCoder();
 
     public abstract Coder<W> windowCoder();
   }
