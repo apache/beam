@@ -561,9 +561,9 @@ public class ApproximateQuantiles {
 
 
     /**
-     * Emulates taking the ordered union of all elements in buffers, repeated
-     * according to their weight, and picking out the (k * step + offset)-th
-     * elements of this list for {@code 0 <= k < count}.
+     * Emulates taking the ordered union of all elements in buffers, repeated according to their
+     * weight, and picking out the (k * step + offset)-th elements of this list for {@code 0 &lt;= k
+     * &lt; count}.
      */
     private List<T> interpolate(Iterable<QuantileBuffer<T>> buffers,
                                 int count, double step, double offset) {
