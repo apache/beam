@@ -53,7 +53,8 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.google_cloud_core
   shadow library.java.google_cloud_spanner
-  shadow library.java.bigtable_protos
+  shadow library.java.proto-google-cloud-bigtable-v2
+  shadow library.java.proto-google-cloud-bigtable-admin-v2
   shadow library.java.bigtable_client_core
   shadow library.java.google_api_client
   shadow library.java.google_http_client
