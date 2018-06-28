@@ -18,6 +18,9 @@
 
 import common_job_properties
 
+// TODO(BEAM-4505): This job is for the apache/beam-site repository and
+// should be removed once website sources are migrated to apache/beam.
+
 // Defines a job.
 job('beam_PreCommit_Website_Stage') {
   description('Stages the pull requests proposed for the Apache Beam ' +
