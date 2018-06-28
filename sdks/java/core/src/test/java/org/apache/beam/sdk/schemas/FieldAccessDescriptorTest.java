@@ -24,9 +24,7 @@ import com.google.common.collect.Sets;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.junit.Test;
 
-/**
- * Tests for {@link FieldAccessDescriptor}.
- */
+/** Tests for {@link FieldAccessDescriptor}. */
 public class FieldAccessDescriptorTest {
   private static final Schema SIMPLE_SCHEMA =
       Schema.builder()

@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
@@ -78,12 +77,13 @@ class ParDoTranslator<InputT, OutputT>
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
-    Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
-        .collect(Collectors.toMap(
-            t -> (TupleTag<?>) t,
-            v -> ((PCollection<?>) v).getCoder()));
-
+    Map<TupleTag<?>, Coder<?>> outputCoders =
+        context
+            .getOutputs()
+            .entrySet()
+            .stream()
+            .filter(e -> e.getValue() instanceof PCollection)
+            .collect(Collectors.toMap(t -> (TupleTag<?>) t, v -> ((PCollection<?>) v).getCoder()));
 
     ApexParDoOperator<InputT, OutputT> operator =
         new ApexParDoOperator<>(
@@ -140,11 +140,14 @@ class ParDoTranslator<InputT, OutputT>
       PCollection<InputT> input = context.getInput();
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
-      Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputs().entrySet().stream()
-          .filter(e -> e.getValue() instanceof PCollection)
-          .collect(Collectors.toMap(
-              t -> (TupleTag<?>) t,
-              v -> ((PCollection<?>) v).getCoder()));
+      Map<TupleTag<?>, Coder<?>> outputCoders =
+          context
+              .getOutputs()
+              .entrySet()
+              .stream()
+              .filter(e -> e.getValue() instanceof PCollection)
+              .collect(
+                  Collectors.toMap(t -> (TupleTag<?>) t, v -> ((PCollection<?>) v).getCoder()));
 
       @SuppressWarnings({"rawtypes", "unchecked"})
       DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
