@@ -383,8 +383,8 @@ class ReadAllFiles(PTransform):
       source_from_file):
     """
     Args:
-      splittable: If True, files won't be split into sub-ranges. If False, files
-                  may or may not be split into data ranges.
+      splittable: If False, files won't be split into sub-ranges. If True,
+                  files may or may not be split into data ranges.
       compression_type: A ``CompressionType`` object that specifies the
                   compression type of the files that will be processed. If
                   ``CompressionType.AUTO``, system will try to automatically
