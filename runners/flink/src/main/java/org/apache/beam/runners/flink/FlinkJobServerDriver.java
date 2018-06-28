@@ -58,6 +58,12 @@ public class FlinkJobServerDriver implements Runnable {
         usage = "The location to store staged artifact files"
     )
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
+
+    @Option(
+        name = "--flink-master-url",
+        usage = "Flink master url to submit job."
+    )
+    private String flinkMasterUrl = "[auto]";
   }
 
   public static void main(String[] args) {
@@ -151,6 +157,6 @@ public class FlinkJobServerDriver implements Runnable {
   }
 
   private JobInvoker createJobInvoker() throws IOException {
-    return FlinkJobInvoker.create(executor);
+    return FlinkJobInvoker.create(executor, configuration.flinkMasterUrl);
   }
 }
