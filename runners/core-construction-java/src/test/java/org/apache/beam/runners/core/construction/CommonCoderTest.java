@@ -88,6 +88,7 @@ public class CommonCoderTest {
           .put(getUrn(StandardCoders.Enum.VARINT), VarLongCoder.class)
           .put(getUrn(StandardCoders.Enum.INTERVAL_WINDOW), IntervalWindowCoder.class)
           .put(getUrn(StandardCoders.Enum.ITERABLE), IterableCoder.class)
+          .put(getUrn(StandardCoders.Enum.TIMER), Timer.Coder.class)
           .put(getUrn(StandardCoders.Enum.GLOBAL_WINDOW), GlobalWindow.Coder.class)
           .put(
               getUrn(StandardCoders.Enum.WINDOWED_VALUE),
@@ -226,6 +227,12 @@ public class CommonCoderTest {
       return KV.of(k, v);
     } else if (s.equals(getUrn(StandardCoders.Enum.VARINT))) {
       return ((Number) value).longValue();
+    } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
+      Map<String, Object> kvMap = (Map<String, Object>) value;
+      Coder<?> payloadCoder = (Coder) coder.getCoderArguments().get(0);
+      return Timer.of(
+          new Instant(((Number) kvMap.get("timestamp")).longValue()),
+          convertValue(kvMap.get("payload"), coderSpec.getComponents().get(0), payloadCoder));
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
@@ -284,6 +291,8 @@ public class CommonCoderTest {
       return IntervalWindowCoder.of();
     } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))) {
       return IterableCoder.of(components.get(0));
+    } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
+      return Timer.Coder.of(components.get(0));
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       return GlobalWindow.Coder.INSTANCE;
     } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
@@ -337,6 +346,10 @@ public class CommonCoderTest {
         verifyDecodedValue(componentCoder, expectedValueIterator.next(), value);
       }
       assertFalse(expectedValueIterator.hasNext());
+
+    } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
+      assertEquals(((Timer) expectedValue).getTimestamp(), ((Timer) actualValue).getTimestamp());
+      assertThat(((Timer) expectedValue).getPayload(), equalTo(((Timer) actualValue).getPayload()));
 
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       assertEquals(expectedValue, actualValue);
