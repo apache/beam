@@ -117,7 +117,15 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <!-- Check that paragraph tags are used correctly in Javadoc. -->
+    <!--
+    TODO(https://issues.apache.org/jira/browse/BEAM-4670): re-enable after fixing after spotless
+
+    A lot of our Javadoc has moderately broken HTML. It lacks paragraph tags where it ought
+    to have them. Spotless reformats so that checkstyle noticies this. This can be fixed
+    a bit at a time.
+
     <module name="JavadocParagraph"/>
+    -->
 
     <module name="JavadocType">
       <property name="scope" value="protected"/>
@@ -241,20 +249,19 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     -->
 
+    <!--
+    TODO(https://issues.apache.org/jira/browse/BEAM-4669): re-enable after fixing after spotless
+
+    When spotless re-indents, multi-line strings are often split so close to 100 chars that the
+    indentation makes them exceed the max line length. This can be fixed a bit at a time.
+
     <module name="LineLength">
-      <!-- Checks if a line is too long. -->
       <property name="max" value="100"/>
       <property name="severity" value="error"/>
-
-      <!--
-        The default ignore pattern exempts the following elements:
-          - import statements
-          - long URLs inside comments
-      -->
-
       <property name="ignorePattern"
           value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
     </module>
+     -->
 
     <!-- Checks for braces around if and else blocks -->
     <module name="NeedBraces">
