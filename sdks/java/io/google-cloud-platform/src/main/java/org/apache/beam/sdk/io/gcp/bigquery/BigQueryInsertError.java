@@ -43,8 +43,8 @@ public class BigQueryInsertError {
    */
   private TableReference table;
 
-  public BigQueryInsertError(TableRow row, TableDataInsertAllResponse.InsertErrors error,
-      TableReference table) {
+  public BigQueryInsertError(
+      TableRow row, TableDataInsertAllResponse.InsertErrors error, TableReference table) {
     this.row = row;
     this.error = error;
     this.table = table;
@@ -62,7 +62,8 @@ public class BigQueryInsertError {
     return table;
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
@@ -70,11 +71,13 @@ public class BigQueryInsertError {
       return false;
     }
     BigQueryInsertError that = (BigQueryInsertError) o;
-    return Objects.equals(row, that.getRow()) && Objects.equals(error, that.getError()) && Objects
-        .equals(table, that.getTable());
+    return Objects.equals(row, that.getRow())
+        && Objects.equals(error, that.getError())
+        && Objects.equals(table, that.getTable());
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Objects.hash(row, error, table);
   }
 }
