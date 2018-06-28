@@ -239,6 +239,12 @@ task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
 
+task websitePreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-website:preCommit"
+}
+
+
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
   dependsOn ":beam-sdks-python:dependencyUpdates"
