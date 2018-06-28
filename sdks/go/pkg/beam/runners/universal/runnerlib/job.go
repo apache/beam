@@ -41,9 +41,6 @@ type JobOptions struct {
 
 	// Worker is the worker binary override.
 	Worker string
-
-	// InternalJavaRunner is the class of the receiving Java runner. To be removed.
-	InternalJavaRunner string
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
@@ -51,7 +48,6 @@ type JobOptions struct {
 func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
 	raw := runtime.RawOptionsWrapper{
 		Options:     beam.PipelineOptions.Export(),
-		Runner:      opt.InternalJavaRunner,
 		AppName:     opt.Name,
 		Experiments: append(opt.Experiments, "beam_fn_api"),
 	}
