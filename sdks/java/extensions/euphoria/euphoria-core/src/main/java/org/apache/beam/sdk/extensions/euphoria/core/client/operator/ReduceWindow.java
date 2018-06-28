@@ -406,6 +406,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       this.params = params;
     }
 
+    @Override
     public AccumulatorModeBuilder<InputT, V, OutputT, W> triggeredBy(Trigger trigger) {
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
@@ -425,6 +426,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       this.params = params;
     }
 
+    @Override
     public OutputBuilder<InputT, V, OutputT, W> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
 

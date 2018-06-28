@@ -249,6 +249,7 @@ public class ReduceStateByKey<
       return new ValueByBuilder<>(params);
     }
 
+    @Override
     public <K> ValueByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
 
@@ -418,6 +419,7 @@ public class ReduceStateByKey<
       this.params = params;
     }
 
+    @Override
     public AccumulatorModeBuilder<InputT, K, V, OutputT, StateT, W> triggeredBy(Trigger trigger) {
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
@@ -438,6 +440,7 @@ public class ReduceStateByKey<
       this.params = params;
     }
 
+    @Override
     public OutputBuilder<InputT, K, V, OutputT, StateT, W> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
 

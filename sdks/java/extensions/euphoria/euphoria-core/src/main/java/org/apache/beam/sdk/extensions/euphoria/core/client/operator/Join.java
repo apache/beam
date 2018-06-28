@@ -371,6 +371,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       return new OutputBuilder<>(params).output(outputHints);
     }
 
+    @Override
     public <W extends BoundedWindow> TriggerByBuilder<LeftT, RightT, K, OutputT, W> windowBy(
         WindowFn<Object, W> windowing) {
 
@@ -416,6 +417,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       this.params = params;
     }
 
+    @Override
     public AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W> triggeredBy(Trigger trigger) {
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
@@ -435,6 +437,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       this.params = params;
     }
 
+    @Override
     public OutputBuilder<LeftT, RightT, K, OutputT, W> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
