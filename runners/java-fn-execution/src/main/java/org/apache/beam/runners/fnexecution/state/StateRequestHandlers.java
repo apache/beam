@@ -34,8 +34,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
-import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.MultimapSideInputSpec;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.SideInputSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
@@ -50,56 +51,61 @@ import org.apache.beam.sdk.util.common.Reiterable;
 public class StateRequestHandlers {
 
   /**
-   * A handler for multimap side inputs.
+   * A handler for side inputs.
    *
    * <p>Note that this handler is expected to be thread safe as it will be invoked concurrently.
    */
   @ThreadSafe
-  public interface MultimapSideInputHandler<K, V, W extends BoundedWindow> {
+  public interface SideInputHandler<V, W extends BoundedWindow> {
     /**
      * Returns an {@link Iterable} of values representing the side input for the given key and
      * window.
      *
+     * <p>The key is interpreted according to the access pattern of side input.
+     *
      * <p>TODO: Add support for side input chunking and caching if a {@link Reiterable} is returned.
      */
-    Iterable<V> get(K key, W window);
+    Iterable<V> get(byte[] key, W window);
+
+    /** Returns the {@link Coder} to use for the elements of the resulting values iterable. */
+    Coder<V> resultCoder();
   }
 
   /**
-   * A factory which constructs {@link MultimapSideInputHandler}s.
+   * A factory which constructs {@link SideInputHandler}s.
    *
    * <p>Note that this factory should be thread safe because it will be invoked concurrently.
    */
   @ThreadSafe
-  public interface MultimapSideInputHandlerFactory {
+  public interface SideInputHandlerFactory {
 
     /**
-     * Returns a {@link MultimapSideInputHandler} for the given {@code pTransformId} and {@code
-     * sideInputId}. The supplied {@code keyCoder}, {@code valueCoder}, and {@code windowCoder}
-     * should be used to encode/decode their respective values.
+     * Returns a {@link SideInputHandler} for the given {@code pTransformId}, {@code sideInputId},
+     * and {@code accessPattern}. The supplied {@code elementCoder} and {@code windowCoder} should
+     * be used to encode/decode their respective values.
      */
-    <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+    <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
         String pTransformId,
         String sideInputId,
-        Coder<K> keyCoder,
-        Coder<V> valueCoder,
+        RunnerApi.FunctionSpec accessPattern,
+        Coder<T> elementCoder,
         Coder<W> windowCoder);
 
     /** Throws a {@link UnsupportedOperationException} on the first access. */
-    static MultimapSideInputHandlerFactory unsupported() {
-      return new MultimapSideInputHandlerFactory() {
+    static SideInputHandlerFactory unsupported() {
+      return new SideInputHandlerFactory() {
         @Override
-        public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+        public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
             String pTransformId,
             String sideInputId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
+            RunnerApi.FunctionSpec accessPattern,
+            Coder<T> elementCoder,
             Coder<W> windowCoder) {
           throw new UnsupportedOperationException(
               String.format(
                   "The %s does not support handling sides inputs for PTransform %s with side "
                       + "input id %s.",
-                  MultimapSideInputHandler.class.getSimpleName(), pTransformId, sideInputId));
+                  SideInputHandler.class.getSimpleName(), pTransformId, sideInputId));
         }
       };
     }
@@ -163,40 +169,36 @@ public class StateRequestHandlers {
   }
 
   /**
-   * Returns an adapter which converts a {@link MultimapSideInputHandlerFactory} to a {@link
+   * Returns an adapter which converts a {@link SideInputHandlerFactory} to a {@link
    * StateRequestHandler}.
    *
-   * <p>The {@link MultimapSideInputHandlerFactory} is required to handle all multimap side inputs
-   * contained within the {@link ExecutableProcessBundleDescriptor}. See {@link
-   * ExecutableProcessBundleDescriptor#getMultimapSideInputSpecs} for the set of multimap side
-   * inputs that are contained.
+   * <p>The {@link SideInputHandlerFactory} is required to handle all side inputs contained within
+   * the {@link ExecutableProcessBundleDescriptor}. See {@link
+   * ExecutableProcessBundleDescriptor#getSideInputSpecs} for the set of side inputs that are
+   * contained.
    *
-   * <p>Instances of {@link MultimapSideInputHandler}s returned by the {@link
-   * MultimapSideInputHandlerFactory} are cached.
+   * <p>Instances of {@link SideInputHandler}s returned by the {@link SideInputHandlerFactory} are
+   * cached.
    */
-  public static StateRequestHandler forMultimapSideInputHandlerFactory(
-      Map<String, Map<String, MultimapSideInputSpec>> sideInputSpecs,
-      MultimapSideInputHandlerFactory multimapSideInputHandlerFactory) {
-    return new StateRequestHandlerToMultimapSideInputHandlerFactoryAdapter(
-        sideInputSpecs, multimapSideInputHandlerFactory);
+  public static StateRequestHandler forSideInputHandlerFactory(
+      Map<String, Map<String, SideInputSpec>> sideInputSpecs,
+      SideInputHandlerFactory sideInputHandlerFactory) {
+    return new StateRequestHandlerToSideInputHandlerFactoryAdapter(
+        sideInputSpecs, sideInputHandlerFactory);
   }
 
-  /**
-   * An adapter which converts {@link MultimapSideInputHandlerFactory} to {@link
-   * StateRequestHandler}.
-   */
-  static class StateRequestHandlerToMultimapSideInputHandlerFactoryAdapter
-      implements StateRequestHandler {
+  /** An adapter which converts {@link SideInputHandlerFactory} to {@link StateRequestHandler}. */
+  static class StateRequestHandlerToSideInputHandlerFactoryAdapter implements StateRequestHandler {
 
-    private final Map<String, Map<String, MultimapSideInputSpec>> sideInputSpecs;
-    private final MultimapSideInputHandlerFactory multimapSideInputHandlerFactory;
-    private final ConcurrentHashMap<MultimapSideInputSpec, MultimapSideInputHandler> cache;
+    private final Map<String, Map<String, SideInputSpec>> sideInputSpecs;
+    private final SideInputHandlerFactory sideInputHandlerFactory;
+    private final ConcurrentHashMap<SideInputSpec, SideInputHandler> cache;
 
-    StateRequestHandlerToMultimapSideInputHandlerFactoryAdapter(
-        Map<String, Map<String, MultimapSideInputSpec>> sideInputSpecs,
-        MultimapSideInputHandlerFactory multimapSideInputHandlerFactory) {
+    StateRequestHandlerToSideInputHandlerFactoryAdapter(
+        Map<String, Map<String, SideInputSpec>> sideInputSpecs,
+        SideInputHandlerFactory sideInputHandlerFactory) {
       this.sideInputSpecs = sideInputSpecs;
-      this.multimapSideInputHandlerFactory = multimapSideInputHandlerFactory;
+      this.sideInputHandlerFactory = sideInputHandlerFactory;
       this.cache = new ConcurrentHashMap<>();
     }
 
@@ -211,9 +213,9 @@ public class StateRequestHandlers {
             TypeCase.MULTIMAP_SIDE_INPUT);
 
         StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
-        MultimapSideInputSpec<?, ?, ?> sideInputReferenceSpec =
+        SideInputSpec<?, ?, ?> sideInputReferenceSpec =
             sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
-        MultimapSideInputHandler<?, ?, ?> handler =
+        SideInputHandler<?, ?> handler =
             cache.computeIfAbsent(sideInputReferenceSpec, this::createHandler);
 
         switch (request.getRequestCase()) {
@@ -234,7 +236,7 @@ public class StateRequestHandlers {
     }
 
     private <K, V, W extends BoundedWindow> CompletionStage<StateResponse.Builder> handleGetRequest(
-        StateRequest request, MultimapSideInputHandler<K, V, W> handler) throws Exception {
+        StateRequest request, SideInputHandler<V, W> handler) throws Exception {
       // TODO: Add support for continuation tokens when handling state if the handler
       // returned a {@link Reiterable}.
       checkState(
@@ -243,17 +245,16 @@ public class StateRequestHandlers {
 
       StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
 
-      MultimapSideInputSpec<K, V, W> sideInputReferenceSpec =
+      SideInputSpec<K, V, W> sideInputReferenceSpec =
           sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
 
-      K key = sideInputReferenceSpec.keyCoder().decode(stateKey.getKey().newInput());
       W window = sideInputReferenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
 
-      Iterable<V> values = handler.get(key, window);
+      Iterable<V> values = handler.get(stateKey.getKey().toByteArray(), window);
       List<ByteString> encodedValues = new ArrayList<>();
       ElementDelimitedOutputStream outputStream = DataStreams.outbound(encodedValues::add);
       for (V value : values) {
-        sideInputReferenceSpec.valueCoder().encode(value, outputStream);
+        handler.resultCoder().encode(value, outputStream);
         outputStream.delimitElement();
       }
       outputStream.close();
@@ -265,13 +266,13 @@ public class StateRequestHandlers {
       return CompletableFuture.completedFuture(response);
     }
 
-    private <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> createHandler(
-        MultimapSideInputSpec cacheKey) {
-      return multimapSideInputHandlerFactory.forSideInput(
+    private <K, V, W extends BoundedWindow> SideInputHandler<V, W> createHandler(
+        SideInputSpec cacheKey) {
+      return sideInputHandlerFactory.forSideInput(
           cacheKey.transformId(),
           cacheKey.sideInputId(),
-          cacheKey.keyCoder(),
-          cacheKey.valueCoder(),
+          cacheKey.accessPattern(),
+          cacheKey.elementCoder(),
           cacheKey.windowCoder());
     }
   }
