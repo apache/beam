@@ -255,7 +255,7 @@ public class PAssert {
      * run on the provided window across all panes that were produced by the arrival of early data.
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
-     * specified window.
+     *     specified window.
      */
     IterableAssert<T> inEarlyPanes(BoundedWindow window);
 
@@ -350,13 +350,13 @@ public class PAssert {
      * only run on the provided window, running the checker only on early panes for each key.
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
-     * the specified window.
+     *     the specified window.
      */
     SingletonAssert<T> inEarlyPanes(BoundedWindow window);
 
     /**
-     * Asserts that the value in question is equal to the provided value, according to
-     * {@link Object#equals}.
+     * Asserts that the value in question is equal to the provided value, according to {@link
+     * Object#equals}.
      *
      * @return the same {@link SingletonAssert} builder for further assertions
      */
