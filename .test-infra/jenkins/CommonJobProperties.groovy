@@ -63,14 +63,16 @@ class CommonJobProperties {
                                            String branch = 'master',
                                            int timeout = 100,
                                            boolean allowRemotePoll = true,
-                                           boolean localPerfTest = false) {
+                                           boolean localPerfTest = false,
+                                           String dockerImage = '') {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
             timeout,
             allowRemotePoll,
-            localPerfTest)
+            localPerfTest,
+            dockerImage)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -80,7 +82,8 @@ class CommonJobProperties {
                                                String defaultBranch,
                                                int defaultTimeout,
                                                boolean allowRemotePoll = true,
-                                               boolean localPerfTest = false) {
+                                               boolean localPerfTest = false,
+                                               String dockerImage='') {
     def jenkinsExecutorLabel = 'beam'
     if (localPerfTest) {
       jenkinsExecutorLabel = 'beam-perf'
@@ -115,6 +118,11 @@ class CommonJobProperties {
     }
 
     context.wrappers {
+      if (dockerImage) {
+        buildInDocker {
+          image(dockerImage)
+        }
+      }
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
         absolute(defaultTimeout)
