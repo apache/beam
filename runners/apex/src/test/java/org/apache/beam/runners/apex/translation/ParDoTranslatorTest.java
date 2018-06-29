@@ -212,7 +212,6 @@ public class ParDoTranslatorTest {
             WindowingStrategy.globalDefault(),
             Collections.singletonList(singletonView),
             VarIntCoder.of(),
-            Collections.emptyMap(),
             new ApexStateInternals.ApexStateBackend());
     operator.setup(null);
     operator.beginWindow(0);
