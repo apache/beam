@@ -32,15 +32,17 @@ import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
 
+
 def display(elm):
   logging.debug(elm)
   return elm
 
+
 def load(raw_events, metadata=None):
   return (raw_events
-    | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
-    | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
-        lambda event: (isinstance(event, nexmark_model.Auction)
-          and event.id == metadata.get('auction_id')))
-    | 'Display Q2' >> beam.Map(display)
-  )
+          | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
+          | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
+              lambda event: (isinstance(event, nexmark_model.Auction)
+                             and event.id == metadata.get('auction_id')))
+          | 'DisplayQuery2' >> beam.Map(display)
+         )

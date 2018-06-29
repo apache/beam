@@ -220,9 +220,9 @@ class NexmarkLauncher(object):
 
     # TODO put this in a config file like Java
     query_args = {
-      2: {
-        'auction_id': 'a1003'
-      }
+        2: {
+            'auction_id': 'a1003'
+        }
     }
 
     query_errors = []
@@ -237,12 +237,12 @@ class NexmarkLauncher(object):
 
       if launch_from_direct_runner:
         command = Command(self.run_query, args=[
-          queries[i], query_args.get(i), query_errors])
+            queries[i], query_args.get(i), query_errors])
         query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
         command.run(timeout=query_duration // 1000)
       else:
         try:
-          self.run_query(queries[i], query_errors=None)
+          self.run_query(queries[i], query_args.get(i), query_errors=None)
         except Exception as exc:
           query_errors.append(exc)
 
