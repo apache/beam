@@ -17,16 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -35,6 +40,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -43,7 +49,9 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -61,14 +69,18 @@ import org.slf4j.LoggerFactory;
  */
 public class TestPubsubSignal implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
-  private static final String TOPIC_FORMAT = "projects/%s/topics/%s-result1";
-  private static final String SUBSCRIPTION_FORMAT = "projects/%s/subscriptions/%s";
+  private static final String RESULT_TOPIC_NAME = "result";
+  private static final String RESULT_SUCCESS_MESSAGE = "SUCCESS";
+  private static final String START_TOPIC_NAME = "start";
+  private static final String START_SIGNAL_MESSAGE = "START SIGNAL";
+
   private static final String NO_ID_ATTRIBUTE = null;
   private static final String NO_TIMESTAMP_ATTRIBUTE = null;
 
   PubsubClient pubsub;
   private TestPubsubOptions pipelineOptions;
-  private String resultTopicPath;
+  private @Nullable TopicPath resultTopicPath = null;
+  private @Nullable TopicPath startTopicPath = null;
 
   /**
    * Creates an instance of this rule.
@@ -116,12 +128,19 @@ public class TestPubsubSignal implements TestRule {
 
     // Example topic name:
     //    integ-test-TestClassName-testMethodName-2018-12-11-23-32-333-<random-long>-result
-    String resultTopicPathTmp =
-        String.format(TOPIC_FORMAT, pipelineOptions.getProject(), createTopicName(description));
+    TopicPath resultTopicPathTmp =
+        PubsubClient.topicPathFromName(
+            pipelineOptions.getProject(), createTopicName(description, RESULT_TOPIC_NAME));
+    TopicPath startTopicPathTmp =
+        PubsubClient.topicPathFromName(
+            pipelineOptions.getProject(), createTopicName(description, START_TOPIC_NAME));
 
-    pubsub.createTopic(new TopicPath(resultTopicPathTmp));
+    pubsub.createTopic(resultTopicPathTmp);
+    pubsub.createTopic(startTopicPathTmp);
 
+    // Set these after successful creation; this signals that they need teardown
     resultTopicPath = resultTopicPathTmp;
+    startTopicPath = startTopicPathTmp;
   }
 
   private void tearDown() throws IOException {
@@ -131,13 +150,18 @@ public class TestPubsubSignal implements TestRule {
 
     try {
       if (resultTopicPath != null) {
-        pubsub.deleteTopic(new TopicPath(resultTopicPath));
+        pubsub.deleteTopic(resultTopicPath);
       }
     } finally {
       pubsub.close();
       pubsub = null;
       resultTopicPath = null;
     }
+  }
+
+  /** Outputs a message that the pipeline has started. */
+  public PTransform<PBegin, PDone> signalStart() {
+    return new PublishStart(startTopicPath);
   }
 
   /**
@@ -156,55 +180,98 @@ public class TestPubsubSignal implements TestRule {
    * #waitForSuccess(Duration)} will unblock.
    */
   public <T> PTransform<PCollection<? extends T>, POutput> signalSuccessWhen(
+      Coder<T> coder,
+      SerializableFunction<T, String> formatter,
+      SerializableFunction<Set<T>, Boolean> successPredicate) {
+
+    return new PublishSuccessWhen<>(coder, formatter, successPredicate, resultTopicPath);
+  }
+
+  /**
+   * Invocation of {@link #signalSuccessWhen(Coder, SerializableFunction, SerializableFunction)}
+   * with {@link Object#toString} as the formatter.
+   */
+  public <T> PTransform<PCollection<? extends T>, POutput> signalSuccessWhen(
       Coder<T> coder, SerializableFunction<Set<T>, Boolean> successPredicate) {
 
-    return new PublishSuccessWhen<>(coder, successPredicate, resultTopicPath);
+    return signalSuccessWhen(coder, T::toString, successPredicate);
+  }
+
+  /**
+   * Future that waits for a start signal for {@code duration}.
+   *
+   * <p>This future must be created before running the pipeline. A subscription must exist prior to
+   * the start signal being published, which occurs immediately upon pipeline startup.
+   */
+  public Supplier<Void> waitForStart(Duration duration) throws IOException {
+    SubscriptionPath startSubscriptionPath =
+        PubsubClient.subscriptionPathFromName(
+            pipelineOptions.getProject(),
+            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
+
+    pubsub.createSubscription(
+        startTopicPath, startSubscriptionPath, (int) duration.getStandardSeconds());
+
+    return Suppliers.memoize(
+        () -> {
+          try {
+            String result = pollForResultForDuration(startSubscriptionPath, duration);
+            checkState(START_SIGNAL_MESSAGE.equals(result));
+            return null;
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   /** Wait for a success signal for {@code duration}. */
   public void waitForSuccess(Duration duration) throws IOException {
     SubscriptionPath resultSubscriptionPath =
-        new SubscriptionPath(
-            String.format(
-                SUBSCRIPTION_FORMAT,
-                pipelineOptions.getProject(),
-                "subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong())));
+        PubsubClient.subscriptionPathFromName(
+            pipelineOptions.getProject(),
+            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
     pubsub.createSubscription(
-        new TopicPath(resultTopicPath),
-        resultSubscriptionPath,
-        (int) duration.getStandardSeconds());
+        resultTopicPath, resultSubscriptionPath, (int) duration.getStandardSeconds());
 
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
 
-    if (!"SUCCESS".equals(result)) {
+    if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);
     }
   }
 
   private String pollForResultForDuration(
-      SubscriptionPath resultSubscriptionPath, Duration duration) throws IOException {
+      SubscriptionPath signalSubscriptionPath, Duration duration) throws IOException {
 
-    List<PubsubClient.IncomingMessage> result = null;
+    List<PubsubClient.IncomingMessage> signal = null;
     DateTime endPolling = DateTime.now().plus(duration.getMillis());
 
     do {
       try {
-        result = pubsub.pull(DateTime.now().getMillis(), resultSubscriptionPath, 1, false);
+        signal = pubsub.pull(DateTime.now().getMillis(), signalSubscriptionPath, 1, false);
         pubsub.acknowledge(
-            resultSubscriptionPath, result.stream().map(m -> m.ackId).collect(toList()));
+            signalSubscriptionPath, signal.stream().map(m -> m.ackId).collect(toList()));
         break;
       } catch (StatusRuntimeException e) {
-        LOG.warn("Error while polling for result: %s", e.getStatus());
+        if (!Status.DEADLINE_EXCEEDED.equals(e.getStatus())) {
+          LOG.warn(
+              "(Will retry) Error while polling {} for signal: {}",
+              signalSubscriptionPath,
+              e.getStatus());
+        }
         sleep(500);
       }
     } while (DateTime.now().isBefore(endPolling));
 
-    if (result == null) {
-      throw new AssertionError("Did not receive success in " + duration.getStandardSeconds() + "s");
+    if (signal == null) {
+      throw new AssertionError(
+          String.format(
+              "Did not receive signal on %s in %ss",
+              signalSubscriptionPath, duration.getStandardSeconds()));
     }
 
-    return new String(result.get(0).elementBytes, UTF_8);
+    return new String(signal.get(0).elementBytes, UTF_8);
   }
 
   private void sleep(long t) {
@@ -215,18 +282,37 @@ public class TestPubsubSignal implements TestRule {
     }
   }
 
+  /** {@link PTransform} that signals once when the pipeline has started. */
+  static class PublishStart extends PTransform<PBegin, PDone> {
+    private final TopicPath startTopicPath;
+
+    PublishStart(TopicPath startTopicPath) {
+      this.startTopicPath = startTopicPath;
+    }
+
+    @Override
+    public PDone expand(PBegin input) {
+      return input
+          .apply("Start signal", Create.of(START_SIGNAL_MESSAGE))
+          .apply(PubsubIO.writeStrings().to(startTopicPath.getPath()));
+    }
+  }
+
   /** {@link PTransform} that for validates whether elements seen so far match success criteria. */
   static class PublishSuccessWhen<T> extends PTransform<PCollection<? extends T>, POutput> {
-    private Coder<T> coder;
-    private SerializableFunction<Set<T>, Boolean> successPredicate;
-    private String resultTopicPath;
+    private final Coder<T> coder;
+    private final SerializableFunction<T, String> formatter;
+    private final SerializableFunction<Set<T>, Boolean> successPredicate;
+    private final TopicPath resultTopicPath;
 
     PublishSuccessWhen(
         Coder<T> coder,
+        SerializableFunction<T, String> formatter,
         SerializableFunction<Set<T>, Boolean> successPredicate,
-        String resultTopicPath) {
+        TopicPath resultTopicPath) {
 
       this.coder = coder;
+      this.formatter = formatter;
       this.successPredicate = successPredicate;
       this.resultTopicPath = resultTopicPath;
     }
@@ -240,9 +326,9 @@ public class TestPubsubSignal implements TestRule {
           .apply(WithKeys.of("dummyKey"))
           .apply(
               "checkAllEventsForSuccess",
-              ParDo.of(new StatefulPredicateCheck<>(coder, successPredicate)))
+              ParDo.of(new StatefulPredicateCheck<>(coder, formatter, successPredicate)))
           // signal the success/failure to the result topic
-          .apply("publishSuccess", PubsubIO.writeStrings().to(resultTopicPath));
+          .apply("publishSuccess", PubsubIO.writeStrings().to(resultTopicPath.getPath()));
     }
   }
 
@@ -254,6 +340,7 @@ public class TestPubsubSignal implements TestRule {
    * "FAILURE".
    */
   static class StatefulPredicateCheck<T> extends DoFn<KV<String, ? extends T>, String> {
+    private final SerializableFunction<T, String> formatter;
     private SerializableFunction<Set<T>, Boolean> successPredicate;
     // keep all events seen so far in the state cell
 
@@ -262,8 +349,12 @@ public class TestPubsubSignal implements TestRule {
     @StateId(SEEN_EVENTS)
     private final StateSpec<BagState<T>> seenEvents;
 
-    StatefulPredicateCheck(Coder<T> coder, SerializableFunction<Set<T>, Boolean> successPredicate) {
+    StatefulPredicateCheck(
+        Coder<T> coder,
+        SerializableFunction<T, String> formatter,
+        SerializableFunction<Set<T>, Boolean> successPredicate) {
       this.seenEvents = StateSpecs.bag(coder);
+      this.formatter = formatter;
       this.successPredicate = successPredicate;
     }
 
