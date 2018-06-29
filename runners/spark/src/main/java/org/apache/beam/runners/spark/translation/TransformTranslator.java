@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -349,6 +350,16 @@ public final class TransformTranslator {
         boolean stateful =
             signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
 
+        Map<TupleTag<?>, Coder<?>> outputCoders =
+            context
+                .getOutputs(transform)
+                .entrySet()
+                .stream()
+                .filter(e -> e.getValue() instanceof PCollection)
+                .collect(
+                    Collectors.toMap(
+                        e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
+
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
                 metricsAccum,
@@ -358,6 +369,7 @@ public final class TransformTranslator {
                 transform.getMainOutputTag(),
                 transform.getAdditionalOutputTags().getAll(),
                 TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                outputCoders,
                 windowingStrategy,
                 stateful);
 

@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.functions;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -134,6 +135,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
               }
             },
             null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {

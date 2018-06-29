@@ -118,6 +118,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   @Bind(JavaSerializer.class)
   private final Coder<WindowedValue<InputT>> inputCoder;
 
+  @Bind(JavaSerializer.class)
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
   private StateInternalsProxy<?> currentKeyStateInternals;

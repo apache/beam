@@ -222,10 +222,9 @@ public class FieldAccessDescriptor implements Serializable {
         && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
       return type.getMapValueType().getRowSchema();
     } else {
-      checkState(
-          false, "Field " + field + " must be either a row or " + " a container containing rows");
+      throw new IllegalArgumentException(
+          "Field " + field + " must be either a row or " + " a container containing rows");
     }
-    return null;
   }
 
   private FieldAccessDescriptor resolvedNestedFieldsHelper(

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import com.google.common.collect.Lists;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -108,6 +109,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
             additionalOutputTags,
             new FlinkNoOpStepContext(),
             null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {

@@ -83,7 +83,8 @@ class ParDoTranslator<InputT, OutputT>
             .entrySet()
             .stream()
             .filter(e -> e.getValue() instanceof PCollection)
-            .collect(Collectors.toMap(t -> (TupleTag<?>) t, v -> ((PCollection<?>) v).getCoder()));
+            .collect(
+                Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
     ApexParDoOperator<InputT, OutputT> operator =
         new ApexParDoOperator<>(
@@ -147,7 +148,8 @@ class ParDoTranslator<InputT, OutputT>
               .stream()
               .filter(e -> e.getValue() instanceof PCollection)
               .collect(
-                  Collectors.toMap(t -> (TupleTag<?>) t, v -> ((PCollection<?>) v).getCoder()));
+                  Collectors.toMap(
+                      e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
       @SuppressWarnings({"rawtypes", "unchecked"})
       DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
