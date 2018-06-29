@@ -74,7 +74,7 @@ public class BeamFileSystemArtifactRetrievalService
     final String token = request.getRetrievalToken();
     if (Strings.isNullOrEmpty(token)) {
       throw new StatusRuntimeException(
-              Status.INVALID_ARGUMENT.withDescription("Empty artifact token"));
+          Status.INVALID_ARGUMENT.withDescription("Empty artifact token"));
     }
 
     LOG.info("GetManifest for {}", token);
