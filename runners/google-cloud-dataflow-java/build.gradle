@@ -123,6 +123,7 @@ task validatesRunnerTest(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
