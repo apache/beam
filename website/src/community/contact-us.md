@@ -37,3 +37,4 @@ whichever one seems best!
 | [Slack](https://s.apache.org/beam-slack-channel) | Chat with users and developers ([Join](https://s.apache.org/slack-invite)) |
 {:.table}
 
+If you wish to report a security vulnerability, please contact [security@apache.org](mailto:security@apache.org). Apache Beam follows the typical [Apache vulnerability handling process](https://apache.org/security/committers.html#vulnerability-handling).
