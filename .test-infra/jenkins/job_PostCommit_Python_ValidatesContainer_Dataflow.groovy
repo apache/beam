@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesContainer tests against the
@@ -26,10 +26,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
   description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonProperties.setTopLevelMainJobProperties(delegate)
 
   // Execute shell command to test Python SDK.
   steps {
-    shell('cd ' + common_job_properties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh')
+    shell('cd ' + commonProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh')
   }
 }

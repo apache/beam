@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 // This creates the nightly snapshot build.
 // Into https://repository.apache.org/content/groups/snapshots/org/apache/beam.
@@ -27,26 +27,26 @@ job('beam_Release_Gradle_NightlySnapshot') {
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonProperties.setTopLevelMainJobProperties(delegate)
 
   // This is a post-commit job that runs once per day, not for every push.
-  common_job_properties.setAutoJob(
+  commonProperties.setAutoJob(
       delegate,
       '0 7 * * *',
       'dev@beam.apache.org')
 
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
+  commonProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       './gradlew publish',
       'Run Gradle Publish')
 
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonProperties.checkoutDir)
       tasks('publish')
-      common_job_properties.setGradleSwitches(delegate)
+      commonProperties.setGradleSwitches(delegate)
       // Publish a snapshot build.
       switches("-Ppublishing")
       // Don't run tasks in parallel, currently the maven-publish/signing plugins
