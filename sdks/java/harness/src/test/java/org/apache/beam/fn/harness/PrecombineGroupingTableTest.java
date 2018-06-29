@@ -29,11 +29,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.fn.harness.GroupingTable.Receiver;
-import org.apache.beam.fn.harness.GroupingTables.Combiner;
-import org.apache.beam.fn.harness.GroupingTables.GroupingKeyCreator;
-import org.apache.beam.fn.harness.GroupingTables.GroupingTableBase;
-import org.apache.beam.fn.harness.GroupingTables.SamplingSizeEstimator;
-import org.apache.beam.fn.harness.GroupingTables.SizeEstimator;
+import org.apache.beam.fn.harness.PrecombineGroupingTable.Combiner;
+import org.apache.beam.fn.harness.PrecombineGroupingTable.GroupingKeyCreator;
+import org.apache.beam.fn.harness.PrecombineGroupingTable.SamplingSizeEstimator;
+import org.apache.beam.fn.harness.PrecombineGroupingTable.SizeEstimator;
 import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -42,9 +41,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link GroupingTables}. */
+/** Unit tests for {@link PrecombineGroupingTable}. */
 @RunWith(JUnit4.class)
-public class GroupingTablesTest {
+public class PrecombineGroupingTableTest {
 
   private static class TestOutputReceiver implements Receiver {
     final List<Object> outputElems = new ArrayList<>();
@@ -53,38 +52,6 @@ public class GroupingTablesTest {
     public void process(Object elem) {
       outputElems.add(elem);
     }
-  }
-
-  @Test
-  public void testBufferingGroupingTable() throws Exception {
-    GroupingTableBase<String, String, List<String>> table =
-        (GroupingTableBase<String, String, List<String>>)
-            GroupingTables.buffering(
-                new IdentityGroupingKeyCreator(), new KvPairInfo(),
-                new StringPowerSizeEstimator(), new StringPowerSizeEstimator());
-    table.setMaxSize(1000);
-    TestOutputReceiver receiver = new TestOutputReceiver();
-
-    table.put("A", "a", receiver);
-    table.put("B", "b1", receiver);
-    table.put("B", "b2", receiver);
-    table.put("C", "c", receiver);
-    assertThat(receiver.outputElems, empty());
-
-    table.put("C", "cccc", receiver);
-    assertThat(receiver.outputElems, hasItem((Object) KV.of("C", Arrays.asList("c", "cccc"))));
-
-    table.put("DDDD", "d", receiver);
-    assertThat(receiver.outputElems, hasItem((Object) KV.of("DDDD", Arrays.asList("d"))));
-
-    table.flush(receiver);
-    assertThat(
-        receiver.outputElems,
-        IsIterableContainingInAnyOrder.containsInAnyOrder(
-            KV.of("A", Arrays.asList("a")),
-            KV.of("B", Arrays.asList("b1", "b2")),
-            KV.of("C", Arrays.asList("c", "cccc")),
-            KV.of("DDDD", Arrays.asList("d"))));
   }
 
   @Test
@@ -122,14 +89,14 @@ public class GroupingTablesTest {
           }
         };
 
-    GroupingTableBase<String, Integer, Long> table =
-        (GroupingTableBase<String, Integer, Long>)
-            GroupingTables.combining(
-                new IdentityGroupingKeyCreator(),
-                new KvPairInfo(),
-                summingCombineFn,
-                new StringPowerSizeEstimator(),
-                new IdentitySizeEstimator());
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            100_000_000L,
+            new IdentityGroupingKeyCreator(),
+            new KvPairInfo(),
+            summingCombineFn,
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator());
     table.setMaxSize(1000);
 
     TestOutputReceiver receiver = new TestOutputReceiver();
@@ -317,7 +284,7 @@ public class GroupingTablesTest {
     }
   }
 
-  private static class KvPairInfo implements GroupingTables.PairInfo {
+  private static class KvPairInfo implements PrecombineGroupingTable.PairInfo {
     @SuppressWarnings("unchecked")
     @Override
     public Object getKeyFromInputPair(Object pair) {

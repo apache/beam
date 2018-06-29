@@ -93,6 +93,7 @@ public class CombineRunnersTest {
   private RunnerApi.PTransform pTransform;
   private String inputPCollectionId;
   private String outputPCollectionId;
+  private RunnerApi.Pipeline pProto;
 
   @Before
   public void createPipeline() throws Exception {
@@ -109,7 +110,7 @@ public class CombineRunnersTest {
 
     // Create FnApi protos needed for the runner.
     SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    pProto = PipelineTranslation.toProto(p, sdkComponents);
     inputPCollectionId = sdkComponents.registerPCollection(inputPCollection);
     outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
     pTransform = pProto.getComponents().getTransformsOrThrow(TEST_COMBINE_ID);
@@ -133,7 +134,7 @@ public class CombineRunnersTest {
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     // Create runner.
-    MapFnRunners.forValueMapFnFactory(CombineRunners::createPrecombineMapFunction)
+    new CombineRunners.PrecombineFactory<>()
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null,
@@ -141,16 +142,15 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pProto.getComponents().getPcollectionsMap(),
+            pProto.getComponents().getCodersMap(),
+            pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
             startFunctions::add,
             finishFunctions::add,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    Iterables.getOnlyElement(startFunctions).run();
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
@@ -164,18 +164,23 @@ public class CombineRunnersTest {
     input.accept(valueInGlobalWindow(KV.of("B", "2")));
     input.accept(valueInGlobalWindow(KV.of("C", "3")));
 
+    Iterables.getOnlyElement(finishFunctions).run();
+
     // Check that all values for "A" were converted to accumulators regardless of how they were
     // combined by the Precombine optimization.
     Integer sum = 0;
-    while ("A".equals(mainOutputValues.getFirst().getValue().getKey())) {
-      sum += mainOutputValues.getFirst().getValue().getValue();
-      mainOutputValues.removeFirst();
+    for (WindowedValue<KV<String, Integer>> outputValue : mainOutputValues) {
+      if ("A".equals(outputValue.getValue().getKey())) {
+        sum += outputValue.getValue().getValue();
+      }
     }
     assertThat(sum, equalTo(9));
 
+    // Check that elements for "B" and "C" are present as well.
+    mainOutputValues.removeIf(elem -> "A".equals(elem.getValue().getKey()));
     assertThat(
         mainOutputValues,
-        contains(valueInGlobalWindow(KV.of("B", 2)), valueInGlobalWindow(KV.of("C", 3))));
+        containsInAnyOrder(valueInGlobalWindow(KV.of("B", 2)), valueInGlobalWindow(KV.of("C", 3))));
   }
 
   /**
