@@ -234,7 +234,7 @@ public class PubsubJsonIT implements Serializable {
               assertFalse(resultSet.next());
               checked = true;
             } catch (SQLException e) {
-              LOG.warn(e.toString());
+              LOG.warn(e.toString(), e);
             }
           }
         });
