@@ -807,7 +807,7 @@ public abstract class DoFnSignature {
   }
 
   /**
-   * Decscribes a field access declation. This is used when the input {@link PCollection} has an
+   * Decscribes a field access declaration. This is used when the input {@link PCollection} has an
    * associated schema, to specify exactly which fields in the row are accessed. Any fields not
    * specified are not guaranteed to be present when reading the row.
    */

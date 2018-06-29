@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Field;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -181,18 +182,23 @@ public class DoFnSignaturesTest {
   }
 
   @Test
-  public void testFieldAccess() {
+  public void testFieldAccess() throws IllegalAccessException {
     FieldAccessDescriptor descriptor = FieldAccessDescriptor.withFieldNames("foo", "bar");
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<String, String>() {
-              @FieldAccess("foo")
-              final FieldAccessDescriptor fieldAccess = descriptor;
+    DoFn<String, String> doFn =
+        new DoFn<String, String>() {
+          @FieldAccess("foo")
+          final FieldAccessDescriptor fieldAccess = descriptor;
 
-              @ProcessElement
-              public void process(@FieldAccess("foo") Row row) {}
-            }.getClass());
-    assertThat(sig.fieldAccessDeclarations().get("foo"), equalTo(descriptor));
+          @ProcessElement
+          public void process(@FieldAccess("foo") Row row) {}
+        };
+
+    DoFnSignature sig = DoFnSignatures.getSignature(doFn.getClass());
+    assertThat(sig.fieldAccessDeclarations().get("foo"), notNullValue());
+    Field field = sig.fieldAccessDeclarations().get("foo").field();
+    assertThat(field.getName(), equalTo("fieldAccess"));
+    assertThat(field.get(doFn), equalTo(descriptor));
+
     assertThat(sig.processElement().getRowParameter(), notNullValue());
   }
 

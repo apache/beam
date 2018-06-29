@@ -43,9 +43,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental(Kind.SCHEMAS)
 public class SchemaRegistry {
   private static class SchemaEntry<T> {
-    Schema schema;
-    SerializableFunction<T, Row> toRow;
-    SerializableFunction<Row, T> fromRow;
+    private final Schema schema;
+    private final SerializableFunction<T, Row> toRow;
+    private final SerializableFunction<Row, T> fromRow;
 
     SchemaEntry(
         Schema schema, SerializableFunction<T, Row> toRow, SerializableFunction<Row, T> fromRow) {
@@ -55,8 +55,8 @@ public class SchemaRegistry {
     }
   }
 
-  Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
-  List<SchemaProvider> providers = Lists.newArrayList();
+  private final Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
+  private final List<SchemaProvider> providers = Lists.newArrayList();
 
   public static SchemaRegistry createDefault() {
     return new SchemaRegistry();
