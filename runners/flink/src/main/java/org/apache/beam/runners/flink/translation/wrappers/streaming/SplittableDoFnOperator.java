@@ -60,14 +60,14 @@ import org.joda.time.Instant;
  */
 public class SplittableDoFnOperator<
         InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
-    extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+    extends DoFnOperator<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
 
   private transient ScheduledExecutorService executorService;
 
   public SplittableDoFnOperator(
-      DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> doFn,
+      DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
       String stepName,
-      Coder<WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>> inputCoder,
+      Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> inputCoder,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -76,7 +76,7 @@ public class SplittableDoFnOperator<
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
       Coder<?> keyCoder,
-      KeySelector<WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, ?> keySelector) {
+      KeySelector<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, ?> keySelector) {
     super(
         doFn,
         stepName,
@@ -93,9 +93,9 @@ public class SplittableDoFnOperator<
   }
 
   @Override
-  protected DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
+  protected DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       createWrappingDoFnRunner(
-          DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> wrappedRunner) {
+          DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> wrappedRunner) {
     // don't wrap in anything because we don't need state cleanup because ProcessFn does
     // all that
     return wrappedRunner;
@@ -109,11 +109,11 @@ public class SplittableDoFnOperator<
 
     // this will implicitly be keyed by the key of the incoming
     // element or by the key of a firing timer
-    StateInternalsFactory<byte[]> stateInternalsFactory =
+    StateInternalsFactory<String> stateInternalsFactory =
         key -> (StateInternals) keyedStateInternals;
 
     // this will implicitly be keyed like the StateInternalsFactory
-    TimerInternalsFactory<byte[]> timerInternalsFactory = key -> timerInternals;
+    TimerInternalsFactory<String> timerInternalsFactory = key -> timerInternals;
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
@@ -161,7 +161,7 @@ public class SplittableDoFnOperator<
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
-                (byte[]) keyedStateInternals.getKey(),
+                (String) keyedStateInternals.getKey(),
                 Collections.singletonList(timer.getNamespace()))));
   }
 
