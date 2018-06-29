@@ -61,7 +61,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Commit', true
     def defaultPathTriggers = [
       '^build.gradle$',
-      '^build_rules.gradle$',
+      '^buildSrc/.*$',
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',
