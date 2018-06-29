@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -41,34 +42,49 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
  * type need to be accessed for processing.
  */
 @Experimental(Kind.SCHEMAS)
-public class FieldAccessDescriptor implements Serializable {
-  private boolean allFields;
-  private Set<Integer> fieldIdsAccessed;
-  private Set<String> fieldNamesAccessed;
-  private Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById;
-  private Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName;
+@AutoValue
+public abstract class FieldAccessDescriptor implements Serializable {
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setAllFields(boolean allFields);
 
-  FieldAccessDescriptor(
-      boolean allFields,
-      Set<Integer> fieldsIdsAccessed,
-      Set<String> fieldNamesAccessed,
-      Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById,
-      Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName) {
-    this.allFields = allFields;
-    this.fieldIdsAccessed = fieldsIdsAccessed;
-    this.fieldNamesAccessed = fieldNamesAccessed;
-    this.nestedFieldsAccessedById = nestedFieldsAccessedById;
-    this.nestedFieldsAccessedByName = nestedFieldsAccessedByName;
+    abstract Builder setFieldIdsAccessed(Set<Integer> fieldIdsAccessed);
+
+    abstract Builder setFieldNamesAccessed(Set<String> fieldNamesAccessed);
+
+    abstract Builder setNestedFieldsAccessedById(
+        Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById);
+
+    abstract Builder setNestedFieldsAccessedByName(
+        Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName);
+
+    abstract FieldAccessDescriptor build();
+  }
+
+  abstract boolean getAllFields();
+
+  abstract Set<Integer> getFieldIdsAccessed();
+
+  abstract Set<String> getFieldNamesAccessed();
+
+  abstract Map<Integer, FieldAccessDescriptor> getNestedFieldsAccessedById();
+
+  abstract Map<String, FieldAccessDescriptor> getNestedFieldsAccessedByName();
+
+  abstract Builder toBuilder();
+
+  static Builder builder() {
+    return new AutoValue_FieldAccessDescriptor.Builder()
+        .setAllFields(false)
+        .setFieldIdsAccessed(Collections.emptySet())
+        .setFieldNamesAccessed(Collections.emptySet())
+        .setNestedFieldsAccessedById(Collections.emptyMap())
+        .setNestedFieldsAccessedByName(Collections.emptyMap());
   }
 
   // Return a descriptor that accesses all fields in a row.
   public static FieldAccessDescriptor withAllFields() {
-    return new FieldAccessDescriptor(
-        true,
-        Collections.emptySet(),
-        Collections.emptySet(),
-        Collections.emptyMap(),
-        Collections.emptyMap());
+    return builder().setAllFields(true).build();
   }
 
   /**
@@ -90,12 +106,7 @@ public class FieldAccessDescriptor implements Serializable {
    * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(Iterable<String> fieldNames) {
-    return new FieldAccessDescriptor(
-        false,
-        Collections.emptySet(),
-        Sets.newHashSet(fieldNames),
-        Collections.emptyMap(),
-        Collections.emptyMap());
+    return builder().setFieldNamesAccessed(Sets.newHashSet(fieldNames)).build();
   }
 
   /**
@@ -117,12 +128,7 @@ public class FieldAccessDescriptor implements Serializable {
    * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Iterable<Integer> ids) {
-    return new FieldAccessDescriptor(
-        false,
-        Sets.newHashSet(ids),
-        Collections.emptySet(),
-        Collections.emptyMap(),
-        Collections.emptyMap());
+    return builder().setFieldIdsAccessed(Sets.newHashSet(ids)).build();
   }
 
   /**
@@ -134,15 +140,10 @@ public class FieldAccessDescriptor implements Serializable {
       int nestedFieldId, FieldAccessDescriptor fieldAccess) {
     Map<Integer, FieldAccessDescriptor> newNestedFieldAccess =
         ImmutableMap.<Integer, FieldAccessDescriptor>builder()
-            .putAll(nestedFieldsAccessedById)
+            .putAll(getNestedFieldsAccessedById())
             .put(nestedFieldId, fieldAccess)
             .build();
-    return new FieldAccessDescriptor(
-        false,
-        fieldIdsAccessed,
-        fieldNamesAccessed,
-        newNestedFieldAccess,
-        nestedFieldsAccessedByName);
+    return toBuilder().setNestedFieldsAccessedById(newNestedFieldAccess).build();
   }
 
   /**
@@ -154,64 +155,59 @@ public class FieldAccessDescriptor implements Serializable {
       String nestedFieldName, FieldAccessDescriptor fieldAccess) {
     Map<String, FieldAccessDescriptor> newNestedFieldAccess =
         ImmutableMap.<String, FieldAccessDescriptor>builder()
-            .putAll(nestedFieldsAccessedByName)
+            .putAll(getNestedFieldsAccessedByName())
             .put(nestedFieldName, fieldAccess)
             .build();
-    return new FieldAccessDescriptor(
-        false,
-        fieldIdsAccessed,
-        fieldNamesAccessed,
-        nestedFieldsAccessedById,
-        newNestedFieldAccess);
+    return toBuilder().setNestedFieldsAccessedByName(newNestedFieldAccess).build();
   }
 
   public boolean allFields() {
-    return allFields;
+    return getAllFields();
   }
 
   public Set<Integer> fieldIdsAccessed() {
-    return fieldIdsAccessed;
+    return getFieldIdsAccessed();
   }
 
   public Map<Integer, FieldAccessDescriptor> nestedFields() {
-    return nestedFieldsAccessedById;
+    return getNestedFieldsAccessedById();
   }
 
   public FieldAccessDescriptor resolve(Schema schema) {
-    Set<Integer> fieldIdsAccessed = resolveFieldIdsAccessed(schema);
-    Map<Integer, FieldAccessDescriptor> nestedFieldsAccessed = resolveNestedFieldsAccessed(schema);
+    Set<Integer> resolvedFieldIdsAccessed = resolveFieldIdsAccessed(schema);
+    Map<Integer, FieldAccessDescriptor> resolvedNestedFieldsAccessed =
+        resolveNestedFieldsAccessed(schema);
 
     checkState(
-        !allFields || nestedFieldsAccessed.isEmpty(),
+        !getAllFields() || resolvedNestedFieldsAccessed.isEmpty(),
         "nested fields cannot be set if allFields is also set");
 
     // If a recursive access is set for any nested fields, remove those fields from
     // fieldIdsAccessed.
-    fieldIdsAccessed.removeAll(nestedFieldsAccessed.keySet());
+    resolvedFieldIdsAccessed.removeAll(resolvedNestedFieldsAccessed.keySet());
 
-    return new FieldAccessDescriptor(
-        this.allFields,
-        fieldIdsAccessed,
-        Collections.emptySet(),
-        nestedFieldsAccessed,
-        Collections.emptyMap());
+    return builder()
+        .setAllFields(getAllFields())
+        .setFieldIdsAccessed(resolvedFieldIdsAccessed)
+        .setNestedFieldsAccessedById(resolvedNestedFieldsAccessed)
+        .build();
   }
 
   private Set<Integer> resolveFieldIdsAccessed(Schema schema) {
-    Set<Integer> fieldIds = Sets.newHashSetWithExpectedSize(fieldIdsAccessed.size());
-    for (int fieldId : fieldIdsAccessed) {
+    Set<Integer> fieldIds = Sets.newHashSetWithExpectedSize(getFieldIdsAccessed().size());
+    for (int fieldId : getFieldIdsAccessed()) {
       fieldIds.add(validateFieldId(schema, fieldId));
     }
-    if (!fieldNamesAccessed.isEmpty()) {
+    if (!getFieldNamesAccessed().isEmpty()) {
       fieldIds.addAll(
-          StreamSupport.stream(fieldNamesAccessed.spliterator(), false)
+          StreamSupport.stream(getFieldNamesAccessed().spliterator(), false)
               .map(name -> schema.indexOf(name))
               .collect(Collectors.toList()));
     }
     return fieldIds;
   }
 
-  private Schema getFieldSchema(Field field) {
+  private static Schema getFieldSchema(Field field) {
     FieldType type = field.getType();
     if (TypeName.ROW.equals(type.getTypeName())) {
       return type.getRowSchema();
@@ -236,7 +232,7 @@ public class FieldAccessDescriptor implements Serializable {
     Map<Integer, FieldAccessDescriptor> nestedFields = Maps.newHashMap();
 
     nestedFields.putAll(
-        nestedFieldsAccessedByName
+        getNestedFieldsAccessedByName()
             .entrySet()
             .stream()
             .collect(
@@ -244,7 +240,7 @@ public class FieldAccessDescriptor implements Serializable {
                     e -> schema.indexOf(e.getKey()),
                     e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
     nestedFields.putAll(
-        nestedFieldsAccessedById
+        getNestedFieldsAccessedById()
             .entrySet()
             .stream()
             .collect(
@@ -255,7 +251,7 @@ public class FieldAccessDescriptor implements Serializable {
     return nestedFields;
   }
 
-  private int validateFieldId(Schema schema, int fieldId) {
+  private static int validateFieldId(Schema schema, int fieldId) {
     if (fieldId < 0 || fieldId >= schema.getFieldCount()) {
       throw new IllegalArgumentException("Invalid field id " + fieldId + " for schema " + schema);
     }

@@ -31,10 +31,10 @@ import org.apache.beam.sdk.values.Row;
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
 @Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
-  private Schema schema;
-  private RowCoder rowCoder;
-  private SerializableFunction<T, Row> toRowFunction;
-  private SerializableFunction<Row, T> fromRowFunction;
+  private final Schema schema;
+  private final RowCoder rowCoder;
+  private final SerializableFunction<T, Row> toRowFunction;
+  private final SerializableFunction<Row, T> fromRowFunction;
 
   private SchemaCoder(
       Schema schema,
