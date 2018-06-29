@@ -273,6 +273,7 @@ def run(argv=None):
   if args.topic is None and args.subscription is None:
     parser.print_usage()
     print(sys.argv[0] + ': error: one of --topic or --subscription is required')
+    sys.exit(1)
 
   options = PipelineOptions(pipeline_args)
 
