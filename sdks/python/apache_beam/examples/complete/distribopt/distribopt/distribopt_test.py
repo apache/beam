@@ -76,7 +76,6 @@ class DistribOptimizationTest(unittest.TestCase):
     self.assertAlmostEqual(optimum['cost'], 454.07219, places=3)
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
     production = optimum['production']
-    print(production)
     for plant in ['A', 'B', 'C']:
         np.testing.assert_almost_equal(production[plant], EXPECTED_PROD_PARAMS[plant])
 

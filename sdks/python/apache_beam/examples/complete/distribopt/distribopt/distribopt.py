@@ -142,8 +142,7 @@ class CreateGrid(beam.PTransform):
         # include the incomplete mapping of 2 crops
         mapping.update(element)
         # include identifier
-        mappings.append((uuid.uuid4().hex, mapping))
-      return mappings
+        yield (uuid.uuid4().hex, mapping)
 
   def expand(self, records):
     o = (
