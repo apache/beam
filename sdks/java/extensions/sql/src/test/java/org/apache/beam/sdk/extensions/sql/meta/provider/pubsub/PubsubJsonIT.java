@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
@@ -33,8 +33,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -187,7 +189,7 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
-  public void testSQLLimit() throws SQLException, IOException, InterruptedException {
+  public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
@@ -229,31 +231,24 @@ public class PubsubJsonIT implements Serializable {
     // However, because statement.executeQuery is a blocking call, it has to be put into a
     // seperate thread to execute.
     ExecutorService pool = Executors.newFixedThreadPool(1);
-    pool.execute(
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              ResultSet resultSet =
-                  statement.executeQuery("SELECT message.payload.id FROM message LIMIT 3");
-              assertTrue(resultSet.next());
-              assertTrue(resultSet.next());
-              assertTrue(resultSet.next());
-              assertFalse(resultSet.next());
-              checked = true;
-            } catch (SQLException e) {
-              LOG.warn(e.toString(), e);
-            }
-          }
-        });
+    Future<List<String>> queryResult =
+        pool.submit(
+            (Callable)
+                () -> {
+                  ResultSet resultSet =
+                      statement.executeQuery("SELECT message.payload.id FROM message LIMIT 3");
+                  ImmutableList.Builder<String> result = ImmutableList.builder();
+                  while (resultSet.next()) {
+                    result.add(resultSet.getString(1));
+                  }
+                  return result.build();
+                });
 
     // wait one minute to allow subscription creation.
     Thread.sleep(60 * 1000);
     eventsTopic.publish(messages);
     // Wait one minute to allow the thread finishes checks.
-    Thread.sleep(60 * 1000);
-    // verify if the thread has checked returned value from LIMIT query.
-    assertTrue(checked);
+    assertThat(queryResult.get().size(), equalTo(3));
     pool.shutdown();
   }
 
