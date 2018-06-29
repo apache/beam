@@ -50,6 +50,8 @@ import org.joda.time.Duration;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test rule which observes elements of the {@link PCollection} and checks whether they match the
@@ -58,6 +60,7 @@ import org.junit.runners.model.Statement;
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
 public class TestPubsubSignal implements TestRule {
+  private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
   private static final String TOPIC_FORMAT = "projects/%s/topics/%s-result1";
   private static final String SUBSCRIPTION_FORMAT = "projects/%s/subscriptions/%s";
   private static final String NO_ID_ATTRIBUTE = null;
@@ -192,7 +195,7 @@ public class TestPubsubSignal implements TestRule {
             resultSubscriptionPath, result.stream().map(m -> m.ackId).collect(toList()));
         break;
       } catch (StatusRuntimeException e) {
-        System.out.println("Error while polling for result: " + e.getStatus());
+        LOG.warn("Error while polling for result: %s", e.getStatus());
         sleep(500);
       }
     } while (DateTime.now().isBefore(endPolling));
