@@ -26,6 +26,9 @@ class PrecommitJobBuilder {
   /** Base name for each post-commit suite job, i.e. 'Go'. */
   String nameBase
 
+  /** The Docker image to run within, or blank to not use Docker. */
+  String dockerImage
+
   /**  The Gradle task to execute. */
   String gradleTask
 
@@ -96,7 +99,8 @@ class PrecommitJobBuilder {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
       'master',
       timeoutMins,
-      allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
+      allowRemotePoll, // needed for included regions PR triggering; see [JENKINS-23606]
+      dockerImage)
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
