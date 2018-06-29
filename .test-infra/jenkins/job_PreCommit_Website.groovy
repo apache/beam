@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'Website',
     gradleTask: ':beam-website:setupJenkins :websitePreCommit',
     triggerPathPatterns: ['^website/.*$']
 )
