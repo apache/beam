@@ -90,7 +90,7 @@ Eclipse supports checkstyle within the IDE using the Checkstyle plugin.
 ## Code Style
 
 Eclipse supports code styles within the IDE. Use one or both of the following
-to ensure your code style matches the project's checkstyle enforcements.
+to ensure your code style matches the project's checkstyle enforcement.
 
 1. The simplest way to have uniform code style is to use the [Google
    Java Format plugin](https://github.com/google/google-java-format#eclipse)
