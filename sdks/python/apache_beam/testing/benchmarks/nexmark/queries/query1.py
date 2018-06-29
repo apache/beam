@@ -50,4 +50,4 @@ def load(raw_events, query_args=None):
                   bid.timestamp,
                   bid.extra))
           | 'DisplayQuery1' >> beam.Map(display)
-         )
+         )  # pylint: disable=expression-not-assigned
