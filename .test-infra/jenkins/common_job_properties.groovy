@@ -62,13 +62,15 @@ class common_job_properties {
   static void setTopLevelMainJobProperties(def context,
                                            String branch = 'master',
                                            int timeout = 100,
-                                           boolean allowRemotePoll = true) {
+                                           boolean allowRemotePoll = true,
+                                           String dockerImage = '') {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
             timeout,
-            allowRemotePoll)
+            allowRemotePoll,
+            dockerImage)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -77,7 +79,8 @@ class common_job_properties {
                                                String repositoryName,
                                                String defaultBranch,
                                                int defaultTimeout,
-                                               boolean allowRemotePoll = true) {
+                                               boolean allowRemotePoll = true,
+                                               String dockerImage='') {
     def jenkinsExecutorLabel = 'beam'
 
     // GitHub project.
@@ -109,6 +112,11 @@ class common_job_properties {
     }
 
     context.wrappers {
+      if (dockerImage) {
+        buildInDocker {
+          image(dockerImage)
+        }
+      }
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
         absolute(defaultTimeout)
