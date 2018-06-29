@@ -78,7 +78,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         | 'split' >> beam.ParDo(WordExtractingDoFn())
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
-        | 'count' >> beam.Map(lambda word, ones: (word, sum(ones))))
+        | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1]))))
 
     result = p.run()
     result.wait_until_finish()
