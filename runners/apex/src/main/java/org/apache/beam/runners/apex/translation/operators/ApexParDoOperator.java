@@ -32,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -118,9 +119,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   @Bind(JavaSerializer.class)
   private final Coder<WindowedValue<InputT>> inputCoder;
 
-  @Bind(JavaSerializer.class)
-  private final Map<TupleTag<?>, Coder<?>> outputCoders;
-
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
 
@@ -144,7 +142,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
       Coder<InputT> inputCoder,
-      Map<TupleTag<?>, Coder<?>> outputCoders,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -154,7 +151,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.sideInputs = sideInputs;
     this.sideInputStateInternals =
         new StateInternalsProxy<>(stateBackend.newStateInternalsFactory(VoidCoder.of()));
-    this.outputCoders = outputCoders;
 
     if (additionalOutputTags.size() > additionalOutputPorts.length) {
       String msg =
@@ -202,7 +198,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.pushedBack = null;
     this.sideInputStateInternals = null;
     this.inputCoder = null;
-    this.outputCoders = null;
     this.currentKeyTimerInternals = null;
   }
 
@@ -459,7 +454,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             additionalOutputTags,
             stepContext,
             null,
-            outputCoders,
+            Collections.emptyMap(),
             windowingStrategy);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
