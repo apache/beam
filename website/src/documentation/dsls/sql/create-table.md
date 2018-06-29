@@ -2,7 +2,8 @@
 layout: section
 title: "Beam SQL: CREATE TABLE Statement"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/statements/create-table/
+permalink: /documentation/dsls/sql/create-table/
+redirect_from: /documentation/dsls/sql/statements/create-table/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
