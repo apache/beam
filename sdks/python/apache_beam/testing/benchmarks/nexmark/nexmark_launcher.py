@@ -85,6 +85,8 @@ class NexmarkLauncher(object):
     self.topic_name = self.args.topic_name + self.uuid
     self.subscription_name = self.args.subscription_name + self.uuid
 
+    print('topic_name:', self.topic_name)
+
   def parse_args(self):
     parser = argparse.ArgumentParser()
 
@@ -218,7 +220,7 @@ class NexmarkLauncher(object):
         # TODO(mariagh): Add more queries.
     }
 
-    # TODO put this in a config file like Java
+    # TODO(mariagh): Move to a config file.
     query_args = {
         2: {
             'auction_id': 'a1003'
@@ -236,8 +238,9 @@ class NexmarkLauncher(object):
           StandardOptions).runner in [None, 'DirectRunner']
 
       if launch_from_direct_runner:
-        command = Command(self.run_query, args=[
-            queries[i], query_args.get(i), query_errors])
+        command = Command(self.run_query, args=[queries[i],
+                                                query_args.get(i),
+                                                query_errors])
         query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
         command.run(timeout=query_duration // 1000)
       else:

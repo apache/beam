@@ -45,4 +45,4 @@ def load(raw_events, metadata=None):
               lambda event: (isinstance(event, nexmark_model.Auction)
                              and event.id == metadata.get('auction_id')))
           | 'DisplayQuery2' >> beam.Map(display)
-         )
+         )  # pylint: disable=expression-not-assigned
