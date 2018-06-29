@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 /** This class defines PrecommitJobBuilder.build() helper for defining pre-comit jobs. */
 class PrecommitJobBuilder {
@@ -51,7 +51,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Cron'
     job.with {
       description buildDescription('on a daily schedule.')
-      common_job_properties.setAutoJob delegate
+      commonProperties.setAutoJob delegate
     }
     job.with additionalCustomization
   }
@@ -71,7 +71,7 @@ class PrecommitJobBuilder {
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()
-      common_job_properties.setPullRequestBuildTrigger(delegate,
+      commonProperties.setPullRequestBuildTrigger(delegate,
         githubUiHint(),
         '',
         false,
@@ -85,7 +85,7 @@ class PrecommitJobBuilder {
     job.with {
       description buildDescription("on trigger phrase '${buildTriggerPhrase()}'.")
       concurrentBuild()
-      common_job_properties.setPullRequestBuildTrigger delegate, githubUiHint(), buildTriggerPhrase()
+      commonProperties.setPullRequestBuildTrigger delegate, githubUiHint(), buildTriggerPhrase()
     }
     job.with additionalCustomization
   }
@@ -93,15 +93,15 @@ class PrecommitJobBuilder {
   private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
     def allowRemotePoll = !usesRegionFilter
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
-      common_job_properties.setTopLevelMainJobProperties(delegate,
+      commonProperties.setTopLevelMainJobProperties(delegate,
       'master',
       timeoutMins,
       allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
-          rootBuildScriptDir(common_job_properties.checkoutDir)
+          rootBuildScriptDir(commonProperties.checkoutDir)
           tasks(gradleTask)
-          common_job_properties.setGradleSwitches(delegate)
+          commonProperties.setGradleSwitches(delegate)
         }
       }
     }

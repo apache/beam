@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 // Defines a job.
 job('beam_PreCommit_Website_Merge') {

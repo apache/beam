@@ -20,7 +20,7 @@
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
 //  http://groovy-lang.org/style-guide.html
-class common_job_properties {
+class CommonProperties {
 
   static String checkoutDir = 'src'
 
@@ -323,7 +323,7 @@ class common_job_properties {
         // Install Perfkit benchmark requirements.
         shell('.env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('.env/bin/pip install -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
+        shell('.env/bin/pip install -e ' + CommonProperties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
         shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
