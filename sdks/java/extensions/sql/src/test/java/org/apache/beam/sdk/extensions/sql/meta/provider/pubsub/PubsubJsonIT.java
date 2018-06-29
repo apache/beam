@@ -21,10 +21,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -120,9 +120,13 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(signal.signalStart());
     pipeline.run();
+    start.get();
+
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardMinutes(5));
+    signal.waitForSuccess(Duration.standardSeconds(60));
   }
 
   @Test
@@ -163,7 +167,8 @@ public class PubsubJsonIT implements Serializable {
     sqlEnv.executeDdl(createTableString);
     query(sqlEnv, pipeline, queryString);
     PCollection<PubsubMessage> dlq =
-        pipeline.apply(PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath()));
+        pipeline.apply(
+            PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath().getPath()));
 
     dlq.apply(
         "waitForDlq",
@@ -172,10 +177,13 @@ public class PubsubJsonIT implements Serializable {
             dlqMessages ->
                 containsAll(dlqMessages, message(ts(4), "{ - }"), message(ts(5), "{ + }"))));
 
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(signal.signalStart());
     pipeline.run();
+    start.get();
 
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardMinutes(5));
+    signal.waitForSuccess(Duration.standardSeconds(60));
   }
 
   @Test
