@@ -18,11 +18,10 @@
 package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -37,10 +36,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.GlobalCombineFnRunner;
-import org.apache.beam.runners.core.GlobalCombineFnRunners;
-import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,16 +45,13 @@ import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
-import org.joda.time.Instant;
 
 /** Executes different components of Combine PTransforms. */
-public class CombineRunners<InputT, OutputT> {
+public class CombineRunners {
 
   /** A registrar which provides a factory to handle combine component PTransforms. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -101,38 +93,25 @@ public class CombineRunners<InputT, OutputT> {
     }
 
     void startBundle() {
-      GroupingTables.Combiner<WindowedValue<KeyT>, InputT, AccumT, ?> valueCombiner =
-          new ValueCombiner<>(
-              GlobalCombineFnRunners.create(combineFn), NullSideInputReader.empty(), options);
-
       groupingTable =
-          GroupingTables.combiningAndSampling(
-              new WindowingCoderGroupingKeyCreator<>(keyCoder),
-              PairInfo.create(),
-              valueCombiner,
-              new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
-              new CoderSizeEstimator<>(accumCoder),
-              0.001 /*sizeEstimatorSampleRate*/);
+          PrecombineGroupingTable.combiningAndSampling(
+              options, combineFn, keyCoder, accumCoder, 0.001 /*sizeEstimatorSampleRate*/);
     }
 
     void processElement(WindowedValue<KV<KeyT, InputT>> elem) throws Exception {
       groupingTable.put(
-          elem,
-          (Object outputElem) ->
-              output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem)
-      );
+          elem, (Object outputElem) -> output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem));
     }
 
     void finishBundle() throws Exception {
       groupingTable.flush(
-          (Object outputElem) ->
-              output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem)
-      );
+          (Object outputElem) -> output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem));
     }
   }
 
   /** A factory for {@link PrecombineRunner}s. */
-  private static class PrecombineFactory<KeyT, InputT, AccumT>
+  @VisibleForTesting
+  public static class PrecombineFactory<KeyT, InputT, AccumT>
       implements PTransformRunnerFactory<PrecombineRunner<KeyT, InputT, AccumT>> {
 
     @Override
@@ -160,10 +139,19 @@ public class CombineRunners<InputT, OutputT> {
                   .build());
       String mainInputTag = Iterables.getOnlyElement(pTransform.getInputsMap().keySet());
       RunnerApi.PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
-      WindowedValueCoder<KV<KeyT, InputT>> inputCoder =
-          (WindowedValueCoder<KV<KeyT, InputT>>)
-              rehydratedComponents.getCoder(mainInput.getCoderId());
-      Coder<KeyT> keyCoder = ((KvCoder<KeyT, InputT>) inputCoder.getValueCoder()).getKeyCoder();
+
+      // Input coder may sometimes be WindowedValueCoder depending on runner, instead of the
+      // expected KvCoder.
+      Coder<?> uncastInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
+      KvCoder<KeyT, InputT> inputCoder;
+      if (uncastInputCoder instanceof WindowedValueCoder) {
+        inputCoder =
+            (KvCoder<KeyT, InputT>)
+                ((WindowedValueCoder<KV<KeyT, InputT>>) uncastInputCoder).getValueCoder();
+      } else {
+        inputCoder = (KvCoder<KeyT, InputT>) rehydratedComponents.getCoder(mainInput.getCoderId());
+      }
+      Coder<KeyT> keyCoder = inputCoder.getKeyCoder();
 
       CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
       CombineFn<InputT, AccumT, ?> combineFn =
@@ -173,14 +161,14 @@ public class CombineRunners<InputT, OutputT> {
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
-      Collection<FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>> consumers =
+      Collection<FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>>> consumers =
           (Collection)
               pCollectionIdsToConsumers.get(
                   Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
-          new PrecombineRunner(
+          new PrecombineRunner<>(
               pipelineOptions,
               combineFn,
               MultiplexingFnDataReceiver.forConsumers(consumers),
@@ -193,24 +181,10 @@ public class CombineRunners<InputT, OutputT> {
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
-      addStartFunction.accept(runner::startBundle);
       addFinishFunction.accept(runner::finishBundle);
 
       return runner;
     }
-  }
-
-  static <KeyT, InputT, AccumT>
-      ThrowingFunction<KV<KeyT, InputT>, KV<KeyT, AccumT>> createPrecombineMapFunction(
-          String pTransformId, PTransform pTransform) throws IOException {
-    CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
-    CombineFn<InputT, AccumT, ?> combineFn =
-        (CombineFn)
-            SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
-
-    return (KV<KeyT, InputT> input) ->
-        KV.of(input.getKey(), combineFn.addInput(combineFn.createAccumulator(), input.getValue()));
   }
 
   static <KeyT, AccumT>
@@ -258,140 +232,5 @@ public class CombineRunners<InputT, OutputT> {
       }
       return KV.of(input.getKey(), combineFn.extractOutput(accumulator));
     };
-  }
-
-  /** Implements Precombine GroupingKeyCreator via Coder. */
-  public static class WindowingCoderGroupingKeyCreator<K>
-      implements GroupingTables.GroupingKeyCreator<WindowedValue<K>> {
-
-    private static final Instant ignored = BoundedWindow.TIMESTAMP_MIN_VALUE;
-
-    private final Coder<K> coder;
-
-    WindowingCoderGroupingKeyCreator(Coder<K> coder) {
-      this.coder = coder;
-    }
-
-    @Override
-    public Object createGroupingKey(WindowedValue<K> key) {
-      // Ignore timestamp for grouping purposes.
-      // The Precombine output will inherit the timestamp of one of its inputs.
-      return WindowedValue.of(
-          coder.structuralValue(key.getValue()), ignored, key.getWindows(), key.getPane());
-    }
-  }
-
-  /** Implements Precombine SizeEstimator via Coder. */
-  public static class CoderSizeEstimator<T> implements GroupingTables.SizeEstimator<T> {
-    /** Basic implementation of {@link ElementByteSizeObserver} for use in size estimation. */
-    private static class Observer extends ElementByteSizeObserver {
-      private long observedSize = 0;
-
-      @Override
-      protected void reportElementSize(long elementSize) {
-        observedSize += elementSize;
-      }
-    }
-
-    final Coder<T> coder;
-
-    CoderSizeEstimator(Coder<T> coder) {
-      this.coder = coder;
-    }
-
-    @Override
-    public long estimateSize(T value) throws Exception {
-      // First try using byte size observer
-      Observer observer = new Observer();
-      coder.registerByteSizeObserver(value, observer);
-
-      if (!observer.getIsLazy()) {
-        observer.advance();
-        return observer.observedSize;
-      } else {
-        // Coder byte size observation is lazy (requires iteration for observation) so fall back to
-        // counting output stream
-        CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream());
-        coder.encode(value, os);
-        return os.getCount();
-      }
-    }
-  }
-
-  /** Implements Precombine PairInfo via KVs. */
-  public static class PairInfo implements GroupingTables.PairInfo {
-    private static PairInfo theInstance = new PairInfo();
-
-    public static PairInfo create() {
-      return theInstance;
-    }
-
-    private PairInfo() {}
-
-    @Override
-    public Object getKeyFromInputPair(Object pair) {
-      @SuppressWarnings("unchecked")
-      WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
-      return windowedKv.withValue(windowedKv.getValue().getKey());
-    }
-
-    @Override
-    public Object getValueFromInputPair(Object pair) {
-      @SuppressWarnings("unchecked")
-      WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
-      return windowedKv.getValue().getValue();
-    }
-
-    @Override
-    public Object makeOutputPair(Object key, Object values) {
-      WindowedValue<?> windowedKey = (WindowedValue<?>) key;
-      return windowedKey.withValue(KV.of(windowedKey.getValue(), values));
-    }
-  }
-
-  /** Implements Precombine Combiner via Combine.KeyedCombineFn. */
-  public static class ValueCombiner<K, InputT, AccumT, OutputT>
-      implements GroupingTables.Combiner<WindowedValue<K>, InputT, AccumT, OutputT> {
-    private final GlobalCombineFnRunner<InputT, AccumT, OutputT> combineFn;
-    private final SideInputReader sideInputReader;
-    private final PipelineOptions options;
-
-    private ValueCombiner(
-        GlobalCombineFnRunner<InputT, AccumT, OutputT> combineFn,
-        SideInputReader sideInputReader,
-        PipelineOptions options) {
-      this.combineFn = combineFn;
-      this.sideInputReader = sideInputReader;
-      this.options = options;
-    }
-
-    @Override
-    public AccumT createAccumulator(WindowedValue<K> windowedKey) {
-      return this.combineFn.createAccumulator(options, sideInputReader, windowedKey.getWindows());
-    }
-
-    @Override
-    public AccumT add(WindowedValue<K> windowedKey, AccumT accumulator, InputT value) {
-      return this.combineFn.addInput(
-          accumulator, value, options, sideInputReader, windowedKey.getWindows());
-    }
-
-    @Override
-    public AccumT merge(WindowedValue<K> windowedKey, Iterable<AccumT> accumulators) {
-      return this.combineFn.mergeAccumulators(
-          accumulators, options, sideInputReader, windowedKey.getWindows());
-    }
-
-    @Override
-    public AccumT compact(WindowedValue<K> windowedKey, AccumT accumulator) {
-      return this.combineFn.compact(
-          accumulator, options, sideInputReader, windowedKey.getWindows());
-    }
-
-    @Override
-    public OutputT extract(WindowedValue<K> windowedKey, AccumT accumulator) {
-      return this.combineFn.extractOutput(
-          accumulator, options, sideInputReader, windowedKey.getWindows());
-    }
   }
 }
