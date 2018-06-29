@@ -31,22 +31,23 @@ import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
 
+
 def display(elm):
   logging.debug(elm)
   return elm
 
+
 def load(raw_events, query_args=None):
   return (raw_events
-    | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
-    | 'FilterInBids' >> beam.Filter(
-        lambda event: isinstance(event, nexmark_model.Bid))
-    | 'ConvertToEurop' >> beam.Map(
-        lambda bid: nexmark_model.Bid(
-          bid.auction,
-          bid.bidder,
-          (float(bid.price) * 89) // 100,
-          bid.timestamp,
-          bid.extra
-        ))
-    | 'Display Q1' >> beam.Map(display)
-  )
+          | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
+          | 'FilterInBids' >> beam.Filter(
+              lambda event: isinstance(event, nexmark_model.Bid))
+          | 'ConvertToEurop' >> beam.Map(
+              lambda bid: nexmark_model.Bid(
+                  bid.auction,
+                  bid.bidder,
+                  (float(bid.price) * 89) // 100,
+                  bid.timestamp,
+                  bid.extra))
+          | 'DisplayQuery1' >> beam.Map(display)
+         )
