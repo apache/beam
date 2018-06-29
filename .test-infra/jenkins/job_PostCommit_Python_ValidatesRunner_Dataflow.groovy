@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesRunner tests against the
@@ -26,14 +26,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
   description('Runs Python ValidatesRunner suite on the Dataflow runner.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonProperties.setTopLevelMainJobProperties(delegate)
 
   // Execute gradle task to test Python SDK.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonProperties.checkoutDir)
       tasks(':beam-sdks-python:validatesRunnerTests')
-      common_job_properties.setGradleSwitches(delegate)
+      commonProperties.setGradleSwitches(delegate)
     }
   }
 }

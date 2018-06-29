@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 import PostcommitJobBuilder
 
 
@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
   }
   
   // Set common parameters. Sets a 3 hour timeout.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 180)
+  commonProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
 
   // Publish all test results to Jenkins
   publishers {
@@ -46,14 +46,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
   // Gradle goals for this job.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonProperties.checkoutDir)
       tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
       // Increase parallel worker threads above processor limit since most time is
       // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
       // because each one launches a Dataflow job with about 3 mins of overhead.
       // 3 x num_cores strikes a good balance between maxing out parallelism without
       // overloading the machines.
-      common_job_properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+      commonProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }
 }

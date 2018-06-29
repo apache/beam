@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 // Defines a job.
 job('beam_PreCommit_Website_Stage') {
@@ -24,10 +24,10 @@ job('beam_PreCommit_Website_Stage') {
               'website to a temporary location to ease reviews.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelWebsiteJobProperties(delegate)
+  commonProperties.setTopLevelWebsiteJobProperties(delegate)
 
   // Set pull request build trigger.
-  common_job_properties.setPreCommit(
+  commonProperties.setPreCommit(
       delegate,
       'Automatic staging of pull requests',
       '\nJenkins built the site at commit id ${ghprbActualCommit} with ' +

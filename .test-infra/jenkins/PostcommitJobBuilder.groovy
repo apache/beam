@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties as cjp
+import CommonProperties as commonProperties
 
 /**
  * This class is to be used for defining jobs for post- and pre-commit tests.
@@ -47,14 +47,14 @@ class PostcommitJobBuilder {
 
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
-      cjp.setAutoJob delegate
+      commonProperties.setAutoJob delegate
     }
     autoBuilds.with(jobDefinition)
   }
 
   private void defineGhprbTriggeredJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
     def ghprbBuilds = scope.job(name) {
-      cjp.setPullRequestBuildTrigger(
+      commonProperties.setPullRequestBuildTrigger(
         delegate,
         githubUiHint,
         triggerPhrase,

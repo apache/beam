@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 // Defines a job.
 job('beam_PreCommit_Website_Merge') {
   description('Runs website tests for mergebot.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelWebsiteJobProperties(delegate, 'mergebot')
+  commonProperties.setTopLevelWebsiteJobProperties(delegate, 'mergebot')
 
   triggers {
     githubPush()
