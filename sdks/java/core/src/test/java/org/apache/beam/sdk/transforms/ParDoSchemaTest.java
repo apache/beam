@@ -22,9 +22,10 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -54,7 +55,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testSimpleSchemaPipeline() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -84,7 +85,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testReadAndWrite() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -136,7 +137,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testReadAndWriteMultiOutput() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -230,7 +231,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testReadAndWriteWithSchemaRegistry() {
     Schema schema =
         Schema.builder().addStringField("string_field").addInt32Field("integer_field").build();
@@ -275,7 +276,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testFieldAccessSchemaPipeline() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -309,7 +310,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testNoSchema() {
     thrown.expect(IllegalArgumentException.class);
     pipeline
@@ -323,7 +324,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testUnmatchedSchema() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
