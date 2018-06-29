@@ -66,7 +66,6 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> additionalOutputTags;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
-  private final Map<TupleTag<?>, Coder<?>> outputCoders;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
 
@@ -77,7 +76,6 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param mainOutputTag The main output {@link TupleTag}.
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
    * @param sideInputs Side inputs used in this {@link DoFn}.
-   * @param outputCoders A map of output coders.
    * @param windowingStrategy Input {@link WindowingStrategy}.
    * @param stateful Stateful {@link DoFn}.
    */
@@ -89,7 +87,6 @@ public class MultiDoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
-      Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful) {
     this.metricsAccum = metricsAccum;
@@ -100,7 +97,6 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.additionalOutputTags = additionalOutputTags;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
-    this.outputCoders = outputCoders;
     this.stateful = stateful;
   }
 
@@ -149,7 +145,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             additionalOutputTags,
             context,
             null,
-            outputCoders,
+            Collections.emptyMap(),
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =

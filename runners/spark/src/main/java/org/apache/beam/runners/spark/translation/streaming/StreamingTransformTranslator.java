@@ -403,17 +403,6 @@ public final class StreamingTransformTranslator {
                               JavaSparkContext.fromSparkContext(rdd.context()),
                               pviews);
 
-                  Map<TupleTag<?>, Coder<?>> outputCoders =
-                      context
-                          .getOutputs(transform)
-                          .entrySet()
-                          .stream()
-                          .filter(e -> e.getValue() instanceof PCollection)
-                          .collect(
-                              Collectors.toMap(
-                                  e -> e.getKey(),
-                                  e -> ((PCollection<?>) e.getValue()).getCoder()));
-
                   return rdd.mapPartitionsToPair(
                       new MultiDoFnFunction<>(
                           metricsAccum,
@@ -423,7 +412,6 @@ public final class StreamingTransformTranslator {
                           transform.getMainOutputTag(),
                           transform.getAdditionalOutputTags().getAll(),
                           sideInputs,
-                          outputCoders,
                           windowingStrategy,
                           false));
                 });
