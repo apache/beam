@@ -126,6 +126,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
@@ -148,6 +149,7 @@ task validatesRunnerStreaming(type: Test) {
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
   }
 }
 
