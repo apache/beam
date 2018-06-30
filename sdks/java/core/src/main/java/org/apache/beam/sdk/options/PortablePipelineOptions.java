@@ -45,4 +45,9 @@ public interface PortablePipelineOptions extends PipelineOptions {
   String getJobEndpoint();
 
   void setJobEndpoint(String endpoint);
+
+  @Description("Set the Docker Image for running user code.")
+  String getWorkerDockerImage();
+
+  void setWorkerDockerImage(String endpoint);
 }

@@ -24,7 +24,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.Equivalence;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -200,6 +202,10 @@ public class SdkComponents {
     environmentIds.put(env, name);
     componentsBuilder.putEnvironments(name, env);
     return name;
+  }
+
+  public Collection<String> getEnvironmentIds(){
+    return ImmutableSet.copyOf(componentsBuilder.getEnvironmentsMap().keySet());
   }
 
   private String uniqify(String baseName, Set<String> existing) {

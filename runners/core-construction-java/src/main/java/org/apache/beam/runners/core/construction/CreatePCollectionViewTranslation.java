@@ -28,6 +28,7 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -59,8 +60,12 @@ public class CreatePCollectionViewTranslation {
           application)
       throws IOException {
 
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createEnvironment(
+        application.getPipeline().getOptions().as(PortablePipelineOptions.class)
+            .getWorkerDockerImage()));
     RunnerApi.PTransform transformProto =
-        PTransformTranslation.toProto(application, Collections.emptyList(), SdkComponents.create());
+        PTransformTranslation.toProto(application, Collections.emptyList(), components);
 
     checkArgument(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),

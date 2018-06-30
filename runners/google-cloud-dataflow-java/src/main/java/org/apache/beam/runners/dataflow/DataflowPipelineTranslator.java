@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
@@ -117,7 +118,10 @@ public class DataflowPipelineTranslator {
 
   private static byte[] serializeWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
     try {
-      return WindowingStrategyTranslation.toProto(windowingStrategy).toByteArray();
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+      return WindowingStrategyTranslation.toMessageProto(windowingStrategy, sdkComponents)
+          .toByteArray();
     } catch (Exception e) {
       throw new RuntimeException(
           String.format("Unable to format windowing strategy %s as bytes", windowingStrategy), e);
@@ -155,6 +159,7 @@ public class DataflowPipelineTranslator {
 
     // Capture the sdkComponents for look up during step translations
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
 
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
