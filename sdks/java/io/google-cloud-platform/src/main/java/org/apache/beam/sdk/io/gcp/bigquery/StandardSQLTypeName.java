@@ -31,6 +31,8 @@ enum StandardSQLTypeName {
   INT64,
   /** A 64-bit IEEE binary floating-point value. */
   FLOAT64,
+  /** A decimal value with 38 digits of precision and 9 digits of scale. */
+  NUMERIC,
   /** Variable-length character (Unicode) data. */
   STRING,
   /** Variable-length binary data. */
