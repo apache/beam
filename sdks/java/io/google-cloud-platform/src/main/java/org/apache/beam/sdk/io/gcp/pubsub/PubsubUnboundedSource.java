@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -1201,7 +1202,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
-    checkArgument((topic == null) == (project == null), "Project must be given if topic is given");
     this.clock = clock;
     this.pubsubFactory = checkNotNull(pubsubFactory);
     this.project = project;
@@ -1291,13 +1291,26 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
+    TopicPath topicPath = topic.get();
+
+    ProjectPath projectPath;
+    if (project != null) {
+      projectPath = project.get();
+    } else {
+      String projectId = options.as(GcpOptions.class).getProject();
+      checkState(
+          projectId != null,
+          "Cannot create subscription to topic %s because pipeline option 'project' not specified",
+          topicPath);
+      projectPath = PubsubClient.projectPathFromId(options.as(GcpOptions.class).getProject());
+    }
+
     try {
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(
               timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
         SubscriptionPath subscriptionPath =
-            pubsubClient.createRandomSubscription(
-                project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
+            pubsubClient.createRandomSubscription(projectPath, topicPath, DEAULT_ACK_TIMEOUT_SEC);
         LOG.warn(
             "Created subscription {} to topic {}."
                 + " Note this subscription WILL NOT be deleted when the pipeline terminates",
@@ -1306,7 +1319,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         return subscriptionPath;
       }
     } catch (Exception e) {
-      throw new RuntimeException("Failed to create subscription: ", e);
+      throw new RuntimeException(
+          String.format(
+              "Failed to create subscription to topic %s on project %s: %s",
+              topicPath, projectPath, e.getMessage()),
+          e);
     }
   }
 }
