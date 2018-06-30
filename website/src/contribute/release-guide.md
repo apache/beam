@@ -778,6 +778,8 @@ Note: It is important to rename `apache-beam-${RELEASE}-python.zip` to `apache-b
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
+Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Then update download address for last release version, [example PR](https://github.com/apache/beam-site/pull/478).
+
 ### Git tag
 
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
