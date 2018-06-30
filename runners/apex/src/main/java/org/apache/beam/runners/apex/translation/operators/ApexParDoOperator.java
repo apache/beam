@@ -32,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -140,7 +141,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
-      Coder<InputT> linputCoder,
+      Coder<InputT> inputCoder,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -160,7 +161,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     }
 
     WindowedValueCoder<InputT> wvCoder =
-        FullWindowedValueCoder.of(linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
+        FullWindowedValueCoder.of(inputCoder, this.windowingStrategy.getWindowFn().windowCoder());
     Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(), listCoder);
     this.inputCoder = wvCoder;
@@ -177,9 +178,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     } else {
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       if (signature.usesState()) {
-        checkArgument(linputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
+        checkArgument(inputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
         @SuppressWarnings("rawtypes")
-        Coder<?> keyCoder = ((KvCoder) linputCoder).getKeyCoder();
+        Coder<?> keyCoder = ((KvCoder) inputCoder).getKeyCoder();
         this.currentKeyStateInternals =
             new StateInternalsProxy<>(stateBackend.newStateInternalsFactory(keyCoder));
       }
@@ -452,6 +453,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             mainOutputTag,
             additionalOutputTags,
             stepContext,
+            null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);

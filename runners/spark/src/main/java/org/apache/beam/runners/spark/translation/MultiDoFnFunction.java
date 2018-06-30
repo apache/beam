@@ -143,6 +143,8 @@ public class MultiDoFnFunction<InputT, OutputT>
             mainOutputTag,
             additionalOutputTags,
             context,
+            null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =

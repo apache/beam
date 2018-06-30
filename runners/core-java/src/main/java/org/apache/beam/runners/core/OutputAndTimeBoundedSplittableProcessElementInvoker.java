@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -123,6 +124,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public Row asRow(@Nullable String id) {
+                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+              }
+
+              @Override
               public Instant timestamp(DoFn<InputT, OutputT> doFn) {
                 return processContext.timestamp();
               }
@@ -139,8 +145,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+              }
+
+              @Override
               public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedMultiReceiver(processContext);
+                return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
               }
 
               @Override

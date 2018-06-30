@@ -140,7 +140,7 @@ class ParDoTranslator<InputT, OutputT>
               transform.getAdditionalOutputTags().getAll(),
               input.getWindowingStrategy(),
               sideInputs,
-              input.getCoder(),
+              null,
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());

@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,7 +37,9 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -83,6 +86,10 @@ public abstract class DoFnSignature {
 
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
+
+  /** Field access declaration. */
+  @Nullable
+  public abstract Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
   @Nullable
@@ -152,6 +159,9 @@ public abstract class DoFnSignature {
 
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
 
+    abstract Builder setFieldAccessDeclarations(
+        Map<String, FieldAccessDeclaration> fieldAccessDeclaration);
+
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
 
     abstract DoFnSignature build();
@@ -215,6 +225,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
+      } else if (this instanceof RowParameter) {
+        return cases.dispatch((RowParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
       } else if (this instanceof OutputReceiverParameter) {
@@ -240,6 +252,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(ProcessContextParameter p);
 
       ResultT dispatch(ElementParameter p);
+
+      ResultT dispatch(RowParameter p);
 
       ResultT dispatch(TimestampParameter p);
 
@@ -285,6 +299,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ElementParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -360,8 +379,6 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
-    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
 
@@ -374,6 +391,10 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
+    public static RowParameter rowParameter(@Nullable String id) {
+      return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
+    }
+
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
     }
@@ -382,8 +403,8 @@ public abstract class DoFnSignature {
       return TIME_DOMAIN_PARAMETER;
     }
 
-    public static OutputReceiverParameter outputReceiverParameter() {
-      return OUTPUT_RECEIVER_PARAMETER;
+    public static OutputReceiverParameter outputReceiverParameter(boolean rowReceiver) {
+      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(rowReceiver);
     }
 
     public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
@@ -472,6 +493,19 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of Row type.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RowParameter extends Parameter {
+      RowParameter() {}
+
+      @Nullable
+      public abstract String fieldAccessId();
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of type {@link DoFn.Timestamp}.
      *
      * <p>All such descriptors are equal.
@@ -499,6 +533,8 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class OutputReceiverParameter extends Parameter {
       OutputReceiverParameter() {}
+
+      public abstract boolean isRowReceiver();
     }
 
     /**
@@ -648,6 +684,31 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a {@link
+     * org.apache.beam.sdk.values.Row} object.
+     */
+    @Nullable
+    public RowParameter getRowParameter() {
+      Optional<Parameter> parameter =
+          extraParameters()
+              .stream()
+              .filter(Predicates.instanceOf(RowParameter.class)::apply)
+              .findFirst();
+      return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
+    }
+
+    /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
+    @Nullable
+    public OutputReceiverParameter getMainOutputReceiver() {
+      Optional<Parameter> parameter =
+          extraParameters()
+              .stream()
+              .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
+              .findFirst();
+      return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
+    }
+
+    /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
@@ -742,6 +803,23 @@ public abstract class DoFnSignature {
         String id, Field field, TypeDescriptor<? extends State> stateType) {
       field.setAccessible(true);
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
+    }
+  }
+
+  /**
+   * Decscribes a field access declaration. This is used when the input {@link PCollection} has an
+   * associated schema, to specify exactly which fields in the row are accessed. Any fields not
+   * specified are not guaranteed to be present when reading the row.
+   */
+  @AutoValue
+  public abstract static class FieldAccessDeclaration {
+    public abstract String id();
+
+    public abstract Field field();
+
+    static FieldAccessDeclaration create(String id, Field field) {
+      field.setAccessible(true);
+      return new AutoValue_DoFnSignature_FieldAccessDeclaration(id, field);
     }
   }
 

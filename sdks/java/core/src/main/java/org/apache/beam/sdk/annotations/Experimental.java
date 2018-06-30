@@ -98,5 +98,8 @@ public @interface Experimental {
      * closures</a>.
      */
     CONTEXTFUL,
+
+    /** PCollection Schema support in Beam. */
+    SCHEMAS,
   }
 }

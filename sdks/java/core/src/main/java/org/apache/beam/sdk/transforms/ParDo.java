@@ -33,6 +33,8 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -40,8 +42,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -426,6 +430,43 @@ public class ParDo {
     }
   }
 
+  private static void validateRowParameter(
+      RowParameter rowParameter,
+      Coder<?> inputCoder,
+      Map<String, FieldAccessDeclaration> fieldAccessDeclarations,
+      DoFn<?, ?> fn) {
+    checkArgument(
+        inputCoder instanceof SchemaCoder,
+        "Cannot access object as a row if the input PCollection does not have a schema ."
+            + " Coder "
+            + inputCoder.getClass().getSimpleName());
+
+    // Resolve the FieldAccessDescriptor against the Schema.
+    // This will be resolved anyway by the runner, however we want any resolution errors
+    // (i.e. caused by a FieldAccessDescriptor that references fields not in the schema) to
+    // be caught and presented to the user at graph-construction time. Therefore we resolve
+    // here as well to catch these errors.
+    FieldAccessDescriptor fieldAccessDescriptor = null;
+    String id = rowParameter.fieldAccessId();
+    if (id == null) {
+      // This is the case where no FieldId is defined, just an @Element Row row. Default to all
+      // fields accessed.
+      fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
+    } else {
+      // In this case, we expect to have a FieldAccessDescriptor defined in the class.
+      FieldAccessDeclaration fieldAccessDeclaration = fieldAccessDeclarations.get(id);
+      checkArgument(
+          fieldAccessDeclaration != null, "No FieldAccessDeclaration  defined with id", id);
+      checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
+      try {
+        fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    fieldAccessDescriptor.resolve(((SchemaCoder<?>) inputCoder).getSchema());
+  }
+
   /**
    * Try to provide coders for as many of the type arguments of given {@link
    * DoFnSignature.StateDeclaration} as possible.
@@ -590,6 +631,7 @@ public class ParDo {
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+
       TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
@@ -721,6 +763,18 @@ public class ParDo {
       if (signature.usesState() || signature.usesTimers()) {
         validateStateApplicableForInput(fn, input);
       }
+
+      DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
+      RowParameter rowParameter = processElementMethod.getRowParameter();
+      // Can only ask for a Row if a Schema was specified!
+      if (rowParameter != null) {
+        validateRowParameter(
+            rowParameter, input.getCoder(), signature.fieldAccessDeclarations(), fn);
+      }
+
+      // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection
+      // as schema. However coder/schema inference may not have happened yet at this point.
+      // Need to figure out where to validate this.
 
       PCollectionTuple outputs =
           PCollectionTuple.ofPrimitiveOutputsInternal(

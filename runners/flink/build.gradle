@@ -109,6 +109,7 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
     } else {
@@ -117,6 +118,7 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }

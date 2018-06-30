@@ -152,6 +152,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
             mainOutputTag,
             Collections.emptyList(),
             stepContext,
+            null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();

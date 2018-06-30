@@ -51,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -835,8 +836,15 @@ public class DataflowPipelineTranslator {
 
           private <InputT, OutputT> void translateMultiHelper(
               ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
-
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
+            Map<TupleTag<?>, Coder<?>> outputCoders =
+                context
+                    .getOutputs(transform)
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             translateOutputs(context.getOutputs(transform), stepContext);
@@ -850,7 +858,8 @@ public class DataflowPipelineTranslator {
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
                 context,
-                transform.getMainOutputTag());
+                transform.getMainOutputTag(),
+                outputCoders);
           }
         });
 
@@ -866,6 +875,15 @@ public class DataflowPipelineTranslator {
               ParDoSingle<InputT, OutputT> transform, TranslationContext context) {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
+            Map<TupleTag<?>, Coder<?>> outputCoders =
+                context
+                    .getOutputs(transform)
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
+
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             stepContext.addOutput(
@@ -880,7 +898,8 @@ public class DataflowPipelineTranslator {
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
                 context,
-                transform.getMainOutputTag());
+                transform.getMainOutputTag(),
+                outputCoders);
           }
         });
 
@@ -927,7 +946,14 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
-
+            Map<TupleTag<?>, Coder<?>> outputCoders =
+                context
+                    .getOutputs(transform)
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             translateOutputs(context.getOutputs(transform), stepContext);
@@ -941,7 +967,8 @@ public class DataflowPipelineTranslator {
                 transform.getSideInputs(),
                 transform.getElementCoder(),
                 context,
-                transform.getMainOutputTag());
+                transform.getMainOutputTag(),
+                outputCoders);
 
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
@@ -983,8 +1010,8 @@ public class DataflowPipelineTranslator {
       Iterable<PCollectionView<?>> sideInputs,
       Coder inputCoder,
       TranslationContext context,
-      TupleTag<?> mainOutput) {
-
+      TupleTag<?> mainOutput,
+      Map<TupleTag<?>, Coder<?>> outputCoders) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
     if (signature.usesState() || signature.usesTimers()) {
@@ -1003,7 +1030,8 @@ public class DataflowPipelineTranslator {
           PropertyNames.SERIALIZED_FN,
           byteArrayToJsonString(
               serializeToByteArray(
-                  DoFnInfo.forFn(fn, windowingStrategy, sideInputs, inputCoder, mainOutput))));
+                  DoFnInfo.forFn(
+                      fn, windowingStrategy, sideInputs, inputCoder, outputCoders, mainOutput))));
     }
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
