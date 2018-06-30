@@ -20,7 +20,7 @@
 apply plugin: "base"
 
 task cleanWebsite(type: Delete) {
-  delete '.sass-cache', '.testcontent', 'content'
+  delete '.sass-cache', 'vendor', '.testcontent', 'content'
 }
 clean.dependsOn cleanWebsite
 
@@ -29,22 +29,42 @@ task installBundler(type: Exec) {
 }
 
 task installGems(type: Exec) {
-  mustRunAfter (cleanWebsite, installBundler)
+  mustRunAfter cleanWebsite, installBundler
+  inputs.file 'Gemfile.lock'
+  outputs.dir 'vendor'
   commandLine 'bundle', 'install', '--deployment'
 }
 
+// TODO(BEAM-4696): Remove this once we can run Jenkins jobs within Docker
 task setupJenkins {
-  dependsOn (installBundler, installGems)
+  dependsOn installBundler, installGems
 }
 
 task buildWebsite(type: Exec) {
-  mustRunAfter (cleanWebsite, setupJenkins, installGems)
-  commandLine 'bundle', 'exec', 'jekyll', 'build', '--config', '_config.yml,_config_test.yml'
+  mustRunAfter cleanWebsite, setupJenkins, installGems
+  inputs {
+    files 'Gemfile.lock', '_config.yml', '_config_test.yml'
+    dir 'vendor'
+    dir 'src'
+  }
+  outputs {
+    dir '.sass-cache'
+    dir 'content'
+    dir '.testcontent'
+  }
+  commandLine 'bundle', 'exec', 'jekyll', 'build',
+    '--config', '_config.yml,_config_test.yml',
+    '--incremental'
 }
 build.dependsOn buildWebsite
 
 task testWebsite(type: Exec) {
   dependsOn buildWebsite
+  inputs {
+    files 'Gemfile.lock', 'Rakefile'
+    dir 'vendor'
+    dir '.testcontent'
+  }
   commandLine 'bundle', 'exec', 'rake', 'test'
 }
 check.dependsOn testWebsite
