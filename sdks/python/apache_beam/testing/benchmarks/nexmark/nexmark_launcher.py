@@ -84,8 +84,19 @@ class NexmarkLauncher(object):
     self.uuid = str(uuid.uuid4())
     self.topic_name = self.args.topic_name + self.uuid
     self.subscription_name = self.args.subscription_name + self.uuid
-
-    print('topic_name:', self.topic_name)
+    publish_client = pubsub.Client(project=self.project)
+    topic = publish_client.topic(self.topic_name)
+    if topic.exists():
+      logging.info('deleting topic %s', self.topic_name)
+      topic.delete()
+    logging.info('creating topic %s', self.topic_name)
+    topic.create()
+    sub = topic.subscription(self.subscription_name)
+    if sub.exists():
+      logging.info('deleting sub %s', self.topic_name)
+      sub.delete()
+    logging.info('creating sub %s', self.topic_name)
+    sub.create()
 
   def parse_args(self):
     parser = argparse.ArgumentParser()
@@ -152,13 +163,7 @@ class NexmarkLauncher(object):
   def generate_events(self):
     publish_client = pubsub.Client(project=self.project)
     topic = publish_client.topic(self.topic_name)
-    if topic.exists():
-      topic.delete()
-    topic.create()
     sub = topic.subscription(self.subscription_name)
-    if sub.exists():
-      sub.delete()
-    sub.create()
 
     logging.info('Generating auction events to topic %s', topic.name)
 
@@ -187,6 +192,7 @@ class NexmarkLauncher(object):
 
   def run_query(self, query, query_args, query_errors):
     try:
+      self.parse_args()
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       raw_events = self.generate_events()
       query.load(raw_events, query_args)
@@ -237,11 +243,11 @@ class NexmarkLauncher(object):
       launch_from_direct_runner = self.pipeline_options.view_as(
           StandardOptions).runner in [None, 'DirectRunner']
 
+      query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
       if launch_from_direct_runner:
         command = Command(self.run_query, args=[queries[i],
                                                 query_args.get(i),
                                                 query_errors])
-        query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
         command.run(timeout=query_duration // 1000)
       else:
         try:
