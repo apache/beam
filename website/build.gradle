@@ -41,30 +41,23 @@ task setupJenkins {
 }
 
 task buildWebsite(type: Exec) {
-  mustRunAfter cleanWebsite, setupJenkins, installGems
-  inputs {
-    files 'Gemfile.lock', '_config.yml', '_config_test.yml'
-    dir 'vendor'
-    dir 'src'
-  }
-  outputs {
-    dir '.sass-cache'
-    dir 'content'
-    dir '.testcontent'
-  }
+  dependsOn installGems
+  mustRunAfter cleanWebsite, setupJenkins
+  inputs.files 'Gemfile.lock', '_config.yml'
+  inputs.dir 'src'
+  outputs.dir '.sass-cache'
+  outputs.dir 'content'
+  outputs.dir '.testcontent'
   commandLine 'bundle', 'exec', 'jekyll', 'build',
-    '--config', '_config.yml,_config_test.yml',
+    '--config', '_config.yml',
     '--incremental'
 }
 build.dependsOn buildWebsite
 
 task testWebsite(type: Exec) {
   dependsOn buildWebsite
-  inputs {
-    files 'Gemfile.lock', 'Rakefile'
-    dir 'vendor'
-    dir '.testcontent'
-  }
+  inputs.files 'Gemfile.lock', 'Rakefile'
+  inputs.dir '.testcontent'
   commandLine 'bundle', 'exec', 'rake', 'test'
 }
 check.dependsOn testWebsite
