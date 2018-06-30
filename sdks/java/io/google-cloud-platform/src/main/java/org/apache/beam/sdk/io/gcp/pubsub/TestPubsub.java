@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toList;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -41,14 +42,15 @@ import org.junit.runners.model.Statement;
 public class TestPubsub implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
-  private static final String TOPIC_FORMAT = "projects/%s/topics/%s";
+  private static final String EVENTS_TOPIC_NAME = "events";
   private static final String TOPIC_PREFIX = "integ-test-";
   private static final String NO_ID_ATTRIBUTE = null;
   private static final String NO_TIMESTAMP_ATTRIBUTE = null;
 
-  PubsubClient pubsub;
-  private TestPubsubOptions pipelineOptions;
-  private String eventsTopicPath;
+  private final TestPubsubOptions pipelineOptions;
+
+  private @Nullable PubsubClient pubsub = null;
+  private @Nullable TopicPath eventsTopicPath = null;
 
   /**
    * Creates an instance of this rule.
@@ -93,10 +95,11 @@ public class TestPubsub implements TestRule {
     pubsub =
         PubsubGrpcClient.FACTORY.newClient(
             NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
-    String eventsTopicPathTmp =
-        String.format(TOPIC_FORMAT, pipelineOptions.getProject(), createTopicName(description));
+    TopicPath eventsTopicPathTmp =
+        PubsubClient.topicPathFromName(
+            pipelineOptions.getProject(), createTopicName(description, EVENTS_TOPIC_NAME));
 
-    pubsub.createTopic(new TopicPath(eventsTopicPathTmp));
+    pubsub.createTopic(eventsTopicPathTmp);
 
     eventsTopicPath = eventsTopicPathTmp;
   }
@@ -108,7 +111,7 @@ public class TestPubsub implements TestRule {
 
     try {
       if (eventsTopicPath != null) {
-        pubsub.deleteTopic(new TopicPath(eventsTopicPath));
+        pubsub.deleteTopic(eventsTopicPath);
       }
     } finally {
       pubsub.close();
@@ -122,7 +125,7 @@ public class TestPubsub implements TestRule {
    *
    * <p>Example: 'TestClassName-testMethodName-2018-12-11-23-32-333-&lt;random-long&gt;'
    */
-  static String createTopicName(Description description) throws IOException {
+  static String createTopicName(Description description, String name) throws IOException {
     StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
 
     if (description.getClassName() != null) {
@@ -139,11 +142,15 @@ public class TestPubsub implements TestRule {
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString() + "-" + String.valueOf(ThreadLocalRandom.current().nextLong());
+    return topicName.toString()
+        + "-"
+        + name
+        + "-"
+        + String.valueOf(ThreadLocalRandom.current().nextLong());
   }
 
   /** Topic path where events will be published to. */
-  public String topicPath() {
+  public TopicPath topicPath() {
     return eventsTopicPath;
   }
 
@@ -151,7 +158,7 @@ public class TestPubsub implements TestRule {
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
         messages.stream().map(this::toOutgoingMessage).collect(toList());
-    pubsub.publish(new TopicPath(eventsTopicPath), outgoingMessages);
+    pubsub.publish(eventsTopicPath, outgoingMessages);
   }
 
   private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
