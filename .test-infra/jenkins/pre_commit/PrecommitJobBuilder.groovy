@@ -51,7 +51,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Cron'
     job.with {
       description buildDescription('on a daily schedule.')
-      commonProperties.setAutoJob delegate
+        commonProperties.setAutoJob delegate
     }
     job.with additionalCustomization
   }
@@ -61,7 +61,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Commit', true
     def defaultPathTriggers = [
       '^build.gradle$',
-      '^buildSrc/.*$',
+      '^build_rules.gradle$',
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',

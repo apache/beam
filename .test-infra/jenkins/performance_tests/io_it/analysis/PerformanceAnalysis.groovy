@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import CommonProperites as commonProperties
+import CommonProperties as commonProperties
 
 def testConfiguration = [
                 jobName           : 'beam_PerformanceTests_Analysis',
@@ -74,9 +74,9 @@ job(testConfiguration.jobName) {
         shell('.env/bin/pip install requests google.cloud.bigquery mock')
 
         // Launch verification tests before executing script.
-        shell('.env/bin/python ' + commonProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')
+        shell('.env/bin/python ' + commonProperties.checkoutDir + '/.test-infra/jenkins/performance_tests/io_it/analysis/verify_performance_test_results_test.py')
 
         // Launch performance tests analysis.
-        shell('.env/bin/python ' + commonProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
+        shell('.env/bin/python ' + commonProperties.checkoutDir + '/.test-infra/jenkins/performance_tests/io_it/analysis/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
     }
 }
