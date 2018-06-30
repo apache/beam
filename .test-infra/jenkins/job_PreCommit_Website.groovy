@@ -21,8 +21,9 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Website',
-    dockerImage: 'ruby:2.5',
-    gradleTask: ':websitePreCommit',
+    // TODO(BEAM-4696): Run these within docker so we don't need install step
+    // dockerImage: 'ruby:2.5',
+    gradleTask: ':jenkinsSetup :websitePreCommit',
     triggerPathPatterns: ['^website/.*$']
 )
 builder.build()
