@@ -61,7 +61,6 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
