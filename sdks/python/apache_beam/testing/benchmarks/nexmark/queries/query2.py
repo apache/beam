@@ -26,16 +26,10 @@ It illustrates a simple filter.
 
 from __future__ import absolute_import
 
-import logging
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
-
-
-def display(elm):
-  logging.debug(elm)
-  return elm
+from apache_beam.testing.benchmarks.nexmark.nexmark_util import display
 
 
 def load(raw_events, metadata=None):

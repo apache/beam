@@ -25,16 +25,10 @@ It illustrates a simple map.
 """
 from __future__ import absolute_import
 
-import logging
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
-
-
-def display(elm):
-  logging.debug(elm)
-  return elm
+from apache_beam.testing.benchmarks.nexmark.nexmark_util import display
 
 
 def load(raw_events, query_args=None):
@@ -42,7 +36,7 @@ def load(raw_events, query_args=None):
           | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
           | 'FilterInBids' >> beam.Filter(
               lambda event: isinstance(event, nexmark_model.Bid))
-          | 'ConvertToEurop' >> beam.Map(
+          | 'ConvertToEuro' >> beam.Map(
               lambda bid: nexmark_model.Bid(
                   bid.auction,
                   bid.bidder,
