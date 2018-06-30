@@ -59,6 +59,13 @@ public class Environments {
 
   private Environments() {}
 
+  public static Environment createEnvironment(String url){
+    if(Strings.isNullOrEmpty(url)){
+      return JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
+    return Environment.newBuilder().setUrl(url).build();
+  }
+
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {
     try {
       PTransform ptransform = components.getTransformsOrThrow(ptransformId);

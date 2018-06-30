@@ -57,6 +57,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentUnknownFnType() throws IOException {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(components.toComponents());
     PTransform builder =
@@ -73,6 +74,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentParDo() throws IOException {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     ParDoPayload payload =
         ParDoTranslation.translateParDo(
             ParDo.of(
@@ -105,6 +107,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentWindowIntoKnown() throws IOException {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     WindowIntoPayload payload =
         WindowIntoPayload.newBuilder()
             .setWindowFn(
@@ -133,6 +136,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentWindowIntoCustom() throws IOException {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     WindowIntoPayload payload =
         WindowIntoPayload.newBuilder()
             .setWindowFn(
@@ -177,6 +181,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentRead() throws IOException {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     ReadPayload payload =
         ReadTranslation.toProto(Read.from(CountingSource.unbounded()), components);
     RehydratedComponents rehydratedComponents =
@@ -201,6 +206,7 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void getEnvironmentCombine() throws IOException {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     CombinePayload payload =
         CombinePayload.newBuilder()
             .setCombineFn(CombineTranslation.toProto(Sum.ofLongs(), components))

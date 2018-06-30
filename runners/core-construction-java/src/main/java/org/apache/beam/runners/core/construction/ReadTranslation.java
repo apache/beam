@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -79,7 +81,7 @@ public class ReadTranslation {
 
   private static SdkFunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
@@ -112,15 +114,19 @@ public class ReadTranslation {
   private static <T> ReadPayload getReadPayload(
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws IOException {
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createEnvironment(
+        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
+            .getWorkerDockerImage()));
     return ReadPayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }
 
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
@@ -139,10 +145,14 @@ public class ReadTranslation {
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
     try {
+      SdkComponents components = SdkComponents.create();
+      components.registerEnvironment(Environments.createEnvironment(
+          transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
+              .getWorkerDockerImage()));
       return PCollectionTranslation.fromProto(
           ReadPayload.parseFrom(
                   PTransformTranslation.toProto(
-                          transform, Collections.emptyList(), SdkComponents.create())
+                          transform, Collections.emptyList(), components)
                       .getSpec()
                       .getPayload())
               .getIsBounded());

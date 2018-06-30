@@ -42,6 +42,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -146,6 +147,9 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.createEnvironment(
+        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
+            .getWorkerDockerImage()));
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs = getWriteFilesPayload(transform).getSideInputsMap();
@@ -190,8 +194,12 @@ public class WriteFilesTranslation {
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createEnvironment(
+        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
+            .getWorkerDockerImage()));
     return WriteFilesPayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }
