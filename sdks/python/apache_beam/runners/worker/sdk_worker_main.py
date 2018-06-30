@@ -158,10 +158,10 @@ def _get_worker_count(pipeline_options):
     an int containing the worker_threads to use. Default is 1
   """
   pipeline_options = pipeline_options.get(
-      'options') if pipeline_options.has_key('options') else {}
+      'options') if 'options' in pipeline_options else {}
   experiments = pipeline_options.get(
       'experiments'
-  ) if pipeline_options and pipeline_options.has_key('experiments') else []
+  ) if pipeline_options and 'experiments' in pipeline_options else []
 
   experiments = experiments if experiments else []
 
