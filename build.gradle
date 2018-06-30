@@ -140,7 +140,6 @@ rat {
   def gitIgnore = project(':').file('.gitignore')
   if (gitIgnore.exists()) {
     def gitIgnoreExcludes = gitIgnore.readLines().findAll { !it.isEmpty() && !it.startsWith('#') }
-    println "Adding ${gitIgnoreExcludes.size()} .gitignore exclusions to Apache Rat"
     exclusions.addAll(gitIgnoreExcludes)
   }
 
