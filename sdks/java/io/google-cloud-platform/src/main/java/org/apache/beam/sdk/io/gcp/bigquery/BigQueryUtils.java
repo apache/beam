@@ -70,7 +70,7 @@ public class BigQueryUtils {
           .put(TypeName.INT64, StandardSQLTypeName.INT64)
           .put(TypeName.FLOAT, StandardSQLTypeName.FLOAT64)
           .put(TypeName.DOUBLE, StandardSQLTypeName.FLOAT64)
-          .put(TypeName.DECIMAL, StandardSQLTypeName.FLOAT64)
+          .put(TypeName.DECIMAL, StandardSQLTypeName.NUMERIC)
           .put(TypeName.BOOLEAN, StandardSQLTypeName.BOOL)
           .put(TypeName.ARRAY, StandardSQLTypeName.ARRAY)
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
