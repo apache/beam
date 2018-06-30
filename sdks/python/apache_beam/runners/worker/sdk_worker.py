@@ -176,7 +176,7 @@ class SdkHarness(object):
     def task():
       instruction_reference = getattr(
           request, request.WhichOneof('request')).instruction_reference
-      if self._instruction_id_vs_worker.has_key(instruction_reference):
+      if instruction_reference in self._instruction_id_vs_worker:
         self._execute(
             lambda: self._instruction_id_vs_worker[
                 instruction_reference
