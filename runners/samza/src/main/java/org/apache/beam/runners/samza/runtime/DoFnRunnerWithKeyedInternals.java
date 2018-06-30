@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.runtime;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -87,6 +88,9 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
             mainOutputTag,
             additionalOutputTags,
             createStepContext(stateInternals, timerInternals),
+            // TODO: fix.
+            null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     final DoFnRunner<InputT, OutputT> doFnRunnerWithMetrics =

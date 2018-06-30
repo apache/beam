@@ -34,11 +34,12 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link Schema} describes the fields in {@link Row}. */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // A mapping between field names an indices.
   private BiMap<String, Integer> fieldIndices = HashBiMap.create();
@@ -526,7 +527,8 @@ public class Schema implements Serializable {
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
     if (index == null) {
-      throw new IllegalArgumentException(String.format("Cannot find field %s", fieldName));
+      throw new IllegalArgumentException(
+          String.format("Cannot find field %s in schema %s", fieldName, this));
     }
     return index;
   }

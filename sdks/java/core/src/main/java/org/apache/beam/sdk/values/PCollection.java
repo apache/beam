@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
@@ -33,9 +35,14 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -83,7 +90,9 @@ public class PCollection<T> extends PValueBase implements PValue {
   @Override
   public void finishSpecifyingOutput(
       String transformName, PInput input, PTransform<?, ?> transform) {
-    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
+    this.coderOrFailure =
+        inferCoderOrFail(
+            input, transform, getPipeline().getCoderRegistry(), getPipeline().getSchemaRegistry());
     super.finishSpecifyingOutput(transformName, input, transform);
   }
 
@@ -97,7 +106,9 @@ public class PCollection<T> extends PValueBase implements PValue {
     if (isFinishedSpecifying()) {
       return;
     }
-    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
+    this.coderOrFailure =
+        inferCoderOrFail(
+            input, transform, getPipeline().getCoderRegistry(), getPipeline().getSchemaRegistry());
     // Ensure that this TypedPValue has a coder by inferring the coder if none exists; If not,
     // this will throw an exception.
     getCoder();
@@ -121,7 +132,10 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private CoderOrFailure<T> inferCoderOrFail(
-      PInput input, PTransform<?, ?> transform, CoderRegistry coderRegistry) {
+      PInput input,
+      PTransform<?, ?> transform,
+      CoderRegistry coderRegistry,
+      SchemaRegistry schemaRegistry) {
     // First option for a coder: use the Coder set on this PValue.
     if (coderOrFailure.coder != null) {
       return coderOrFailure;
@@ -136,8 +150,22 @@ public class PCollection<T> extends PValueBase implements PValue {
       inputCoderException = exc;
     }
 
-    // Third option for a coder: Look in the coder registry.
     TypeDescriptor<T> token = getTypeDescriptor();
+    // If there is a schema registered for the type, attempt to create a SchemaCoder.
+    if (token != null) {
+      try {
+        SchemaCoder<T> schemaCoder =
+            SchemaCoder.of(
+                schemaRegistry.getSchema(token),
+                schemaRegistry.getToRowFunction(token),
+                schemaRegistry.getFromRowFunction(token));
+        return new CoderOrFailure<>(schemaCoder, null);
+      } catch (NoSuchSchemaException esc) {
+        // No schema.
+      }
+    }
+
+    // Fourth option for a coder: Look in the coder registry.
     CannotProvideCoderException inferFromTokenException = null;
     if (token != null) {
       try {
@@ -264,8 +292,17 @@ public class PCollection<T> extends PValueBase implements PValue {
     return this;
   }
 
+  /** Sets a {@link Schema} on this {@link PCollection}. */
+  @Experimental(Kind.SCHEMAS)
+  public PCollection<T> setSchema(
+      Schema schema,
+      SerializableFunction<T, Row> toRowFunction,
+      SerializableFunction<Row, T> fromRowFunction) {
+    return setCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+  }
+
   /**
-   * Like {@link #apply(String, PTransform)} but defaulting to the name of the {@link PTransform}.
+   * of the {@link PTransform}.
    *
    * @return the output of the applied {@link PTransform}
    */

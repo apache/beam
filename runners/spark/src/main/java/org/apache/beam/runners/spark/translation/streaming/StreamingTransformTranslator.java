@@ -402,6 +402,7 @@ public final class StreamingTransformTranslator {
                               transform.getSideInputs(),
                               JavaSparkContext.fromSparkContext(rdd.context()),
                               pviews);
+
                   return rdd.mapPartitionsToPair(
                       new MultiDoFnFunction<>(
                           metricsAccum,

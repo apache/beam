@@ -17,13 +17,16 @@
  */
 package org.apache.beam.fn.harness;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.DoFnPTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -31,6 +34,8 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -42,6 +47,8 @@ import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -50,6 +57,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
@@ -85,7 +93,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
   private FnApiStateAccessor stateAccessor;
   private final DoFnSignature doFnSignature;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
-
   private final DoFn<InputT, OutputT>.StartBundleContext startBundleContext;
   private final ProcessBundleContext processContext;
   private final DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext;
@@ -96,8 +103,15 @@ public class FnApiDoFnRunner<InputT, OutputT>
   /** Only valid during {@link #processElement}, null otherwise. */
   private BoundedWindow currentWindow;
 
+  /** Following fields are only valid if a Schema is set, null otherwise. */
+  @Nullable private final SchemaCoder<InputT> schemaCoder;
+
+  @Nullable private final SchemaCoder<OutputT> mainOutputSchemaCoder;
+  @Nullable private final FieldAccessDescriptor fieldAccessDescriptor;
+
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
+
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) context.tagToConsumer.get(context.mainOutputTag);
@@ -138,6 +152,54 @@ public class FnApiDoFnRunner<InputT, OutputT>
             outputTo(consumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
           }
         };
+
+    this.schemaCoder =
+        (context.inputCoder instanceof SchemaCoder)
+            ? (SchemaCoder<InputT>) context.inputCoder
+            : null;
+    if (context.outputCoders != null) {
+      Coder<OutputT> outputCoder = (Coder<OutputT>) context.outputCoders.get(context.mainOutputTag);
+      mainOutputSchemaCoder =
+          (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
+    } else {
+      mainOutputSchemaCoder = null;
+    }
+    DoFnSignature doFnSignature = DoFnSignatures.getSignature(context.doFn.getClass());
+    DoFnSignature.ProcessElementMethod processElementMethod =
+        DoFnSignatures.getSignature(context.doFn.getClass()).processElement();
+    RowParameter rowParameter = processElementMethod.getRowParameter();
+    FieldAccessDescriptor fieldAccessDescriptor = null;
+    if (rowParameter != null) {
+      checkArgument(
+          schemaCoder != null,
+          "Cannot access object as a row if the input PCollection does not have a schema ."
+              + "DoFn "
+              + context.doFn.getClass()
+              + " Coder "
+              + context.inputCoder.getClass());
+      String id = rowParameter.fieldAccessId();
+      if (id == null) {
+        // This is the case where no FieldId is defined, just an @Element Row row. Default to all
+        // fields accessed.
+        fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
+      } else {
+        // In this case, we expect to have a FieldAccessDescriptor defined in the class.
+        FieldAccessDeclaration fieldAccessDeclaration =
+            doFnSignature.fieldAccessDeclarations().get(id);
+        checkArgument(
+            fieldAccessDeclaration != null, "No FieldAccessDescriptor defined with id", id);
+        checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
+        try {
+          fieldAccessDescriptor =
+              (FieldAccessDescriptor) fieldAccessDeclaration.field().get(context.doFn);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      // Resolve the FieldAccessDescriptor. This converts all field names into field ids.
+      fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
+    }
+    this.fieldAccessDescriptor = fieldAccessDescriptor;
   }
 
   @Override
@@ -238,6 +300,12 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public Row asRow(@Nullable String id) {
+      checkState(fieldAccessDescriptor.allFields());
+      return schemaCoder.getToRowFunction().apply(element());
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
     }
@@ -254,8 +322,13 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
+    }
+
+    @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, context.outputCoders);
     }
 
     @Override
