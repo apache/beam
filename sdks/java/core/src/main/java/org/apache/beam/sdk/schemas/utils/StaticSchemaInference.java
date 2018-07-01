@@ -20,23 +20,30 @@ package org.apache.beam.sdk.schemas.utils;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.ReadableInstant;
 
-/**
- * A set of utilities for inferring a Beam {@link Schema} from static Java types.
- */
+/** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
 public class StaticSchemaInference {
+  enum MethodType {
+    GETTER,
+    SETTER
+  }
+
   private static final Map<Class, FieldType> PRIMITIVE_TYPES =
       ImmutableMap.<Class, FieldType>builder()
           .put(Byte.class, FieldType.BYTE)
@@ -56,18 +63,55 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
-  /**
-   * Relevant information about a Java type.
-   */
+  /** Relevant information about a Java type. */
   public static class TypeInformation {
     private String name;
     private TypeDescriptor type;
     private boolean nullable;
 
+    /** Construct a {@link TypeInformation}. */
     public TypeInformation(String name, TypeDescriptor type, boolean nullable) {
       this.name = name;
       this.type = type;
       this.nullable = nullable;
+    }
+
+    /** Construct a {@link TypeInformation} from a class member variable. */
+    public TypeInformation(Field field) {
+      this(
+          field.getName(),
+          TypeDescriptor.of(field.getGenericType()),
+          field.getAnnotation(Nullable.class) != null);
+    }
+
+    /** Construct a {@link TypeInformation} from a class getter or setter. */
+    public TypeInformation(Method method, MethodType methodType) {
+      switch (methodType) {
+        case GETTER:
+          if (method.getName().startsWith("get")) {
+            this.name = ReflectUtils.stripPrefix(method.getName(), "get");
+          } else if (method.getName().startsWith("is")) {
+            this.name = ReflectUtils.stripPrefix(method.getName(), "is");
+          } else {
+            throw new RuntimeException("Getter has wrong prefix " + method.getName());
+          }
+          this.type = TypeDescriptor.of(method.getGenericReturnType());
+          this.nullable = method.getAnnotation(Nullable.class) != null;
+          break;
+        case SETTER:
+          if (method.getName().startsWith("set")) {
+            this.name = ReflectUtils.stripPrefix(method.getName(), "get");
+          } else {
+            throw new RuntimeException("Setter has wrong prefix " + method.getName());
+          }
+          if (method.getParameterCount() != 1) {
+            throw new RuntimeException("Setter methods should take a single argument.");
+          }
+          this.type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
+          this.nullable =
+              Arrays.stream(method.getParameterAnnotations()[0])
+                  .anyMatch(Nullable.class::isInstance);
+      }
     }
 
     public String getName() {
@@ -84,12 +128,16 @@ public class StaticSchemaInference {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       TypeInformation that = (TypeInformation) o;
-      return nullable == that.nullable &&
-          Objects.equals(name, that.name) &&
-          Objects.equals(type, that.type);
+      return nullable == that.nullable
+          && Objects.equals(name, that.name)
+          && Objects.equals(type, that.type);
     }
 
     @Override
@@ -148,8 +196,8 @@ public class StaticSchemaInference {
         checkArgument(params.length == 2);
         FieldType keyType = fieldFromType(TypeDescriptor.of(params[0]), getTypesForClass);
         FieldType valueType = fieldFromType(TypeDescriptor.of(params[1]), getTypesForClass);
-        checkArgument(keyType.getTypeName().isPrimitiveType(),
-            "Only primitive types can be map keys");
+        checkArgument(
+            keyType.getTypeName().isPrimitiveType(), "Only primitive types can be map keys");
         return FieldType.map(keyType, valueType);
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {

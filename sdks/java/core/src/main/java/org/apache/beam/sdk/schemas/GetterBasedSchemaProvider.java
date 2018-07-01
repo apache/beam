@@ -39,34 +39,28 @@ import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
 
 /**
- * A {@link SchemaProvider} base class that vends schemas and rows based on
- * {@link org.apache.beam.sdk.values.reflect.FieldValueGetter}s.
+ * A {@link SchemaProvider} base class that vends schemas and rows based on {@link
+ * org.apache.beam.sdk.values.reflect.FieldValueGetter}s.
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
-  /**
-   * Implementing class should override to return a getter factory.
-   */
+  /** Implementing class should override to return a getter factory. */
   abstract FieldValueGetterFactory fieldValueGetterFactory();
 
-  /**
-   * Implementing class should override to return a setter factory.
-   */
+  /** Implementing class should override to return a setter factory. */
   abstract FieldValueSetterFactory fieldValueSetterFactory();
 
   @Override
-  public <T> SerializableFunction<T, Row> toRowFunction(
-      TypeDescriptor<T> typeDescriptor) {
-    return o -> Row
-        .withSchema(schemaFor(typeDescriptor))
-        .withFieldValueGetters(fieldValueGetterFactory(), o)
-        .build();
+  public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+    return o ->
+        Row.withSchema(schemaFor(typeDescriptor))
+            .withFieldValueGetters(fieldValueGetterFactory(), o)
+            .build();
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> SerializableFunction<Row, T> fromRowFunction(
-      TypeDescriptor<T> typeDescriptor) {
+  public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
     return r -> {
       if (r instanceof RowWithGetters) {
         // Efficient path: simply extract the underlying POJO instead of creating a new one.
@@ -82,13 +76,17 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     T object;
     try {
       object = clazz.getDeclaredConstructor().newInstance();
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException
+    } catch (NoSuchMethodException
+        | IllegalAccessException
+        | InvocationTargetException
         | InstantiationException e) {
       throw new RuntimeException("Failed to instantiate object ", e);
     }
 
-    List<FieldValueSetter> setters = fieldValueSetterFactory().createSetters(clazz);
-    checkState(setters.size() == row.getFieldCount(),
+    List<FieldValueSetter> setters =
+        fieldValueSetterFactory().createSetters(clazz, row.getSchema());
+    checkState(
+        setters.size() == row.getFieldCount(),
         "Did not have a matching number of setters and fields.");
 
     // Iterate over the row, and set (possibly recursively) each field in the underlying object
@@ -97,7 +95,8 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
       FieldValueSetter setter = setters.get(i);
-       setter.set(object,
+      setter.set(
+          object,
           fromValue(
               type,
               row.getValue(i),
@@ -110,15 +109,16 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   }
 
   @SuppressWarnings("unchecked")
-  private <T> T fromValue(FieldType type, T value, Type fieldType, Type elemenentType,
-                          Type keyType, Type valueType) {
+  private <T> T fromValue(
+      FieldType type, T value, Type fieldType, Type elemenentType, Type keyType, Type valueType) {
     if (TypeName.ROW.equals(type.getTypeName())) {
       return (T) fromRow((Row) value, (Class) fieldType);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (T) fromListValue(type.getCollectionElementType(), (List) value, elemenentType);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
-      return (T) fromMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) value,
-          keyType, valueType);
+      return (T)
+          fromMapValue(
+              type.getMapKeyType(), type.getMapValueType(), (Map) value, keyType, valueType);
     } else {
       return value;
     }
@@ -134,8 +134,8 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   }
 
   @SuppressWarnings("unchecked")
-  private  Map<?, ?> fromMapValue(FieldType keyType, FieldType valueType, Map<?, ?> map,
-                                  Type keyClass, Type valueClass) {
+  private Map<?, ?> fromMapValue(
+      FieldType keyType, FieldType valueType, Map<?, ?> map, Type keyClass, Type valueClass) {
     Map newMap = Maps.newHashMap();
     for (Map.Entry<?, ?> entry : map.entrySet()) {
       Object key = fromValue(keyType, entry.getKey(), keyClass, null, null, null);

@@ -125,7 +125,7 @@ public class SchemaRegistryTest {
 
   static class TestSchemaClass {}
 
-  static final class TestAutoProvider extends SchemaProvider {
+  static final class TestAutoProvider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {

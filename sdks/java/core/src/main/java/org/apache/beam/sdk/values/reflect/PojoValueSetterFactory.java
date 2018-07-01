@@ -19,11 +19,13 @@
 package org.apache.beam.sdk.values.reflect;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 
+/** A factory for creating {@link FieldValueSetter} objects for a POJO. */
 public class PojoValueSetterFactory implements FieldValueSetterFactory {
   @Override
-  public List<FieldValueSetter> createSetters(Class<?> targetClass) {
-    return POJOUtils.getSetters(targetClass);
+  public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
+    return POJOUtils.getSetters(targetClass, schema);
   }
 }

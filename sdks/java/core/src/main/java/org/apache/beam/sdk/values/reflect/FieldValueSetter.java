@@ -27,38 +27,29 @@ import org.apache.beam.sdk.annotations.Internal;
  *
  * <p>An interface to set a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime to map Row fields back into
- * objet fields.
+ * <p>Implementations of this interface are generated at runtime to map Row fields back into objet
+ * fields.
  */
 @Internal
 public interface FieldValueSetter<ObjectT, ValueT> {
-  /**
-   * Sets the specified field on object to value.
-   */
+  /** Sets the specified field on object to value. */
   void set(ObjectT object, ValueT value);
 
-  /**
-   * Returns the name of the field.
-   */
+  /** Returns the name of the field. */
   String name();
 
-  /**
-   * Returns the field type.
-   */
+  /** Returns the field type. */
   Class type();
 
-  /**
-   * If the field is a container type, returns the element type.
-   */
-  @Nullable Type elementType();
+  /** If the field is a container type, returns the element type. */
+  @Nullable
+  Type elementType();
 
-  /**
-   * If the field is a map type, returns the key type.
-   */
-  @Nullable Type mapKeyType();
+  /** If the field is a map type, returns the key type. */
+  @Nullable
+  Type mapKeyType();
 
-  /**
-   * If the field is a map type, returns the key type.
-   */
-  @Nullable Type mapValueType();
+  /** If the field is a map type, returns the key type. */
+  @Nullable
+  Type mapValueType();
 }

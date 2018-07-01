@@ -19,7 +19,14 @@
 package org.apache.beam.sdk.values.reflect;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 
+/** A factory interface for creating {@link FieldValueGetter} objects corresponding to a class. */
 public interface FieldValueGetterFactory {
-  List<FieldValueGetter> createGetters(Class<?> targetClass);
+  /**
+   * Returns a list of {@link FieldValueGetter}s for the target class.
+   *
+   * <p>The returned list is ordered by the order of matching fields in the schema.
+   */
+  List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema);
 }

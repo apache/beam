@@ -28,8 +28,11 @@ import org.apache.beam.sdk.values.reflect.PojoValueGetterFactory;
 import org.apache.beam.sdk.values.reflect.PojoValueSetterFactory;
 
 /**
- * A {@link SchemaProvider} for Java POJO objects. This provider finds all public fields
- * // (recursively) in a Java object, and creates schemas and rows that bind to those fields.
+ * A {@link SchemaProvider} for Java POJO objects.
+ *
+ * <p>This provider finds all public fields (recursively) in a Java object, and creates schemas and
+ * rows that bind to those fields. The field order in the schema is not guaranteed to match the
+ * field order in the class.
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
@@ -40,11 +43,11 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
 
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
-      return new PojoValueGetterFactory();
+    return new PojoValueGetterFactory();
   }
 
   @Override
   public FieldValueSetterFactory fieldValueSetterFactory() {
-      return new PojoValueSetterFactory();
+    return new PojoValueSetterFactory();
   }
 }

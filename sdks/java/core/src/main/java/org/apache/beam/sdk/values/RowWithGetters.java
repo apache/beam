@@ -30,6 +30,13 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 
+/**
+ * A Concrete subclass of {@link Row} that delegates to a set of provided {@link FieldValueGetter}s.
+ *
+ * <p>This allows us to have {@link Row} objects for which the actual storage is in another object.
+ * For example, the user's type may be a POJO, in which case the provided getters will simple read
+ * the appropriate fields from the POJO.
+ */
 public class RowWithGetters extends Row {
   private FieldValueGetterFactory fieldValueGetterFactory;
   private Object getterTarget;
@@ -42,7 +49,7 @@ public class RowWithGetters extends Row {
     super(schema);
     this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
-    this.getters = fieldValueGetterFactory.createGetters(getterTarget.getClass());
+    this.getters = fieldValueGetterFactory.createGetters(getterTarget.getClass(), schema);
   }
 
   @Nullable
@@ -67,10 +74,10 @@ public class RowWithGetters extends Row {
   private Map<?, ?> getMapValue(FieldType keyType, FieldType valueType, Map<?, ?> fieldValue) {
     Map returnMap = Maps.newHashMap();
     for (Map.Entry<?, ?> entry : fieldValue.entrySet()) {
-      returnMap.put(getValue(keyType, entry.getKey(), null),
-          getValue(valueType, entry.getValue(), null));
+      returnMap.put(
+          getValue(keyType, entry.getKey(), null), getValue(valueType, entry.getValue(), null));
     }
-    return  returnMap;
+    return returnMap;
   }
 
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
@@ -79,14 +86,17 @@ public class RowWithGetters extends Row {
       return (T) new RowWithGetters(type.getRowSchema(), fieldValueGetterFactory, fieldValue);
     } else if (type.getTypeName().equals(TypeName.ARRAY)) {
       return cacheKey != null
-          ? (T) cachedLists.computeIfAbsent(cacheKey,
-          i -> getListValue(type.getCollectionElementType(), fieldValue))
+          ? (T)
+              cachedLists.computeIfAbsent(
+                  cacheKey, i -> getListValue(type.getCollectionElementType(), fieldValue))
           : (T) getListValue(type.getCollectionElementType(), fieldValue);
-    }  else if (type.getTypeName().equals(TypeName.MAP)) {
+    } else if (type.getTypeName().equals(TypeName.MAP)) {
       Map map = (Map) fieldValue;
       return cacheKey != null
-          ? (T) cachedMaps.computeIfAbsent(cacheKey,
-          i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue))
+          ? (T)
+              cachedMaps.computeIfAbsent(
+                  cacheKey,
+                  i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue))
           : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue);
     } else {
       return (T) fieldValue;
@@ -100,9 +110,7 @@ public class RowWithGetters extends Row {
 
   @Override
   public List<Object> getValues() {
-    return getters.stream()
-        .map(g -> g.get(getterTarget))
-        .collect(Collectors.toList());
+    return getters.stream().map(g -> g.get(getterTarget)).collect(Collectors.toList());
   }
 
   public List<FieldValueGetter> getGetters() {

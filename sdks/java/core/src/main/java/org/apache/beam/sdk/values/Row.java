@@ -63,21 +63,14 @@ public abstract class Row implements Serializable {
 
   // Abstract methods to be implemented by subclasses that handle object access.
 
-  /**
-   * Get value by field index, {@link ClassCastException} is thrown
-   * if schema doesn't match.
-   */
+  /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
   @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public abstract <T> T getValue(int fieldIdx);
 
-  /**
-   * Return the size of data fields.
-   */
+  /** Return the size of data fields. */
   public abstract int getFieldCount();
-  /**
-   * Return the list of data values.
-   */
+  /** Return the list of data values. */
   public abstract List<Object> getValues();
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
@@ -95,16 +88,16 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#BYTES} value by field name, {@link IllegalStateException} is thrown
-   * if schema doesn't match.
+   * Get a {@link TypeName#BYTES} value by field name, {@link IllegalStateException} is thrown if
+   * schema doesn't match.
    */
   public byte[] getBytes(String fieldName) {
     return getBytes(getSchema().indexOf(fieldName));
   }
 
   /**
-   * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown
-   * if schema doesn't match.
+   * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown if
+   * schema doesn't match.
    */
   public short getInt16(String fieldName) {
     return getInt16(getSchema().indexOf(fieldName));
@@ -206,17 +199,16 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#BYTES} value by field index, {@link ClassCastException} is thrown
-   * if schema doesn't match.
+   * Get a {@link TypeName#BYTES} value by field index, {@link ClassCastException} is thrown if
+   * schema doesn't match.
    */
   public byte[] getBytes(int idx) {
     return getValue(idx);
   }
 
   /**
-   * Get a {@link TypeName#INT16
-   * 16} value by field index, {@link ClassCastException} is thrown
-   * if schema doesn't match.
+   * Get a {@link TypeName#INT16 16} value by field index, {@link ClassCastException} is thrown if
+   * schema doesn't match.
    */
   public Short getInt16(int idx) {
     return getValue(idx);
@@ -311,15 +303,7 @@ public abstract class Row implements Serializable {
     return getValue(idx);
   }
 
-  /** Return the list of data values. */
-  public abstract List<Object> getValues();
-
-  @Nullable
-  public abstract List<BoundFieldValueGetter> getValueGetters();
-
-  /**
-   * Return {@link Schema} which describes the fields.
-   */
+  /** Return {@link Schema} which describes the fields. */
   public Schema getSchema() {
     return schema;
   }
@@ -356,12 +340,8 @@ public abstract class Row implements Serializable {
   /** Builder for {@link Row}. */
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
-<<<<<<< HEAD
     private boolean attached = false;
-    private List<FieldValueGetter> fieldValueGetters = Lists.newArrayList();
-=======
     private FieldValueGetterFactory fieldValueGetterFactory;
->>>>>>> 3736ad80bf... Introduce FieldValueGetterFactory.
     private Object getterTarget;
     private Schema schema;
 
@@ -393,32 +373,14 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-<<<<<<< HEAD
     public Builder attachValues(List<Object> values) {
       this.attached = true;
       return addValues(values);
     }
 
-    public Builder addFieldValueGetter(FieldValueGetter fieldValueGetter) {
-      this.fieldValueGetters.add(fieldValueGetter);
-      return this;
-    }
-
-    public Builder addFieldValueGetters(List<FieldValueGetter> fieldValueGetters) {
-      this.fieldValueGetters.addAll(fieldValueGetters);
-      return this;
-    }
-
-    public Builder addFieldValueGetters(FieldValueGetter... fieldValueGetters) {
-      return addFieldValueGetters(Arrays.asList(fieldValueGetters));
-    }
-
-    public Builder withObjectTarget(Object getterTarget) {
-=======
-    public Builder withFieldValueGetters(FieldValueGetterFactory fieldValueGetterFactory,
-                                         Object getterTarget) {
+    public Builder withFieldValueGetters(
+        FieldValueGetterFactory fieldValueGetterFactory, Object getterTarget) {
       this.fieldValueGetterFactory = fieldValueGetterFactory;
->>>>>>> 3736ad80bf... Introduce FieldValueGetterFactory.
       this.getterTarget = getterTarget;
       return this;
     }
@@ -593,13 +555,13 @@ public abstract class Row implements Serializable {
 
     public Row build() {
       checkNotNull(schema);
-      List<Object> values = attached ? this.values : verify(schema, this.values);
-      if (!values.isEmpty() && fieldValueGetterFactory != null ){
+      if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
         throw new IllegalArgumentException(("Cannot specify both values and getters."));
       }
-      if (!values.isEmpty()) {
+      if (!this.values.isEmpty()) {
+        List<Object> storageValues = attached ? this.values : verify(schema, this.values);
         checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, verify(schema, values));
+        return new RowWithStorage(schema, verify(schema, storageValues));
       } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
         return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
@@ -609,11 +571,8 @@ public abstract class Row implements Serializable {
     }
   }
 
-  /**
-   * Creates a {@link Row} from the list of values and {@link #getSchema()}.
-   */
-  public static <T> Collector<T, List<Object>, Row> toRow(
-      Schema schema) {
+  /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
+  public static <T> Collector<T, List<Object>, Row> toRow(Schema schema) {
     return Collector.of(
         () -> new ArrayList<>(schema.getFieldCount()),
         List::add,
@@ -624,14 +583,10 @@ public abstract class Row implements Serializable {
         values -> Row.withSchema(schema).addValues(values).build());
   }
 
-  /**
-   * Creates a new record filled with nulls.
-   */
+  /** Creates a new record filled with nulls. */
   public static Row nullRow(Schema schema) {
-    return
-        Row
-            .withSchema(schema)
-            .addValues(Collections.nCopies(schema.getFieldCount(), null))
-            .build();
+    return Row.withSchema(schema)
+        .addValues(Collections.nCopies(schema.getFieldCount(), null))
+        .build();
   }
 }

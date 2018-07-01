@@ -18,6 +18,12 @@
 
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -32,7 +38,13 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -40,96 +52,71 @@ import org.junit.Test;
 
 public class JavaFieldSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
+  static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
+  static final ByteBuffer BYTE_BUFFER =
+      ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
 
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class SimplePojo {
-    public String str;
-    public byte aByte;
-    public short aShort;
-    public int anInt;
-    public long aLong;
-    public boolean aBoolean;
-    public DateTime dateTime;
-    public Instant instant;
-    public byte[] bytes;
-    public ByteBuffer byteBuffer;
-    public BigDecimal bigDecimal;
-    public StringBuilder stringBuilder;
-
-    public SimplePojo() { }
-
-    public SimplePojo(String str, byte aByte, short aShort, int anInt, long aLong, boolean aBoolean,
-                      DateTime dateTime, Instant instant, byte[] bytes, BigDecimal bigDecimal,
-                      StringBuilder stringBuilder) {
-      this.str = str;
-      this.aByte = aByte;
-      this.aShort = aShort;
-      this.anInt = anInt;
-      this.aLong = aLong;
-      this.aBoolean = aBoolean;
-      this.dateTime = dateTime;
-      this.instant = instant;
-      this.bytes = bytes;
-      this.byteBuffer = ByteBuffer.wrap(bytes);
-      this.bigDecimal = bigDecimal;
-      this.stringBuilder = stringBuilder;
-    }
-  }
-
-  static final Schema SIMPLE_SCHEMA = Schema.builder()
-      .addStringField("str")
-      .addByteField("aByte")
-      .addInt16Field("aShort")
-      .addInt32Field("anInt")
-      .addInt64Field("aLong")
-      .addBooleanField("aBoolean")
-      .addDateTimeField("dateTime")
-      .addDateTimeField("instant")
-      .addByteArrayField("bytes")
-      .addByteArrayField("byteBuffer")
-      .addDecimalField("bigDecimal")
-      .addStringField("stringBuilder")
-      .build();
-
-  private SimplePojo createSimple(String name) {
-    return new SimplePojo(name, (byte) 1, (short) 2, 3, 4L,true,
-        DATE, DATE.toInstant(), BYTE_ARRAY, BigDecimal.ONE,
+  private SimplePOJO createSimple(String name) {
+    return new SimplePOJO(
+        name,
+        (byte) 1,
+        (short) 2,
+        3,
+        4L,
+        true,
+        DATE,
+        INSTANT,
+        BYTE_ARRAY,
+        BYTE_BUFFER,
+        BigDecimal.ONE,
         new StringBuilder(name).append("builder"));
   }
 
   private Row createSimpleRow(String name) {
-    return Row.withSchema(SIMPLE_SCHEMA)
-        .addValues(name, (byte) 1, (short) 2, 3, 4L, true, DATE, DATE, BYTE_ARRAY, BYTE_ARRAY,
-            BigDecimal.ONE, new StringBuilder(name).append("builder").toString()).build();
+    return Row.withSchema(SIMPLE_POJO_SCHEMA)
+        .addValues(
+            name,
+            (byte) 1,
+            (short) 2,
+            3,
+            4L,
+            true,
+            DATE,
+            INSTANT,
+            BYTE_ARRAY,
+            BYTE_BUFFER.array(),
+            BigDecimal.ONE,
+            new StringBuilder(name).append("builder").toString())
+        .build();
   }
 
   @Test
   public void testSchema() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    Schema schema = registry.getSchema(SimplePojo.class);
-    assertEquals(SIMPLE_SCHEMA, schema);
+    Schema schema = registry.getSchema(SimplePOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testToRow() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    SimplePojo pojo = createSimple("string");
-    Row row = registry.getToRowFunction(SimplePojo.class).apply(pojo);
+    SimplePOJO pojo = createSimple("string");
+    Row row = registry.getToRowFunction(SimplePOJO.class).apply(pojo);
 
     assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString(0));
-    assertEquals((byte) 1, row.getByte(1).byteValue());
-    assertEquals((short) 2, row.getInt16(2).shortValue());
-    assertEquals((int) 3, row.getInt32(3).intValue());
-    assertEquals((long) 4, row.getInt64(4).longValue());
-    assertEquals(true, row.getBoolean(5));
-    assertEquals(DATE, row.getDateTime(6));
-    assertEquals(DATE, row.getDateTime(7));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes(8));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes(9));
-    assertEquals(BigDecimal.ONE, row.getDecimal(10));
-    assertEquals("stringbuilder", row.getString(11));
+    assertEquals("string", row.getString("str"));
+    assertEquals((byte) 1, row.getByte("aByte"));
+    assertEquals((short) 2, row.getInt16("aShort"));
+    assertEquals((int) 3, row.getInt32("anInt"));
+    assertEquals((long) 4, row.getInt64("aLong"));
+    assertEquals(true, row.getBoolean("aBoolean"));
+    assertEquals(DATE, row.getDateTime("dateTime"));
+    assertEquals(INSTANT, row.getDateTime("instant").toInstant());
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
+    assertArrayEquals(BYTE_BUFFER.array(), row.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", row.getString("stringBuilder"));
   }
 
   @Test
@@ -137,7 +124,7 @@ public class JavaFieldSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Row row = createSimpleRow("string");
 
-    SimplePojo pojo = registry.getFromRowFunction(SimplePojo.class).apply(row);
+    SimplePOJO pojo = registry.getFromRowFunction(SimplePOJO.class).apply(row);
     assertEquals("string", pojo.str);
     assertEquals((byte) 1, pojo.aByte);
     assertEquals((short) 2, pojo.aShort);
@@ -145,9 +132,9 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, pojo.aLong);
     assertEquals(true, pojo.aBoolean);
     assertEquals(DATE, pojo.dateTime);
-    assertEquals(DATE.toInstant(), pojo.instant);
+    assertEquals(INSTANT, pojo.instant);
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes);
-    assertArrayEquals("not equal", BYTE_ARRAY, pojo.byteBuffer.array());
+    assertEquals(BYTE_BUFFER, pojo.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.bigDecimal);
     assertEquals("stringbuilder", pojo.stringBuilder.toString());
   }
@@ -155,54 +142,35 @@ public class JavaFieldSchemaTest {
   @Test
   public void testFromRowWithGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    SimplePojo pojo = createSimple("string");
-    Row row = registry.getToRowFunction(SimplePojo.class).apply(pojo);
+    SimplePOJO pojo = createSimple("string");
+    Row row = registry.getToRowFunction(SimplePOJO.class).apply(pojo);
     // Test that the fromRowFunction simply returns the original object back.
-    SimplePojo extracted = registry.getFromRowFunction(SimplePojo.class).apply(row);
+    SimplePOJO extracted = registry.getFromRowFunction(SimplePOJO.class).apply(row);
     assertSame(pojo, extracted);
   }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class RecursivePojo {
-    public String str;
-    public SimplePojo nested;
-
-    public RecursivePojo(String str, SimplePojo nested) {
-      this.str = str;
-      this.nested = nested;
-    }
-
-    public RecursivePojo() {
-    }
-  }
-  static final Schema RECURSIVE_SCHEMA = Schema.builder()
-      .addStringField("str")
-      .addRowField("nested", SIMPLE_SCHEMA)
-      .build();
 
   @Test
   public void testRecursiveGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(RECURSIVE_SCHEMA, registry.getSchema(RecursivePojo.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_POJO_SCHEMA, registry.getSchema(NestedPOJO.class));
 
-    RecursivePojo pojo = new RecursivePojo("str", createSimple("string"));
-    Row row = registry.getToRowFunction(RecursivePojo.class)
-        .apply(pojo);
+    NestedPOJO pojo = new NestedPOJO(createSimple("string"));
+    Row row = registry.getToRowFunction(NestedPOJO.class).apply(pojo);
 
-    assertEquals("str", row.getString("str"));
     Row nestedRow = row.getRow("nested");
-    assertEquals("string", nestedRow.getString(0));
-    assertEquals((byte) 1, nestedRow.getByte(1).byteValue());
-    assertEquals((short) 2, nestedRow.getInt16(2).shortValue());
-    assertEquals((int) 3, nestedRow.getInt32(3).intValue());
-    assertEquals((long) 4, nestedRow.getInt64(4).longValue());
-    assertEquals(true, nestedRow.getBoolean(5));
-    assertEquals(DATE, nestedRow.getDateTime(6));
-    assertEquals(DATE, nestedRow.getDateTime(7));
-    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes(8));
-    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes(9));
-    assertEquals(BigDecimal.ONE, nestedRow.getDecimal(10));
-    assertEquals("stringbuilder", nestedRow.getString(11));
+    assertEquals("string", nestedRow.getString("str"));
+    assertEquals((byte) 1, nestedRow.getByte("aByte"));
+    assertEquals((short) 2, nestedRow.getInt16("aShort"));
+    assertEquals((int) 3, nestedRow.getInt32("anInt"));
+    assertEquals((long) 4, nestedRow.getInt64("aLong"));
+    assertEquals(true, nestedRow.getBoolean("aBoolean"));
+    assertEquals(DATE, nestedRow.getDateTime("dateTime"));
+    assertEquals(INSTANT, nestedRow.getDateTime("instant").toInstant());
+    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
+    assertArrayEquals("not equal", BYTE_BUFFER.array(), nestedRow.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, nestedRow.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", nestedRow.getString("stringBuilder"));
   }
 
   @Test
@@ -211,12 +179,8 @@ public class JavaFieldSchemaTest {
 
     Row nestedRow = createSimpleRow("string");
 
-    Row row = Row.withSchema(RECURSIVE_SCHEMA)
-        .addValue("str")
-        .addValue(nestedRow)
-        .build();
-    RecursivePojo pojo = registry.getFromRowFunction(RecursivePojo.class).apply(row);
-    assertEquals("str", pojo.str);
+    Row row = Row.withSchema(NESTED_POJO_SCHEMA).addValue(nestedRow).build();
+    NestedPOJO pojo = registry.getFromRowFunction(NestedPOJO.class).apply(row);
     assertEquals("string", pojo.nested.str);
     assertEquals((byte) 1, pojo.nested.aByte);
     assertEquals((short) 2, pojo.nested.aShort);
@@ -224,45 +188,24 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, pojo.nested.aLong);
     assertEquals(true, pojo.nested.aBoolean);
     assertEquals(DATE, pojo.nested.dateTime);
-    assertEquals(DATE.toInstant(), pojo.nested.instant);
+    assertEquals(INSTANT, pojo.nested.instant);
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.nested.bytes);
-    assertArrayEquals("not equal", BYTE_ARRAY, pojo.nested.byteBuffer.array());
+    assertEquals(BYTE_BUFFER, pojo.nested.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.nested.bigDecimal);
     assertEquals("stringbuilder", pojo.nested.stringBuilder.toString());
   }
 
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class PrimitiveArrayPojo {
-    // Test every type of array parameter supported.
-    public List<String> strings;
-    public int[] integers;
-    public Long[] longs;
-
-    public PrimitiveArrayPojo(List<String> strings, int[] integers, Long[] longs) {
-      this.strings = strings;
-      this.integers = integers;
-      this.longs = longs;
-    }
-
-    public PrimitiveArrayPojo() {
-    }
-  }
-  static final Schema PRIMITIVE_ARRAY_SCHEMA = Schema.builder()
-      .addArrayField("strings", FieldType.STRING)
-      .addArrayField("integers", FieldType.INT32)
-      .addArrayField("longs", FieldType.INT64)
-      .build();
-
   @Test
   public void testPrimitiveArrayGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(PRIMITIVE_ARRAY_SCHEMA, registry.getSchema(PrimitiveArrayPojo.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        PRIMITIVE_ARRAY_POJO_SCHEMA, registry.getSchema(PrimitiveArrayPOJO.class));
 
     List<String> strList = ImmutableList.of("a", "b", "c");
     int[] intArray = {1, 2, 3, 4};
     Long[] longArray = {42L, 43L, 44L};
-    PrimitiveArrayPojo pojo = new PrimitiveArrayPojo(strList, intArray, longArray);
-    Row row = registry.getToRowFunction(PrimitiveArrayPojo.class).apply(pojo);
+    PrimitiveArrayPOJO pojo = new PrimitiveArrayPOJO(strList, intArray, longArray);
+    Row row = registry.getToRowFunction(PrimitiveArrayPOJO.class).apply(pojo);
     assertEquals(strList, row.getArray("strings"));
     assertEquals(Ints.asList(intArray), row.getArray("integers"));
     assertEquals(Arrays.asList(longArray), row.getArray("longs"));
@@ -276,47 +219,34 @@ public class JavaFieldSchemaTest {
   @Test
   public void testPrimitiveArraySetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    Row row = Row.withSchema(PRIMITIVE_ARRAY_SCHEMA)
-        .addArray("a", "b", "c", "d")
-        .addArray(1, 2, 3, 4)
-        .addArray(42L, 43L, 44L, 45L)
-        .build();
-    PrimitiveArrayPojo pojo = registry.getFromRowFunction(PrimitiveArrayPojo.class).apply(row);
-    assertEquals(row.getArray(0), pojo.strings);
-    assertEquals(row.getArray(1), Ints.asList(pojo.integers));
-    assertEquals(row.getArray(2), Arrays.asList(pojo.longs));
+    Row row =
+        Row.withSchema(PRIMITIVE_ARRAY_POJO_SCHEMA)
+            .addArray("a", "b", "c", "d")
+            .addArray(1, 2, 3, 4)
+            .addArray(42L, 43L, 44L, 45L)
+            .build();
+    PrimitiveArrayPOJO pojo = registry.getFromRowFunction(PrimitiveArrayPOJO.class).apply(row);
+    assertEquals(row.getArray("strings"), pojo.strings);
+    assertEquals(row.getArray("integers"), Ints.asList(pojo.integers));
+    assertEquals(row.getArray("longs"), Arrays.asList(pojo.longs));
   }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class RecursiveArrayPojo {
-    public List<SimplePojo> pojos;
-
-    public RecursiveArrayPojo(List<SimplePojo> pojos) {
-      this.pojos = pojos;
-    }
-
-    public RecursiveArrayPojo() {
-    }
-  }
-  static final Schema RECURSIVE_ARRAY_SCHEMA = Schema.builder()
-      .addArrayField("pojos", FieldType.row(SIMPLE_SCHEMA))
-      .build();
 
   @Test
   public void testRecursiveArrayGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(RECURSIVE_ARRAY_SCHEMA, registry.getSchema(RecursiveArrayPojo.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_ARRAY_POJO_SCHEMA, registry.getSchema(NestedArrayPOJO.class));
 
-    SimplePojo simple1 = createSimple("string1");
-    SimplePojo simple2 = createSimple("string2");
-    SimplePojo simple3 = createSimple("string3");
+    SimplePOJO simple1 = createSimple("string1");
+    SimplePOJO simple2 = createSimple("string2");
+    SimplePOJO simple3 = createSimple("string3");
 
-    RecursiveArrayPojo pojo = new RecursiveArrayPojo(Lists.newArrayList(simple1, simple2, simple3));
-    Row row = registry.getToRowFunction(RecursiveArrayPojo.class).apply(pojo);
+    NestedArrayPOJO pojo = new NestedArrayPOJO(simple1, simple2, simple3);
+    Row row = registry.getToRowFunction(NestedArrayPOJO.class).apply(pojo);
     List<Row> rows = row.getArray("pojos");
-    assertSame(simple1, registry.getFromRowFunction(RecursiveArrayPojo.class).apply(rows.get(0)));
-    assertSame(simple2, registry.getFromRowFunction(RecursiveArrayPojo.class).apply(rows.get(1)));
-    assertSame(simple3, registry.getFromRowFunction(RecursiveArrayPojo.class).apply(rows.get(2)));
+    assertSame(simple1, registry.getFromRowFunction(NestedArrayPOJO.class).apply(rows.get(0)));
+    assertSame(simple2, registry.getFromRowFunction(NestedArrayPOJO.class).apply(rows.get(1)));
+    assertSame(simple3, registry.getFromRowFunction(NestedArrayPOJO.class).apply(rows.get(2)));
   }
 
   @Test
@@ -325,96 +255,68 @@ public class JavaFieldSchemaTest {
 
     Row row1 = createSimpleRow("string1");
     Row row2 = createSimpleRow("string2");
-    Row row3 = createSimpleRow("string3");;
+    Row row3 = createSimpleRow("string3");
+    ;
 
-    Row row = Row.withSchema(RECURSIVE_ARRAY_SCHEMA)
-        .addArray(row1, row2, row3)
-        .build();
-    RecursiveArrayPojo pojo = registry.getFromRowFunction(RecursiveArrayPojo.class).apply(row);
-    assertEquals(3, pojo.pojos.size());
-    assertEquals("string1", pojo.pojos.get(0).str);
-    assertEquals("string2", pojo.pojos.get(1).str);
-    assertEquals("string3", pojo.pojos.get(2).str);
-
+    Row row = Row.withSchema(NESTED_ARRAY_POJO_SCHEMA).addArray(row1, row2, row3).build();
+    NestedArrayPOJO pojo = registry.getFromRowFunction(NestedArrayPOJO.class).apply(row);
+    assertEquals(3, pojo.pojos.length);
+    assertEquals("string1", pojo.pojos[0].str);
+    assertEquals("string2", pojo.pojos[1].str);
+    assertEquals("string3", pojo.pojos[2].str);
   }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class NestedArraysPojo {
-    public List<List<String>> lists;
-
-    public NestedArraysPojo(List<List<String>> lists) {
-      this.lists = lists;
-    }
-
-    public NestedArraysPojo() {
-    }
-  }
-  static final Schema NESTED_ARRAY_SCHEMA = Schema.builder()
-      .addArrayField("lists", FieldType.array(FieldType.STRING))
-      .build();
 
   @Test
   public void testNestedArraysGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(NESTED_ARRAY_SCHEMA, registry.getSchema(NestedArraysPojo.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_ARRAYS_POJO_SCHEMA, registry.getSchema(NestedArraysPOJO.class));
 
-    List<List<String>> listOfLists = Lists.newArrayList(
-        Lists.newArrayList("a", "b", "c"),
-        Lists.newArrayList("d", "e", "f"),
-        Lists.newArrayList("g", "h", "i"));
-    NestedArraysPojo pojo = new NestedArraysPojo(listOfLists);
-    Row row = registry.getToRowFunction(NestedArraysPojo.class).apply(pojo);
+    List<List<String>> listOfLists =
+        Lists.newArrayList(
+            Lists.newArrayList("a", "b", "c"),
+            Lists.newArrayList("d", "e", "f"),
+            Lists.newArrayList("g", "h", "i"));
+    NestedArraysPOJO pojo = new NestedArraysPOJO(listOfLists);
+    Row row = registry.getToRowFunction(NestedArraysPOJO.class).apply(pojo);
     assertEquals(listOfLists, row.getArray("lists"));
   }
 
   @Test
   public void testNestedArraysSetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    List<List<String>> listOfLists = Lists.newArrayList(
-        Lists.newArrayList("a", "b", "c"),
-        Lists.newArrayList("d", "e", "f"),
-        Lists.newArrayList("g", "h", "i"));
-    Row row = Row.withSchema(NESTED_ARRAY_SCHEMA)
-        .addArray(listOfLists)
-        .build();
-    NestedArraysPojo pojo = registry.getFromRowFunction(NestedArraysPojo.class).apply(row);
+    List<List<String>> listOfLists =
+        Lists.newArrayList(
+            Lists.newArrayList("a", "b", "c"),
+            Lists.newArrayList("d", "e", "f"),
+            Lists.newArrayList("g", "h", "i"));
+    Row row = Row.withSchema(NESTED_ARRAYS_POJO_SCHEMA).addArray(listOfLists).build();
+    NestedArraysPOJO pojo = registry.getFromRowFunction(NestedArraysPOJO.class).apply(row);
     assertEquals(listOfLists, pojo.lists);
   }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class MapPojo {
-    public Map<String, SimplePojo> map;
-
-    public MapPojo(Map<String, SimplePojo> map) {
-      this.map = map;
-    }
-
-    public MapPojo() {
-    }
-  }
-  static final Schema MAP_SCHEMA = Schema.builder()
-      .addMapField("map", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
-      .build();
 
   @Test
   public void testMapFieldGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(MAP_SCHEMA, registry.getSchema(MapPojo.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_MAP_POJO_SCHEMA, registry.getSchema(NestedMapPOJO.class));
 
-    SimplePojo simple1 = createSimple("string1");
-    SimplePojo simple2 = createSimple("string2");
-    SimplePojo simple3 = createSimple("string3");
+    SimplePOJO simple1 = createSimple("string1");
+    SimplePOJO simple2 = createSimple("string2");
+    SimplePOJO simple3 = createSimple("string3");
 
-    MapPojo pojo = new MapPojo(ImmutableMap.of(
-        "simple1",simple1 ,
-        "simple2", simple2,
-        "simple3", simple3));
-    Row row = registry.getToRowFunction(MapPojo.class).apply(pojo);
+    NestedMapPOJO pojo =
+        new NestedMapPOJO(
+            ImmutableMap.of(
+                "simple1", simple1,
+                "simple2", simple2,
+                "simple3", simple3));
+    Row row = registry.getToRowFunction(NestedMapPOJO.class).apply(pojo);
     Map<String, Row> extractedMap = row.getMap("map");
     assertEquals(3, extractedMap.size());
-    assertEquals("string1", extractedMap.get("simple1").getString(0));
-    assertEquals("string2", extractedMap.get("simple2").getString(0));
-    assertEquals("string3", extractedMap.get("simple3").getString(0));
+    assertEquals("string1", extractedMap.get("simple1").getString("str"));
+    assertEquals("string2", extractedMap.get("simple2").getString("str"));
+    assertEquals("string3", extractedMap.get("simple3").getString("str"));
   }
 
   @Test
@@ -424,13 +326,15 @@ public class JavaFieldSchemaTest {
     Row row1 = createSimpleRow("string1");
     Row row2 = createSimpleRow("string2");
     Row row3 = createSimpleRow("string3");
-    Row row = Row.withSchema(MAP_SCHEMA)
-        .addValue(ImmutableMap.of(
-            "simple1", row1,
-            "simple2", row2,
-            "simple3", row3))
-        .build();
-    MapPojo pojo = registry.getFromRowFunction(MapPojo.class).apply(row);
+    Row row =
+        Row.withSchema(NESTED_MAP_POJO_SCHEMA)
+            .addValue(
+                ImmutableMap.of(
+                    "simple1", row1,
+                    "simple2", row2,
+                    "simple3", row3))
+            .build();
+    NestedMapPOJO pojo = registry.getFromRowFunction(NestedMapPOJO.class).apply(row);
     assertEquals(3, pojo.map.size());
     assertEquals("string1", pojo.map.get("simple1").str);
     assertEquals("string2", pojo.map.get("simple2").str);

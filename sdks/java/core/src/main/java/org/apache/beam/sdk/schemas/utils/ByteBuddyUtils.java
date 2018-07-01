@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,12 +59,13 @@ import org.joda.time.ReadableInstant;
 class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
   private static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
-  private static ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
-  private static ForLoadedType BYTE_BUFFER_TYPE = new ForLoadedType(ByteBuffer.class);
-  private static ForLoadedType CHAR_SEQUENCE_TYPE = new ForLoadedType(CharSequence.class);
-  private static ForLoadedType DATE_TIME_TYPE = new ForLoadedType(DateTime.class);
-  private static ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
-  private static ForLoadedType READABLE_INSTANT_TYPE = new ForLoadedType(ReadableInstant.class);
+  private static final ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
+  private static final ForLoadedType BYTE_BUFFER_TYPE = new ForLoadedType(ByteBuffer.class);
+  private static final ForLoadedType CHAR_SEQUENCE_TYPE = new ForLoadedType(CharSequence.class);
+  private static final ForLoadedType DATE_TIME_TYPE = new ForLoadedType(DateTime.class);
+  private static final ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
+  private static final ForLoadedType READABLE_INSTANT_TYPE =
+      new ForLoadedType(ReadableInstant.class);
 
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
@@ -71,7 +73,8 @@ class ByteBuddyUtils {
       ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic getterGenericType =
         TypeDescription.Generic.Builder.parameterizedType(
-            FieldValueGetter.class, objectType, fieldType).build();
+                FieldValueGetter.class, objectType, fieldType)
+            .build();
     return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
   }
 
@@ -81,14 +84,16 @@ class ByteBuddyUtils {
       ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic setterGenericType =
         TypeDescription.Generic.Builder.parameterizedType(
-            FieldValueSetter.class, objectType, fieldType).build();
+                FieldValueSetter.class, objectType, fieldType)
+            .build();
     return (DynamicType.Builder<FieldValueSetter>) byteBuddy.subclass(setterGenericType);
   }
 
+  // Base class used below to convert types.
   abstract static class TypeConversion<T> {
     public T convert(TypeDescriptor typeDescriptor) {
-      if (typeDescriptor.isArray() &&
-          !typeDescriptor.getComponentType().getRawType().equals(byte.class)) {
+      if (typeDescriptor.isArray()
+          && !typeDescriptor.getComponentType().getRawType().equals(byte.class)) {
         // Byte arrays are special, so leave those alone.
         return convertArray(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
@@ -108,19 +113,40 @@ class ByteBuddyUtils {
       }
     }
 
-    abstract protected <I> T convertArray(TypeDescriptor<?> type);
-    abstract protected T convertCollection(TypeDescriptor<?> type);
-    abstract protected T convertMap(TypeDescriptor<?> type);
-    abstract protected T convertDateTime(TypeDescriptor<?> type);
-    abstract protected T convertByteBuffer(TypeDescriptor<?> type);
-    abstract protected T convertCharSequence(TypeDescriptor<?> type);
-    abstract protected T convertPrimitive(TypeDescriptor<?> type);
-    abstract protected T convertDefault(TypeDescriptor<?> type);
+    protected abstract <I> T convertArray(TypeDescriptor<?> type);
+
+    protected abstract T convertCollection(TypeDescriptor<?> type);
+
+    protected abstract T convertMap(TypeDescriptor<?> type);
+
+    protected abstract T convertDateTime(TypeDescriptor<?> type);
+
+    protected abstract T convertByteBuffer(TypeDescriptor<?> type);
+
+    protected abstract T convertCharSequence(TypeDescriptor<?> type);
+
+    protected abstract T convertPrimitive(TypeDescriptor<?> type);
+
+    protected abstract T convertDefault(TypeDescriptor<?> type);
   }
 
   /**
-   * Give a Java type, returns the Java type expected for use with Row. For example, both
-   * {@link StringBuffer} and {@link String} are represented as a {@link String} in Row.
+   * Give a Java type, returns the Java type expected for use with Row. For example, both {@link
+   * StringBuffer} and {@link String} are represented as a {@link String} in Row. This determines
+   * what the return type of the getter will be. For instance, the following POJO class:
+   *
+   * <pre><code>
+   * class POJO {
+   *   StringBuffer str;
+   *   int[] array;
+   * }
+   * </code></pre>
+   *
+   * Generates the following getters:
+   *
+   * <pre><code>{@literal FieldValueGetter<POJO, String>}</code></pre>
+   *
+   * <pre><code>{@literal FieldValueGetter<POJO, List<Integer>>}</code></pre>
    */
   static class ConvertType extends TypeConversion<Type> {
     @Override
@@ -128,8 +154,8 @@ class ByteBuddyUtils {
     protected <I> Type convertArray(TypeDescriptor<?> type) {
       TypeDescriptor componentType =
           TypeDescriptor.of(ClassUtils.primitiveToWrapper(type.getComponentType().getRawType()));
-      TypeDescriptor token = new TypeDescriptor<List<I>>() {}
-      .where(new TypeParameter<I>() {}, componentType);
+      TypeDescriptor token =
+          new TypeDescriptor<List<I>>() {}.where(new TypeParameter<I>() {}, componentType);
       return token.getType();
     }
 
@@ -170,13 +196,14 @@ class ByteBuddyUtils {
   }
 
   /**
-   * Takes a {@link StackManipulation} that returns a value. Prepares this value to be returned
-   * by a getter. {@link org.apache.beam.sdk.values.Row} needs getters to return specific types,
-   * but we allow user objects to contain different but equivalent types. Therefore we must convert
-   * some of these types before returning. These conversions correspond to the ones defined in
-   * {@link ConvertType}. This class generates the code to do these conversion.
+   * Takes a {@link StackManipulation} that returns a value. Prepares this value to be returned by a
+   * getter. {@link org.apache.beam.sdk.values.Row} needs getters to return specific types, but we
+   * allow user objects to contain different but equivalent types. Therefore we must convert some of
+   * these types before returning. These conversions correspond to the ones defined in {@link
+   * ConvertType}. This class generates the code to do these conversion.
    */
   static class ConvertValueForGetter extends TypeConversion<StackManipulation> {
+    // The code that reads the value.
     private StackManipulation readValue;
 
     ConvertValueForGetter(StackManipulation readValue) {
@@ -185,28 +212,35 @@ class ByteBuddyUtils {
 
     @Override
     protected <I> StackManipulation convertArray(TypeDescriptor<?> type) {
+      // Generate the following code:
+      // return isComponentTypePrimitive ? Arrays.asList(ArrayUtils.toObject(value))
+      //     : Arrays.asList(value);
+
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-        // return isComponentTypePrimitive ? Arrays.asList(ArrayUtils.toObject(value))
-        //     : Arrays.asList(value);
-        StackManipulation stackManipulation = readValue;
-        // Row always expects to get an Iterable back for array types. Wrap this array into a
-        // List using Arrays.asList before returning.
-        if (loadedType.getComponentType().isPrimitive()) {
-          // Arrays.asList doesn't take primitive arrays, so convert first using ArrayUtils.toObject.
-          stackManipulation = new Compound(
-              stackManipulation,
-              MethodInvocation.invoke(ARRAY_UTILS_TYPE.getDeclaredMethods()
-                  .filter(ElementMatchers.isStatic()
-                      .and(ElementMatchers.named("toObject"))
-                      .and(ElementMatchers.takesArguments(loadedType)))
+      StackManipulation stackManipulation = readValue;
+      // Row always expects to get an Iterable back for array types. Wrap this array into a
+      // List using Arrays.asList before returning.
+      if (loadedType.getComponentType().isPrimitive()) {
+        // Arrays.asList doesn't take primitive arrays, so convert first using ArrayUtils.toObject.
+        stackManipulation =
+            new Compound(
+                stackManipulation,
+                MethodInvocation.invoke(
+                    ARRAY_UTILS_TYPE
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isStatic()
+                                .and(ElementMatchers.named("toObject"))
+                                .and(ElementMatchers.takesArguments(loadedType)))
+                        .getOnly()));
+      }
+      return new Compound(
+          stackManipulation,
+          MethodInvocation.invoke(
+              ARRAYS_TYPE
+                  .getDeclaredMethods()
+                  .filter(ElementMatchers.isStatic().and(ElementMatchers.named("asList")))
                   .getOnly()));
-        }
-        return new Compound(
-            stackManipulation,
-            MethodInvocation.invoke(
-                ARRAYS_TYPE.getDeclaredMethods()
-                    .filter(ElementMatchers.isStatic().and(ElementMatchers.named("asList")))
-                    .getOnly()));
     }
 
     @Override
@@ -221,10 +255,13 @@ class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
+      // If the class type is a ReadableDateTime, then return it.
       if (ReadableDateTime.class.isAssignableFrom(type.getRawType())) {
         return readValue;
       }
-      // return new DateTime(value.getMillis());
+      // Otherwise, generate the following code:
+      //   return new DateTime(value.getMillis());
+
       return new StackManipulation.Compound(
           // Create a new instance of the target type.
           TypeCreation.of(DATE_TIME_TYPE),
@@ -232,42 +269,55 @@ class ByteBuddyUtils {
           readValue,
           TypeCasting.to(READABLE_INSTANT_TYPE),
           // Call ReadableInstant.getMillis to extract the millis since the epoch.
-          MethodInvocation.invoke(READABLE_INSTANT_TYPE
-              .getDeclaredMethods()
-              .filter(ElementMatchers.named("getMillis"))
-              .getOnly()),
-          // Construct a DateTime object contaiing
-          MethodInvocation.invoke(DATE_TIME_TYPE
-              .getDeclaredMethods()
-              .filter(ElementMatchers.isConstructor()
-                  .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
-              .getOnly()));
+          MethodInvocation.invoke(
+              READABLE_INSTANT_TYPE
+                  .getDeclaredMethods()
+                  .filter(ElementMatchers.named("getMillis"))
+                  .getOnly()),
+          // Construct a DateTime object containing the millis.
+          MethodInvocation.invoke(
+              DATE_TIME_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.isConstructor()
+                          .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
+                  .getOnly()));
     }
 
     @Override
     protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
+      // Generate the following code:
       // return value.array();
+
       // We must extract the array from the ByteBuffer before returning.
       // NOTE: we only support array-backed byte buffers in these POJOs. Others (e.g. mmaped
       // files) are not supported.
       return new Compound(
           readValue,
-          MethodInvocation.invoke(BYTE_BUFFER_TYPE.getDeclaredMethods()
-              .filter(ElementMatchers.named("array")
-                  .and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
-              .getOnly()));    }
+          MethodInvocation.invoke(
+              BYTE_BUFFER_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("array").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
 
     @Override
     protected StackManipulation convertCharSequence(TypeDescriptor<?> type) {
-        if (type.isSubtypeOf(TypeDescriptor.of(String.class))) {
+      // If the member is a String, then return it.
+      if (type.isSubtypeOf(TypeDescriptor.of(String.class))) {
         return readValue;
       }
+
+      // Otherwise, generate the following code:
       // return value.toString();
       return new Compound(
           readValue,
-          MethodInvocation.invoke(CHAR_SEQUENCE_TYPE.getDeclaredMethods()
-              .filter(ElementMatchers.named("toString"))
-              .getOnly()));
+          MethodInvocation.invoke(
+              CHAR_SEQUENCE_TYPE
+                  .getDeclaredMethods()
+                  .filter(ElementMatchers.named("toString"))
+                  .getOnly()));
     }
 
     @Override
@@ -277,9 +327,7 @@ class ByteBuddyUtils {
       return new Compound(
           readValue,
           Assigner.DEFAULT.assign(
-              loadedType.asGenericType(),
-              loadedType.asBoxed().asGenericType(),
-              Typing.STATIC));
+              loadedType.asGenericType(), loadedType.asBoxed().asGenericType(), Typing.STATIC));
     }
 
     @Override
@@ -289,10 +337,10 @@ class ByteBuddyUtils {
   }
 
   /**
-   * Row is going to call the setter with its internal Java type, however the user object being
-   * set might have a different type internally. For example, Row will be calling set with a
-   * {@link String} type (for string fields), but the user type might have a {@link StringBuffer}
-   * member there. This class generates code to convert between these types.
+   * Row is going to call the setter with its internal Java type, however the user object being set
+   * might have a different type internally. For example, Row will be calling set with a {@link
+   * String} type (for string fields), but the user type might have a {@link StringBuffer} member
+   * there. This class generates code to convert between these types.
    */
   static class ConvertValueForSetter extends TypeConversion<StackManipulation> {
     StackManipulation readValue;
@@ -303,62 +351,80 @@ class ByteBuddyUtils {
 
     @Override
     protected <I> StackManipulation convertArray(TypeDescriptor<?> type) {
-      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      // Generate the following code:
       // T[] toArray = (T[]) value.toArray(new T[0]);
       // return isPrimitive ? toArray : ArrayUtils.toPrimitive(toArray);
+
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       // The type of the array containing the (possibly) boxed values.
       TypeDescription arrayType =
-          TypeDescription.Generic.Builder.rawType(
-              loadedType.getComponentType().asBoxed()).asArray().build().asErasure();
+          TypeDescription.Generic.Builder.rawType(loadedType.getComponentType().asBoxed())
+              .asArray()
+              .build()
+              .asErasure();
 
       // Extract an array from the collection.
-      StackManipulation stackManipulation = new Compound(
-          readValue,
-          TypeCasting.to(LIST_TYPE),
-          // Call Collection.toArray(T[[]) to extract the array. Push new T[0] on the stack before
-          // calling toArray.
-          ArrayFactory.forType(loadedType.getComponentType().asBoxed().asGenericType())
-              .withValues(Collections.emptyList()),
-          MethodInvocation.invoke(LIST_TYPE
-              .getDeclaredMethods()
-              .filter(ElementMatchers.named("toArray")
-                  .and(ElementMatchers.takesArguments(1)))
-              .getOnly()),
-          // Cast the result to T[].
-          TypeCasting.to(arrayType));
+      StackManipulation stackManipulation =
+          new Compound(
+              readValue,
+              TypeCasting.to(LIST_TYPE),
+              // Call Collection.toArray(T[[]) to extract the array. Push new T[0] on the stack
+              // before
+              // calling toArray.
+              ArrayFactory.forType(loadedType.getComponentType().asBoxed().asGenericType())
+                  .withValues(Collections.emptyList()),
+              MethodInvocation.invoke(
+                  LIST_TYPE
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("toArray").and(ElementMatchers.takesArguments(1)))
+                      .getOnly()),
+              // Cast the result to T[].
+              TypeCasting.to(arrayType));
 
       if (loadedType.getComponentType().isPrimitive()) {
         // The array we extract will be an array of objects. If the pojo field is an array of
         // primitive types, we need to then convert to an array of unboxed objects.
-        stackManipulation = new StackManipulation.Compound(
-            stackManipulation,
-            MethodInvocation.invoke(ARRAY_UTILS_TYPE
-                .getDeclaredMethods()
-                .filter(ElementMatchers.named("toPrimitive")
-                    .and(ElementMatchers.takesArguments(arrayType)))
-                .getOnly()));
+        stackManipulation =
+            new StackManipulation.Compound(
+                stackManipulation,
+                MethodInvocation.invoke(
+                    ARRAY_UTILS_TYPE
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.named("toPrimitive")
+                                .and(ElementMatchers.takesArguments(arrayType)))
+                        .getOnly()));
       }
       return stackManipulation;
     }
 
     @Override
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
+      if (!type.isSupertypeOf(TypeDescriptor.of(List.class))) {
+        throw new RuntimeException("Don't know how to generate a setter for " + type);
+      }
       return readValue;
     }
 
     @Override
     protected StackManipulation convertMap(TypeDescriptor<?> type) {
+      if (!type.isSupertypeOf(TypeDescriptor.of(AbstractMap.class))) {
+        throw new RuntimeException("Don't know how to generate a setter for " + type);
+      }
       return readValue;
     }
-
 
     @Override
     protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
       // The setter might be called with a different subclass of ReadableInstant than the one stored
       // in this POJO. We must extract the value passed into the setter and copy it into an instance
       // that the POJO can accept.
-      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+
+      // Generate the following code:
       // return new T(value.getMillis);
+
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       return new Compound(
           // Create a new instance of the target type.
           TypeCreation.of(loadedType),
@@ -367,42 +433,52 @@ class ByteBuddyUtils {
           readValue,
           TypeCasting.to(READABLE_INSTANT_TYPE),
           // Call ReadableInstant.getMillis to extract the millis since the epoch.
-          MethodInvocation.invoke(READABLE_INSTANT_TYPE
-              .getDeclaredMethods()
-              .filter(ElementMatchers.named("getMillis"))
-              .getOnly()),
+          MethodInvocation.invoke(
+              READABLE_INSTANT_TYPE
+                  .getDeclaredMethods()
+                  .filter(ElementMatchers.named("getMillis"))
+                  .getOnly()),
           // All subclasses of ReadableInstant contain a ()(long) constructor that takes in a millis
           // argument. Call that constructor of the field to initialize it.
-          MethodInvocation.invoke(loadedType
-              .getDeclaredMethods()
-              .filter(ElementMatchers.isConstructor()
-                  .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
-              .getOnly()));
+          MethodInvocation.invoke(
+              loadedType
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.isConstructor()
+                          .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
+                  .getOnly()));
     }
 
     @Override
     protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
+      // Generate the following code:
       // return ByteBuffer.wrap((byte[]) value);
+
       // We currently assume that a byte[] setter will always accept a parameter of type byte[].
       return new Compound(
-          readValue,   // Load the value.
-          TypeCasting.to(BYTE_ARRAY_TYPE),  // Cast to a byte[]
+          readValue, // Load the value.
+          TypeCasting.to(BYTE_ARRAY_TYPE), // Cast to a byte[]
           // Create a new ByteBuffer that wraps this byte[].
-          MethodInvocation.invoke(BYTE_BUFFER_TYPE
-              .getDeclaredMethods()
-              .filter(ElementMatchers.named("wrap")
-                  .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
-              .getOnly()));
+          MethodInvocation.invoke(
+              BYTE_BUFFER_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("wrap")
+                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
     }
 
     @Override
     protected StackManipulation convertCharSequence(TypeDescriptor<?> type) {
-      if (type.getRawType().isAssignableFrom(String.class))  {
+      // If the type is a String, just return it.
+      if (type.getRawType().isAssignableFrom(String.class)) {
         return readValue;
       }
 
+      // Otherwise, generate the following code:
+      // return new T((CharacterSequence) value).
+
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-      // return new T(value.toString()).
       return new StackManipulation.Compound(
           TypeCreation.of(loadedType),
           Duplication.SINGLE,
@@ -410,16 +486,19 @@ class ByteBuddyUtils {
           readValue,
           TypeCasting.to(CHAR_SEQUENCE_TYPE),
           // Create an element of the field type that wraps this one.
-          MethodInvocation.invoke(loadedType
-              .getDeclaredMethods()
-              .filter(ElementMatchers.isConstructor()
-                  .and(ElementMatchers.takesArguments(CHAR_SEQUENCE_TYPE)))
-              .getOnly()));
+          MethodInvocation.invoke(
+              loadedType
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.isConstructor()
+                          .and(ElementMatchers.takesArguments(CHAR_SEQUENCE_TYPE)))
+                  .getOnly()));
     }
 
     @Override
     protected StackManipulation convertPrimitive(TypeDescriptor<?> type) {
       ForLoadedType valueType = new ForLoadedType(type.getRawType());
+      // Unbox teh type.
       return new StackManipulation.Compound(
           readValue,
           Assigner.DEFAULT.assign(
@@ -430,10 +509,9 @@ class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertDefault(TypeDescriptor<?> type) {
-       return readValue;
+      return readValue;
     }
   }
-
 
   // If the Field is a container type, returns the element type. Otherwise returns a null reference.
   @SuppressWarnings("unchecked")

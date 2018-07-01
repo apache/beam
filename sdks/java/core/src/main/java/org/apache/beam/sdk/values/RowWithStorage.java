@@ -22,9 +22,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * Concrete subclass of {@link Row} that explicitly stores all fields of the row.
- */
+/** Concrete subclass of {@link Row} that explicitly stores all fields of the row. */
 public class RowWithStorage extends Row {
   private List<Object> values;
 
@@ -38,19 +36,19 @@ public class RowWithStorage extends Row {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T getValue(int fieldIdx) {
     if (values.size() > fieldIdx) {
-      return (T)values.get(fieldIdx);
+      return (T) values.get(fieldIdx);
     } else {
       throw new IllegalArgumentException("No field at index " + fieldIdx);
     }
   }
 
   @Override
-  public  List<Object> getValues() {
+  public List<Object> getValues() {
     return values;
   }
 
   @Override
   public int getFieldCount() {
-    return  values.size();
+    return values.size();
   }
 }

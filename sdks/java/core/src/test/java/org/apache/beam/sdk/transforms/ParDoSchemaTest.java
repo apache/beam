@@ -363,26 +363,28 @@ public class ParDoSchemaTest implements Serializable {
       this.integerField = integerField;
     }
 
-    public InferredPojo() {
-    }
+    public InferredPojo() {}
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesSchema.class})
   public void testInferredSchemaPipeline() {
-    List<InferredPojo> pojoList = Lists.newArrayList(
-        new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+    List<InferredPojo> pojoList =
+        Lists.newArrayList(
+            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
 
-    PCollection<String> output = pipeline
-        .apply(Create.of(pojoList))
-        .apply(ParDo.of(new DoFn<InferredPojo, String>() {
-          @ProcessElement
-          public void process(@Element Row row, OutputReceiver<String> r) {
-            r.output(row.getString(0) + ":" + row.getInt32(1));
-          }
-        }));
-    PAssert.that(output)
-        .containsInAnyOrder("a:1", "b:2", "c:3");
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<InferredPojo, String>() {
+                      @ProcessElement
+                      public void process(@Element Row row, OutputReceiver<String> r) {
+                        r.output(row.getString(0) + ":" + row.getInt32(1));
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
     pipeline.run();
   }
 }

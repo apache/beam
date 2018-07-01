@@ -19,11 +19,13 @@
 package org.apache.beam.sdk.values.reflect;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 
+/** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
 public class JavaBeanSetterFactory implements FieldValueSetterFactory {
   @Override
-  public List<FieldValueSetter> createSetters(Class<?> targetClass) {
-    return JavaBeanUtils.getSetters(targetClass);
+  public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getSetters(targetClass, schema);
   }
 }
