@@ -24,20 +24,11 @@ task cleanWebsite(type: Delete) {
 }
 clean.dependsOn cleanWebsite
 
-task installBundler(type: Exec) {
-  commandLine './install_bundler.sh'
-}
-
 task installGems(type: Exec) {
-  mustRunAfter cleanWebsite, installBundler
+  mustRunAfter cleanWebsite
   inputs.file 'Gemfile.lock'
   outputs.dir 'vendor'
   commandLine 'bundle', 'install', '--deployment'
-}
-
-// TODO(BEAM-4696): Remove this once we can run Jenkins jobs within Docker
-task setupJenkins {
-  dependsOn installBundler, installGems
 }
 
 task buildWebsite(type: Exec) {
