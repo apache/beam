@@ -119,11 +119,9 @@ class CommonJobProperties {
 
     context.wrappers {
       if (dockerImage) {
-        throw new UnsupportedOperationException(
-          '[INFRA-16524] Running jobs within Docker not yet supported.')
-        // buildInDocker {
-        //   image(dockerImage)
-        // }
+        buildInDocker {
+          image(dockerImage)
+        }
       }
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
