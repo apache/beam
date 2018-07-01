@@ -55,20 +55,6 @@
         <maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>apache.snapshots</id>
-            <name>Apache Development Snapshot Repository</name>
-            <url>https://repository.apache.org/content/repositories/snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <build>
         <plugins>
             <plugin>
@@ -183,52 +169,6 @@
             </dependencies>
         </profile>
 
-        <!--<profile>-->
-            <!--<id>apex-runner</id>-->
-            <!--&lt;!&ndash; Makes the ApexRunner available when running a pipeline. &ndash;&gt;-->
-            <!--<dependencies>-->
-                <!--<dependency>-->
-                    <!--<groupId>org.apache.beam</groupId>-->
-                    <!--<artifactId>beam-runners-apex</artifactId>-->
-                    <!--<version>${beam.version}</version>-->
-                    <!--<scope>runtime</scope>-->
-                <!--</dependency>-->
-                <!--&lt;!&ndash;-->
-                  <!--Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from-->
-                  <!--google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This-->
-                  <!--can be removed when the project no longer has a dependency on a different httpclient version.-->
-                <!--&ndash;&gt;-->
-                <!--<dependency>-->
-                    <!--<groupId>org.apache.httpcomponents</groupId>-->
-                    <!--<artifactId>httpclient</artifactId>-->
-                    <!--<version>4.3.6</version>-->
-                    <!--<scope>runtime</scope>-->
-                    <!--<exclusions>-->
-                        <!--<exclusion>-->
-                            <!--<groupId>commons-codec</groupId>-->
-                            <!--<artifactId>commons-codec</artifactId>-->
-                        <!--</exclusion>-->
-                    <!--</exclusions>-->
-                <!--</dependency>-->
-                <!--&lt;!&ndash;-->
-                  <!--Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match-->
-                  <!--what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.-->
-                <!--&ndash;&gt;-->
-                <!--<dependency>-->
-                    <!--<groupId>org.apache.hadoop</groupId>-->
-                    <!--<artifactId>hadoop-yarn-client</artifactId>-->
-                    <!--<version>${hadoop.version}</version>-->
-                    <!--<scope>runtime</scope>-->
-                <!--</dependency>-->
-                <!--<dependency>-->
-                    <!--<groupId>org.apache.hadoop</groupId>-->
-                    <!--<artifactId>hadoop-common</artifactId>-->
-                    <!--<version>${hadoop.version}</version>-->
-                    <!--<scope>runtime</scope>-->
-                <!--</dependency>-->
-            <!--</dependencies>-->
-        <!--</profile>-->
-
         <profile>
             <id>dataflow-runner</id>
             <!-- Makes the DataflowRunner available when running a pipeline. -->
@@ -335,30 +275,6 @@
             <groupId>org.apache.beam</groupId>
             <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
         </dependency>
-
-        <!--<dependency>-->
-            <!--<groupId>net.hydromatic</groupId>-->
-            <!--<artifactId>tpcds</artifactId>-->
-            <!--<version>0.4</version>-->
-        <!--</dependency>-->
-
-        <!--<dependency>-->
-            <!--<groupId>org.apache.calcite</groupId>-->
-            <!--<artifactId>calcite-plus</artifactId>-->
-            <!--<version>1.16.0</version>-->
-        <!--</dependency>-->
-
-        <!--<dependency>-->
-            <!--<groupId>org.apache.calcite</groupId>-->
-            <!--<artifactId>calcite-core</artifactId>-->
-            <!--<version>1.16.0</version>-->
-        <!--</dependency>-->
-
-        <!--<dependency>-->
-            <!--<groupId>org.apache.calcite.avatica</groupId>-->
-            <!--<artifactId>avatica-core</artifactId>-->
-            <!--<version>1.11.0</version>-->
-        <!--</dependency>-->
 
         <!-- Dependencies below this line are specific dependencies needed by the examples code. -->
         <dependency>
