@@ -18,106 +18,86 @@
 
 package org.apache.beam.sdk.schemas.utils;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
+/** A set of reflection helper methods. */
 public class ReflectUtils {
-  private static class MethodOffset implements Comparable<MethodOffset> {
-    MethodOffset(Method _method, int _offset) {
-      method=_method;
-      offset=_offset;
-    }
+  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newHashMap();
+  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
 
-    @Override
-    public int compareTo(MethodOffset target) {
-      return offset-target.offset;
-    }
-
-    Method method;
-    int offset;
+  /** Returns the list of public, non-static methods in the class, caching the results. */
+  static List<Method> getMethods(Class clazz) throws IOException {
+    return DECLARED_METHODS.computeIfAbsent(
+        clazz,
+        c -> {
+          return Arrays.stream(c.getDeclaredMethods())
+              .filter(m -> Modifier.isPublic(m.getModifiers()))
+              .filter(m -> !Modifier.isStatic(m.getModifiers()))
+              .collect(Collectors.toList());
+        });
   }
 
-  /**
-   * Attempt to return the list of declared methods in declaration order.
-   * The best we can do is return them in the order they are defined in the byte code, which is
-   * not guaranteed to be in declaration order. However, in practice this is good enough.
-   */
-   static Method[] getDeclaredMethodsInOrder(Class clazz) throws IOException {
-    Method[] methods = null;
-    String resource = clazz.getName().replace('.', '/') + ".class";
+  // Get all public, non-static, non-transient fields.
+  static List<Field> getFields(Class<?> clazz) {
+    return DECLARED_FIELDS.computeIfAbsent(
+        clazz,
+        c -> {
+          Map<String, Field> types = new LinkedHashMap<>();
+          do {
+            if (c.getPackage() != null && c.getPackage().getName().startsWith("java.")) {
+              break; // skip java built-in classes
+            }
+            for (java.lang.reflect.Field field : c.getDeclaredFields()) {
+              if ((field.getModifiers() & (Modifier.TRANSIENT | Modifier.STATIC)) == 0) {
+                if ((field.getModifiers() & Modifier.PUBLIC) != 0) {
+                  boolean nullable = field.getAnnotation(Nullable.class) != null;
+                  checkArgument(
+                      types.put(field.getName(), field) == null,
+                      c.getSimpleName() + " contains two fields named: " + field);
+                }
+              }
+            }
+            c = c.getSuperclass();
+          } while (c != null);
+          return Lists.newArrayList(types.values());
+        });
+  }
 
-    methods = clazz.getDeclaredMethods();
-
-    InputStream is = clazz.getClassLoader()
-        .getResourceAsStream(resource);
-
-    if (is == null) {
-      return methods;
+  static boolean isGetter(Method method) {
+    if (Void.TYPE.equals(method.getReturnType())) {
+      return false;
     }
-
-    java.util.Arrays.sort(methods, (a, b) -> b.getName().length() - a.getName().length());
-    ArrayList<byte[]> blocks = Lists.newArrayList();
-    int length = 0;
-    for (; ; ) {
-      byte[] block = new byte[16 * 1024];
-      int n = is.read(block);
-      if (n > 0) {
-        if (n < block.length) {
-          block = java.util.Arrays.copyOf(block, n);
-        }
-        length += block.length;
-        blocks.add(block);
-      } else {
-        break;
-      }
+    if (method.getName().startsWith("get") && method.getName().length() > 3) {
+      return true;
     }
+    return (method.getName().startsWith("is")
+        && method.getName().length() > 2
+        && (Boolean.TYPE.equals(method.getReturnType())
+            || Boolean.class.equals(method.getReturnType())));
+  }
 
-    byte[] data = new byte[length];
-    int offset = 0;
-    for (byte[] block : blocks) {
-      System.arraycopy(block, 0, data, offset, block.length);
-      offset += block.length;
-    }
+  static boolean isSetter(Method method) {
+    return Void.TYPE.equals(method.getReturnType()) && method.getName().startsWith("set");
+  }
 
-    String sdata = new String(data, java.nio.charset.Charset.forName("UTF-8"));
-    int lnt = sdata.indexOf("LineNumberTable");
-    if (lnt != -1) sdata = sdata.substring(lnt + "LineNumberTable".length() + 3);
-    int cde = sdata.lastIndexOf("SourceFile");
-    if (cde != -1) sdata = sdata.substring(0, cde);
+  static String stripPrefix(String methodName, String prefix) {
+    String firstLetter = methodName.substring(prefix.length(), prefix.length() + 1).toLowerCase();
 
-    MethodOffset mo[] = new MethodOffset[methods.length];
-
-
-    for (int i = 0; i < methods.length; ++i) {
-      int pos = -1;
-      for (; ; ) {
-        pos = sdata.indexOf(methods[i].getName(), pos);
-        if (pos == -1) break;
-        boolean subset = false;
-        for (int j = 0; j < i; ++j) {
-          if (mo[j].offset >= 0 &&
-              mo[j].offset <= pos &&
-              pos < mo[j].offset + mo[j].method.getName().length()) {
-            subset = true;
-            break;
-          }
-        }
-        if (subset) {
-          pos += methods[i].getName().length();
-        } else {
-          break;
-        }
-      }
-      mo[i] = new MethodOffset(methods[i], pos);
-    }
-    java.util.Arrays.sort(mo);
-    for (int i = 0; i < mo.length; ++i) {
-      methods[i] = mo[i].method;
-    }
-
-    return methods;
+    return (methodName.length() == prefix.length() + 1)
+        ? firstLetter
+        : (firstLetter + methodName.substring(prefix.length() + 1, methodName.length()));
   }
 }

@@ -37,18 +37,18 @@ public class RowCoder extends CustomCoder<Row> {
   // This contains a map of primitive types to their coders.
   static final ImmutableMap<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
-      .put(TypeName.BYTE, ByteCoder.of())
-      .put(TypeName.BYTES, ByteArrayCoder.of())
-      .put(TypeName.INT16, BigEndianShortCoder.of())
-      .put(TypeName.INT32, BigEndianIntegerCoder.of())
-      .put(TypeName.INT64, BigEndianLongCoder.of())
-      .put(TypeName.DECIMAL, BigDecimalCoder.of())
-      .put(TypeName.FLOAT, FloatCoder.of())
-      .put(TypeName.DOUBLE, DoubleCoder.of())
-      .put(TypeName.STRING, StringUtf8Coder.of())
-      .put(TypeName.DATETIME, InstantCoder.of())
-      .put(TypeName.BOOLEAN, BooleanCoder.of())
-      .build();
+          .put(TypeName.BYTE, ByteCoder.of())
+          .put(TypeName.BYTES, ByteArrayCoder.of())
+          .put(TypeName.INT16, BigEndianShortCoder.of())
+          .put(TypeName.INT32, BigEndianIntegerCoder.of())
+          .put(TypeName.INT64, BigEndianLongCoder.of())
+          .put(TypeName.DECIMAL, BigDecimalCoder.of())
+          .put(TypeName.FLOAT, FloatCoder.of())
+          .put(TypeName.DOUBLE, DoubleCoder.of())
+          .put(TypeName.STRING, StringUtf8Coder.of())
+          .put(TypeName.DATETIME, InstantCoder.of())
+          .put(TypeName.BOOLEAN, BooleanCoder.of())
+          .build();
 
   private static final ImmutableMap<TypeName, Integer> ESTIMATED_FIELD_SIZES =
       ImmutableMap.<TypeName, Integer>builder()

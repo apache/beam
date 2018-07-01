@@ -25,12 +25,12 @@ import org.apache.beam.sdk.annotations.Internal;
  *
  * <p>An interface to access a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime to map object fields to
- * Row fields.
+ * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
  */
 @Internal
 public interface FieldValueGetter<ObjectT, ValueT> {
   ValueT get(ObjectT object);
+
   String name();
 
   Class type();

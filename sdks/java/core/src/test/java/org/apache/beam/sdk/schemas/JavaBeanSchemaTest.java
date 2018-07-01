@@ -18,6 +18,12 @@
 
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_MAP_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -27,184 +33,63 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
-import org.joda.time.Instant;
 import org.junit.Test;
 
 public class JavaBeanSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
 
-  @DefaultSchema(JavaBeanSchema.class)
-  public static class SimpleBean {
-    private String str;
-    private byte aByte;
-    private short aShort;
-    private int anInt;
-    private long aLong;
-    private boolean aBoolean;
-    private DateTime dateTime;
-    private Instant instant;
-    private byte[] bytes;
-    private ByteBuffer byteBuffer;
-    private BigDecimal bigDecimal;
-    private StringBuilder stringBuilder;
-
-    public SimpleBean() { }
-
-    public SimpleBean(String str, byte aByte, short aShort, int anInt, long aLong, boolean aBoolean,
-                      DateTime dateTime, Instant instant, byte[] bytes, BigDecimal bigDecimal,
-                      StringBuilder stringBuilder) {
-      this.str = str;
-      this.aByte = aByte;
-      this.aShort = aShort;
-      this.anInt = anInt;
-      this.aLong = aLong;
-      this.aBoolean = aBoolean;
-      this.dateTime = dateTime;
-      this.instant = instant;
-      this.bytes = bytes;
-      this.byteBuffer = ByteBuffer.wrap(bytes);
-      this.bigDecimal = bigDecimal;
-      this.stringBuilder = stringBuilder;
-    }
-
-    public String getStr() {
-      return str;
-    }
-
-    public void setStr(String str) {
-      this.str = str;
-    }
-
-    public byte getaByte() {
-      return aByte;
-    }
-
-    public void setaByte(byte aByte) {
-      this.aByte = aByte;
-    }
-
-    public short getaShort() {
-      return aShort;
-    }
-
-    public void setaShort(short aShort) {
-      this.aShort = aShort;
-    }
-
-    public int getAnInt() {
-      return anInt;
-    }
-
-    public void setAnInt(int anInt) {
-      this.anInt = anInt;
-    }
-
-    public long getaLong() {
-      return aLong;
-    }
-
-    public void setaLong(long aLong) {
-      this.aLong = aLong;
-    }
-
-    public boolean isaBoolean() {
-      return aBoolean;
-    }
-
-    public void setaBoolean(boolean aBoolean) {
-      this.aBoolean = aBoolean;
-    }
-
-    public DateTime getDateTime() {
-      return dateTime;
-    }
-
-    public void setDateTime(DateTime dateTime) {
-      this.dateTime = dateTime;
-    }
-
-    public Instant getInstant() {
-      return instant;
-    }
-
-    public void setInstant(Instant instant) {
-      this.instant = instant;
-    }
-
-    public byte[] getBytes() {
-      return bytes;
-    }
-
-    public void setBytes(byte[] bytes) {
-      this.bytes = bytes;
-    }
-
-    public ByteBuffer getByteBuffer() {
-      return byteBuffer;
-    }
-
-    public void setByteBuffer(ByteBuffer byteBuffer) {
-      this.byteBuffer = byteBuffer;
-    }
-
-    public BigDecimal getBigDecimal() {
-      return bigDecimal;
-    }
-
-    public void setBigDecimal(BigDecimal bigDecimal) {
-      this.bigDecimal = bigDecimal;
-    }
-
-    public StringBuilder getStringBuilder() {
-      return stringBuilder;
-    }
-
-    public void setStringBuilder(StringBuilder stringBuilder) {
-      this.stringBuilder = stringBuilder;
-    }
-  }
-
-  static final Schema SIMPLE_SCHEMA = Schema.builder()
-      .addStringField("str")
-      .addByteField("aByte")
-      .addInt16Field("aShort")
-      .addInt32Field("anInt")
-      .addInt64Field("aLong")
-      .addBooleanField("aBoolean")
-      .addDateTimeField("dateTime")
-      .addDateTimeField("instant")
-      .addByteArrayField("bytes")
-      .addByteArrayField("byteBuffer")
-      .addDecimalField("bigDecimal")
-      .addStringField("stringBuilder")
-      .build();
-
   private SimpleBean createSimple(String name) {
-    return new SimpleBean(name, (byte) 1, (short) 2, 3, 4L,true,
-        DATE, DATE.toInstant(), BYTE_ARRAY, BigDecimal.ONE,
+    return new SimpleBean(
+        name,
+        (byte) 1,
+        (short) 2,
+        3,
+        4L,
+        true,
+        DATE,
+        DATE.toInstant(),
+        BYTE_ARRAY,
+        BigDecimal.ONE,
         new StringBuilder(name).append("builder"));
   }
 
   private Row createSimpleRow(String name) {
-    return Row.withSchema(SIMPLE_SCHEMA)
-        .addValues(name, (byte) 1, (short) 2, 3, 4L, true, DATE, DATE, BYTE_ARRAY, BYTE_ARRAY,
-            BigDecimal.ONE, new StringBuilder(name).append("builder").toString()).build();
+    return Row.withSchema(SIMPLE_BEAN_SCHEMA)
+        .addValues(
+            name,
+            (byte) 1,
+            (short) 2,
+            3,
+            4L,
+            true,
+            DATE,
+            DATE,
+            BYTE_ARRAY,
+            BYTE_ARRAY,
+            BigDecimal.ONE,
+            new StringBuilder(name).append("builder").toString())
+        .build();
   }
 
   @Test
   public void testSchema() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(SimpleBean.class);
-    assertEquals(SIMPLE_SCHEMA, schema);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
   }
 
   @Test
@@ -214,18 +99,18 @@ public class JavaBeanSchemaTest {
     Row row = registry.getToRowFunction(SimpleBean.class).apply(bean);
 
     assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString(0));
-    assertEquals((byte) 1, row.getByte(1).byteValue());
-    assertEquals((short) 2, row.getInt16(2).shortValue());
-    assertEquals((int) 3, row.getInt32(3).intValue());
-    assertEquals((long) 4, row.getInt64(4).longValue());
-    assertEquals(true, row.getBoolean(5));
-    assertEquals(DATE, row.getDateTime(6));
-    assertEquals(DATE, row.getDateTime(7));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes(8));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes(9));
-    assertEquals(BigDecimal.ONE, row.getDecimal(10));
-    assertEquals("stringbuilder", row.getString(11));
+    assertEquals("string", row.getString("str"));
+    assertEquals((byte) 1, row.getByte("aByte"));
+    assertEquals((short) 2, row.getInt16("aShort"));
+    assertEquals((int) 3, row.getInt32("anInt"));
+    assertEquals((long) 4, row.getInt64("aLong"));
+    assertEquals(true, row.getBoolean("aBoolean"));
+    assertEquals(DATE, row.getDateTime("dateTime"));
+    assertEquals(DATE, row.getDateTime("instant"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", row.getString("stringBuilder"));
   }
 
   @Test
@@ -258,63 +143,28 @@ public class JavaBeanSchemaTest {
     assertSame(bean, extracted);
   }
 
-  @DefaultSchema(JavaBeanSchema.class)
-  public static class RecursiveBrean {
-    private String str;
-    private SimpleBean nested;
-
-    public RecursiveBrean(String str, SimpleBean nested) {
-      this.str = str;
-      this.nested = nested;
-    }
-
-    public RecursiveBrean() {
-    }
-
-    public String getStr() {
-      return str;
-    }
-
-    public void setStr(String str) {
-      this.str = str;
-    }
-
-    public SimpleBean getNested() {
-      return nested;
-    }
-
-    public void setNested(SimpleBean nested) {
-      this.nested = nested;
-    }
-  }
-  static final Schema RECURSIVE_SCHEMA = Schema.builder()
-      .addStringField("str")
-      .addRowField("nested", SIMPLE_SCHEMA)
-      .build();
-
   @Test
   public void testRecursiveGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(RECURSIVE_SCHEMA, registry.getSchema(RecursiveBrean.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_BEAN_SCHEMA, registry.getSchema(NestedBean.class));
 
-    RecursiveBrean bean = new RecursiveBrean("str", createSimple("string"));
-    Row row = registry.getToRowFunction(RecursiveBrean.class)
-        .apply(bean);
+    NestedBean bean = new NestedBean(createSimple("string"));
+    Row row = registry.getToRowFunction(NestedBean.class).apply(bean);
 
-    assertEquals("str", row.getString("str"));
     Row nestedRow = row.getRow("nested");
-    assertEquals("string", nestedRow.getString(0));
-    assertEquals((byte) 1, nestedRow.getByte(1).byteValue());
-    assertEquals((short) 2, nestedRow.getInt16(2).shortValue());
-    assertEquals((int) 3, nestedRow.getInt32(3).intValue());
-    assertEquals((long) 4, nestedRow.getInt64(4).longValue());
-    assertEquals(true, nestedRow.getBoolean(5));
-    assertEquals(DATE, nestedRow.getDateTime(6));
-    assertEquals(DATE, nestedRow.getDateTime(7));
-    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes(8));
-    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes(9));
-    assertEquals(BigDecimal.ONE, nestedRow.getDecimal(10));
-    assertEquals("stringbuilder", nestedRow.getString(11));
+    assertEquals("string", nestedRow.getString("str"));
+    assertEquals((byte) 1, nestedRow.getByte("aByte"));
+    assertEquals((short) 2, nestedRow.getInt16("aShort"));
+    assertEquals((int) 3, nestedRow.getInt32("anInt"));
+    assertEquals((long) 4, nestedRow.getInt64("aLong"));
+    assertEquals(true, nestedRow.getBoolean("aBoolean"));
+    assertEquals(DATE, nestedRow.getDateTime("dateTime"));
+    assertEquals(DATE, nestedRow.getDateTime("instant"));
+    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
+    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, nestedRow.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", nestedRow.getString("stringBuilder"));
   }
 
   @Test
@@ -323,76 +173,27 @@ public class JavaBeanSchemaTest {
 
     Row nestedRow = createSimpleRow("string");
 
-    Row row = Row.withSchema(RECURSIVE_SCHEMA)
-        .addValue("str")
-        .addValue(nestedRow)
-        .build();
-    RecursiveBrean bean = registry.getFromRowFunction(RecursiveBrean.class).apply(row);
-    assertEquals("str", bean.str);
-    assertEquals("string", bean.nested.str);
-    assertEquals((byte) 1, bean.nested.aByte);
-    assertEquals((short) 2, bean.nested.aShort);
-    assertEquals((int) 3, bean.nested.anInt);
-    assertEquals((long) 4, bean.nested.aLong);
-    assertEquals(true, bean.nested.aBoolean);
-    assertEquals(DATE, bean.nested.dateTime);
-    assertEquals(DATE.toInstant(), bean.nested.instant);
-    assertArrayEquals("not equal", BYTE_ARRAY, bean.nested.bytes);
-    assertArrayEquals("not equal", BYTE_ARRAY, bean.nested.byteBuffer.array());
-    assertEquals(BigDecimal.ONE, bean.nested.bigDecimal);
-    assertEquals("stringbuilder", bean.nested.stringBuilder.toString());
+    Row row = Row.withSchema(NESTED_BEAN_SCHEMA).addValue(nestedRow).build();
+    NestedBean bean = registry.getFromRowFunction(NestedBean.class).apply(row);
+    assertEquals("string", bean.getNested().getStr());
+    assertEquals((byte) 1, bean.getNested().getaByte());
+    assertEquals((short) 2, bean.getNested().getaShort());
+    assertEquals((int) 3, bean.getNested().getAnInt());
+    assertEquals((long) 4, bean.getNested().getaLong());
+    assertEquals(true, bean.getNested().isaBoolean());
+    assertEquals(DATE, bean.getNested().getDateTime());
+    assertEquals(DATE.toInstant(), bean.getNested().getInstant());
+    assertArrayEquals("not equal", BYTE_ARRAY, bean.getNested().getBytes());
+    assertArrayEquals("not equal", BYTE_ARRAY, bean.getNested().getByteBuffer().array());
+    assertEquals(BigDecimal.ONE, bean.getNested().getBigDecimal());
+    assertEquals("stringbuilder", bean.getNested().getStringBuilder().toString());
   }
-
-  @DefaultSchema(JavaBeanSchema.class)
-  public static class PrimitiveArrayBean {
-    // Test every type of array parameter supported.
-    private List<String> strings;
-    private int[] integers;
-    private Long[] longs;
-
-    public PrimitiveArrayBean(List<String> strings, int[] integers, Long[] longs) {
-      this.strings = strings;
-      this.integers = integers;
-      this.longs = longs;
-    }
-
-    public PrimitiveArrayBean() {
-    }
-
-    public List<String> getStrings() {
-      return strings;
-    }
-
-    public void setStrings(List<String> strings) {
-      this.strings = strings;
-    }
-
-    public int[] getIntegers() {
-      return integers;
-    }
-
-    public void setIntegers(int[] integers) {
-      this.integers = integers;
-    }
-
-    public Long[] getLongs() {
-      return longs;
-    }
-
-    public void setLongs(Long[] longs) {
-      this.longs = longs;
-    }
-  }
-  static final Schema PRIMITIVE_ARRAY_SCHEMA = Schema.builder()
-      .addArrayField("strings", FieldType.STRING)
-      .addArrayField("integers", FieldType.INT32)
-      .addArrayField("longs", FieldType.INT64)
-      .build();
 
   @Test
   public void testPrimitiveArrayGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(PRIMITIVE_ARRAY_SCHEMA, registry.getSchema(PrimitiveArrayBean.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        PRIMITIVE_ARRAY_BEAN_SCHEMA, registry.getSchema(PrimitiveArrayBean.class));
 
     List<String> strList = ImmutableList.of("a", "b", "c");
     int[] intArray = {1, 2, 3, 4};
@@ -412,55 +213,34 @@ public class JavaBeanSchemaTest {
   @Test
   public void testPrimitiveArraySetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    Row row = Row.withSchema(PRIMITIVE_ARRAY_SCHEMA)
-        .addArray("a", "b", "c", "d")
-        .addArray(1, 2, 3, 4)
-        .addArray(42L, 43L, 44L, 45L)
-        .build();
+    Row row =
+        Row.withSchema(PRIMITIVE_ARRAY_BEAN_SCHEMA)
+            .addArray("a", "b", "c", "d")
+            .addArray(1, 2, 3, 4)
+            .addArray(42L, 43L, 44L, 45L)
+            .build();
     PrimitiveArrayBean bean = registry.getFromRowFunction(PrimitiveArrayBean.class).apply(row);
-    assertEquals(row.getArray(0), bean.strings);
-    assertEquals(row.getArray(1), Ints.asList(bean.integers));
-    assertEquals(row.getArray(2), Arrays.asList(bean.longs));
+    assertEquals(row.getArray("strings"), bean.getStrings());
+    assertEquals(row.getArray("integers"), Ints.asList(bean.getIntegers()));
+    assertEquals(row.getArray("longs"), Arrays.asList(bean.getLongs()));
   }
-
-  @DefaultSchema(JavaBeanSchema.class)
-  public static class RecursiveArrayBean {
-    private List<SimpleBean> beans;
-
-    public RecursiveArrayBean(List<SimpleBean> beans) {
-      this.beans = beans;
-    }
-
-    public RecursiveArrayBean() {
-    }
-
-    public List<SimpleBean> getBeans() {
-      return beans;
-    }
-
-    public void setBeans(List<SimpleBean> beans) {
-      this.beans = beans;
-    }
-  }
-  static final Schema RECURSIVE_ARRAY_SCHEMA = Schema.builder()
-      .addArrayField("beans", FieldType.row(SIMPLE_SCHEMA))
-      .build();
 
   @Test
   public void testRecursiveArrayGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(RECURSIVE_ARRAY_SCHEMA, registry.getSchema(RecursiveArrayBean.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_ARRAY_BEAN_SCHEMA, registry.getSchema(NestedArrayBean.class));
 
     SimpleBean simple1 = createSimple("string1");
     SimpleBean simple2 = createSimple("string2");
     SimpleBean simple3 = createSimple("string3");
 
-    RecursiveArrayBean bean = new RecursiveArrayBean(Lists.newArrayList(simple1, simple2, simple3));
-    Row row = registry.getToRowFunction(RecursiveArrayBean.class).apply(bean);
+    NestedArrayBean bean = new NestedArrayBean(simple1, simple2, simple3);
+    Row row = registry.getToRowFunction(NestedArrayBean.class).apply(bean);
     List<Row> rows = row.getArray("beans");
-    assertSame(simple1, registry.getFromRowFunction(RecursiveArrayBean.class).apply(rows.get(0)));
-    assertSame(simple2, registry.getFromRowFunction(RecursiveArrayBean.class).apply(rows.get(1)));
-    assertSame(simple3, registry.getFromRowFunction(RecursiveArrayBean.class).apply(rows.get(2)));
+    assertSame(simple1, registry.getFromRowFunction(NestedArrayBean.class).apply(rows.get(0)));
+    assertSame(simple2, registry.getFromRowFunction(NestedArrayBean.class).apply(rows.get(1)));
+    assertSame(simple3, registry.getFromRowFunction(NestedArrayBean.class).apply(rows.get(2)));
   }
 
   @Test
@@ -469,51 +249,28 @@ public class JavaBeanSchemaTest {
 
     Row row1 = createSimpleRow("string1");
     Row row2 = createSimpleRow("string2");
-    Row row3 = createSimpleRow("string3");;
+    Row row3 = createSimpleRow("string3");
+    ;
 
-    Row row = Row.withSchema(RECURSIVE_ARRAY_SCHEMA)
-        .addArray(row1, row2, row3)
-        .build();
-    RecursiveArrayBean bean = registry.getFromRowFunction(RecursiveArrayBean.class).apply(row);
-    assertEquals(3, bean.beans.size());
-    assertEquals("string1", bean.beans.get(0).str);
-    assertEquals("string2", bean.beans.get(1).str);
-    assertEquals("string3", bean.beans.get(2).str);
-
+    Row row = Row.withSchema(NESTED_ARRAY_BEAN_SCHEMA).addArray(row1, row2, row3).build();
+    NestedArrayBean bean = registry.getFromRowFunction(NestedArrayBean.class).apply(row);
+    assertEquals(3, bean.getBeans().length);
+    assertEquals("string1", bean.getBeans()[0].getStr());
+    assertEquals("string2", bean.getBeans()[1].getStr());
+    assertEquals("string3", bean.getBeans()[2].getStr());
   }
-
-  @DefaultSchema(JavaBeanSchema.class)
-  public static class NestedArraysBean {
-    private List<List<String>> lists;
-
-    public NestedArraysBean(List<List<String>> lists) {
-      this.lists = lists;
-    }
-
-    public NestedArraysBean() {
-    }
-
-    public List<List<String>> getLists() {
-      return lists;
-    }
-
-    public void setLists(List<List<String>> lists) {
-      this.lists = lists;
-    }
-  }
-  static final Schema NESTED_ARRAY_SCHEMA = Schema.builder()
-      .addArrayField("lists", FieldType.array(FieldType.STRING))
-      .build();
 
   @Test
   public void testNestedArraysGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(NESTED_ARRAY_SCHEMA, registry.getSchema(NestedArraysBean.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_ARRAYS_BEAM_SCHEMA, registry.getSchema(NestedArraysBean.class));
 
-    List<List<String>> listOfLists = Lists.newArrayList(
-        Lists.newArrayList("a", "b", "c"),
-        Lists.newArrayList("d", "e", "f"),
-        Lists.newArrayList("g", "h", "i"));
+    List<List<String>> listOfLists =
+        Lists.newArrayList(
+            Lists.newArrayList("a", "b", "c"),
+            Lists.newArrayList("d", "e", "f"),
+            Lists.newArrayList("g", "h", "i"));
     NestedArraysBean bean = new NestedArraysBean(listOfLists);
     Row row = registry.getToRowFunction(NestedArraysBean.class).apply(bean);
     assertEquals(listOfLists, row.getArray("lists"));
@@ -522,59 +279,38 @@ public class JavaBeanSchemaTest {
   @Test
   public void testNestedArraysSetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    List<List<String>> listOfLists = Lists.newArrayList(
-        Lists.newArrayList("a", "b", "c"),
-        Lists.newArrayList("d", "e", "f"),
-        Lists.newArrayList("g", "h", "i"));
-    Row row = Row.withSchema(NESTED_ARRAY_SCHEMA)
-        .addArray(listOfLists)
-        .build();
+    List<List<String>> listOfLists =
+        Lists.newArrayList(
+            Lists.newArrayList("a", "b", "c"),
+            Lists.newArrayList("d", "e", "f"),
+            Lists.newArrayList("g", "h", "i"));
+    Row row = Row.withSchema(NESTED_ARRAYS_BEAM_SCHEMA).addArray(listOfLists).build();
     NestedArraysBean bean = registry.getFromRowFunction(NestedArraysBean.class).apply(row);
-    assertEquals(listOfLists, bean.lists);
+    assertEquals(listOfLists, bean.getLists());
   }
-
-  @DefaultSchema(JavaBeanSchema.class)
-  public static class MapBean {
-    private Map<String, SimpleBean> map;
-
-    public MapBean(Map<String, SimpleBean> map) {
-      this.map = map;
-    }
-
-    public MapBean() {
-    }
-
-    public Map<String, SimpleBean> getMap() {
-      return map;
-    }
-
-    public void setMap(Map<String, SimpleBean> map) {
-      this.map = map;
-    }
-  }
-  static final Schema MAP_SCHEMA = Schema.builder()
-      .addMapField("map", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
-      .build();
 
   @Test
   public void testMapFieldGetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    assertEquals(MAP_SCHEMA, registry.getSchema(MapBean.class));
+    SchemaTestUtils.assertSchemaEquivalent(
+        NESTED_MAP_BEAN_SCHEMA, registry.getSchema(NestedMapBean.class));
 
     SimpleBean simple1 = createSimple("string1");
     SimpleBean simple2 = createSimple("string2");
     SimpleBean simple3 = createSimple("string3");
 
-    MapBean bean = new MapBean(ImmutableMap.of(
-        "simple1",simple1 ,
-        "simple2", simple2,
-        "simple3", simple3));
-    Row row = registry.getToRowFunction(MapBean.class).apply(bean);
+    NestedMapBean bean =
+        new NestedMapBean(
+            ImmutableMap.of(
+                "simple1", simple1,
+                "simple2", simple2,
+                "simple3", simple3));
+    Row row = registry.getToRowFunction(NestedMapBean.class).apply(bean);
     Map<String, Row> extractedMap = row.getMap("map");
     assertEquals(3, extractedMap.size());
-    assertEquals("string1", extractedMap.get("simple1").getString(0));
-    assertEquals("string2", extractedMap.get("simple2").getString(0));
-    assertEquals("string3", extractedMap.get("simple3").getString(0));
+    assertEquals("string1", extractedMap.get("simple1").getString("str"));
+    assertEquals("string2", extractedMap.get("simple2").getString("str"));
+    assertEquals("string3", extractedMap.get("simple3").getString("str"));
   }
 
   @Test
@@ -584,16 +320,18 @@ public class JavaBeanSchemaTest {
     Row row1 = createSimpleRow("string1");
     Row row2 = createSimpleRow("string2");
     Row row3 = createSimpleRow("string3");
-    Row row = Row.withSchema(MAP_SCHEMA)
-        .addValue(ImmutableMap.of(
-            "simple1", row1,
-            "simple2", row2,
-            "simple3", row3))
-        .build();
-    MapBean bean = registry.getFromRowFunction(MapBean.class).apply(row);
-    assertEquals(3, bean.map.size());
-    assertEquals("string1", bean.map.get("simple1").str);
-    assertEquals("string2", bean.map.get("simple2").str);
-    assertEquals("string3", bean.map.get("simple3").str);
+    Row row =
+        Row.withSchema(NESTED_MAP_BEAN_SCHEMA)
+            .addValue(
+                ImmutableMap.of(
+                    "simple1", row1,
+                    "simple2", row2,
+                    "simple3", row3))
+            .build();
+    NestedMapBean bean = registry.getFromRowFunction(NestedMapBean.class).apply(row);
+    assertEquals(3, bean.getMap().size());
+    assertEquals("string1", bean.getMap().get("simple1").getStr());
+    assertEquals("string2", bean.getMap().get("simple2").getStr());
+    assertEquals("string3", bean.getMap().get("simple3").getStr());
   }
 }

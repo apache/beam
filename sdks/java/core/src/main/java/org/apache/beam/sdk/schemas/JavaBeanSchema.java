@@ -28,8 +28,11 @@ import org.apache.beam.sdk.values.reflect.JavaBeanGetterFactory;
 import org.apache.beam.sdk.values.reflect.JavaBeanSetterFactory;
 
 /**
- * A {@link SchemaProvider} for Java Bean objects. This provider finds (recursively) all public
- * getters and setters in a Java object, and creates schemas and rows that bind to those fields.
+ * A {@link SchemaProvider} for Java Bean objects.
+ *
+ * <p>This provider finds (recursively) all public getters and setters in a Java object, and creates
+ * schemas and rows that bind to those fields. The field order in the schema is not guaranteed to
+ * match the method order in the class.
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanSchema extends GetterBasedSchemaProvider {

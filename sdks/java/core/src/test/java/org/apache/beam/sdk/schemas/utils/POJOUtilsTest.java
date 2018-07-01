@@ -18,179 +18,127 @@
 
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_COLLECTION_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_BOXED_FIELDS_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_BYTE_ARRAY_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_MAP_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedCollectionPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithBoxedFields;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithByteArray;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveMapPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 public class POJOUtilsTest {
-  public static class SimplePojo {
-    public String str;
-    public byte aByte;
-    public short aShort;
-    public int anInt;
-    public long aLong;
-    public boolean aBoolean;
-    public DateTime dateTime;
-    public byte[] bytes1;
-    public ByteBuffer bytes2;
-  }
-
-  static final Schema SIMPLE_SCHEMA = Schema.builder()
-      .addStringField("str")
-      .addByteField("aByte")
-      .addInt16Field("aShort")
-      .addInt32Field("anInt")
-      .addInt64Field("aLong")
-      .addBooleanField("aBoolean")
-      .addDateTimeField("dateTime")
-      .addByteArrayField("bytes1")
-      .addByteArrayField("bytes2")
-      .build();
+  static final DateTime DATE = DateTime.parse("1979-03-14");
+  static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();
+  static final byte[] BYTE_ARRAY = "byteArray".getBytes(Charset.defaultCharset());
+  static final ByteBuffer BYTE_BUFFER =
+      ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
 
   @Test
   public void testSimplePOJO() {
-    Schema schema = POJOUtils.schemaFromPojoClass(SimplePojo.class);
-    assertEquals(SIMPLE_SCHEMA, schema);
-  }
-
-  static class NestedPojo {
-    public int anInt;
-    public SimplePojo nested;
+    Schema schema = POJOUtils.schemaFromPojoClass(SimplePOJO.class);
+    assertEquals(SIMPLE_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedPOJO() {
-    Schema expected = Schema.builder()
-        .addInt32Field("anInt")
-        .addRowField("nested", SIMPLE_SCHEMA)
-        .build();
-    Schema schema = POJOUtils.schemaFromPojoClass(NestedPojo.class);
-    assertEquals(expected, schema);
-  }
-
-  static class PrimitiveArrayPojo {
-    public int anInt;
-    public String[] strings;
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedPOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(NESTED_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveArray() {
-    Schema expected = Schema.builder()
-        .addInt32Field("anInt")
-        .addArrayField("strings", FieldType.STRING)
-        .build();
-    Schema schema = POJOUtils.schemaFromPojoClass(PrimitiveArrayPojo.class);
-    assertEquals(expected, schema);
-  }
-
-  static class NestedArrayPojo {
-    public int anInt;
-    public SimplePojo[] simples;
+    Schema schema = POJOUtils.schemaFromPojoClass(PrimitiveArrayPOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_ARRAY_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedArray() {
-    Schema expected = Schema.builder()
-        .addInt32Field("anInt")
-        .addArrayField("simples", FieldType.row(SIMPLE_SCHEMA))
-        .build();
-    Schema schema = POJOUtils.schemaFromPojoClass(NestedArrayPojo.class);
-    assertEquals(expected, schema);
-  }
-
-  static class NestedCollectionPojo {
-    public int anInt;
-    public List<SimplePojo> simples;
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedArrayPOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(NESTED_ARRAY_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedCollection() {
-    Schema expected = Schema.builder()
-        .addInt32Field("anInt")
-        .addArrayField("simples", FieldType.row(SIMPLE_SCHEMA))
-        .build();
-    Schema schema = POJOUtils.schemaFromPojoClass(NestedCollectionPojo.class);
-    assertEquals(expected, schema);
-  }
-
-  static class PrimitiveMapPojo {
-    public int anInt;
-    public Map<String, Integer> map;
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedCollectionPOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(NESTED_COLLECTION_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveMap() {
-    Schema expected = Schema.builder()
-        .addInt32Field("anInt")
-        .addMapField("map", FieldType.STRING, FieldType.INT32)
-        .build();
-    Schema schema = POJOUtils.schemaFromPojoClass(PrimitiveMapPojo.class);
-    assertEquals(expected, schema);
-  }
-
-  static class NestedMapPojo {
-    public int anInt;
-    public Map<String, SimplePojo> map;
+    Schema schema = POJOUtils.schemaFromPojoClass(PrimitiveMapPOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_MAP_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedMap() {
-    Schema expected = Schema.builder()
-        .addInt32Field("anInt")
-        .addMapField("map", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
-        .build();
-    Schema schema = POJOUtils.schemaFromPojoClass(NestedMapPojo.class);
-    assertEquals(expected, schema);
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedMapPOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(NESTED_MAP_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testGeneratedSimpleGetters() {
-    SimplePojo simplePojo = new SimplePojo();
-    simplePojo.str = "field1";
-    simplePojo.aByte = 41;
-    simplePojo.aShort = 42;
-    simplePojo.anInt = 43;
-    simplePojo.aLong = 44;
-    simplePojo.aBoolean = true;
-    simplePojo.dateTime = DateTime.parse("1979-03-14");
-    simplePojo.bytes1 = "bytes1".getBytes(Charset.defaultCharset());
-    simplePojo.bytes2 = ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset()));
+    SimplePOJO simplePojo =
+        new SimplePOJO(
+            "field1",
+            (byte) 41,
+            (short) 42,
+            43,
+            44L,
+            true,
+            DATE,
+            INSTANT,
+            BYTE_ARRAY,
+            BYTE_BUFFER,
+            new BigDecimal(42),
+            new StringBuilder("stringBuilder"));
 
-    List<FieldValueGetter> getters = POJOUtils.getGetters(SimplePojo.class);
-    assertEquals(9, getters.size());
+    List<FieldValueGetter> getters = POJOUtils.getGetters(SimplePOJO.class, SIMPLE_POJO_SCHEMA);
+    assertEquals(12, getters.size());
     assertEquals("str", getters.get(0).name());
-
     assertEquals("field1", getters.get(0).get(simplePojo));
     assertEquals((byte) 41, getters.get(1).get(simplePojo));
     assertEquals((short) 42, getters.get(2).get(simplePojo));
     assertEquals((int) 43, getters.get(3).get(simplePojo));
     assertEquals((long) 44, getters.get(4).get(simplePojo));
     assertEquals(true, getters.get(5).get(simplePojo));
-    assertEquals(DateTime.parse("1979-03-14"), getters.get(6).get(simplePojo));
-    assertArrayEquals("Unexpected bytes",
-        "bytes1".getBytes(Charset.defaultCharset()),
-        (byte[]) getters.get(7).get(simplePojo));
-    assertArrayEquals("Unexpected bytes",
-        "bytes2".getBytes(Charset.defaultCharset()),
-        (byte[]) getters.get(8).get(simplePojo));
-
+    assertEquals(DATE, getters.get(6).get(simplePojo));
+    assertEquals(INSTANT, ((DateTime) getters.get(7).get(simplePojo)).toInstant());
+    assertArrayEquals("Unexpected bytes", BYTE_ARRAY, (byte[]) getters.get(8).get(simplePojo));
+    assertArrayEquals(
+        "Unexpected bytes", BYTE_BUFFER.array(), (byte[]) getters.get(9).get(simplePojo));
+    assertEquals(new BigDecimal(42), getters.get(10).get(simplePojo));
+    assertEquals("stringBuilder", getters.get(11).get(simplePojo));
   }
 
   @Test
   public void testGeneratedSimpleSetters() {
-    SimplePojo simplePojo = new SimplePojo();
-    List<FieldValueSetter> setters = POJOUtils.getSetters(SimplePojo.class);
-    assertEquals(9, setters.size());
+    SimplePOJO simplePojo = new SimplePOJO();
+    List<FieldValueSetter> setters = POJOUtils.getSetters(SimplePOJO.class, SIMPLE_POJO_SCHEMA);
+    assertEquals(12, setters.size());
 
     setters.get(0).set(simplePojo, "field1");
     setters.get(1).set(simplePojo, (byte) 41);
@@ -198,9 +146,12 @@ public class POJOUtilsTest {
     setters.get(3).set(simplePojo, (int) 43);
     setters.get(4).set(simplePojo, (long) 44);
     setters.get(5).set(simplePojo, true);
-    setters.get(6).set(simplePojo, DateTime.parse("1979-03-14"));
-    setters.get(7).set(simplePojo, "bytes1".getBytes(Charset.defaultCharset()));
-    setters.get(8).set(simplePojo, "bytes2".getBytes(Charset.defaultCharset()));
+    setters.get(6).set(simplePojo, DATE);
+    setters.get(7).set(simplePojo, INSTANT);
+    setters.get(8).set(simplePojo, BYTE_ARRAY);
+    setters.get(9).set(simplePojo, BYTE_BUFFER.array());
+    setters.get(10).set(simplePojo, new BigDecimal(42));
+    setters.get(11).set(simplePojo, "stringBuilder");
 
     assertEquals("field1", simplePojo.str);
     assertEquals((byte) 41, simplePojo.aByte);
@@ -208,32 +159,20 @@ public class POJOUtilsTest {
     assertEquals((int) 43, simplePojo.anInt);
     assertEquals((long) 44, simplePojo.aLong);
     assertEquals(true, simplePojo.aBoolean);
-    assertEquals(DateTime.parse("1979-03-14"), simplePojo.dateTime);
-    assertArrayEquals("Unexpected bytes",
-        "bytes1".getBytes(Charset.defaultCharset()),
-        simplePojo.bytes1);
-    assertEquals(ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset())),
-        simplePojo.bytes2);
-  }
-
-  public static class PojoWithBoxedFields {
-    public Byte aByte;
-    public Short aShort;
-    public Integer anInt;
-    public Long aLong;
-    public Boolean aBoolean;
+    assertEquals(DATE, simplePojo.dateTime);
+    assertEquals(INSTANT, simplePojo.instant);
+    assertArrayEquals("Unexpected bytes", BYTE_ARRAY, simplePojo.bytes);
+    assertEquals(BYTE_BUFFER, simplePojo.byteBuffer);
+    assertEquals(new BigDecimal(42), simplePojo.bigDecimal);
+    assertEquals("stringBuilder", simplePojo.stringBuilder.toString());
   }
 
   @Test
   public void testGeneratedSimpleBoxedGetters() {
-    PojoWithBoxedFields pojo = new PojoWithBoxedFields();
-    pojo.aByte = 41;
-    pojo.aShort = 42;
-    pojo.anInt = 43;
-    pojo.aLong = 44L;
-    pojo.aBoolean = true;
+    POJOWithBoxedFields pojo = new POJOWithBoxedFields((byte) 41, (short) 42, 43, 44L, true);
 
-    List<FieldValueGetter> getters = POJOUtils.getGetters(PojoWithBoxedFields.class);
+    List<FieldValueGetter> getters =
+        POJOUtils.getGetters(POJOWithBoxedFields.class, POJO_WITH_BOXED_FIELDS_SCHEMA);
     assertEquals((byte) 41, getters.get(0).get(pojo));
     assertEquals((short) 42, getters.get(1).get(pojo));
     assertEquals((int) 43, getters.get(2).get(pojo));
@@ -243,8 +182,9 @@ public class POJOUtilsTest {
 
   @Test
   public void testGeneratedSimpleBoxedSetters() {
-    PojoWithBoxedFields pojo = new PojoWithBoxedFields();
-    List<FieldValueSetter> setters = POJOUtils.getSetters(PojoWithBoxedFields.class);
+    POJOWithBoxedFields pojo = new POJOWithBoxedFields();
+    List<FieldValueSetter> setters =
+        POJOUtils.getSetters(POJOWithBoxedFields.class, POJO_WITH_BOXED_FIELDS_SCHEMA);
 
     setters.get(0).set(pojo, (byte) 41);
     setters.get(1).set(pojo, (short) 42);
@@ -259,19 +199,15 @@ public class POJOUtilsTest {
     assertEquals(true, pojo.aBoolean.booleanValue());
   }
 
-  public static class POJOWithByteArray {
-    public byte[] bytes1;
-    public ByteBuffer bytes2;
-  }
-
   @Test
   public void testGeneratedByteBufferSetters() {
     POJOWithByteArray pojo = new POJOWithByteArray();
-    List<FieldValueSetter> setters = POJOUtils.getSetters(POJOWithByteArray.class);
-    setters.get(0).set(pojo, "field1".getBytes(Charset.defaultCharset()));
-    setters.get(1).set(pojo, "field2".getBytes(Charset.defaultCharset()));
+    List<FieldValueSetter> setters =
+        POJOUtils.getSetters(POJOWithByteArray.class, POJO_WITH_BYTE_ARRAY_SCHEMA);
+    setters.get(0).set(pojo, BYTE_ARRAY);
+    setters.get(1).set(pojo, BYTE_BUFFER.array());
 
-    assertArrayEquals("not equal", "field1".getBytes(Charset.defaultCharset()), pojo.bytes1);
-    assertEquals(ByteBuffer.wrap("field2".getBytes(Charset.defaultCharset())), pojo.bytes2);
+    assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes1);
+    assertEquals(BYTE_BUFFER, pojo.bytes2);
   }
 }

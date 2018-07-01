@@ -44,10 +44,7 @@ class ByteBuddyUtils {
     return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
   }
 
-
-  /**
-   * Implements {@link FieldValueGetter#name()}.
-   */
+  /** Implements {@link FieldValueGetter#name()}. */
   static DynamicType.Builder<FieldValueGetter> implementNameGetter(
       DynamicType.Builder<FieldValueGetter> getterClassBuilder, String fieldName) {
 
