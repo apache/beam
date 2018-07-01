@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,11 +41,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
@@ -154,11 +154,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           BeamIOSinkRel.class.getSimpleName(),
           pinput);
       PCollection<Row> upstream = pinput.get(0);
-      Type windowType =
-          upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
-      if (!windowType.equals(GlobalWindow.class)) {
+      WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
+      if (!(windowingStrategy.getWindowFn() instanceof GlobalWindows)) {
         throw new UnsupportedOperationException(
-            "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
+            String.format(
+                "`ORDER BY` is only supported for %s, actual windowing strategy: %s",
+                GlobalWindows.class.getSimpleName(), windowingStrategy));
       }
 
       BeamSqlRowComparator comparator =
