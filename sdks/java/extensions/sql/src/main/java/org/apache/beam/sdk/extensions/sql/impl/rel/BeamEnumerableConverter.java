@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -71,6 +73,7 @@ import org.apache.calcite.rel.convert.ConverterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.joda.time.Duration;
+import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,14 +163,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static PipelineResult limitRun(
       PipelineOptions options,
       BeamRelNode node,
-      DoFn<Row, KV<String, Row>> collectDoFn,
       DoFn<KV<String, Row>, Void> limitCounterDoFn,
       LimitStateVar limitStateVar) {
     options.as(DirectOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
-    BeamSqlRelUtils.toPCollection(pipeline, node)
-        .apply(ParDo.of(collectDoFn))
-        .apply(ParDo.of(limitCounterDoFn));
+    PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
+    resultCollection.apply(ParDo.of(new LimitCollector())).apply(ParDo.of(limitCounterDoFn));
 
     PipelineResult result = pipeline.run();
 
@@ -207,7 +208,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Collector.globalValues.put(id, values);
 
     Pipeline pipeline = Pipeline.create(options);
-    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(new Collector()));
+    PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
+    resultCollection.apply(ParDo.of(new Collector()));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
@@ -233,7 +235,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     LimitCanceller.globalLimitArguments.put(id, limitCount);
     LimitCanceller.globalStates.put(id, limitStateVar);
     LimitCollector.globalValues.put(id, values);
-    limitRun(options, node, new LimitCollector(), new LimitCanceller(), limitStateVar);
+    limitRun(options, node, new LimitCanceller(), limitStateVar);
     LimitCanceller.globalLimitArguments.remove(id);
     LimitCanceller.globalStates.remove(id);
     LimitCollector.globalValues.remove(id);
@@ -276,6 +278,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   private static class LimitCollector extends DoFn<Row, KV<String, Row>> {
+
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
@@ -290,17 +293,18 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      Object[] input = context.element().getValues().toArray();
-      if (input.length == 1) {
-        values.add(input[0]);
+      Object[] avaticaRow = rowToAvatica(context.element());
+      if (avaticaRow.length == 1) {
+        values.add(avaticaRow[0]);
       } else {
-        values.add(input);
+        values.add(avaticaRow);
       }
       context.output(KV.of("DummyKey", context.element()));
     }
   }
 
   private static class Collector extends DoFn<Row, Void> {
+
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
@@ -315,12 +319,59 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      Object[] input = context.element().getValues().toArray();
-      if (input.length == 1) {
-        values.add(input[0]);
+      Object[] avaticaRow = rowToAvatica(context.element());
+      if (avaticaRow.length == 1) {
+        values.add(avaticaRow[0]);
       } else {
-        values.add(input);
+        values.add(avaticaRow);
       }
+    }
+  }
+
+  private static Object[] rowToAvatica(Row row) {
+    Schema schema = row.getSchema();
+    Object[] convertedColumns = new Object[schema.getFields().size()];
+    int i = 0;
+    for (Schema.Field field : schema.getFields()) {
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      ++i;
+    }
+    return convertedColumns;
+  }
+
+  private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
+    switch (type.getTypeName()) {
+      case DATETIME:
+        return ((ReadableInstant) beamValue).getMillis();
+      case BYTE:
+      case INT16:
+      case INT32:
+      case INT64:
+      case DECIMAL:
+      case FLOAT:
+      case DOUBLE:
+      case STRING:
+      case BOOLEAN:
+        return beamValue;
+      case ARRAY:
+        return ((List<?>) beamValue)
+            .stream()
+            .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
+            .collect(Collectors.toList());
+      case MAP:
+        return ((Map<?, ?>) beamValue)
+            .entrySet()
+            .stream()
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey(),
+                    entry -> fieldToAvatica(type.getCollectionElementType(), entry.getValue())));
+      case ROW:
+        // TODO: needs to be a Struct
+        return beamValue;
+      default:
+        throw new IllegalStateException(
+            String.format("Unreachable case for Beam typename %s", type.getTypeName()));
     }
   }
 
