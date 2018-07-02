@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
 import com.google.auto.service.AutoService;
+import com.google.common.annotations.VisibleForTesting;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
@@ -133,7 +134,8 @@ public class JdbcDriver extends Driver {
     }
   }
 
-  static CalciteConnection connect(TableProvider tableProvider) {
+  @VisibleForTesting
+  public static CalciteConnection connect(TableProvider tableProvider) {
     try {
       Properties info = new Properties();
       info.put(BEAM_CALCITE_SCHEMA, new BeamCalciteSchema(tableProvider));
