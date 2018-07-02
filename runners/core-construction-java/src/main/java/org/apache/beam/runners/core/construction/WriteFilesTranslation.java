@@ -153,7 +153,7 @@ public class WriteFilesTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs = getWriteFilesPayload(transform).getSideInputsMap();
@@ -205,7 +205,7 @@ public class WriteFilesTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     return WriteFilesPayload.parseFrom(
         PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()

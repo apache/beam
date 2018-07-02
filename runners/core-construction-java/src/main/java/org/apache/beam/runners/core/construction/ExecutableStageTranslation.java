@@ -42,7 +42,7 @@ public class ExecutableStageTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform transform = PTransformTranslation.toProto(appliedTransform, components);
     checkArgument(ExecutableStage.URN.equals(transform.getSpec().getUrn()));
     return ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());

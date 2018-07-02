@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
@@ -81,7 +80,7 @@ public class ReadTranslation {
 
   private static SdkFunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
@@ -121,7 +120,7 @@ public class ReadTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     return ReadPayload.parseFrom(
         PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
@@ -130,7 +129,7 @@ public class ReadTranslation {
 
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
@@ -156,7 +155,7 @@ public class ReadTranslation {
                   .getPipeline()
                   .getOptions()
                   .as(PortablePipelineOptions.class)
-                  .getWorkerDockerImage()));
+                  .getDefaultJavaEnvironmentUrl()));
       return PCollectionTranslation.fromProto(
           ReadPayload.parseFrom(
                   PTransformTranslation.toProto(transform, Collections.emptyList(), components)

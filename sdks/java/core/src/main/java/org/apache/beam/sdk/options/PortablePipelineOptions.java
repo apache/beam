@@ -46,8 +46,10 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   void setJobEndpoint(String endpoint);
 
-  @Description("Set the Docker Image for running user code.")
-  String getWorkerDockerImage();
+  @Description(
+      "Set the default environment for running user code. "
+          + "Currently only docker image URL are supported.")
+  String getDefaultJavaEnvironmentUrl();
 
-  void setWorkerDockerImage(String endpoint);
+  void setDefaultJavaEnvironmentUrl(String url);
 }

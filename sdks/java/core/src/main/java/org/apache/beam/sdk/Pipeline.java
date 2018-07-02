@@ -189,7 +189,7 @@ public class Pipeline {
   }
 
   @Internal
-  public PipelineOptions getOptions(){
+  public PipelineOptions getOptions() {
     return defaultOptions;
   }
 
