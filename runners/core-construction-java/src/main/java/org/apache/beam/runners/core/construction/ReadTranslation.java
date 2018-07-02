@@ -153,8 +153,7 @@ public class ReadTranslation {
 
   /** A {@link TransformPayloadTranslator} for {@link Read.Unbounded}. */
   public static class UnboundedReadPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
-          Read.Unbounded<?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<Read.Unbounded<?>> {
     public static TransformPayloadTranslator create() {
       return new UnboundedReadPayloadTranslator();
     }
@@ -179,8 +178,7 @@ public class ReadTranslation {
 
   /** A {@link TransformPayloadTranslator} for {@link Read.Bounded}. */
   public static class BoundedReadPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
-          Read.Bounded<?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<Read.Bounded<?>> {
     public static TransformPayloadTranslator create() {
       return new BoundedReadPayloadTranslator();
     }
@@ -213,11 +211,6 @@ public class ReadTranslation {
           .put(Read.Unbounded.class, new UnboundedReadPayloadTranslator())
           .put(Read.Bounded.class, new BoundedReadPayloadTranslator())
           .build();
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

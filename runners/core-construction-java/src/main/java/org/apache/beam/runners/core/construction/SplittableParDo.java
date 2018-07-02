@@ -23,7 +23,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -312,17 +311,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           .put(ProcessKeyedElements.class, new ProcessKeyedElementsTranslator())
           .build();
     }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
-    }
   }
 
   /** A translator for {@link ProcessKeyedElements}. */
   public static class ProcessKeyedElementsTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
-          ProcessKeyedElements<?, ?, ?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<ProcessKeyedElements<?, ?, ?>> {
 
     public static TransformPayloadTranslator create() {
       return new ProcessKeyedElementsTranslator();
