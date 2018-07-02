@@ -645,8 +645,10 @@ public class FileIO {
       @Override
       public Watch.Growth.PollResult<MatchResult.Metadata> apply(String element, Context c)
           throws Exception {
+        Instant now = Instant.now();
         return Watch.Growth.PollResult.incomplete(
-            Instant.now(), FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata());
+                now, FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata())
+            .withWatermark(now);
       }
     }
 
