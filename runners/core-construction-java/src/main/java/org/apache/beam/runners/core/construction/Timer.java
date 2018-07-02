@@ -33,10 +33,9 @@ import org.joda.time.Instant;
 /**
  * A timer consists of a timestamp and a corresponding user supplied payload.
  *
- * <p>Note that this implementation is specifically used during execution within runners and inside
- * the SDK harness. The {@link org.apache.beam.sdk.state.Timer} represents the current user facing
- * API. Consider consolidating the two once {@link org.apache.beam.runners.core.TimerInternals} is
- * no longer the way in which users construct/interact with timers.
+ * <p>Note that this is an implementation helper specifically intended for use during execution by
+ * runners and the Java SDK harness. The API for pipeline authors is {@link
+ * org.apache.beam.sdk.state.Timer}.
  */
 @AutoValue
 public abstract class Timer<T> {
