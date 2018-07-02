@@ -23,12 +23,12 @@ applyJavaNature(enableFindbugs: false)
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL :: Core"
 
 ext {
-    kryoVersion = '2.24.0'
+    kryoVersion = '4.0.2'
 }
 
 dependencies {
     shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-    compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
+    compile "com.esotericsoftware:kryo:${kryoVersion}"
     shadow library.java.guava
     //compileOnly library.java.findbugs_jsr305 //TODO remove if not needed
     testCompile library.java.mockito_core
