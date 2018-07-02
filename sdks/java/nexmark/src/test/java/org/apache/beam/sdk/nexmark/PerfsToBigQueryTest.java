@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,7 +92,8 @@ public class PerfsToBigQueryTest {
     HashMap<NexmarkConfiguration, NexmarkPerf> perfs = new HashMap<>(2);
     perfs.put(nexmarkConfiguration1, nexmarkPerf1);
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
-    Main.savePerfsToBigQuery(options, perfs, fakeBqServices);
+    Instant start = Instant.now();
+    Main.savePerfsToBigQuery(options, perfs, fakeBqServices, start);
 
     String tableSpec = NexmarkUtils.tableSpec(options, String.valueOf(QUERY), 0L, null);
     List<TableRow> actualRows =
@@ -103,6 +105,7 @@ public class PerfsToBigQueryTest {
     List<TableRow> expectedRows = new ArrayList<>();
     TableRow row1 =
         new TableRow()
+            .set("timestamp", start.getMillis())
             .set("runtimeSec", nexmarkPerf1.runtimeSec)
             .set("eventsPerSec", nexmarkPerf1.eventsPerSec)
             // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
@@ -111,6 +114,7 @@ public class PerfsToBigQueryTest {
     expectedRows.add(row1);
     TableRow row2 =
         new TableRow()
+            .set("timestamp", start.getMillis())
             .set("runtimeSec", nexmarkPerf2.runtimeSec)
             .set("eventsPerSec", nexmarkPerf2.eventsPerSec)
             // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
