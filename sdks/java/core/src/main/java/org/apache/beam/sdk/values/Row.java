@@ -341,8 +341,8 @@ public abstract class Row implements Serializable {
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
     private boolean attached = false;
-    private FieldValueGetterFactory fieldValueGetterFactory;
-    private Object getterTarget;
+    @Nullable private FieldValueGetterFactory fieldValueGetterFactory;
+    @Nullable private Object getterTarget;
     private Schema schema;
 
     Builder(Schema schema) {

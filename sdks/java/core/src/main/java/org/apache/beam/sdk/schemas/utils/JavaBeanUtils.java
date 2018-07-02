@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.schemas.utils;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.MethodType;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
@@ -103,7 +105,8 @@ public class JavaBeanUtils {
 
   // The list of getters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  private static final Map<Class, List<FieldValueGetter>> CACHED_GETTERS = Maps.newConcurrentMap();
+  private static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
+      Maps.newConcurrentMap();
 
   /**
    * Return the list of {@link FieldValueGetter}s for a Java Bean class
@@ -112,7 +115,7 @@ public class JavaBeanUtils {
    */
   public static List<FieldValueGetter> getGetters(Class<?> clazz, Schema schema) {
     return CACHED_GETTERS.computeIfAbsent(
-        clazz,
+        new ClassWithSchema(clazz, schema),
         c -> {
           try {
             Map<String, FieldValueGetter> getterMap =
@@ -121,11 +124,19 @@ public class JavaBeanUtils {
                     .filter(ReflectUtils::isGetter)
                     .map(JavaBeanUtils::createGetter)
                     .collect(Collectors.toMap(FieldValueGetter::name, Function.identity()));
+            List<FieldValueGetter> getters = Lists.newArrayList();
+            for (int i = 0; i < schema.getFieldCount(); ++i) {
+              getters.add(getterMap.get(schema.getField(i).getName()));
+            }
+            System.out.println("Returning for Schema " + schema + " getters " + getters);
+
+            return getters;
+            /*
             return schema
                 .getFields()
                 .stream()
                 .map(f -> getterMap.get(f.getName()))
-                .collect(Collectors.toList());
+                .collect(Collectors.toList());*/
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -169,7 +180,8 @@ public class JavaBeanUtils {
 
   // The list of setters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  private static final Map<Class, List<FieldValueSetter>> CACHED_SETTERS = Maps.newConcurrentMap();
+  private static final Map<ClassWithSchema, List<FieldValueSetter>> CACHED_SETTERS =
+      Maps.newConcurrentMap();
 
   /**
    * Return the list of {@link FieldValueSetter}s for a Java Bean class
@@ -178,7 +190,7 @@ public class JavaBeanUtils {
    */
   public static List<FieldValueSetter> getSetters(Class<?> clazz, Schema schema) {
     return CACHED_SETTERS.computeIfAbsent(
-        clazz,
+        new ClassWithSchema(clazz, schema),
         c -> {
           try {
             Map<String, FieldValueSetter> setterMap =

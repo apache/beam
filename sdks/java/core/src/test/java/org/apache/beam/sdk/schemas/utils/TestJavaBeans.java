@@ -31,6 +31,7 @@ import org.joda.time.Instant;
 
 /** Various Java Beans and associated schemas used in tests. */
 public class TestJavaBeans {
+  /** A simple Bean containing basic types. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class SimpleBean {
     private String str;
@@ -171,6 +172,7 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link SimpleBean}. * */
   public static final Schema SIMPLE_BEAN_SCHEMA =
       Schema.builder()
           .addStringField("str")
@@ -187,6 +189,7 @@ public class TestJavaBeans {
           .addStringField("stringBuilder")
           .build();
 
+  /** A Bean containing a nested class. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedBean {
     private SimpleBean nested;
@@ -206,9 +209,11 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link NestedBean}. * */
   public static final Schema NESTED_BEAN_SCHEMA =
       Schema.builder().addRowField("nested", SIMPLE_BEAN_SCHEMA).build();
 
+  /** A Bean containing arrays of primitive types. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class PrimitiveArrayBean {
     // Test every type of array parameter supported.
@@ -249,6 +254,7 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link PrimitiveArrayBean}. * */
   public static final Schema PRIMITIVE_ARRAY_BEAN_SCHEMA =
       Schema.builder()
           .addArrayField("strings", FieldType.STRING)
@@ -256,6 +262,7 @@ public class TestJavaBeans {
           .addArrayField("longs", FieldType.INT64)
           .build();
 
+  /** A Bean containing arrays of complex classes. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedArrayBean {
     private SimpleBean[] beans;
@@ -275,9 +282,11 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link NestedArrayBean}. * */
   public static final Schema NESTED_ARRAY_BEAN_SCHEMA =
       Schema.builder().addArrayField("beans", FieldType.row(SIMPLE_BEAN_SCHEMA)).build();
 
+  /** A bean containing arrays of arrays. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedArraysBean {
     private List<List<String>> lists;
@@ -297,9 +306,11 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link NestedArrayBean}. * */
   public static final Schema NESTED_ARRAYS_BEAM_SCHEMA =
       Schema.builder().addArrayField("lists", FieldType.array(FieldType.STRING)).build();
 
+  /** A Bean containing a {@link List} of a complex type. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedCollectionBean {
     private List<SimpleBean> simples;
@@ -319,9 +330,11 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link NestedCollectionBean}. * */
   public static final Schema NESTED_COLLECTION_BEAN_SCHEMA =
       Schema.builder().addArrayField("simples", FieldType.row(SIMPLE_BEAN_SCHEMA)).build();
 
+  /** A Bean containing a simple {@link Map}. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class PrimitiveMapBean {
     private Map<String, Integer> map;
@@ -341,9 +354,11 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link PrimitiveMapBean}. * */
   public static final Schema PRIMITIVE_MAP_BEAN_SCHEMA =
       Schema.builder().addMapField("map", FieldType.STRING, FieldType.INT32).build();
 
+  /** A Bean containing a map of a complex type. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedMapBean {
     private Map<String, SimpleBean> map;
@@ -363,11 +378,13 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link NestedMapBean}. * */
   public static final Schema NESTED_MAP_BEAN_SCHEMA =
       Schema.builder()
           .addMapField("map", FieldType.STRING, FieldType.row(SIMPLE_BEAN_SCHEMA))
           .build();
 
+  /** A Bean containing the boxed version of primitive types. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class BeanWithBoxedFields {
     private Byte aByte;
@@ -428,6 +445,7 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link BeanWithBoxedFields}. * */
   public static final Schema BEAN_WITH_BOXED_FIELDS_SCHEMA =
       Schema.builder()
           .addByteField("aByte")
@@ -437,6 +455,7 @@ public class TestJavaBeans {
           .addBooleanField("aBoolean")
           .build();
 
+  /** A Bean containing byte arrays. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class BeanWithByteArray {
     private byte[] bytes1;
@@ -466,6 +485,7 @@ public class TestJavaBeans {
     }
   }
 
+  /** The schema for {@link BeanWithByteArray}. * */
   public static final Schema BEAN_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
 }

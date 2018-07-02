@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
+/** Tests for the {@link JavaBeanSchema} schema provider. */
 public class JavaBeanSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());

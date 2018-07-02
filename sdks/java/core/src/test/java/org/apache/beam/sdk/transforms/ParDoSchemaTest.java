@@ -353,6 +353,7 @@ public class ParDoSchemaTest implements Serializable {
                 }));
   }
 
+  /** Test POJO. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class InferredPojo {
     public String stringField;
