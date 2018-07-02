@@ -38,7 +38,7 @@ public class PipelineTranslation {
   public static RunnerApi.Pipeline toProto(Pipeline pipeline) {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             pipeline
                 .getOptions()
                 .as(PortablePipelineOptions.class)

@@ -37,7 +37,7 @@ public class ExecutableStageTranslation {
       AppliedPTransform<?, ?, ?> appliedTransform) throws IOException {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             appliedTransform
                 .getPipeline()
                 .getOptions()

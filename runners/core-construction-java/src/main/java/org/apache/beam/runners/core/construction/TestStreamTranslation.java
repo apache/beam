@@ -76,7 +76,7 @@ public class TestStreamTranslation {
 
     SdkComponents sdkComponents = SdkComponents.create();
     sdkComponents.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             application
                 .getPipeline()
                 .getOptions()

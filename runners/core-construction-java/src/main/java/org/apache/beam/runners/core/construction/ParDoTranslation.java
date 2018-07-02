@@ -250,7 +250,7 @@ public class ParDoTranslation {
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             application
                 .getPipeline()
                 .getOptions()
@@ -280,7 +280,7 @@ public class ParDoTranslation {
 
     SdkComponents sdkComponents = SdkComponents.create();
     sdkComponents.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             application
                 .getPipeline()
                 .getOptions()
@@ -545,7 +545,7 @@ public class ParDoTranslation {
       throws IOException {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             transform
                 .getPipeline()
                 .getOptions()

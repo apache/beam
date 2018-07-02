@@ -128,7 +128,7 @@ public class PTransformTranslation {
       SdkComponents components)
       throws IOException {
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             appliedPTransform
                 .getPipeline()
                 .getOptions()

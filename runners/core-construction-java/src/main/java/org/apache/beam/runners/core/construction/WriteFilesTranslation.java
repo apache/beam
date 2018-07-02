@@ -148,7 +148,7 @@ public class WriteFilesTranslation {
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
     sdkComponents.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             transform
                 .getPipeline()
                 .getOptions()
@@ -200,7 +200,7 @@ public class WriteFilesTranslation {
       throws IOException {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             transform
                 .getPipeline()
                 .getOptions()
