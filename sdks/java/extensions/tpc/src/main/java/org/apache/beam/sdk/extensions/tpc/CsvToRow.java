@@ -14,7 +14,7 @@ import org.apache.commons.csv.CSVFormat;
 
 /** Read-side converter for {@link TextTable} with format {@code 'csv'}. */
 public class CsvToRow extends PTransform<PCollection<String>, PCollection<Row>>
-        implements Serializable {
+    implements Serializable {
 
   private Schema schema;
   private CSVFormat csvFormat;
@@ -31,8 +31,8 @@ public class CsvToRow extends PTransform<PCollection<String>, PCollection<Row>>
   @Override
   public PCollection<Row> expand(PCollection<String> input) {
     return input.apply(
-            "csvToRow",
-            FlatMapElements.into(TypeDescriptors.rows())
-                    .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
+        "csvToRow",
+        FlatMapElements.into(TypeDescriptors.rows())
+            .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
   }
 }

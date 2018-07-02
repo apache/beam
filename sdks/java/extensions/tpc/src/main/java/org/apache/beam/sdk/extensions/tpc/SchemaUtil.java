@@ -2,33 +2,12 @@ package org.apache.beam.sdk.extensions.tpc;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.schemas.Schema;
-//import org.apache.calcite.adapter.java.JavaTypeFactory;
-//import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-//import org.apache.calcite.rel.type.RelDataTypeSystem;
-//import org.apache.beam.sdk.transforms.FlatMapElements;
-//import org.apache.beam.sdk.transforms.MapElements;
-//import org.apache.beam.sdk.transforms.PTransform;
-//import org.apache.beam.sdk.values.PCollection;
-//import org.apache.beam.sdk.values.Row;
-//import org.apache.beam.sdk.values.TypeDescriptors;
-//import java.io.Serializable;
-//import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
-//import net.hydromatic.tpcds.TpcdsEntity;
-// import org.apache.calcite.rel.type.RelDataType;
-// import org.apache.calcite.rel.type.RelDataTypeFactory;
-// import org.apache.calcite.rel.type.RelDataTypeField;
-// import io.airlift.tpch.TpchColumn;
-// import io.airlift.tpch.TpchEntity;
-//import io.airlift.tpch.TpchColumn;
-//import io.airlift.tpch.TpchEntity;
-//import io.airlift.tpch.TpchTable;
-// import net.hydromatic.tpcds.TpcdsTable;
 
 /** Tpc Schema. */
 public class SchemaUtil {
-//  private static final JavaTypeFactory TYPE_FACTORY =
-//      new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
-//  private final ImmutableMap<String, TpcdsTable> tableHMap;
+  //  private static final JavaTypeFactory TYPE_FACTORY =
+  //      new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
+  //  private final ImmutableMap<String, TpcdsTable> tableHMap;
   private final ImmutableMap<String, String> columnPrefixes;
 
   public static Schema storeSalesSchema =
@@ -163,61 +142,60 @@ public class SchemaUtil {
           .build();
 
   public static Schema partsuppSchema =
-          Schema.builder()
-                  .addInt32Field("ps_partkey") //identifier
-                  .addInt32Field("ps_suppkey") //identifier
-                  .addInt32Field("ps_availqty") //integer
-                  .addFloatField("ps_supplycost") //decimal
-                  .addStringField("ps_comment") //variable text, size 199
-                  .build();
+      Schema.builder()
+          .addInt32Field("ps_partkey") //identifier
+          .addInt32Field("ps_suppkey") //identifier
+          .addInt32Field("ps_availqty") //integer
+          .addFloatField("ps_supplycost") //decimal
+          .addStringField("ps_comment") //variable text, size 199
+          .build();
 
   public static Schema regionSchema =
-          Schema.builder()
-                  .addInt32Field("r_regionkey") //identifier
-                  .addStringField("r_name") //fixed text, size 25
-                  .addStringField("r_comment") //variable text, size 152
-                  .build();
+      Schema.builder()
+          .addInt32Field("r_regionkey") //identifier
+          .addStringField("r_name") //fixed text, size 25
+          .addStringField("r_comment") //variable text, size 152
+          .build();
 
   public static Schema supplierSchema =
-          Schema.builder()
-                  .addInt32Field("s_suppkey") // identifier
-                  .addStringField("s_name") // fixed text, size 25
-                  .addStringField("s_address") //variable text, size 40
-                  .addInt32Field("s_nationkey") //identifier
-                  .addStringField("s_phone") //fixed text, size 15
-                  .addFloatField("s_acctbal") //decimal
-                  .addStringField("s_comment") //variable text, size 101
-                  .build();
+      Schema.builder()
+          .addInt32Field("s_suppkey") // identifier
+          .addStringField("s_name") // fixed text, size 25
+          .addStringField("s_address") //variable text, size 40
+          .addInt32Field("s_nationkey") //identifier
+          .addStringField("s_phone") //fixed text, size 15
+          .addFloatField("s_acctbal") //decimal
+          .addStringField("s_comment") //variable text, size 101
+          .build();
 
   public static Schema partSchema =
-          Schema.builder()
-                  .addInt32Field("p_partkey")
-                  .addStringField("p_name")
-                  .addStringField("p_mfgr")
-                  .addStringField("p_brand")
-                  .addStringField("p_type")
-                  .addInt32Field("p_size")
-                  .addStringField("p_container")
-                  .addFloatField("p_retailprice")
-                  .addStringField("p_comment")
-                  .build();
-
+      Schema.builder()
+          .addInt32Field("p_partkey")
+          .addStringField("p_name")
+          .addStringField("p_mfgr")
+          .addStringField("p_brand")
+          .addStringField("p_type")
+          .addInt32Field("p_size")
+          .addStringField("p_container")
+          .addFloatField("p_retailprice")
+          .addStringField("p_comment")
+          .build();
 
   public static Schema nationSchema =
-          Schema.builder()
-                  .addInt32Field("n_nationkey")
-                  .addStringField("n_name")
-                  .addInt32Field("n_regionkey")
-                  .addStringField("n_comment")
-                  .build();
+      Schema.builder()
+          .addInt32Field("n_nationkey")
+          .addStringField("n_name")
+          .addInt32Field("n_regionkey")
+          .addStringField("n_comment")
+          .build();
 
   public SchemaUtil() {
-//    final ImmutableMap.Builder<String, TpcdsTable> builder = ImmutableMap.builder();
-//    for (TpcdsTable<?> tpcdsTable : TpcdsTable.getTables()) {
-//      builder.put(tpcdsTable.getTableName(), tpcdsTable);
-//    }
+    //    final ImmutableMap.Builder<String, TpcdsTable> builder = ImmutableMap.builder();
+    //    for (TpcdsTable<?> tpcdsTable : TpcdsTable.getTables()) {
+    //      builder.put(tpcdsTable.getTableName(), tpcdsTable);
+    //    }
 
-//    this.tableHMap = builder.build();
+    //    this.tableHMap = builder.build();
 
     this.columnPrefixes =
         ImmutableMap.<String, String>builder()
@@ -231,48 +209,4 @@ public class SchemaUtil {
             .put("region", "r_")
             .build();
   }
-
-//  private RelDataType getRowType(String tableName, RelDataTypeFactory typeFactory) {
-//    final RelDataTypeFactory.Builder builder = typeFactory.builder();
-//    String prefix = "";
-//    TpcdsTable<?> tpcdsTable = tableHMap.get(tableName);
-//
-//    prefix = columnPrefixes.get(tableName);
-//    assert prefix != null : tableName;
-//
-//    for (TpcdsColumn<?> column : tpcdsTable.getColumns()) {
-//      //            final String c = (prefix + column.getColumnName());
-//      final String c = column.getColumnName();
-//      column.getType();
-//    }
-//    return builder.build();
-//  }
 }
-//
-  //    private Class<?> realType(TpchColumn<? extends TpchEntity> column) {
-  //        if (column.getColumnName().endsWith("date")) {
-  //            return java.sql.Date.class;
-  //        }
-  //        return column.getType().getClass();
-  //    }
-  //
-  //    public Schema getHSchema(String tableName) {
-  ////        RelDataType rowType = getRowType(tableName, TYPE_FACTORY);
-  //        return org.apache.beam.sdk.extensions.tpc.CalciteUtils.toBeamSchema(
-  //                getRowType(tableName, TYPE_FACTORY));
-  //    }
-
-  //      private TpchSchema tpchschema = new TpchSchema(1.0, 1, 1, true);
-  //      private TpcdsSchema tpcdsschema = new TpcdsSchema(1.0, 1, 1);
-  //
-  //      public Schema getHschema(String tableName) {
-  //          Table tb = tpchschema.getTable(tableName);
-  //          RelDataType dataType = tb.getRowType(TYPE_FACTORY);
-  //          return CalciteUtils.toBeamSchema(dataType);
-  //      }
-  //
-  //      public Schema getDSschema(String tableName) {
-  //          Table tpcdsTable = tpcdsschema.getTable(tableName);
-  //          return CalciteUtils.toBeamSchema(tpcdsTable.getRowType(TYPE_FACTORY));
-  //      }
-

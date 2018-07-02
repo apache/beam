@@ -10,11 +10,9 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.commons.csv.CSVFormat;
 
-/**
- * RowToCsv.
- */
+/** RowToCsv. */
 public class RowToCsv extends PTransform<PCollection<Row>, PCollection<String>>
-        implements Serializable {
+    implements Serializable {
 
   private CSVFormat csvFormat;
 
@@ -29,8 +27,7 @@ public class RowToCsv extends PTransform<PCollection<Row>, PCollection<String>>
   @Override
   public PCollection<String> expand(PCollection<Row> input) {
     return input.apply(
-            "rowToCsv",
-            MapElements.into(TypeDescriptors.strings()).via(row ->
-                    beamRow2CsvLine(row, csvFormat)));
+        "rowToCsv",
+        MapElements.into(TypeDescriptors.strings()).via(row -> beamRow2CsvLine(row, csvFormat)));
   }
 }

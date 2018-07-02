@@ -15,23 +15,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.commons.csv.CSVFormat;
 
-/** Test now. */
+/** Tpc. */
 public class BeamTpc {
 
   public static void main(String[] args) {
-//    Schema reasonSchema =
-//        Schema.builder()
-//            .addInt32Field("r_reason_sk")
-//            .addStringField("r_reason_id")
-//            .addStringField("r_reason_desc")
-//            .build();
-
     // Option for lanunch Tpc benchmark.
     TpcOptions tpcOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcOptions.class);
-
-    //        PipelineOptions options =
-    // PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
     Pipeline pipeline = Pipeline.create(tpcOptions);
 
     String rootPath = tpcOptions.getInputFile();
@@ -45,7 +35,7 @@ public class BeamTpc {
     //      String storeFilePath = rootPath + "store.dat";
     //      String storeReturnFilePath = rootPath + "store_returns.dat";
     String customerFilePath = rootPath + "customer.tbl";
-    String lineitemFilePath = rootPath + "lineitem.tbl";
+    String lineitemFilePath = rootPath + "lineitem_c.tbl";
     String orderFilePath = rootPath + "orders.tbl";
     String regionFilePath = rootPath + "region.tbl";
     String partFilePath = rootPath + "part.tbl";
@@ -71,77 +61,77 @@ public class BeamTpc {
 
     CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
 
-//    PCollection<Row> storeSalesTable =
-//        new TextTable(
-//                SchemaUtil.storeSalesSchema,
-//                storeSalesFilePath,
-//                new CsvToRow(SchemaUtil.storeSalesSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.storeSalesSchema.getRowCoder());
+    //    PCollection<Row> storeSalesTable =
+    //        new TextTable(
+    //                SchemaUtil.storeSalesSchema,
+    //                storeSalesFilePath,
+    //                new CsvToRow(SchemaUtil.storeSalesSchema, csvFormat),
+    //                new RowToCsv(csvFormat))
+    //            .buildIOReader(pipeline.begin())
+    //            .setCoder(SchemaUtil.storeSalesSchema.getRowCoder());
 
-//    PCollection<Row> dateDimTable =
-//        new TextTable(
-//                SchemaUtil.dateDimSchema,
-//                dateDimFilePath,
-//                new CsvToRow(SchemaUtil.dateDimSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.dateDimSchema.getRowCoder());
+    //    PCollection<Row> dateDimTable =
+    //        new TextTable(
+    //                SchemaUtil.dateDimSchema,
+    //                dateDimFilePath,
+    //                new CsvToRow(SchemaUtil.dateDimSchema, csvFormat),
+    //                new RowToCsv(csvFormat))
+    //            .buildIOReader(pipeline.begin())
+    //            .setCoder(SchemaUtil.dateDimSchema.getRowCoder());
 
-//    PCollection<Row> itemTable =
-//        new TextTable(
-//                SchemaUtil.itemSchema,
-//                itemFilePath,
-//                new CsvToRow(SchemaUtil.itemSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.itemSchema.getRowCoder());
-//
-//    PCollection<Row> nationTable =
-//        new TextTable(
-//                SchemaUtil.nationSchema,
-//                nationFilePath,
-//                new CsvToRow(SchemaUtil.nationSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.nationSchema.getRowCoder());
-//
-//    PCollection<Row> regionTable =
-//        new TextTable(
-//                SchemaUtil.regionSchema,
-//                regionFilePath,
-//                new CsvToRow(SchemaUtil.regionSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.regionSchema.getRowCoder());
-//
-//    PCollection<Row> partTable =
-//        new TextTable(
-//                SchemaUtil.partSchema,
-//                partFilePath,
-//                new CsvToRow(SchemaUtil.partSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.partSchema.getRowCoder());
-//
-//    PCollection<Row> supplierTable =
-//        new TextTable(
-//                SchemaUtil.supplierSchema,
-//                supplierFilePath,
-//                new CsvToRow(SchemaUtil.supplierSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.supplierSchema.getRowCoder());
-//
-//    PCollection<Row> partsuppTable =
-//        new TextTable(
-//                SchemaUtil.partsuppSchema,
-//                partsuppFilePath,
-//                new CsvToRow(SchemaUtil.partsuppSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.partsuppSchema.getRowCoder());
+    //    PCollection<Row> itemTable =
+    //        new TextTable(
+    //                SchemaUtil.itemSchema,
+    //                itemFilePath,
+    //                new CsvToRow(SchemaUtil.itemSchema, csvFormat),
+    //                new RowToCsv(csvFormat))
+    //            .buildIOReader(pipeline.begin())
+    //            .setCoder(SchemaUtil.itemSchema.getRowCoder());
+
+    PCollection<Row> nationTable =
+        new TextTable(
+                SchemaUtil.nationSchema,
+                nationFilePath,
+                new CsvToRow(SchemaUtil.nationSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.nationSchema.getRowCoder());
+
+    PCollection<Row> regionTable =
+        new TextTable(
+                SchemaUtil.regionSchema,
+                regionFilePath,
+                new CsvToRow(SchemaUtil.regionSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.regionSchema.getRowCoder());
+
+    PCollection<Row> partTable =
+        new TextTable(
+                SchemaUtil.partSchema,
+                partFilePath,
+                new CsvToRow(SchemaUtil.partSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.partSchema.getRowCoder());
+
+    PCollection<Row> supplierTable =
+        new TextTable(
+                SchemaUtil.supplierSchema,
+                supplierFilePath,
+                new CsvToRow(SchemaUtil.supplierSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.supplierSchema.getRowCoder());
+
+    PCollection<Row> partsuppTable =
+        new TextTable(
+                SchemaUtil.partsuppSchema,
+                partsuppFilePath,
+                new CsvToRow(SchemaUtil.partsuppSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.partsuppSchema.getRowCoder());
 
     //      PCollection<Row> reasonTable =
     //              new BeamTextCSVTable(reasonSchema, reasonFilePath, format)
@@ -150,10 +140,10 @@ public class BeamTpc {
 
     //      Schema nationSchema = SchemaUtil.storeSalesSchema;
 
-//          PCollection<Row> nationTable =
-//                  new BeamTextCSVTable(nationSchema, nationFilePath, format)
-//                          .buildIOReader(pipeline)
-//                          .setCoder(nationSchema.getRowCoder());
+    //          PCollection<Row> nationTable =
+    //                  new BeamTextCSVTable(nationSchema, nationFilePath, format)
+    //                          .buildIOReader(pipeline)
+    //                          .setCoder(nationSchema.getRowCoder());
 
     //      PCollection<Row> dateDimTable =
     //              new BeamTextCSVTable(dateDimSchema, dateDimFilePath, format)
@@ -164,35 +154,35 @@ public class BeamTpc {
     //              new BeamTextCSVTable(itemSchema, itemFilePath, format)
     //                      .buildIOReader(pipeline)
     //                      .setCoder(itemSchema.getRowCoder());
-    ////
+
     //      PCollection<Row> storeTable =
     //              new BeamTextCSVTable(storeSchema, storeFilePath, format)
     //                      .buildIOReader(pipeline)
     //                      .setCoder(storeSchema.getRowCoder());
-    ////
+
     //      PCollection<Row> storeReturnTable =
     //              new BeamTextCSVTable(storeReturnSchema, storeReturnFilePath, format)
     //                      .buildIOReader(pipeline)
     //                      .setCoder(storeReturnSchema.getRowCoder());
-    ////
-//    PCollection<Row> customerTable =
-//        new TextTable(
-//                SchemaUtil.customerSchema,
-//                customerFilePath,
-//                new CsvToRow(SchemaUtil.customerSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.customerSchema.getRowCoder());
-//
-//    PCollection<Row> orderTable =
-//        new TextTable(
-//                SchemaUtil.orderSchema,
-//                orderFilePath,
-//                new CsvToRow(SchemaUtil.orderSchema, csvFormat),
-//                new RowToCsv(csvFormat))
-//            .buildIOReader(pipeline.begin())
-//            .setCoder(SchemaUtil.orderSchema.getRowCoder());
-//
+
+    PCollection<Row> customerTable =
+        new TextTable(
+                SchemaUtil.customerSchema,
+                customerFilePath,
+                new CsvToRow(SchemaUtil.customerSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.customerSchema.getRowCoder());
+
+    PCollection<Row> orderTable =
+        new TextTable(
+                SchemaUtil.orderSchema,
+                orderFilePath,
+                new CsvToRow(SchemaUtil.orderSchema, csvFormat),
+                new RowToCsv(csvFormat))
+            .buildIOReader(pipeline.begin())
+            .setCoder(SchemaUtil.orderSchema.getRowCoder());
+
     PCollection<Row> lineitemTable =
         new TextTable(
                 SchemaUtil.lineitemSchema,
@@ -291,21 +281,21 @@ public class BeamTpc {
 
     PCollectionTuple tables =
         PCollectionTuple
-//                .of(new TupleTag<>("store_sales"), storeSalesTable)
-//                                  .of(new TupleTag<>("nation"), nationTable)
-//                                  .and(new TupleTag<>("region"), regionTable)
-//                                  .and(new TupleTag<>("part"), partTable)
-//                                  .and(new TupleTag<>("supplier"), supplierTable)
-//                                  .and(new TupleTag<>("partsupp"), partsuppTable)
-//            .and(new TupleTag<>("date_dim"), dateDimTable)
+            //                .of(new TupleTag<>("store_sales"), storeSalesTable)
+            .of(new TupleTag<>("nation"), nationTable)
+            .and(new TupleTag<>("region"), regionTable)
+            .and(new TupleTag<>("part"), partTable)
+            .and(new TupleTag<>("supplier"), supplierTable)
+            .and(new TupleTag<>("partsupp"), partsuppTable)
+            //            .and(new TupleTag<>("date_dim"), dateDimTable)
             //                      .and(new TupleTag<>("store_sales"), storeSalesTable)
             //                      .and(new TupleTag<>("store"), storeTable)
-//            .and(new TupleTag<>("item"), itemTable)
+            //            .and(new TupleTag<>("item"), itemTable)
             //                        .and(new TupleTag<>("store_returns"), storeReturnTable)
-//            .and(new TupleTag<>("orders"), orderTable)
-//                        .and(new TupleTag<>("customer"), customerTable)
-//            .and(new TupleTag<>("orders"), orderTable)
-            .of(new TupleTag<>("lineitem"), lineitemTable)
+            //            .and(new TupleTag<>("orders"), orderTable)
+            .and(new TupleTag<>("customer"), customerTable)
+            .and(new TupleTag<>("orders"), orderTable)
+            .and(new TupleTag<>("lineitem"), lineitemTable)
         //                      .and(new TupleTag<>("catalog_sales"), catalogSalesTable)
         //                            .and(new TupleTag<>("catalog_returns"), catalogReturnsTable)
         //                      .and(new TupleTag<>("inventory"), inventoryTable)
@@ -329,14 +319,11 @@ public class BeamTpc {
 
     String queryh =
         "select\n"
-            + "\tsum(l_extendedprice * l_discount) as revenue\n"
+            + "\tcount(*) as count_order\n"
             + "from\n"
             + "\tlineitem\n"
             + "where\n"
-            + "\tl_shipdate >= date '1994-01-01'\n"
-            + "\tand l_shipdate < date '1994-01-01' + interval '1' year\n"
-            + "\tand l_discount between .06 - 0.01 and .06 + 0.01\n"
-            + "\tand l_quantity < 24";
+            + "\tl_shipdate <= date '1998-12-01' - interval '90' day (3) ";
 
     String outputPath = tpcOptions.getOutput();
     System.out.println(tpcOptions.getInputFile());
@@ -346,17 +333,18 @@ public class BeamTpc {
         .apply(SqlTransform.query(queryh))
         .apply(
             "exp_table",
-            MapElements.into(TypeDescriptors.strings()).via(
-                new SerializableFunction<Row, String>() {
-                  @Override
-                  public @Nullable String apply(Row input) {
-                    // expect output:
-                    //  PCOLLECTION: [3, row, 3.0]
-                    System.out.println("row: " + input.getValues());
-                    return "row: " + input.getValues();
-                  }
-                }))
-            .apply(TextIO.write().to(outputPath));
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    new SerializableFunction<Row, String>() {
+                      @Override
+                      public @Nullable String apply(Row input) {
+                        // expect output:
+                        //  PCOLLECTION: [3, row, 3.0]
+                        System.out.println("row: " + input.getValues());
+                        return "row: " + input.getValues();
+                      }
+                    }))
+        .apply(TextIO.write().to(outputPath));
 
     pipeline.run().waitUntilFinish();
 

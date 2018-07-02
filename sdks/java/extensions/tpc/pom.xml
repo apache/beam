@@ -387,6 +387,12 @@
             <version>${guava.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.7</version>
+        </dependency>
+
         <!-- Add slf4j API frontend binding with JUL backend -->
         <dependency>
             <groupId>org.slf4j</groupId>

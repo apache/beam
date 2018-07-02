@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Provides default commandline for sqlline.
- */
+/** Provides default commandline for sqlline. */
 package org.apache.beam.sdk.extensions.tpc;
