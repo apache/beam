@@ -45,6 +45,16 @@ job('beam_Release_Gradle_NightlySnapshot') {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('clean')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('build')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('publish')
       commonJobProperties.setGradleSwitches(delegate)
       // Publish a snapshot build.
