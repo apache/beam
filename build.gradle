@@ -50,7 +50,6 @@ buildscript {
   }
   dependencies {
     classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
-    classpath "com.gradle:build-scan-plugin:1.13.1"                                                     // Enable publishing build scans
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
@@ -65,6 +64,11 @@ buildscript {
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
     classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
+
+    // Plugins which require online access should not be enabled when running in offline mode.
+    if (!gradle.startParameter.isOffline()) {
+      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
+    }
   }
 }
 
@@ -73,7 +77,11 @@ buildscript {
 
 apply plugin: "base"
 
-apply plugin: "com.gradle.build-scan"
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.build-scan"
+}
+
 apply plugin: 'com.github.ben-manes.versions'
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
