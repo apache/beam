@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -167,12 +169,45 @@ public class BigQueryUtils {
     return TO_TABLE_ROW;
   }
 
+  /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
+  public static SerializableFunction<SchemaAndRecord, Row> toBeamRow(Schema schema) {
+    return new ToBeamRow(schema);
+  }
+
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   private static class ToTableRow implements SerializableFunction<Row, TableRow> {
     @Override
     public TableRow apply(Row input) {
       return toTableRow(input);
     }
+  }
+
+  /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
+  private static class ToBeamRow implements SerializableFunction<SchemaAndRecord, Row> {
+    private Schema schema;
+
+    public ToBeamRow(Schema schema) {
+      this.schema = schema;
+    }
+
+    @Override
+    public Row apply(SchemaAndRecord input) {
+      GenericRecord record = input.getRecord();
+      checkState(
+          schema.getFields().size() == record.getSchema().getFields().size(),
+          "Schema sizes are different.");
+      return toBeamRow(record, schema);
+    }
+  }
+
+  public static Row toBeamRow(GenericRecord record, Schema schema) {
+    List<Object> values = new ArrayList();
+    for (int i = 0; i < record.getSchema().getFields().size(); i++) {
+      org.apache.avro.Schema.Field avroField = record.getSchema().getFields().get(i);
+      values.add(AvroUtils.convertAvroFormat(schema.getField(i), record.get(avroField.name())));
+    }
+
+    return Row.withSchema(schema).addValues(values).build();
   }
 
   public static TableRow toTableRow(Row row) {
