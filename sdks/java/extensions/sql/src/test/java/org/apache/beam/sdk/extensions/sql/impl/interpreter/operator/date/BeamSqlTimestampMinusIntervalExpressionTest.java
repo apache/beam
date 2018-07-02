@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -67,7 +66,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.INTERVAL_DAY_MINUTE, TIMESTAMP, INTERVAL_3_MONTHS);
 
-    assertEquals(SqlTypeName.INTERVAL_DAY_MINUTE, minusExpression.getOutputType());
+    assertEquals(SqlTypeName.TIMESTAMP, minusExpression.getOutputType());
     assertEquals(Arrays.asList(TIMESTAMP, INTERVAL_3_MONTHS), minusExpression.getOperands());
   }
 
@@ -96,22 +95,9 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
   }
 
   @Test
-  public void testDoesNotAcceptWrongOutputType() {
-    Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
-    unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
-
-    for (SqlTypeName unsupportedType : unsupportedTypes) {
-      BeamSqlTimestampMinusIntervalExpression minusExpression =
-          minusExpression(unsupportedType, TIMESTAMP, INTERVAL_2_SEC);
-
-      assertFalse(minusExpression.accept());
-    }
-  }
-
-  @Test
   public void testDoesNotAcceptWrongFirstOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
-    unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
+    unsupportedTypes.removeAll(SqlTypeName.DATETIME_TYPES);
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
@@ -127,7 +113,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
   @Test
   public void testDoesNotAcceptWrongSecondOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
-    unsupportedTypes.removeAll(INTERVALS_DURATIONS_TYPES.keySet());
+    unsupportedTypes.removeAll(TimeUnitUtils.INTERVALS_DURATIONS_TYPES.keySet());
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
@@ -142,7 +128,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
 
   @Test
   public void testAcceptsAllSupportedIntervalTypes() {
-    for (SqlTypeName unsupportedType : INTERVALS_DURATIONS_TYPES.keySet()) {
+    for (SqlTypeName unsupportedType : TimeUnitUtils.INTERVALS_DURATIONS_TYPES.keySet()) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
       doReturn(unsupportedType).when(unsupportedOperand).getOutputType();
 
