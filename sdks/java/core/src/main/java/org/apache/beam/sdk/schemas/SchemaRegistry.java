@@ -64,8 +64,8 @@ public class SchemaRegistry {
     }
   }
 
-  Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
-  ArrayDeque<SchemaProvider> providers;
+  private final Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
+  private final ArrayDeque<SchemaProvider> providers;
 
   private SchemaRegistry() {
     providers = new ArrayDeque<>(REGISTERED_SCHEMA_PROVIDERS);

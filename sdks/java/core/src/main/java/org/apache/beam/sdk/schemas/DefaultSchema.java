@@ -68,7 +68,7 @@ public @interface DefaultSchema {
    * delegates to that provider.
    */
   class DefaultSchemaProvider extends SchemaProvider {
-    Map<TypeDescriptor, SchemaProvider> cachedProviders = Maps.newConcurrentMap();
+    final Map<TypeDescriptor, SchemaProvider> cachedProviders = Maps.newConcurrentMap();
 
     @Nullable
     private SchemaProvider getSchemaProvider(TypeDescriptor<?> typeDescriptor) {
