@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import os
 import shutil
+from glob import glob
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -294,11 +295,20 @@ class LocalFileSystem(FileSystem):
         raise IOError(err)
 
     exceptions = {}
-    for path in paths:
+
+    def try_delete(path):
       try:
         _delete_path(path)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[path] = e
+
+    for path in paths:
+      expanded = glob(path)
+      if not expanded:
+        try_delete(path)
+      else:
+        for p in expanded:
+          try_delete(p)
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
