@@ -24,12 +24,9 @@ import logging
 import math
 import unittest
 
-from apache_beam.io import range_trackers
+from past.builtins import long
 
-try:
-  long  # pylint: disable=long-builtin
-except NameError:
-  long = int
+from apache_beam.io import range_trackers
 
 
 class OffsetRangeTrackerTest(unittest.TestCase):
