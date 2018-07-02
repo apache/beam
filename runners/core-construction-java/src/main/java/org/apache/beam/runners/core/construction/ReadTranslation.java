@@ -115,7 +115,7 @@ public class ReadTranslation {
       throws IOException {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             transform
                 .getPipeline()
                 .getOptions()
@@ -150,7 +150,7 @@ public class ReadTranslation {
     try {
       SdkComponents components = SdkComponents.create();
       components.registerEnvironment(
-          Environments.createEnvironment(
+          Environments.createOrGetDefaultEnvironment(
               transform
                   .getPipeline()
                   .getOptions()

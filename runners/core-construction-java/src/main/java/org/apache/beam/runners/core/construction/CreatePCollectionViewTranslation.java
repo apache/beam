@@ -62,7 +62,7 @@ public class CreatePCollectionViewTranslation {
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
-        Environments.createEnvironment(
+        Environments.createOrGetDefaultEnvironment(
             application
                 .getPipeline()
                 .getOptions()
