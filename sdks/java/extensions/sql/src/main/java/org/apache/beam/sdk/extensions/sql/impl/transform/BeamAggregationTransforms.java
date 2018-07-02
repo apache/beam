@@ -185,6 +185,7 @@ public class BeamAggregationTransforms implements Serializable {
             aggregators.add(BeamBuiltinAggregations.createMin(call.type.getSqlTypeName()));
             break;
           case "SUM":
+          case "$SUM0":
             aggregators.add(BeamBuiltinAggregations.createSum(call.type.getSqlTypeName()));
             break;
           case "AVG":
