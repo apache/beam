@@ -83,8 +83,13 @@ properly it must appear at the top of the module where all functions are
 defined, or before importing a module containing type-hinted functions.
 """
 
+from __future__ import absolute_import
+
 import inspect
 import types
+from builtins import next
+from builtins import object
+from builtins import zip
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -175,7 +180,7 @@ class IOTypeHints(object):
     return IOTypeHints(self.input_types or hints.input_types,
                        self.output_types or hints.output_types)
 
-  def __nonzero__(self):
+  def __bool__(self):
     return bool(self.input_types or self.output_types)
 
   def __repr__(self):
@@ -404,7 +409,7 @@ def with_output_types(*return_type_hint, **kwargs):
     from apache_beam.typehints import with_output_types
     from apache_beam.typehints import Set
 
-    class Coordinate:
+    class Coordinate(object):
       def __init__(self, x, y):
         self.x = x
         self.y = y

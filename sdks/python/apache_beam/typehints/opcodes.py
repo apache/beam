@@ -33,8 +33,6 @@ import sys
 import types
 from functools import reduce
 
-import six
-
 from . import typehints
 from .trivial_inference import BoundMethod
 from .trivial_inference import Const
@@ -46,6 +44,11 @@ from .typehints import Iterable
 from .typehints import List
 from .typehints import Tuple
 from .typehints import Union
+
+try:                # Python 2
+  unicode           # pylint: disable=unicode-builtin
+except NameError:   # Python 3
+  unicode = str
 
 
 def pop_one(state, unused_arg):
@@ -152,7 +155,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
   base = state.stack.pop()
-  if base in (str, six.text_type):
+  if base in (str, unicode):
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int)
         and isinstance(base, typehints.TupleHint.TupleConstraint)):

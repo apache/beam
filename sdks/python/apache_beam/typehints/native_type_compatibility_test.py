@@ -17,6 +17,8 @@
 
 """Test for Beam type compatibility library."""
 
+from __future__ import absolute_import
+
 import typing
 import unittest
 
