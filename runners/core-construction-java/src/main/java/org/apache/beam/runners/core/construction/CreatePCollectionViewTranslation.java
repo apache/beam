@@ -67,7 +67,7 @@ public class CreatePCollectionViewTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform transformProto =
         PTransformTranslation.toProto(application, Collections.emptyList(), components);
 

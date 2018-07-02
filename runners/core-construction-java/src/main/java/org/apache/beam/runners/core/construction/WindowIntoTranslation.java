@@ -77,7 +77,7 @@ public class WindowIntoTranslation {
                   .getPipeline()
                   .getOptions()
                   .as(PortablePipelineOptions.class)
-                  .getWorkerDockerImage()));
+                  .getDefaultJavaEnvironmentUrl()));
       transformProto =
           PTransformTranslation.toProto(application, Collections.emptyList(), components);
     } catch (IOException exc) {
