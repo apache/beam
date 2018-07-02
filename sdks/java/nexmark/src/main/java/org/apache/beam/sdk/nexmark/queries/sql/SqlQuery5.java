@@ -20,6 +20,7 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
+import com.google.common.base.Joiner;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
@@ -56,34 +57,35 @@ import org.apache.beam.sdk.values.TupleTag;
 public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<AuctionCount>> {
 
   private static final String QUERY_TEMPLATE =
-      ""
-          + " SELECT AuctionBids.auction, AuctionBids.num "
-          + " FROM ("
-          + "   SELECT"
-          + "     B1.auction,"
-          + "     count(*) AS num,"
-          + "     HOP_START(B1.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND) AS starttime"
-          + "   FROM Bid B1 "
-          + "   GROUP BY "
-          + "     B1.auction,"
-          + "     HOP(B1.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND)"
-          + " ) AS AuctionBids"
-          + " JOIN ("
-          + "   SELECT "
-          + "     max(CountBids.num) AS maxnum, "
-          + "     HOP_START(CountBids.starttime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND) AS starttime"
-          + "   FROM ("
-          + "     SELECT"
-          + "       count(*) AS num,"
-          + "       HOP_START(B2.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND) AS starttime"
-          + "     FROM Bid B2 "
-          + "     GROUP BY "
-          + "       B2.auction, "
-          + "       HOP(B2.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND)"
-          + "     ) AS CountBids"
-          + "   GROUP BY HOP(CountBids.starttime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND)"
-          + " ) AS MaxBids "
-          + " ON AuctionBids.starttime = MaxBids.starttime AND AuctionBids.num >= MaxBids.maxnum ";
+      Joiner.on("\n\t")
+          .join(
+              " SELECT AuctionBids.auction, AuctionBids.num",
+              " FROM (",
+              "   SELECT",
+              "     B1.auction,",
+              "     count(*) AS num,",
+              "     HOP_START(B1.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND) AS starttime",
+              "   FROM Bid B1 ",
+              "   GROUP BY ",
+              "     B1.auction,",
+              "     HOP(B1.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND)",
+              " ) AS AuctionBids",
+              " JOIN (",
+              "   SELECT ",
+              "     max(CountBids.num) AS maxnum, ",
+              "     CountBids.starttime",
+              "   FROM (",
+              "     SELECT",
+              "       count(*) AS num,",
+              "       HOP_START(B2.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND) AS starttime",
+              "     FROM Bid B2 ",
+              "     GROUP BY ",
+              "       B2.auction, ",
+              "       HOP(B2.dateTime, INTERVAL '%1$d' SECOND, INTERVAL '%2$d' SECOND)",
+              "     ) AS CountBids",
+              "   GROUP BY CountBids.starttime",
+              " ) AS MaxBids ",
+              " ON AuctionBids.starttime = MaxBids.starttime AND AuctionBids.num >= MaxBids.maxnum ");
 
   private final PTransform<PInput, PCollection<Row>> query;
 
