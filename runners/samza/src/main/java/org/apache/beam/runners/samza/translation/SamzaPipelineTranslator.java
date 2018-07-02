@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
@@ -134,11 +133,6 @@ public class SamzaPipelineTranslator {
         getTransformPayloadTranslators() {
       return ImmutableMap.of(
           SamzaPublishView.class, new SamzaPublishView.SamzaPublishViewPayloadTranslator());
-    }
-
-    @Override
-    public Map<String, PTransformTranslation.TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

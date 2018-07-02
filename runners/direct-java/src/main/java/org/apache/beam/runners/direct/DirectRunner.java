@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -36,7 +35,6 @@ import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -152,17 +150,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   @Override
-  public DirectPipelineResult run(Pipeline originalPipeline) {
-    Pipeline pipeline;
-    if (options.isProtoTranslation()) {
-      try {
-        pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(originalPipeline));
-      } catch (IOException exception) {
-        throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
-      }
-    } else {
-      pipeline = originalPipeline;
-    }
+  public DirectPipelineResult run(Pipeline pipeline) {
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
     try {
