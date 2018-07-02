@@ -16,6 +16,9 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
+
+from __future__ import absolute_import
+
 import inspect
 import typing
 import unittest
