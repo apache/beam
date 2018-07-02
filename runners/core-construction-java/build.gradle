@@ -41,7 +41,6 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.protobuf_java
   shadow library.java.protobuf_java_util
-  shadow library.java.findbugs_jsr305
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.grpc_core

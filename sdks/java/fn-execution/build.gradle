@@ -26,7 +26,6 @@ the Beam Portability Framework."""
 
 dependencies {
   compile library.java.guava
-  compile library.java.findbugs_jsr305
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")

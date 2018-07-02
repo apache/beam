@@ -28,7 +28,6 @@ dependencies {
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
   shadow library.java.slf4j_api
-  shadow library.java.findbugs_jsr305
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
