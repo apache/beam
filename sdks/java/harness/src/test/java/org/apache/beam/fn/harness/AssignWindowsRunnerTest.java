@@ -191,8 +191,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                         .setPayload(
                             WindowIntoPayload.newBuilder()
                                 .setWindowFn(
-                                    WindowingStrategyTranslation.toProto(
-                                        windowFn, components))
+                                    WindowingStrategyTranslation.toProto(windowFn, components))
                                 .build()
                                 .toByteString()))
                 .build(),

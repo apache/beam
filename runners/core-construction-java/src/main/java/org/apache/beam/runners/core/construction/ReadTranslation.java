@@ -115,9 +115,13 @@ public class ReadTranslation {
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            transform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     return ReadPayload.parseFrom(
         PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
@@ -146,13 +150,16 @@ public class ReadTranslation {
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
     try {
       SdkComponents components = SdkComponents.create();
-      components.registerEnvironment(Environments.createEnvironment(
-          transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-              .getWorkerDockerImage()));
+      components.registerEnvironment(
+          Environments.createEnvironment(
+              transform
+                  .getPipeline()
+                  .getOptions()
+                  .as(PortablePipelineOptions.class)
+                  .getWorkerDockerImage()));
       return PCollectionTranslation.fromProto(
           ReadPayload.parseFrom(
-                  PTransformTranslation.toProto(
-                          transform, Collections.emptyList(), components)
+                  PTransformTranslation.toProto(transform, Collections.emptyList(), components)
                       .getSpec()
                       .getPayload())
               .getIsBounded());

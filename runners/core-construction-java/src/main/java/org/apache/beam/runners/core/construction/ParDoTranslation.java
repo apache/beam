@@ -249,11 +249,14 @@ public class ParDoTranslation {
     }
 
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        application.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
-    RunnerApi.PTransform protoTransform =
-        PTransformTranslation.toProto(application, components);
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            application
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
+    RunnerApi.PTransform protoTransform = PTransformTranslation.toProto(application, components);
 
     ParDoPayload payload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
     TupleTag<?> mainOutputTag = getMainOutputTag(payload);
@@ -276,9 +279,13 @@ public class ParDoTranslation {
     }
 
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environments.createEnvironment(
-        application.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    sdkComponents.registerEnvironment(
+        Environments.createEnvironment(
+            application
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     RunnerApi.PTransform parDoProto = PTransformTranslation.toProto(application, sdkComponents);
     ParDoPayload payload = ParDoPayload.parseFrom(parDoProto.getSpec().getPayload());
 
@@ -537,9 +544,13 @@ public class ParDoTranslation {
   private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            transform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     RunnerApi.PTransform parDoPTransform =
         PTransformTranslation.toProto(transform, Collections.emptyList(), components);
     return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());

@@ -59,8 +59,8 @@ public class Environments {
 
   private Environments() {}
 
-  public static Environment createEnvironment(String url){
-    if(Strings.isNullOrEmpty(url)){
+  public static Environment createEnvironment(String url) {
+    if (Strings.isNullOrEmpty(url)) {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
     }
     return Environment.newBuilder().setUrl(url).build();

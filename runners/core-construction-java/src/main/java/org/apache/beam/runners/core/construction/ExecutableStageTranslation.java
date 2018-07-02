@@ -36,11 +36,14 @@ public class ExecutableStageTranslation {
   public static ExecutableStagePayload getExecutableStagePayload(
       AppliedPTransform<?, ?, ?> appliedTransform) throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        appliedTransform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
-    RunnerApi.PTransform transform =
-        PTransformTranslation.toProto(appliedTransform, components);
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            appliedTransform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
+    RunnerApi.PTransform transform = PTransformTranslation.toProto(appliedTransform, components);
     checkArgument(ExecutableStage.URN.equals(transform.getSpec().getUrn()));
     return ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
   }
