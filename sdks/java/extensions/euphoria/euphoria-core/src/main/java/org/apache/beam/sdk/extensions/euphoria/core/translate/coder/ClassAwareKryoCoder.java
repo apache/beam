@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.coder;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,6 +30,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFunction;
+import org.apache.commons.compress.utils.BoundedInputStream;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
@@ -49,9 +52,14 @@ public class ClassAwareKryoCoder<T> extends Coder<T> {
         return instance;
       };
 
-  private transient Kryo kryo;
-  private transient Output output;
-  private transient Input input;
+  private static ThreadLocal<Kryo> threadLocalKryo = ThreadLocal.withInitial(KRYO_FACTORY::apply);
+
+  private static ThreadLocal<Output> threadLocalOutput = ThreadLocal.withInitial(
+      () -> new Output(DEFAULT_BUFFER_SIZE, -1)
+  );
+  private static ThreadLocal<Input> threadLocalInput = ThreadLocal.withInitial(
+      () -> new Input(DEFAULT_BUFFER_SIZE)
+  );
 
   private Class<T> clazz;
 
@@ -67,17 +75,29 @@ public class ClassAwareKryoCoder<T> extends Coder<T> {
   @Override
   public synchronized void encode(T value, OutputStream outStream)
       throws CoderException, IOException {
-    Output output = getOutput();
-    output.setOutputStream(outStream);
-    getKryo().writeObjectOrNull(output, value, clazz);
-    output.flush();
+
+    Output output = threadLocalOutput.get();
+    output.clear();
+    threadLocalKryo.get().writeObjectOrNull(output, value, clazz);
+
+    DataOutputStream dos = new DataOutputStream(outStream);
+    // write length of encoded object first to get ability to limit read in decode() to one object
+    dos.writeInt(output.position());
+    outStream.write(output.getBuffer(), 0, output.position());
+
   }
 
   @Override
   public synchronized T decode(InputStream inStream) throws CoderException, IOException {
-    Input input = getInput();
-    input.setInputStream(inStream);
-    return getKryo().readObjectOrNull(input, clazz);
+    DataInputStream dis = new DataInputStream(inStream);
+    int lengthOfDecodedObject = dis.readInt();
+
+    Input input = threadLocalInput.get();
+
+    BoundedInputStream limitedStream = new BoundedInputStream(inStream, lengthOfDecodedObject);
+    input.setInputStream(limitedStream);
+
+    return threadLocalKryo.get().readObjectOrNull(input, clazz);
   }
 
   @Override
@@ -94,26 +114,4 @@ public class ClassAwareKryoCoder<T> extends Coder<T> {
     return clazz;
   }
 
-  private Kryo getKryo() {
-    if (kryo == null) {
-      kryo = KRYO_FACTORY.apply();
-    }
-
-    return kryo;
-  }
-
-  private Output getOutput() {
-    if (output == null) {
-      output = new Output(DEFAULT_BUFFER_SIZE, -1);
-    }
-    return output;
-  }
-
-  private Input getInput() {
-    if (input == null) {
-      input = new Input(DEFAULT_BUFFER_SIZE);
-    }
-
-    return input;
-  }
 }
