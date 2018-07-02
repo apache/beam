@@ -44,6 +44,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
@@ -68,15 +69,16 @@ public class POJOUtils {
 
   // The list of getters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  public static final Map<Class, List<FieldValueGetter>> CACHED_GETTERS = Maps.newConcurrentMap();
+  public static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
+      Maps.newConcurrentMap();
 
   public static List<FieldValueGetter> getGetters(Class<?> clazz, Schema schema) {
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
-        clazz,
+        new ClassWithSchema(clazz, schema),
         c -> {
           Map<String, FieldValueGetter> getterMap =
-              ReflectUtils.getFields(c)
+              ReflectUtils.getFields(clazz)
                   .stream()
                   .map(POJOUtils::createGetter)
                   .collect(Collectors.toMap(FieldValueGetter::name, Function.identity()));

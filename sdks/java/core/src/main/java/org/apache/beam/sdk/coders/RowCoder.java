@@ -135,7 +135,7 @@ public class RowCoder extends CustomCoder<Row> {
         return 4 + listSizeBytes;
       case BYTES:
         byte[] bytes = (byte[]) value;
-        return 4L + ((byte[]) value).length;
+        return 4L + bytes.length;
       case MAP:
         Map<Object, Object> map = (Map<Object, Object>) value;
         long mapSizeBytes = 0;

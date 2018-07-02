@@ -187,6 +187,8 @@ public class StaticSchemaInference {
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 1);
         return FieldType.array(fieldFromType(TypeDescriptor.of(params[0]), getTypesForClass));
+      } else {
+        throw new RuntimeException("Cannot infer schema from unparameterized collection.");
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = type.getSupertype(Map.class);
@@ -199,6 +201,8 @@ public class StaticSchemaInference {
         checkArgument(
             keyType.getTypeName().isPrimitiveType(), "Only primitive types can be map keys");
         return FieldType.map(keyType, valueType);
+      } else {
+        throw new RuntimeException("Cannot infer schema from unparameterized map.");
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
       return FieldType.STRING;
@@ -209,6 +213,5 @@ public class StaticSchemaInference {
     } else {
       return FieldType.row(schemaFromClass(type.getRawType(), getTypesForClass));
     }
-    return null;
   }
 }

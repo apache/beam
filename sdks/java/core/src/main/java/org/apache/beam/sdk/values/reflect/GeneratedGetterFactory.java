@@ -95,7 +95,7 @@ class GeneratedGetterFactory implements GetterFactory {
   private static FieldValueGetter createFieldGetterInstance(Class clazz, Method getterMethod) {
 
     DynamicType.Builder<FieldValueGetter> getterBuilder =
-        subclassGetterInterface(BYTE_BUDDY, clazz);
+        subclassGetterInterface(BYTE_BUDDY, clazz, getterMethod.getGenericReturnType());
 
     getterBuilder = implementNameGetter(getterBuilder, tryStripGetPrefix(getterMethod));
     getterBuilder = implementTypeGetter(getterBuilder, getterMethod.getReturnType());

@@ -50,6 +50,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
 
+/** Tests for the {@link POJOUtils} class. */
 public class POJOUtilsTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();

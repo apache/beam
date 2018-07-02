@@ -27,8 +27,10 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 
+/** Utilities for testing schemas. */
 public class SchemaTestUtils {
-  // Assert that two schemas are equivalent, ignoring field order.
+  // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
+  // (recursively) contain the same fields with the same names, but possibly different orders.
   public static void assertSchemaEquivalent(Schema expected, Schema actual) {
     List<Field> expectedFields =
         expected

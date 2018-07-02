@@ -95,9 +95,8 @@ public class RowWithGetters extends Row {
       return cacheKey != null
           ? (T)
               cachedMaps.computeIfAbsent(
-                  cacheKey,
-                  i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue))
-          : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue);
+                  cacheKey, i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), map))
+          : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), map);
     } else {
       return (T) fieldValue;
     }

@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
+/** Tests for the {@link JavaBeanUtils} class. */
 public class JavaBeanUtilsTest {
 
   @Test

@@ -30,11 +30,40 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Schema;
 
 /** A set of reflection helper methods. */
 public class ReflectUtils {
+  static class ClassWithSchema {
+    Class clazz;
+    Schema schema;
+
+    public ClassWithSchema(Class clazz, Schema schema) {
+      this.clazz = clazz;
+      this.schema = schema;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ClassWithSchema that = (ClassWithSchema) o;
+      return Objects.equals(clazz, that.clazz) && Objects.equals(schema, that.schema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(clazz, schema);
+    }
+  }
+
   private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newHashMap();
   private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
 

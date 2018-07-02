@@ -31,6 +31,7 @@ import org.joda.time.Instant;
 
 /** Various Java POJOs and associated schemas used in tests. */
 public class TestPOJOs {
+  /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class SimplePOJO {
     public String str;
@@ -76,6 +77,7 @@ public class TestPOJOs {
     }
   }
 
+  /** The schema for {@link SimplePOJO}. * */
   public static final Schema SIMPLE_POJO_SCHEMA =
       Schema.builder()
           .addStringField("str")
@@ -92,6 +94,7 @@ public class TestPOJOs {
           .addStringField("stringBuilder")
           .build();
 
+  /** A POJO containing a nested class. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedPOJO {
     public SimplePOJO nested;
@@ -103,9 +106,11 @@ public class TestPOJOs {
     public NestedPOJO() {}
   }
 
+  /** The schema for {@link NestedPOJO}. * */
   public static final Schema NESTED_POJO_SCHEMA =
       Schema.builder().addRowField("nested", SIMPLE_POJO_SCHEMA).build();
 
+  /** A POJO containing arrays of primitive types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class PrimitiveArrayPOJO {
     // Test every type of array parameter supported.
@@ -122,6 +127,7 @@ public class TestPOJOs {
     }
   }
 
+  /** The schema for {@link PrimitiveArrayPOJO}. * */
   public static final Schema PRIMITIVE_ARRAY_POJO_SCHEMA =
       Schema.builder()
           .addArrayField("strings", FieldType.STRING)
@@ -129,6 +135,7 @@ public class TestPOJOs {
           .addArrayField("longs", FieldType.INT64)
           .build();
 
+  /** A POJO containing arrays of complex classes. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedArrayPOJO {
     public SimplePOJO[] pojos;
@@ -140,9 +147,11 @@ public class TestPOJOs {
     public NestedArrayPOJO() {}
   }
 
+  /** The schema for {@link NestedArrayPOJO}. * */
   public static final Schema NESTED_ARRAY_POJO_SCHEMA =
       Schema.builder().addArrayField("pojos", FieldType.row(SIMPLE_POJO_SCHEMA)).build();
 
+  /** A bean containing arrays of arrays. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedArraysPOJO {
     public List<List<String>> lists;
@@ -154,9 +163,11 @@ public class TestPOJOs {
     public NestedArraysPOJO() {}
   }
 
+  /** The schema for {@link NestedArraysPOJO}. * */
   public static final Schema NESTED_ARRAYS_POJO_SCHEMA =
       Schema.builder().addArrayField("lists", FieldType.array(FieldType.STRING)).build();
 
+  /** A POJO containing a {@link List} of a complex type. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedCollectionPOJO {
     public List<SimplePOJO> simples;
@@ -168,9 +179,11 @@ public class TestPOJOs {
     public NestedCollectionPOJO() {}
   }
 
+  /** The schema for {@link NestedCollectionPOJO}. * */
   public static final Schema NESTED_COLLECTION_POJO_SCHEMA =
       Schema.builder().addArrayField("simples", FieldType.row(SIMPLE_POJO_SCHEMA)).build();
 
+  /** A POJO containing a simple {@link Map}. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class PrimitiveMapPOJO {
     public Map<String, Integer> map;
@@ -182,9 +195,11 @@ public class TestPOJOs {
     public PrimitiveMapPOJO() {}
   }
 
+  /** The schema for {@link PrimitiveMapPOJO}. * */
   public static final Schema PRIMITIVE_MAP_POJO_SCHEMA =
       Schema.builder().addMapField("map", FieldType.STRING, FieldType.INT32).build();
 
+  /** A POJO containing a map of a complex type. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedMapPOJO {
     public Map<String, SimplePOJO> map;
@@ -196,11 +211,13 @@ public class TestPOJOs {
     public NestedMapPOJO() {}
   }
 
+  /** The schema for {@link NestedMapPOJO}. * */
   public static final Schema NESTED_MAP_POJO_SCHEMA =
       Schema.builder()
           .addMapField("map", FieldType.STRING, FieldType.row(SIMPLE_POJO_SCHEMA))
           .build();
 
+  /** A POJO containing the boxed version of primitive types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJOWithBoxedFields {
     public Byte aByte;
@@ -221,6 +238,7 @@ public class TestPOJOs {
     public POJOWithBoxedFields() {}
   }
 
+  /** The schema for {@link POJOWithBoxedFields}. * */
   public static final Schema POJO_WITH_BOXED_FIELDS_SCHEMA =
       Schema.builder()
           .addByteField("aByte")
@@ -230,6 +248,7 @@ public class TestPOJOs {
           .addBooleanField("aBoolean")
           .build();
 
+  /** A POJO containing byte arrays. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJOWithByteArray {
     public byte[] bytes1;
@@ -243,6 +262,7 @@ public class TestPOJOs {
     public POJOWithByteArray() {}
   }
 
+  /** The schema for {@link POJOWithByteArray}. * */
   public static final Schema POJO_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
 }

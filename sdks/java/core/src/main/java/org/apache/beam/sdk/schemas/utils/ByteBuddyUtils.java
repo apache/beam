@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
-import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,6 +89,7 @@ class ByteBuddyUtils {
   }
 
   // Base class used below to convert types.
+  @SuppressWarnings("unchecked")
   abstract static class TypeConversion<T> {
     public T convert(TypeDescriptor typeDescriptor) {
       if (typeDescriptor.isArray()
@@ -113,7 +113,7 @@ class ByteBuddyUtils {
       }
     }
 
-    protected abstract <I> T convertArray(TypeDescriptor<?> type);
+    protected abstract T convertArray(TypeDescriptor<?> type);
 
     protected abstract T convertCollection(TypeDescriptor<?> type);
 
@@ -150,13 +150,8 @@ class ByteBuddyUtils {
    */
   static class ConvertType extends TypeConversion<Type> {
     @Override
-    @SuppressWarnings("unchecked")
-    protected <I> Type convertArray(TypeDescriptor<?> type) {
-      TypeDescriptor componentType =
-          TypeDescriptor.of(ClassUtils.primitiveToWrapper(type.getComponentType().getRawType()));
-      TypeDescriptor token =
-          new TypeDescriptor<List<I>>() {}.where(new TypeParameter<I>() {}, componentType);
-      return token.getType();
+    protected Type convertArray(TypeDescriptor<?> type) {
+      return createListType(type).getType();
     }
 
     @Override
@@ -193,6 +188,14 @@ class ByteBuddyUtils {
     protected Type convertDefault(TypeDescriptor<?> type) {
       return type.getType();
     }
+
+    @SuppressWarnings("unchecked")
+    private <ElementT> TypeDescriptor<List<ElementT>> createListType(TypeDescriptor<?> type) {
+      TypeDescriptor componentType =
+          TypeDescriptor.of(ClassUtils.primitiveToWrapper(type.getComponentType().getRawType()));
+      return new TypeDescriptor<List<ElementT>>() {}.where(
+          new TypeParameter<ElementT>() {}, componentType);
+    }
   }
 
   /**
@@ -211,7 +214,7 @@ class ByteBuddyUtils {
     }
 
     @Override
-    protected <I> StackManipulation convertArray(TypeDescriptor<?> type) {
+    protected StackManipulation convertArray(TypeDescriptor<?> type) {
       // Generate the following code:
       // return isComponentTypePrimitive ? Arrays.asList(ArrayUtils.toObject(value))
       //     : Arrays.asList(value);
@@ -350,7 +353,7 @@ class ByteBuddyUtils {
     }
 
     @Override
-    protected <I> StackManipulation convertArray(TypeDescriptor<?> type) {
+    protected StackManipulation convertArray(TypeDescriptor<?> type) {
       // Generate the following code:
       // T[] toArray = (T[]) value.toArray(new T[0]);
       // return isPrimitive ? toArray : ArrayUtils.toPrimitive(toArray);
@@ -401,17 +404,11 @@ class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
-      if (!type.isSupertypeOf(TypeDescriptor.of(List.class))) {
-        throw new RuntimeException("Don't know how to generate a setter for " + type);
-      }
       return readValue;
     }
 
     @Override
     protected StackManipulation convertMap(TypeDescriptor<?> type) {
-      if (!type.isSupertypeOf(TypeDescriptor.of(AbstractMap.class))) {
-        throw new RuntimeException("Don't know how to generate a setter for " + type);
-      }
       return readValue;
     }
 
@@ -550,7 +547,7 @@ class ByteBuddyUtils {
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
   @SuppressWarnings("unchecked")
-  static Implementation getMapType(TypeDescriptor valueType, int index) {
+  private static Implementation getMapType(TypeDescriptor valueType, int index) {
     if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);
       if (map.getType() instanceof ParameterizedType) {
