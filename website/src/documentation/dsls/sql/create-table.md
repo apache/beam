@@ -95,8 +95,8 @@ LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
 
 ### Read Mode
 
-Not supported. BigQueryI/O is currently limited to write access only in Beam
-SQL.
+Beam SQL supports reading columns with simple types (`simpleType`) and arrays of simple
+types (`ARRAY<simpleType>`).
 
 ### Write Mode
 
