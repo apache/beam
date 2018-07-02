@@ -61,9 +61,13 @@ public class CreatePCollectionViewTranslation {
       throws IOException {
 
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        application.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            application
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     RunnerApi.PTransform transformProto =
         PTransformTranslation.toProto(application, Collections.emptyList(), components);
 

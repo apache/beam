@@ -204,7 +204,7 @@ public class SdkComponents {
     return name;
   }
 
-  public Collection<String> getEnvironmentIds(){
+  public Collection<String> getEnvironmentIds() {
     return ImmutableSet.copyOf(componentsBuilder.getEnvironmentsMap().keySet());
   }
 

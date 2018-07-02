@@ -71,12 +71,15 @@ public class WindowIntoTranslation {
     RunnerApi.PTransform transformProto;
     try {
       SdkComponents components = SdkComponents.create();
-      components.registerEnvironment(Environments.createEnvironment(
-          application.getPipeline().getOptions().as(PortablePipelineOptions.class)
-              .getWorkerDockerImage()));
+      components.registerEnvironment(
+          Environments.createEnvironment(
+              application
+                  .getPipeline()
+                  .getOptions()
+                  .as(PortablePipelineOptions.class)
+                  .getWorkerDockerImage()));
       transformProto =
-          PTransformTranslation.toProto(
-              application, Collections.emptyList(), components);
+          PTransformTranslation.toProto(application, Collections.emptyList(), components);
     } catch (IOException exc) {
       throw new RuntimeException(exc);
     }

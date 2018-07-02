@@ -75,9 +75,13 @@ public class TestStreamTranslation {
     // }
 
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environments.createEnvironment(
-        application.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    sdkComponents.registerEnvironment(
+        Environments.createEnvironment(
+            application
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(application, sdkComponents);
     checkArgument(
         TEST_STREAM_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),

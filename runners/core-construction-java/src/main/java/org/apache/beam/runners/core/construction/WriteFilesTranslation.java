@@ -147,9 +147,13 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environments.createEnvironment(
-        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    sdkComponents.registerEnvironment(
+        Environments.createEnvironment(
+            transform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs = getWriteFilesPayload(transform).getSideInputsMap();
@@ -195,9 +199,13 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            transform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     return WriteFilesPayload.parseFrom(
         PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()

@@ -270,8 +270,7 @@ public class WindowingStrategyTranslation implements Serializable {
    * WindowingStrategy}.
    */
   public static RunnerApi.MessageWithComponents toMessageProto(
-      WindowingStrategy<?, ?> windowingStrategy, SdkComponents components)
-      throws IOException {
+      WindowingStrategy<?, ?> windowingStrategy, SdkComponents components) throws IOException {
     RunnerApi.WindowingStrategy windowingStrategyProto = toProto(windowingStrategy, components);
 
     return RunnerApi.MessageWithComponents.newBuilder()
