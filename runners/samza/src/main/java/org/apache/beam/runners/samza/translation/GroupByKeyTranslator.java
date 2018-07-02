@@ -18,11 +18,9 @@
 
 package org.apache.beam.runners.samza.translation;
 
-import java.io.IOException;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.CombineTranslation;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.GroupByKeyOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
@@ -128,16 +126,8 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       return (SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow>)
           SystemReduceFn.buffering(kvInputCoder.getValueCoder());
     } else if (transform instanceof Combine.PerKey) {
-      final CombineFnBase.GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
-      try {
-        combineFn =
-            (CombineFnBase.GlobalCombineFn<? super InputT, ?, OutputT>)
-                CombineTranslation.getCombineFn(appliedPTransform)
-                    .orElseThrow(() -> new IOException("CombineFn not found in node."));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-
+      final CombineFnBase.GlobalCombineFn<? super InputT, ?, OutputT> combineFn =
+          ((Combine.PerKey) transform).getFn();
       return SystemReduceFn.combining(
           kvInputCoder.getKeyCoder(),
           AppliedCombineFn.withInputCoder(combineFn, pipeline.getCoderRegistry(), kvInputCoder));

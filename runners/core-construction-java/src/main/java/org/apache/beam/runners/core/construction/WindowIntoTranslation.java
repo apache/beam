@@ -42,8 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
  */
 public class WindowIntoTranslation {
 
-  static class WindowAssignTranslator
-      extends TransformPayloadTranslator.WithDefaultRehydration<Window.Assign<?>> {
+  static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {
 
     @Override
     public String getUrn(Assign<?> transform) {
@@ -107,8 +106,7 @@ public class WindowIntoTranslation {
 
   /** A {@link TransformPayloadTranslator} for {@link Window}. */
   public static class WindowIntoPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
-          Window.Assign<?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<Window.Assign<?>> {
     public static TransformPayloadTranslator create() {
       return new WindowIntoPayloadTranslator();
     }
@@ -138,11 +136,6 @@ public class WindowIntoTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(Window.Assign.class, new WindowIntoPayloadTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }
