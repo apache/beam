@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Rule;
@@ -76,7 +78,7 @@ public class CombineTranslationTest {
     public Combine.CombineFn<Integer, ?, ?> combineFn;
 
     @Test
-    public void testToFromProto() throws Exception {
+    public void testToProto() throws Exception {
       PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
       input.apply(Combine.globally(combineFn));
       final AtomicReference<AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>>> combine =
@@ -92,7 +94,7 @@ public class CombineTranslationTest {
             }
           });
       checkState(combine.get() != null);
-      assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()).orElse(null));
+      assertEquals(combineFn, combine.get().getTransform().getFn());
 
       SdkComponents sdkComponents = SdkComponents.create();
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
@@ -100,9 +102,11 @@ public class CombineTranslationTest {
 
       assertEquals(
           combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
-          CombineTranslation.getAccumulatorCoder(
-              combineProto, RehydratedComponents.forComponents(componentsProto)));
-      assertEquals(combineFn, CombineTranslation.getCombineFn(combineProto));
+          getAccumulatorCoder(combineProto, RehydratedComponents.forComponents(componentsProto)));
+      assertEquals(
+          combineFn,
+          SerializableUtils.deserializeFromByteArray(
+              combineProto.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn"));
     }
   }
 
@@ -113,7 +117,7 @@ public class CombineTranslationTest {
     @Rule public ExpectedException exception = ExpectedException.none();
 
     @Test
-    public void testToFromProtoWithoutSideInputs() throws Exception {
+    public void testToProtoWithoutSideInputs() throws Exception {
       PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
       CombineFnWithContext<Integer, int[], Integer> combineFn = new TestCombineFnWithContext();
       input.apply(Combine.globally(combineFn).withoutDefaults());
@@ -130,7 +134,7 @@ public class CombineTranslationTest {
             }
           });
       checkState(combine.get() != null);
-      assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()).orElse(null));
+      assertEquals(combineFn, combine.get().getTransform().getFn());
 
       SdkComponents sdkComponents = SdkComponents.create();
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
@@ -138,9 +142,11 @@ public class CombineTranslationTest {
 
       assertEquals(
           combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
-          CombineTranslation.getAccumulatorCoder(
-              combineProto, RehydratedComponents.forComponents(componentsProto)));
-      assertEquals(combineFn, CombineTranslation.getCombineFn(combineProto));
+          getAccumulatorCoder(combineProto, RehydratedComponents.forComponents(componentsProto)));
+      assertEquals(
+          combineFn,
+          SerializableUtils.deserializeFromByteArray(
+              combineProto.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn"));
     }
 
     @Test
@@ -177,6 +183,12 @@ public class CombineTranslationTest {
       SdkComponents sdkComponents = SdkComponents.create();
       CombinePayload payload = CombineTranslation.toProto(combine.get(), sdkComponents);
     }
+  }
+
+  private static Coder<?> getAccumulatorCoder(
+      CombinePayload payload, RehydratedComponents components) throws IOException {
+    String id = payload.getAccumulatorCoderId();
+    return components.getCoder(id);
   }
 
   private static class TestCombineFn extends Combine.CombineFn<Integer, Void, Void> {

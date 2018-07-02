@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpec
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
@@ -75,7 +74,6 @@ import org.apache.beam.sdk.util.DoFnAndMainOutput;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -115,13 +113,6 @@ public class ParDoTranslation {
           .build();
     }
 
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      return new RawParDo<>(protoTransform, rehydratedComponents);
-    }
-
     /** Registers {@link ParDoPayloadTranslator}. */
     @AutoService(TransformPayloadTranslatorRegistrar.class)
     public static class Registrar implements TransformPayloadTranslatorRegistrar {
@@ -129,11 +120,6 @@ public class ParDoTranslation {
       public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
           getTransformPayloadTranslators() {
         return Collections.singletonMap(ParDo.MultiOutput.class, new ParDoPayloadTranslator());
-      }
-
-      @Override
-      public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
-        return Collections.singletonMap(PAR_DO_TRANSFORM_URN, new ParDoPayloadTranslator());
       }
     }
   }
@@ -568,105 +554,6 @@ public class ParDoTranslation {
                     ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowMappingFn)))
                 .build())
         .build();
-  }
-
-  static class RawParDo<InputT, OutputT>
-      extends PTransformTranslation.RawPTransform<PCollection<InputT>, PCollection<OutputT>>
-      implements ParDoLike {
-
-    private final RunnerApi.PTransform protoTransform;
-    private final transient RehydratedComponents rehydratedComponents;
-
-    // Parsed from protoTransform and cached
-    private final FunctionSpec spec;
-    private final ParDoPayload payload;
-
-    public RawParDo(RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      this.rehydratedComponents = rehydratedComponents;
-      this.protoTransform = protoTransform;
-      this.spec = protoTransform.getSpec();
-      this.payload = ParDoPayload.parseFrom(spec.getPayload());
-    }
-
-    @Override
-    public FunctionSpec getSpec() {
-      return spec;
-    }
-
-    @Override
-    public FunctionSpec migrate(SdkComponents components) throws IOException {
-      return FunctionSpec.newBuilder()
-          .setUrn(PAR_DO_TRANSFORM_URN)
-          .setPayload(payloadForParDoLike(this, components).toByteString())
-          .build();
-    }
-
-    @Override
-    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
-      for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
-        try {
-          additionalInputs.put(
-              new TupleTag<>(sideInputEntry.getKey()),
-              rehydratedComponents.getPCollection(
-                  protoTransform.getInputsOrThrow(sideInputEntry.getKey())));
-        } catch (IOException exc) {
-          throw new IllegalStateException(
-              String.format(
-                  "Could not find input with name %s for %s transform",
-                  sideInputEntry.getKey(), ParDo.class.getSimpleName()));
-        }
-      }
-      return additionalInputs;
-    }
-
-    @Override
-    public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-      SdkFunctionSpec sdkFnSpec = payload.getDoFn();
-      return sdkFnSpec
-          .toBuilder()
-          .setEnvironmentId(
-              newComponents.registerEnvironment(
-                  rehydratedComponents.getEnvironment(sdkFnSpec.getEnvironmentId())))
-          .build();
-    }
-
-    @Override
-    public List<RunnerApi.Parameter> translateParameters() {
-      return MoreObjects.firstNonNull(
-          payload.getParametersList(), Collections.<RunnerApi.Parameter>emptyList());
-    }
-
-    @Override
-    public Map<String, SideInput> translateSideInputs(SdkComponents components) {
-      // TODO: re-register the PCollections and UDF environments
-      return MoreObjects.firstNonNull(
-          payload.getSideInputsMap(), Collections.<String, SideInput>emptyMap());
-    }
-
-    @Override
-    public Map<String, RunnerApi.StateSpec> translateStateSpecs(SdkComponents components) {
-      // TODO: re-register the coders
-      return MoreObjects.firstNonNull(
-          payload.getStateSpecsMap(), Collections.<String, RunnerApi.StateSpec>emptyMap());
-    }
-
-    @Override
-    public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(SdkComponents newComponents) {
-      return MoreObjects.firstNonNull(
-          payload.getTimerSpecsMap(), Collections.<String, RunnerApi.TimerSpec>emptyMap());
-    }
-
-    @Override
-    public boolean isSplittable() {
-      return payload.getSplittable();
-    }
-
-    @Override
-    public String translateRestrictionCoderId(SdkComponents newComponents) {
-      return payload.getRestrictionCoderId();
-    }
   }
 
   /** These methods drive to-proto translation from Java and from rehydrated ParDos. */

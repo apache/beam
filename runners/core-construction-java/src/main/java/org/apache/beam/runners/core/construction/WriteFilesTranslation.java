@@ -286,13 +286,6 @@ public class WriteFilesTranslation {
           .setPayload(payloadForWriteFiles(transform.getTransform(), components).toByteString())
           .build();
     }
-
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      return new RawWriteFiles(protoTransform, rehydratedComponents);
-    }
   }
 
   /** Registers {@link WriteFilesTranslator}. */
@@ -302,11 +295,6 @@ public class WriteFilesTranslation {
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
-    }
-
-    @Override
-    public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.singletonMap(WRITE_FILES_TRANSFORM_URN, new WriteFilesTranslator());
     }
   }
 

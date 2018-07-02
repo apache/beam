@@ -23,16 +23,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.CombineTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -72,14 +69,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
-          try {
-            Optional<GlobalCombineFn<?, ?, ?>> fn = CombineTranslation.getCombineFn(application);
-            if (fn.isPresent()) {
-              return isApplicable(application.getInputs(), fn.get());
-            }
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+          GlobalCombineFn<?, ?, ?> fn = ((Combine.PerKey) application.getTransform()).getFn();
+          return isApplicable(application.getInputs(), fn);
         }
         return false;
       }
@@ -143,37 +134,23 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
                     PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>>
                 transform) {
-      try {
-        GlobalCombineFn<?, ?, ?> globalFn =
-            CombineTranslation.getCombineFn(transform)
-                .orElseThrow(
-                    () ->
-                        new IOException(
-                            String.format(
-                                "%s.matcher() should only match %s instances using %s, but %s was missing",
-                                MultiStepCombine.class.getSimpleName(),
-                                PerKey.class.getSimpleName(),
-                                CombineFn.class.getSimpleName(),
-                                CombineFn.class.getSimpleName())));
-        checkState(
-            globalFn instanceof CombineFn,
-            "%s.matcher() should only match %s instances using %s, got %s",
-            MultiStepCombine.class.getSimpleName(),
-            PerKey.class.getSimpleName(),
-            CombineFn.class.getSimpleName(),
-            globalFn.getClass().getName());
-        @SuppressWarnings("unchecked")
-        CombineFn<InputT, AccumT, OutputT> fn = (CombineFn<InputT, AccumT, OutputT>) globalFn;
-        @SuppressWarnings("unchecked")
-        PCollection<KV<K, InputT>> input =
-            (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(transform.getInputs().values());
-        @SuppressWarnings("unchecked")
-        PCollection<KV<K, OutputT>> output =
-            (PCollection<KV<K, OutputT>>) Iterables.getOnlyElement(transform.getOutputs().values());
-        return PTransformReplacement.of(input, new MultiStepCombine<>(fn, output.getCoder()));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      GlobalCombineFn<?, ?, ?> globalFn = ((Combine.PerKey) transform.getTransform()).getFn();
+      checkState(
+          globalFn instanceof CombineFn,
+          "%s.matcher() should only match %s instances using %s, got %s",
+          MultiStepCombine.class.getSimpleName(),
+          PerKey.class.getSimpleName(),
+          CombineFn.class.getSimpleName(),
+          globalFn.getClass().getName());
+      @SuppressWarnings("unchecked")
+      CombineFn<InputT, AccumT, OutputT> fn = (CombineFn<InputT, AccumT, OutputT>) globalFn;
+      @SuppressWarnings("unchecked")
+      PCollection<KV<K, InputT>> input =
+          (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(transform.getInputs().values());
+      @SuppressWarnings("unchecked")
+      PCollection<KV<K, OutputT>> output =
+          (PCollection<KV<K, OutputT>>) Iterables.getOnlyElement(transform.getOutputs().values());
+      return PTransformReplacement.of(input, new MultiStepCombine<>(fn, output.getCoder()));
     }
   }
 
