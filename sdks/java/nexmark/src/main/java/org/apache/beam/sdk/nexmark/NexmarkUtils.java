@@ -178,7 +178,7 @@ public class NexmarkUtils {
                 baseTableName,
                 queryName,
                 options.getRunner().getSimpleName(),
-                options.isStreaming(),
+                options.isStreaming() ? "streaming" : "batch",
                 version)
             : String.format(
                 "%s:%s.%s_%s_%s_%s",
@@ -187,7 +187,7 @@ public class NexmarkUtils {
                 baseTableName,
                 queryName,
                 options.getRunner().getSimpleName(),
-                options.isStreaming());
+                options.isStreaming() ? "streaming" : "batch");
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
