@@ -27,7 +27,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.jackson_datatype_joda
-  shadow library.java.findbugs_jsr305
   shadowTest library.java.joda_time
   shadowTest library.java.junit
 }

@@ -42,7 +42,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
   shadow library.java.slf4j_api
-  shadow library.java.findbugs_jsr305
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core

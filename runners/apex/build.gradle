@@ -43,7 +43,6 @@ dependencies {
   shadow library.java.malhar_library
   shadow library.java.apex_engine
   shadow library.java.commons_lang3
-  shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest

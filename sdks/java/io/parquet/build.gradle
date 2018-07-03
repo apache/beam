@@ -28,7 +28,6 @@ dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
-  shadow library.java.findbugs_jsr305
   shadow "org.apache.parquet:parquet-avro:$parquet_version"
   shadow "org.apache.parquet:parquet-common:$parquet_version"
   shadow "org.apache.parquet:parquet-hadoop:$parquet_version"

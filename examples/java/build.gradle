@@ -49,7 +49,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_api_services_bigquery
-  shadow library.java.findbugs_jsr305
   shadow library.java.google_http_client
   shadow library.java.bigdataoss_util
   shadow library.java.google_auth_library_oauth2_http
