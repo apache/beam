@@ -2091,9 +2091,11 @@ public class Combine {
     public AppliedCombineFn<? super K, ? super InputT, ?, OutputT> getAppliedFn(
         CoderRegistry registry,
         Coder<? extends KV<K, ? extends Iterable<InputT>>> inputCoder,
+        Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ?> windowingStrategy) {
       KvCoder<K, InputT> kvCoder = getKvCoder(inputCoder);
-      return AppliedCombineFn.withInputCoder(fn, registry, kvCoder, sideInputs, windowingStrategy);
+      return AppliedCombineFn.withInputCoder(
+          fn, registry, kvCoder, outputCoders, sideInputs, windowingStrategy);
     }
 
     private KvCoder<K, InputT> getKvCoder(
