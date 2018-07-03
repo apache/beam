@@ -31,7 +31,6 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -74,14 +73,7 @@ public class TestStreamTranslation {
     //   return application.getTransform()
     // }
 
-    SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            application
-                .getPipeline()
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
+    SdkComponents sdkComponents = SdkComponents.create(application.getPipeline().getOptions());
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(application, sdkComponents);
     checkArgument(
         TEST_STREAM_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),

@@ -38,7 +38,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -113,14 +112,7 @@ public class ReadTranslation {
   private static <T> ReadPayload getReadPayload(
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            transform
-                .getPipeline()
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     return ReadPayload.parseFrom(
         PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
@@ -148,14 +140,7 @@ public class ReadTranslation {
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
     try {
-      SdkComponents components = SdkComponents.create();
-      components.registerEnvironment(
-          Environments.createOrGetDefaultEnvironment(
-              transform
-                  .getPipeline()
-                  .getOptions()
-                  .as(PortablePipelineOptions.class)
-                  .getDefaultJavaEnvironmentUrl()));
+      SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
       return PCollectionTranslation.fromProto(
           ReadPayload.parseFrom(
                   PTransformTranslation.toProto(transform, Collections.emptyList(), components)

@@ -49,7 +49,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput.Builder;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -248,15 +247,9 @@ public class ParDoTranslation {
       return ((ParDo.MultiOutput<?, ?>) transform).getAdditionalOutputTags();
     }
 
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            application
-                .getPipeline()
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
-    RunnerApi.PTransform protoTransform = PTransformTranslation.toProto(application, components);
+    RunnerApi.PTransform protoTransform =
+        PTransformTranslation.toProto(
+            application, SdkComponents.create(application.getPipeline().getOptions()));
 
     ParDoPayload payload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
     TupleTag<?> mainOutputTag = getMainOutputTag(payload);
@@ -278,14 +271,7 @@ public class ParDoTranslation {
       return ((ParDo.MultiOutput<?, ?>) transform).getSideInputs();
     }
 
-    SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            application
-                .getPipeline()
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
+    SdkComponents sdkComponents = SdkComponents.create(application.getPipeline().getOptions());
     RunnerApi.PTransform parDoProto = PTransformTranslation.toProto(application, sdkComponents);
     ParDoPayload payload = ParDoPayload.parseFrom(parDoProto.getSpec().getPayload());
 
@@ -543,14 +529,7 @@ public class ParDoTranslation {
 
   private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            transform
-                .getPipeline()
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     RunnerApi.PTransform parDoPTransform =
         PTransformTranslation.toProto(transform, Collections.emptyList(), components);
     return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());

@@ -28,7 +28,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 
@@ -36,14 +35,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 public class PipelineTranslation {
 
   public static RunnerApi.Pipeline toProto(Pipeline pipeline) {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            pipeline
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
-    return toProto(pipeline, components);
+    return toProto(pipeline, SdkComponents.create(pipeline.getOptions()));
   }
 
   public static RunnerApi.Pipeline toProto(
