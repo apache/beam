@@ -65,7 +65,6 @@ dependencies {
   }
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.args4j
   provided library.java.hamcrest_core
