@@ -210,6 +210,12 @@
                     <scope>runtime</scope>
                 </dependency>
                 <dependency>
+                    <groupId>org.apache.calcite</groupId>
+                    <artifactId>calcite-core</artifactId>
+                    <version>1.16.0</version>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
                     <groupId>org.apache.beam</groupId>
                     <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
                     <version>${beam.version}</version>

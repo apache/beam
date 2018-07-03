@@ -19,6 +19,10 @@
 apply plugin: 'eu.appsatori.fatjar'
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: TPC"
+ext.summary = "TPC Benchmark on Beam SQL"
+
 //        , shadowClosure: DEFAULT_SHADOW_CLOSURE << {
 //    dependencies {
 //        include(dependency(library.java.protobuf_java))

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.tpc;
 
 import org.apache.beam.sdk.options.Description;
@@ -24,11 +23,23 @@ import org.apache.beam.sdk.options.Validation;
 
 /** PipelineOptions for Tpc benchmark launcher. */
 public interface TpcOptions extends PipelineOptions {
-  @Description("Path of the file to read from")
+  @Description("Root path of the csv files to read from")
   @Validation.Required
   String getInputFile();
 
   void setInputFile(String value);
+
+  @Description("DS or H")
+  @Validation.Required
+  String getTable();
+
+  void setTable(String value);
+
+  @Description("Query no.")
+  @Validation.Required
+  Integer getQuery();
+
+  void setQuery(Integer value);
 
   /** Set this required option to specify where to write the output. */
   @Description("Path of the file to write to")
