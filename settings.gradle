@@ -18,6 +18,7 @@
 
 rootProject.name = "beam"
 
+include ":buildSrc"
 include ":release"
 
 include "beam-examples-java"
