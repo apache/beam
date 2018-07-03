@@ -29,4 +29,9 @@ public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
     DateTimeFormatter format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
     return format.parseDateTime(dateStr);
   }
+
+  static DateTime str2Date(String dateStr) {
+    DateTimeFormatter format = DateTimeFormat.forPattern("yyyy-MM-dd").withZoneUTC();
+    return format.parseDateTime(dateStr);
+  }
 }
