@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
+// Define the set of repositories and dependencies required to
+// fetch and enable plugins.
+buildscript { dependencies { classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0" } }
+
 // Plugins for configuring _this build_ of the module
-plugins {
-  id 'groovy'
-  id 'com.diffplug.gradle.spotless' version "3.6.0"
-}
+plugins { id 'groovy' }
+
+apply plugin: "com.diffplug.gradle.spotless"
 
 // Dependencies on other plugins used when this plugin
 // is invoked
