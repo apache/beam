@@ -107,8 +107,7 @@ public class CombineTranslation {
                   extractAccumulatorCoder(combineFn, (AppliedPTransform) combine)))
           .setCombineFn(
               SdkFunctionSpec.newBuilder()
-                  .setEnvironmentId(
-                      components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+                  .setEnvironmentId(components.getOnlyEnvironmentId())
                   .setSpec(
                       FunctionSpec.newBuilder()
                           .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
@@ -165,7 +164,7 @@ public class CombineTranslation {
   public static SdkFunctionSpec toProto(
       GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)

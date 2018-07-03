@@ -24,7 +24,6 @@ import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
@@ -35,15 +34,9 @@ public class ExecutableStageTranslation {
   /** Extracts an {@link ExecutableStagePayload} from the given transform. */
   public static ExecutableStagePayload getExecutableStagePayload(
       AppliedPTransform<?, ?, ?> appliedTransform) throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            appliedTransform
-                .getPipeline()
-                .getOptions()
-                .as(PortablePipelineOptions.class)
-                .getDefaultJavaEnvironmentUrl()));
-    RunnerApi.PTransform transform = PTransformTranslation.toProto(appliedTransform, components);
+    RunnerApi.PTransform transform =
+        PTransformTranslation.toProto(
+            appliedTransform, SdkComponents.create(appliedTransform.getPipeline().getOptions()));
     checkArgument(ExecutableStage.URN.equals(transform.getSpec().getUrn()));
     return ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
   }

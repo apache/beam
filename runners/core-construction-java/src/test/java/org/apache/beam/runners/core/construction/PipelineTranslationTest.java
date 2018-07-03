@@ -192,7 +192,7 @@ public class PipelineTranslationTest {
 
   private static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(transform.getPipeline().getOptions());
     String id =
         getCombinePayload(transform, sdkComponents)
             .map(CombinePayload::getAccumulatorCoderId)

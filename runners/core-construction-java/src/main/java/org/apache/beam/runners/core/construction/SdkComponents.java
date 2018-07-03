@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.Equivalence;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.List;
@@ -34,6 +33,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
@@ -56,6 +57,14 @@ public class SdkComponents {
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
     return new SdkComponents();
+  }
+
+  public static SdkComponents create(PipelineOptions options) {
+    SdkComponents sdkComponents = new SdkComponents();
+    sdkComponents.registerEnvironment(
+        Environments.createOrGetDefaultEnvironment(
+            options.as(PortablePipelineOptions.class).getDefaultJavaEnvironmentUrl()));
+    return sdkComponents;
   }
 
   private SdkComponents() {
@@ -205,9 +214,8 @@ public class SdkComponents {
   }
 
   public String getOnlyEnvironmentId() {
-    // TODO Support sumtiple environments. The environment should be decided by the traslation.
-    return Iterables.getOnlyElement(
-        ImmutableSet.copyOf(componentsBuilder.getEnvironmentsMap().keySet()));
+    // TODO Support multiple environments. The environment should be decided by the translation.
+    return Iterables.getOnlyElement(componentsBuilder.getEnvironmentsMap().keySet());
   }
 
   private String uniqify(String baseName, Set<String> existing) {

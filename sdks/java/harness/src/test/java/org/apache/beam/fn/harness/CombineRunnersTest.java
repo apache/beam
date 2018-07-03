@@ -109,7 +109,7 @@ public class CombineRunnersTest {
     outputPCollection.setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     // Create FnApi protos needed for the runner.
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
     pProto = PipelineTranslation.toProto(p, sdkComponents);
     inputPCollectionId = sdkComponents.registerPCollection(inputPCollection);
     outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
