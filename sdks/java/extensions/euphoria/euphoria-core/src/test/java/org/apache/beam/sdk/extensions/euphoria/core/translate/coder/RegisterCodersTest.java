@@ -48,9 +48,9 @@ public class RegisterCodersTest {
 
     RegisterCoders
         .to(pipeline)
-        .regCustomRawTypeCoder(FirstTestDataType.class, firstCoder)
-        .regKryoRawTypeCoder(SecondTestDataType.class)
-        .regCustomTypedCoder(
+        .registerCoder(FirstTestDataType.class, firstCoder)
+        .registerCoder(SecondTestDataType.class)
+        .registerCoder(
             new TypeDescriptor<ParametrizedTestDataType<String>>() { }, parametrizedCoder)
         .done();
 

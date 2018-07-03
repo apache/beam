@@ -25,12 +25,14 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Convenient way of registering Beam {@link Coder} to given {@link Pipeline} or {@link BeamFlow}.
  */
+@Experimental
 public class RegisterCoders extends CoderProvider {
 
   private final Map<TypeDescriptor, Coder<?>> typeToCoder;
@@ -90,7 +92,7 @@ public class RegisterCoders extends CoderProvider {
      * @param <T> type of elements encoded by given {@code coder}
      * @return {@link RegisterBuilder} to allow for more coders registration.
      */
-    <T> RegisterBuilder regCustomTypedCoder(TypeDescriptor<T> type, Coder<T> coder);
+    <T> RegisterBuilder registerCoder(TypeDescriptor<T> type, Coder<T> coder);
 
     /**
      * Registers custom {@link Coder} for given raw {@link Class type}.
@@ -100,7 +102,7 @@ public class RegisterCoders extends CoderProvider {
      * @param <T> type of elements encoded by given {@code coder}
      * @return {@link RegisterBuilder} to allow for more coders registration.
      */
-    <T> RegisterBuilder regCustomRawTypeCoder(Class<T> clazz, Coder<T> coder);
+    <T> RegisterBuilder registerCoder(Class<T> clazz, Coder<T> coder);
 
     /**
      * Registers new {@link ClassAwareKryoCoder} for given raw {@link Class type}.
@@ -109,7 +111,7 @@ public class RegisterCoders extends CoderProvider {
      * @param <T> type of elements encoded by given {@code coder}
      * @return {@link RegisterBuilder} to allow for more coders registration.
      */
-    <T> RegisterBuilder regKryoRawTypeCoder(Class<T> clazz);
+    <T> RegisterBuilder registerCoder(Class<T> clazz);
 
     /**
      * Effectively ends coders registration. No coders registration is done without it.
@@ -134,7 +136,7 @@ public class RegisterCoders extends CoderProvider {
     }
 
     @Override
-    public <T> RegisterBuilder regCustomTypedCoder(TypeDescriptor<T> type, Coder<T> coder) {
+    public <T> RegisterBuilder registerCoder(TypeDescriptor<T> type, Coder<T> coder) {
       Objects.requireNonNull(type);
       Objects.requireNonNull(coder);
       typeToCoder.put(type, coder);
@@ -142,7 +144,7 @@ public class RegisterCoders extends CoderProvider {
     }
 
     @Override
-    public <T> RegisterBuilder regCustomRawTypeCoder(Class<T> clazz, Coder<T> coder) {
+    public <T> RegisterBuilder registerCoder(Class<T> clazz, Coder<T> coder) {
       Objects.requireNonNull(clazz);
       Objects.requireNonNull(coder);
       classToCoder.put(clazz, coder);
@@ -150,7 +152,7 @@ public class RegisterCoders extends CoderProvider {
     }
 
     @Override
-    public <T> RegisterBuilder regKryoRawTypeCoder(Class<T> clazz) {
+    public <T> RegisterBuilder registerCoder(Class<T> clazz) {
       Objects.requireNonNull(clazz);
       classToCoder.put(clazz, new ClassAwareKryoCoder<>(clazz));
       return this;
