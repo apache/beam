@@ -21,19 +21,8 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * This shared set of options is used so that the full suite of IO tests can be run in one pass - if
- * a test tries to read TestPipelineOptions, it must be able to understand all the options that were
- * passed on the command line.
- */
+/** Pipeline options common for IO integration tests. */
 public interface IOTestPipelineOptions extends TestPipelineOptions {
-
-  /* Solr */
-  @Description("Address of Zookeeper server for Solr")
-  @Default.String("zookeeper-server")
-  String getSolrZookeeperServer();
-
-  void setSolrZookeeperServer(String value);
 
   /* Used by most IOIT */
   @Description("Number records that will be written and read by the test")
