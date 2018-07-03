@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,7 +54,13 @@ public class SdkComponentsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private SdkComponents components = SdkComponents.create();
+  private SdkComponents components;
+
+  @Before
+  public void setUp() throws Exception {
+    components = SdkComponents.create();
+    components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+  }
 
   @Test
   public void registerCoder() throws IOException {

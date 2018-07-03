@@ -145,7 +145,7 @@ public class WriteFilesTranslation {
               ? extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(transform.getPipeline().getOptions());
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs = getWriteFilesPayload(transform).getSideInputsMap();
@@ -190,8 +190,9 @@ public class WriteFilesTranslation {
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     return WriteFilesPayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }

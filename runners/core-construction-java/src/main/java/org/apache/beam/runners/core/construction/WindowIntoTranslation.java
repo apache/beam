@@ -69,9 +69,9 @@ public class WindowIntoTranslation {
   public static WindowIntoPayload getWindowIntoPayload(AppliedPTransform<?, ?, ?> application) {
     RunnerApi.PTransform transformProto;
     try {
+      SdkComponents components = SdkComponents.create(application.getPipeline().getOptions());
       transformProto =
-          PTransformTranslation.toProto(
-              application, Collections.emptyList(), SdkComponents.create());
+          PTransformTranslation.toProto(application, Collections.emptyList(), components);
     } catch (IOException exc) {
       throw new RuntimeException(exc);
     }

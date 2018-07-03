@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
@@ -41,12 +42,14 @@ public class WindowMappingFnRunnerTest {
   public void testWindowMapping() throws Exception {
     String pTransformId = "pTransformId";
 
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(WindowMappingFnRunner.URN)
             .setPayload(
                 ParDoTranslation.translateWindowMappingFn(
-                        new GlobalWindows().getDefaultWindowMappingFn(), SdkComponents.create())
+                        new GlobalWindows().getDefaultWindowMappingFn(), components)
                     .toByteString())
             .build();
     RunnerApi.PTransform pTransform =
