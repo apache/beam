@@ -109,30 +109,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Nullable private final FieldAccessDescriptor fieldAccessDescriptor;
 
-  // This constructor exists for backwards compatibility with the Dataflow runner.
-  // Once the Dataflow runner has been updated to use the new constructor, remove this one.
-  public SimpleDoFnRunner(
-      PipelineOptions options,
-      DoFn<InputT, OutputT> fn,
-      SideInputReader sideInputReader,
-      OutputManager outputManager,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> additionalOutputTags,
-      StepContext stepContext,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    this(
-        options,
-        fn,
-        sideInputReader,
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        stepContext,
-        null,
-        Collections.emptyMap(),
-        windowingStrategy);
-  }
-
   public SimpleDoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
