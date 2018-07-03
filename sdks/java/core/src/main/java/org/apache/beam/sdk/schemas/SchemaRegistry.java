@@ -18,14 +18,21 @@
 
 package org.apache.beam.sdk.schemas;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -42,6 +49,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public class SchemaRegistry {
+  private static final List<SchemaProvider> REGISTERED_SCHEMA_PROVIDERS;
+
   private static class SchemaEntry<T> {
     private final Schema schema;
     private final SerializableFunction<T, Row> toRow;
@@ -56,7 +65,11 @@ public class SchemaRegistry {
   }
 
   private final Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
-  private final List<SchemaProvider> providers = Lists.newArrayList();
+  private final ArrayDeque<SchemaProvider> providers;
+
+  private SchemaRegistry() {
+    providers = new ArrayDeque<>(REGISTERED_SCHEMA_PROVIDERS);
+  }
 
   public static SchemaRegistry createDefault() {
     return new SchemaRegistry();
@@ -88,7 +101,7 @@ public class SchemaRegistry {
    * the external service and return the correct {@link Schema}.
    */
   public void registerSchemaProvider(SchemaProvider schemaProvider) {
-    providers.add(schemaProvider);
+    providers.addFirst(schemaProvider);
   }
 
   /**
@@ -152,5 +165,23 @@ public class SchemaRegistry {
       return entry.fromRow;
     }
     return getProviderResult((SchemaProvider p) -> p.fromRowFunction(typeDescriptor));
+  }
+
+  static {
+    // find all statically-registered SchemaProviders.
+    List<SchemaProvider> providersToRegister = Lists.newArrayList();
+    Set<SchemaProviderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    // Find all SchemaProviderRegistrar classes that are registered as service loaders
+    // (usually using the @AutoService annotation).
+    registrars.addAll(
+        Lists.newArrayList(
+            ServiceLoader.load(SchemaProviderRegistrar.class, ReflectHelpers.findClassLoader())));
+    // Load all SchemaProviders that are registered using the @DefaultSchema annotation.
+    providersToRegister.addAll(
+        new DefaultSchema.DefaultSchemaProviderRegistrar().getSchemaProviders());
+    for (SchemaProviderRegistrar registrar : registrars) {
+      providersToRegister.addAll(registrar.getSchemaProviders());
+    }
+    REGISTERED_SCHEMA_PROVIDERS = ImmutableList.copyOf(providersToRegister);
   }
 }
