@@ -14,7 +14,7 @@ People who have a recording related to Apache Beam can share this on the channel
 
 The YouTube channel found here is owned by the Apache Beam PMC.
 
-<iframe width="560" height="340" src="http://www.youtube.com/embed/bhj4Bjczb8I" frameborder="0" allowfullscreen></iframe>
+<iframe width="560" height="340" src="https://www.youtube.com/embed/bhj4Bjczb8I" frameborder="0" allowfullscreen></iframe>
 
 ## Process to add videos to the Apache Beam YouTube channel
 
