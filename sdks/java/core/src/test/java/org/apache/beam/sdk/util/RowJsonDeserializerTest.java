@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -66,6 +67,7 @@ public class RowJsonDeserializerTest {
             .addDoubleField("f_double")
             .addBooleanField("f_boolean")
             .addStringField("f_string")
+            .addDecimalField("f_decimal")
             .build();
 
     String rowString =
@@ -77,7 +79,8 @@ public class RowJsonDeserializerTest {
             + "\"f_float\" : 1.02E5,\n"
             + "\"f_double\" : 62.2,\n"
             + "\"f_boolean\" : true,\n"
-            + "\"f_string\" : \"hello\"\n"
+            + "\"f_string\" : \"hello\",\n"
+            + "\"f_decimal\" : 123.12\n"
             + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
@@ -86,7 +89,16 @@ public class RowJsonDeserializerTest {
 
     Row expectedRow =
         Row.withSchema(schema)
-            .addValues((byte) 12, (short) 22, 32, (long) 42, 1.02E5f, 62.2d, true, "hello")
+            .addValues(
+                (byte) 12,
+                (short) 22,
+                32,
+                (long) 42,
+                1.02E5f,
+                62.2d,
+                true,
+                "hello",
+                new BigDecimal("123.12"))
             .build();
 
     assertEquals(expectedRow, parsedRow);
