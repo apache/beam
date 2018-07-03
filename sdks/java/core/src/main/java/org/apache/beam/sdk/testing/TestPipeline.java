@@ -270,6 +270,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     this.options = options;
   }
 
+  @Override
   public PipelineOptions getOptions() {
     return this.options;
   }

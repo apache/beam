@@ -35,7 +35,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 public class PipelineTranslation {
 
   public static RunnerApi.Pipeline toProto(Pipeline pipeline) {
-    return toProto(pipeline, SdkComponents.create());
+    return toProto(pipeline, SdkComponents.create(pipeline.getOptions()));
   }
 
   public static RunnerApi.Pipeline toProto(

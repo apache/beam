@@ -79,7 +79,7 @@ public class ReadTranslation {
 
   private static SdkFunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
@@ -112,15 +112,16 @@ public class ReadTranslation {
   private static <T> ReadPayload getReadPayload(
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws IOException {
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     return ReadPayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }
 
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
@@ -139,10 +140,10 @@ public class ReadTranslation {
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
     try {
+      SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
       return PCollectionTranslation.fromProto(
           ReadPayload.parseFrom(
-                  PTransformTranslation.toProto(
-                          transform, Collections.emptyList(), SdkComponents.create())
+                  PTransformTranslation.toProto(transform, Collections.emptyList(), components)
                       .getSpec()
                       .getPayload())
               .getIsBounded());

@@ -188,6 +188,11 @@ public class Pipeline {
     return new Pipeline(transforms, options);
   }
 
+  @Internal
+  public PipelineOptions getOptions() {
+    return defaultOptions;
+  }
+
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
