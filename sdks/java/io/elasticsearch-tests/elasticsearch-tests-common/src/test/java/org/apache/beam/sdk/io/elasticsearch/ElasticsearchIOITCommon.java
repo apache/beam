@@ -22,8 +22,10 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_ITESTS;
 
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.elasticsearch.client.RestClient;
 
 /**
@@ -33,6 +35,22 @@ import org.elasticsearch.client.RestClient;
  * store creation rather than every time (which can be more fragile.)
  */
 public class ElasticsearchIOITCommon {
+
+  /** Pipeline options for elasticsearch tests. */
+  public interface ElasticsearchPipelineOptions extends TestPipelineOptions {
+
+    @Description("Server name for Elasticsearch server (host name/ip address)")
+    @Default.String("elasticsearch-server-name")
+    String getElasticsearchServer();
+
+    void setElasticsearchServer(String value);
+
+    @Description("Http port for elasticsearch server")
+    @Default.Integer(9200)
+    Integer getElasticsearchHttpPort();
+
+    void setElasticsearchHttpPort(Integer value);
+  }
 
   /** Enum encapsulating the mode of operation and the index. */
   enum IndexMode {
@@ -69,13 +87,14 @@ public class ElasticsearchIOITCommon {
    *     Elasticsearch as shown above.
    */
   public static void main(String[] args) throws Exception {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
+    PipelineOptionsFactory.register(ElasticsearchPipelineOptions.class);
+    ElasticsearchPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(ElasticsearchPipelineOptions.class);
     createAndPopulateReadIndex(options);
   }
 
-  private static void createAndPopulateReadIndex(IOTestPipelineOptions options) throws Exception {
+  private static void createAndPopulateReadIndex(ElasticsearchPipelineOptions options)
+      throws Exception {
     // automatically creates the index and insert docs
     ConnectionConfiguration connectionConfiguration =
         getConnectionConfiguration(options, IndexMode.READ);
@@ -86,7 +105,7 @@ public class ElasticsearchIOITCommon {
   }
 
   static ConnectionConfiguration getConnectionConfiguration(
-      IOTestPipelineOptions options, IndexMode mode) {
+      ElasticsearchPipelineOptions options, IndexMode mode) {
     return ConnectionConfiguration.create(
         new String[] {
           "http://" + options.getElasticsearchServer() + ":" + options.getElasticsearchHttpPort()

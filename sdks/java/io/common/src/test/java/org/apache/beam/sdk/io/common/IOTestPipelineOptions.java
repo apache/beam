@@ -27,18 +27,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  * passed on the command line.
  */
 public interface IOTestPipelineOptions extends TestPipelineOptions {
-  /* Elasticsearch */
-  @Description("Server name for Elasticsearch server (host name/ip address)")
-  @Default.String("elasticsearch-server-name")
-  String getElasticsearchServer();
-
-  void setElasticsearchServer(String value);
-
-  @Description("Http port for elasticsearch server")
-  @Default.Integer(9200)
-  Integer getElasticsearchHttpPort();
-
-  void setElasticsearchHttpPort(Integer value);
 
   /* Solr */
   @Description("Address of Zookeeper server for Solr")
