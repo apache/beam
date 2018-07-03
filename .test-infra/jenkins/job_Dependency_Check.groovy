@@ -36,32 +36,39 @@ job('beam_Dependency_Check') {
     '0 12 * * 1')
 
   steps {
-    gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runBeamDependencyCheck')
-      common_job_properties.setGradleSwitches(delegate)
-      switches('-Drevision=release')
-    }
-
-    shell('cd ' + common_job_properties.checkoutDir +
-            ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
+//    gradle {
+//      rootBuildScriptDir(common_job_properties.checkoutDir)
+//      tasks(':runBeamDependencyCheck')
+//      common_job_properties.setGradleSwitches(delegate)
+//      switches('-Drevision=release')
+//    }
+//
+//    shell('cd ' + common_job_properties.checkoutDir +
+//            ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
+    shell('echo Test JIRA plugin.')
   }
 
   def date = new Date().format('yyyy-MM-dd')
   publishers {
-    extendedEmail {
-      triggers {
-        always {
-          recipientList('dev@beam.apache.org')
-          contentType('text/html')
-          subject("Beam Dependency Check Report (${date})")
-          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
-        }
-      }
-    }
-    archiveArtifacts {
-      pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
-      onlyIfSuccessful()
+//    extendedEmail {
+//      triggers {
+//        always {
+//          recipientList('dev@beam.apache.org')
+//          contentType('text/html')
+//          subject("Beam Dependency Check Report (${date})")
+//          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
+//        }
+//      }
+//    }
+//    archiveArtifacts {
+//      pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
+//      onlyIfSuccessful()
+//    }
+    createJiraIssue {
+      projectKey('BEAM')
+      testDescription('Jenkins JIRA Plugin Test')
+      assignee('yifanzou')
+      component('ComponentA')
     }
   }
 }
