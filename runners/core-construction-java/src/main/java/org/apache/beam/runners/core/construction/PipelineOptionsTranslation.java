@@ -18,13 +18,10 @@
 
 package org.apache.beam.runners.core.construction;
 
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.JsonObject;
 import com.google.protobuf.Struct;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
@@ -53,12 +50,14 @@ public class PipelineOptionsTranslation {
       TreeNode treeNode = MAPPER.valueToTree(options);
       TreeNode rootOptions = treeNode.get("options");
       Iterator<String> optionsKeys = rootOptions.fieldNames();
-      Map<String, TreeNode> optionsUsingUrns = new HashMap<String, TreeNode>();
+      Map<String, TreeNode> optionsUsingUrns = new HashMap<>();
       while (optionsKeys.hasNext()) {
         String optionKey = optionsKeys.next();
         TreeNode optionValue = rootOptions.get(optionKey);
         optionsUsingUrns.put(
-            "beam:option:" + CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, optionKey) + ":v1",
+            "beam:option:"
+                + CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, optionKey)
+                + ":v1",
             optionValue);
       }
 
@@ -73,9 +72,8 @@ public class PipelineOptionsTranslation {
 
   /** Converts the provided {@link Struct} into {@link PipelineOptions}. */
   public static PipelineOptions fromProto(Struct protoOptions) throws IOException {
-    Map<String, TreeNode> mapWithoutUrns = new HashMap<String, TreeNode>();
-    TreeNode rootOptions = MAPPER.readTree(
-        JsonFormat.printer().print(protoOptions));
+    Map<String, TreeNode> mapWithoutUrns = new HashMap<>();
+    TreeNode rootOptions = MAPPER.readTree(JsonFormat.printer().print(protoOptions));
     Iterator<String> optionsKeys = rootOptions.fieldNames();
     while (optionsKeys.hasNext()) {
       String optionKey = optionsKeys.next();
