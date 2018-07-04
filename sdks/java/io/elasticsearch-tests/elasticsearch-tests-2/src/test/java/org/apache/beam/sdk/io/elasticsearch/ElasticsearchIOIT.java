@@ -25,7 +25,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOITCommon.ElasticsearchPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -58,7 +58,7 @@ import org.junit.Test;
  */
 public class ElasticsearchIOIT {
   private static RestClient restClient;
-  private static IOTestPipelineOptions options;
+  private static ElasticsearchPipelineOptions options;
   private static ConnectionConfiguration readConnectionConfiguration;
   private static ConnectionConfiguration writeConnectionConfiguration;
   private static ConnectionConfiguration updateConnectionConfiguration;
@@ -68,8 +68,8 @@ public class ElasticsearchIOIT {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
+    PipelineOptionsFactory.register(ElasticsearchPipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(ElasticsearchPipelineOptions.class);
     readConnectionConfiguration =
         ElasticsearchIOITCommon.getConnectionConfiguration(
             options, ElasticsearchIOITCommon.IndexMode.READ);
