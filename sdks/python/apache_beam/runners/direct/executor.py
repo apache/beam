@@ -22,7 +22,6 @@ from __future__ import absolute_import
 import collections
 import itertools
 import logging
-import queue
 import sys
 import threading
 import traceback
@@ -30,15 +29,13 @@ from builtins import object
 from builtins import range
 from weakref import WeakValueDictionary
 
-from future import standard_library
+from future.moves import queue
 from future.utils import raise_
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
-
-standard_library.install_aliases()
 
 
 class _ExecutorService(object):
