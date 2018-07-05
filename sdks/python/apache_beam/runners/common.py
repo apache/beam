@@ -32,6 +32,8 @@ from builtins import object
 from builtins import zip
 
 from future.utils import raise_
+from past.builtins import basestring
+from past.builtins import unicode
 
 from apache_beam.internal import util
 from apache_beam.pvalue import TaggedOutput
@@ -42,13 +44,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-  basestring        # pylint: disable=basestring-builtin
-except NameError:
-  unicode = str
-  basestring = str
 
 
 class NameContext(object):

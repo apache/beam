@@ -30,7 +30,6 @@ import traceback
 from builtins import hex
 from collections import defaultdict
 
-from future import standard_library
 from future.moves.urllib.parse import quote
 from future.moves.urllib.parse import unquote
 
@@ -57,8 +56,6 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils.plugin import BeamPlugin
-
-standard_library.install_aliases()
 
 __all__ = ['DataflowRunner']
 

@@ -26,11 +26,7 @@ import threading
 import unittest
 from builtins import object
 
-from future import standard_library
-
 from apache_beam.runners.worker import logger
-
-standard_library.install_aliases()
 
 
 class PerThreadLoggingContextTest(unittest.TestCase):
