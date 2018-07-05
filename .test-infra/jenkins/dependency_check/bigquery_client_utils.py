@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
+
 import datetime
 import logging
 from google.cloud import bigquery
@@ -101,7 +103,7 @@ class BigQueryClientUtils:
     try:
       query_job = self.bigquery_client.query(query)
       if not query_job.done():
-        print query_job.result()
+        print(query_job.result())
     except:
       raise
 
@@ -123,7 +125,7 @@ class BigQueryClientUtils:
     try:
       query_job = self.bigquery_client.query(query)
       if not query_job.done():
-        print query_job.result()
+        print(query_job.result())
     except:
       raise
 
