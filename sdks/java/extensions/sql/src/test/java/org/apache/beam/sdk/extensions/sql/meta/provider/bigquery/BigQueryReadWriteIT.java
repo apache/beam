@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTE;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.DECIMAL;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT16;
@@ -32,7 +31,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -77,7 +75,6 @@ public class BigQueryReadWriteIT implements Serializable {
           .addNullableField("c_integer", INT32)
           .addNullableField("c_float", FLOAT)
           .addNullableField("c_double", DOUBLE)
-          .addNullableField("c_decimal", DECIMAL)
           .addNullableField("c_boolean", BOOLEAN)
           .addNullableField("c_timestamp", FieldType.DATETIME.withMetadata("TS"))
           .addNullableField("c_varchar", STRING)
@@ -102,7 +99,6 @@ public class BigQueryReadWriteIT implements Serializable {
             + "   c_integer INTEGER, \n"
             + "   c_float FLOAT, \n"
             + "   c_double DOUBLE, \n"
-            + "   c_decimal DECIMAL, \n"
             + "   c_boolean BOOLEAN, \n"
             + "   c_timestamp TIMESTAMP, \n"
             + "   c_varchar VARCHAR, \n "
@@ -123,7 +119,6 @@ public class BigQueryReadWriteIT implements Serializable {
             + "2147483647, "
             + "1.0, "
             + "1.0, "
-            + "123.45, "
             + "TRUE, "
             + "TIMESTAMP '2018-05-28 20:17:40.123', "
             + "'varchar', "
@@ -149,7 +144,6 @@ public class BigQueryReadWriteIT implements Serializable {
                 2147483647,
                 (float) 1.0,
                 1.0,
-                BigDecimal.valueOf(123.45),
                 true,
                 new DateTime(2018, 05, 28, 20, 17, 40, 123, ISOChronology.getInstanceUTC()),
                 "varchar",
@@ -171,7 +165,6 @@ public class BigQueryReadWriteIT implements Serializable {
             + "   c_integer INTEGER, \n"
             + "   c_float FLOAT, \n"
             + "   c_double DOUBLE, \n"
-            + "   c_decimal DECIMAL, \n"
             + "   c_boolean BOOLEAN, \n"
             + "   c_timestamp TIMESTAMP, \n"
             + "   c_varchar VARCHAR, \n "
@@ -192,7 +185,6 @@ public class BigQueryReadWriteIT implements Serializable {
             + "2147483647, "
             + "1.0, "
             + "1.0, "
-            + "123.45, "
             + "TRUE, "
             + "TIMESTAMP '2018-05-28 20:17:40.123', "
             + "'varchar', "
@@ -214,7 +206,6 @@ public class BigQueryReadWriteIT implements Serializable {
                 2147483647,
                 (float) 1.0,
                 1.0,
-                BigDecimal.valueOf(123.45),
                 true,
                 new DateTime(2018, 05, 28, 20, 17, 40, 123, ISOChronology.getInstanceUTC()),
                 "varchar",
