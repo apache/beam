@@ -39,8 +39,7 @@ class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
   # and throw exception in worker_id_interceptor.py after we have rolled out
   # the corresponding container changes.
   # Unique worker Id for this worker.
-  _worker_id = os.environ['WORKER_ID'] if os.environ.has_key(
-      'WORKER_ID') else str(uuid.uuid4())
+  _worker_id = os.environ.get('WORKER_ID', str(uuid.uuid4()))
 
   def __init__(self):
     pass

@@ -17,11 +17,14 @@
 
 """Tests for worker logging utilities."""
 
+from __future__ import absolute_import
+
 import json
 import logging
 import sys
 import threading
 import unittest
+from builtins import object
 
 from apache_beam.runners.worker import logger
 
@@ -83,7 +86,7 @@ class JsonLogFormatterTest(unittest.TestCase):
     class Record(object):
 
       def __init__(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
           setattr(self, k, v)
 
     return Record(**kwargs)
