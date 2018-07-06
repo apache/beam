@@ -35,6 +35,8 @@ public class StreamingInserts<DestinationT>
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private InsertRetryPolicy retryPolicy;
   private boolean extendedErrorInfo;
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
 
   /** Constructor. */
   public StreamingInserts(
@@ -45,6 +47,8 @@ public class StreamingInserts<DestinationT>
         dynamicDestinations,
         new BigQueryServicesImpl(),
         InsertRetryPolicy.alwaysRetry(),
+        false,
+        false,
         false);
   }
 
@@ -54,29 +58,73 @@ public class StreamingInserts<DestinationT>
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       BigQueryServices bigQueryServices,
       InsertRetryPolicy retryPolicy,
-      boolean extendedErrorInfo) {
+      boolean extendedErrorInfo,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   /** Specify a retry policy for failed inserts. */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
   }
 
   /** Specify whether to use extended error info or not. */
   public StreamingInserts<DestinationT> withExtendedErrorInfo(boolean extendedErrorInfo) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
+  }
+
+  StreamingInserts<DestinationT> withSkipInvalidRows(boolean skipInvalidRows) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
+  }
+
+  StreamingInserts<DestinationT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
   }
 
   @Override
@@ -91,6 +139,8 @@ public class StreamingInserts<DestinationT>
         new StreamingWriteTables()
             .withTestServices(bigQueryServices)
             .withInsertRetryPolicy(retryPolicy)
-            .withExtendedErrorInfo(extendedErrorInfo));
+            .withExtendedErrorInfo(extendedErrorInfo)
+            .withSkipInvalidRows(skipInvalidRows)
+            .withIgnoreUnknownValues(ignoreUnknownValues));
   }
 }
