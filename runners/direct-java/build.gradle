@@ -129,6 +129,7 @@ task validatesRunner(type: Test) {
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 
