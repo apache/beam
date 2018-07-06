@@ -55,7 +55,6 @@ from avro import datafile
 from avro import schema
 from fastavro.read import block_reader
 from fastavro.write import Writer
-from future import standard_library
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink
@@ -64,8 +63,6 @@ from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
-
-standard_library.install_aliases()
 
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 

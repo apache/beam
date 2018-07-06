@@ -34,7 +34,6 @@ import traceback
 from builtins import object
 
 import httplib2
-from future import standard_library
 
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
@@ -42,9 +41,6 @@ from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
-
-standard_library.install_aliases()
-
 
 __all__ = ['GcsIO']
 

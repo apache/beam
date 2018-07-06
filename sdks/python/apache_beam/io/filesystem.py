@@ -27,6 +27,7 @@ from __future__ import division
 import abc
 import bz2
 import fnmatch
+import io
 import logging
 import os
 import posixpath
@@ -35,7 +36,6 @@ import time
 import zlib
 from builtins import object
 from builtins import zip
-from io import BytesIO
 
 from future import standard_library
 from future.utils import with_metaclass
@@ -143,7 +143,7 @@ class CompressedFile(object):
 
     if self.readable():
       self._read_size = read_size
-      self._read_buffer = BytesIO()
+      self._read_buffer = io.BytesIO()
       self._read_position = 0
       self._read_eof = False
 
@@ -258,7 +258,7 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    io = BytesIO()
+    bytes_io = io.BytesIO()
     while True:
       # Ensure that the internal buffer has at least half the read_size. Going
       # with half the _read_size (as opposed to a full _read_size) to ensure
@@ -267,11 +267,11 @@ class CompressedFile(object):
       self._fetch_to_internal_buffer(self._read_size // 2)
       line = self._read_from_internal_buffer(
           lambda: self._read_buffer.readline())
-      io.write(line)
+      bytes_io.write(line)
       if line.endswith('\n') or not line:
         break  # Newline or EOF reached.
 
-    return io.getvalue()
+    return bytes_io.getvalue()
 
   def closed(self):
     return not self._file or self._file.closed()
