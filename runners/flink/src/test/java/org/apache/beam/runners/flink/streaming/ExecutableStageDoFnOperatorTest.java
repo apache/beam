@@ -32,7 +32,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Struct;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -325,7 +327,8 @@ public class ExecutableStageDoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             stagePayload,
             jobInfo,
-            FlinkExecutableStageContext.batchFactory());
+            FlinkExecutableStageContext.batchFactory(),
+            createOutputMap(mainOutput, ImmutableList.of(additionalOutput)));
 
     ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);
     assertNotNull(clone);
@@ -358,8 +361,21 @@ public class ExecutableStageDoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             stagePayload,
             jobInfo,
-            contextFactory);
+            contextFactory,
+            createOutputMap(mainOutput, additionalOutputs));
 
     return operator;
+  }
+
+  private static Map<String, TupleTag<?>> createOutputMap(
+      TupleTag mainOutput, List<TupleTag<?>> additionalOutputs) {
+    Map<String, TupleTag<?>> outputMap = new HashMap<>(additionalOutputs.size() + 1);
+    if (mainOutput != null) {
+      outputMap.put(mainOutput.getId(), mainOutput);
+    }
+    for (TupleTag<?> additionalTag : additionalOutputs) {
+      outputMap.put(additionalTag.getId(), additionalTag);
+    }
+    return outputMap;
   }
 }

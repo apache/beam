@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import static org.apache.flink.util.Preconditions.checkState;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -84,7 +83,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       PipelineOptions options,
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
-      FlinkExecutableStageContext.Factory contextFactory) {
+      FlinkExecutableStageContext.Factory contextFactory,
+      Map<String, TupleTag<?>> outputMap) {
     super(
         new NoOpDoFn(),
         stepName,
@@ -101,19 +101,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.payload = payload;
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
-    this.outputMap = createOutputMap(mainOutputTag, additionalOutputTags);
-  }
-
-  private static Map<String, TupleTag<?>> createOutputMap(
-      TupleTag mainOutput, List<TupleTag<?>> additionalOutputs) {
-    Map<String, TupleTag<?>> outputMap = new HashMap<>(additionalOutputs.size() + 1);
-    if (mainOutput != null) {
-      outputMap.put(mainOutput.getId(), mainOutput);
-    }
-    for (TupleTag<?> additionalTag : additionalOutputs) {
-      outputMap.put(additionalTag.getId(), additionalTag);
-    }
-    return outputMap;
+    this.outputMap = outputMap;
   }
 
   @Override
