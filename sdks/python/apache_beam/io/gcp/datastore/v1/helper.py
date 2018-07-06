@@ -24,9 +24,11 @@ import errno
 import logging
 import sys
 import time
-from builtins import next
 from builtins import object
 from socket import error as SocketError
+
+from future.builtins import next
+from past.builtins import unicode
 
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
@@ -48,11 +50,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # pylint: enable=ungrouped-imports
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 
 def key_comparator(k1, k2):
@@ -299,9 +296,6 @@ class QueryIterator(object):
     self._req.query.limit.value = min(self._BATCH_SIZE, self._limit)
     resp = self._datastore.run_query(self._req)
     return resp
-
-  def __next__(self):
-    return next(self.__iter__())
 
   def __iter__(self):
     more_results = True

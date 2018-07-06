@@ -126,7 +126,7 @@ class FileSystemsTest(unittest.TestCase):
     with self.assertRaisesRegexp(BeamIOError,
                                  r'^Unable to get the Filesystem') as error:
       FileSystems.match([None])
-    self.assertEqual(list(error.exception.exception_details.keys()), [None])
+    self.assertEqual(list(error.exception.exception_details), [None])
 
   def test_match_directory(self):
     path1 = os.path.join(self.tmpdir, 'f1')

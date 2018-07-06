@@ -28,6 +28,9 @@ For an example implementation of :class:`FileBasedSource` see
 
 from __future__ import absolute_import
 
+from past.builtins import long
+from past.builtins import unicode
+
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
 from apache_beam.io import iobase
@@ -47,13 +50,6 @@ from apache_beam.transforms.util import Reshuffle
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
 __all__ = ['FileBasedSource']
-
-try:
-  unicode       # pylint: disable=unicode-builtin
-  long          # pylint: disable=long-builtin
-except NameError:
-  unicode = str
-  long = int
 
 
 class FileBasedSource(iobase.BoundedSource):

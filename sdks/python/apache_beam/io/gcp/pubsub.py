@@ -35,6 +35,8 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
+from past.builtins import basestring
+
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -47,11 +49,6 @@ try:
   from google.cloud.proto.pubsub.v1 import pubsub_pb2
 except ImportError:
   pubsub_pb2 = None
-
-try:
-  basestring
-except NameError:
-  basestring = str
 
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub']

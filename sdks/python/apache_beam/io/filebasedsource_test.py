@@ -29,7 +29,6 @@ from builtins import object
 from builtins import range
 
 import hamcrest as hc
-from future import standard_library
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
@@ -47,8 +46,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
-standard_library.install_aliases()
 
 
 class LineSource(FileBasedSource):
