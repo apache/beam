@@ -16,3 +16,5 @@
 #
 
 """This runner is experimental; no backwards-compatibility guarantees."""
+
+from __future__ import absolute_import

@@ -20,13 +20,18 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import threading
 import time
 import traceback
-import urllib
+from builtins import hex
 from collections import defaultdict
+
+from future.moves.urllib.parse import quote
+from future.moves.urllib.parse import unquote
 
 import apache_beam as beam
 from apache_beam import coders
@@ -125,7 +130,7 @@ class DataflowRunner(PipelineRunner):
 
     if duration:
       start_secs = time.time()
-      duration_secs = duration / 1000
+      duration_secs = duration // 1000
 
     job_id = result.job_id()
     while True:
@@ -645,7 +650,7 @@ class DataflowRunner(PipelineRunner):
       if (label_renames and
           transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
         # Patch PTransform proto.
-        for old, new in label_renames.iteritems():
+        for old, new in iteritems(label_renames):
           transform_proto.inputs[new] = transform_proto.inputs[old]
           del transform_proto.inputs[old]
 
@@ -653,7 +658,7 @@ class DataflowRunner(PipelineRunner):
         proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
         proto = proto_utils.parse_Bytes(transform_proto.spec.payload,
                                         proto_type)
-        for old, new in label_renames.iteritems():
+        for old, new in iteritems(label_renames):
           proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
           del proto.side_inputs[old]
         transform_proto.spec.payload = proto.SerializeToString()
@@ -972,12 +977,12 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
-    return urllib.quote(raw_bytes)
+    return quote(raw_bytes)
 
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return urllib.unquote(encoded_string)
+    return unquote(encoded_string)
 
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):
