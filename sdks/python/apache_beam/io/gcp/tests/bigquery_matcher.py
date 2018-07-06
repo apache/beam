@@ -17,6 +17,8 @@
 
 """Bigquery data verifier for end-to-end test."""
 
+from __future__ import absolute_import
+
 import logging
 
 from hamcrest.core.base_matcher import BaseMatcher

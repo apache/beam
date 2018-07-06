@@ -29,10 +29,14 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
+from __future__ import absolute_import
+
 import logging
 import math
 import random
 import uuid
+from builtins import object
+from builtins import range
 from collections import namedtuple
 
 from apache_beam import coders

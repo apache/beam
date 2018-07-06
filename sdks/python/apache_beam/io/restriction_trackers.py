@@ -16,8 +16,11 @@
 #
 
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
+from __future__ import absolute_import
+from __future__ import division
 
 import threading
+from builtins import object
 
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -48,7 +51,7 @@ class OffsetRange(object):
       remaining = self.stop - current_split_stop
 
       # Avoiding a small split at the end.
-      if (remaining < desired_num_offsets_per_split / 4 or
+      if (remaining < desired_num_offsets_per_split // 4 or
           remaining < min_num_offsets_per_split):
         current_split_stop = self.stop
 
