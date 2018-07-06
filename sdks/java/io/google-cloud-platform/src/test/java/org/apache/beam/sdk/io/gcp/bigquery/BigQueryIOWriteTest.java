@@ -1193,7 +1193,8 @@ public class BigQueryIOWriteTest implements Serializable {
             sideInputs,
             new IdentityDynamicTables(),
             null,
-            4);
+            4,
+            false);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);

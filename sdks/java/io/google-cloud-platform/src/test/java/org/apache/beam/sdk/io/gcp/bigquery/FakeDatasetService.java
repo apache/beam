@@ -204,7 +204,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
-    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null, null);
+    return insertAll(
+        ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null, null, false, false);
   }
 
   @Override
@@ -214,7 +215,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
       @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy,
       List<ValueInSingleWindow<T>> failedInserts,
-      ErrorContainer<T> errorContainer)
+      ErrorContainer<T> errorContainer,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
