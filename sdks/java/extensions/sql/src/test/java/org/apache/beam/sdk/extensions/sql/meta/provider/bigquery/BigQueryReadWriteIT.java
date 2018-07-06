@@ -52,6 +52,7 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.chrono.ISOChronology;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -88,6 +89,7 @@ public class BigQueryReadWriteIT implements Serializable {
   @Rule public transient TestBigQuery bigQueryTestingTypes = TestBigQuery.create(SOURCE_SCHEMA_TWO);
 
   @Test
+  @Ignore("BEAM-4738")
   public void testSQLRead() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
 
