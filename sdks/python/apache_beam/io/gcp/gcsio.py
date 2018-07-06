@@ -20,7 +20,8 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-import cStringIO
+from __future__ import absolute_import
+
 import errno
 import io
 import logging
@@ -30,6 +31,7 @@ import re
 import threading
 import time
 import traceback
+from builtins import object
 
 import httplib2
 
@@ -468,7 +470,7 @@ class GcsDownloader(Downloader):
     self._get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self._download_stream = cStringIO.StringIO()
+    self._download_stream = io.BytesIO()
     self._downloader = transfer.Download(
         self._download_stream, auto_transfer=False, chunksize=self._buffer_size)
     self._client.objects.Get(self._get_request, download=self._downloader)
@@ -483,6 +485,7 @@ class GcsDownloader(Downloader):
     return self._size
 
   def get_range(self, start, end):
+    self._download_stream.seek(0)
     self._download_stream.truncate(0)
     self._downloader.GetRange(start, end - 1)
     return self._download_stream.getvalue()
