@@ -881,7 +881,7 @@ class MergeableStateAdapter(SimpleState):
           self._persist_window_ids()
 
   def known_windows(self):
-    return list(self.window_ids.keys())
+    return list(self.window_ids)
 
   def get_window(self, window_id):
     for window, ids in self.window_ids.items():
@@ -993,7 +993,7 @@ class _UnwindowedValues(observable.ObservableMixin):
       return NotImplemented
 
   def __hash__(self):
-    return hash(self)
+    return hash(tuple(self))
 
   def __ne__(self, other):
     return not self == other

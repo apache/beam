@@ -27,7 +27,6 @@ from builtins import range
 from builtins import zip
 
 import yaml
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
@@ -426,12 +425,12 @@ class TriggerPipelineTest(unittest.TestCase):
                 | beam.GroupByKey()
                 | beam.Map(format_result))
       assert_that(result, equal_to(
-          iteritems({
+          {
               'A-5': {1, 2, 3, 4, 5},
               # A-10, A-11 never emitted due to AfterCount(3) never firing.
               'B-4': {6, 7, 8, 9},
               'B-3': {10, 15, 16},
-          })))
+          }.items()))
 
 
 class TranscriptTest(unittest.TestCase):

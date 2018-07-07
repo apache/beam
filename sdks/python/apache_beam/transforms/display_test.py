@@ -25,6 +25,7 @@ from datetime import datetime
 # pylint: disable=ungrouped-imports
 import hamcrest as hc
 from hamcrest.core.base_matcher import BaseMatcher
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -33,11 +34,6 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 
 # pylint: enable=ungrouped-imports
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 
 class DisplayDataItemMatcher(BaseMatcher):

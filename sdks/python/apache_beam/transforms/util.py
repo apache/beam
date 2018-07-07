@@ -279,7 +279,7 @@ class _BatchSizeEstimator(object):
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
                    key=div_keys)
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
-    threshold = 2 * len(pairs) / 3
+    threshold = 2 * len(pairs) // 3
     self._data = (
         list(sum(pairs[threshold:], ()))
         + [((x1 + x2) / 2.0, (t1 + t2) / 2.0)

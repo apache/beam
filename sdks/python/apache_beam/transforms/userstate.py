@@ -23,6 +23,7 @@ Experimental; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import types
+from builtins import object
 
 from apache_beam.coders import Coder
 from apache_beam.transforms.timeutil import TimeDomain

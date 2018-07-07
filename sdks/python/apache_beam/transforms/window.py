@@ -200,7 +200,7 @@ class BoundedWindow(object):
     return end_cmp or hash_cmp
 
   def __eq__(self, other):
-    return self.cmp(other) == 0
+    raise NotImplementedError
 
   def __ne__(self, other):
     return self.cmp(other) != 0
@@ -218,16 +218,7 @@ class BoundedWindow(object):
     return self.cmp(other) >= 0
 
   def __hash__(self):
-    return hash(self)
-
-  # def __lt__(self, other):
-  #   if self.end == other.end:
-  #     return hash(self) < hash(other)
-  #   else:
-  #     return self.end < other.end
-
-  def __hash__(self):
-    return hash(self)
+    return hash(self.end)
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
@@ -276,15 +267,16 @@ class TimestampedValue(object):
     self.timestamp = Timestamp.of(timestamp)
 
   def __eq__(self, other):
-    return (type(self) == type(other)) and (self.value == other.value) and \
-           (self.timestamp == other.timestamp)
+    return (type(self) == type(other)
+            and self.value == other.value
+            and self.timestamp == other.timestamp)
 
   def __hash__(self):
     return hash((type(self), self.value, self.timestamp))
 
   def __lt__(self, other):
     if type(self) is not type(other):
-      return type(self) < type(other)
+      return hash(type(self)) < hash(type(other))
     return (self.value, self.timestamp) < (other.value, other.timestamp)
 
 

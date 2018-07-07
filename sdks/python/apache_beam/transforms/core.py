@@ -21,13 +21,15 @@ from __future__ import absolute_import
 
 import copy
 import inspect
-import itertools
 import random
 import re
 import types
+from builtins import filter
 from builtins import map
 from builtins import object
 from builtins import range
+
+from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -82,11 +84,6 @@ __all__ = [
     'Create',
     'Impulse',
     ]
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -295,6 +292,9 @@ class _DoFnParam(object):
     if type(self) == type(other):
       return self.param_id == other.param_id
     return False
+
+  def __hash__(self):
+    return hash((type(self), self.param_id))
 
   def __repr__(self):
     return self.param_id
@@ -703,7 +703,7 @@ class CallableWrapperCombineFn(CombineFn):
 
     class ReiterableNonEmptyAccumulators(object):
       def __iter__(self):
-        return itertools.ifilter(filter_fn, accumulators)
+        return filter(filter_fn, accumulators)
 
     # It's (weakly) assumed that self._fn is associative.
     return self._fn(ReiterableNonEmptyAccumulators(), *args, **kwargs)
@@ -1916,7 +1916,7 @@ class Create(PTransform):
       value: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(value, (unicode, str)):
+    if isinstance(value, (unicode, str, bytes)):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)
     elif isinstance(value, dict):
