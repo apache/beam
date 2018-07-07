@@ -33,8 +33,9 @@ Description of common arguments used in this module:
 from __future__ import absolute_import
 
 import re
+from builtins import object
 
-from six import text_type
+from past.builtins import basestring
 
 from apache_beam import coders
 from apache_beam.io.iobase import Read
@@ -48,7 +49,6 @@ try:
   from google.cloud.proto.pubsub.v1 import pubsub_pb2
 except ImportError:
   pubsub_pb2 = None
-
 
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub']
@@ -173,7 +173,7 @@ class ReadStringsFromPubSub(PTransform):
     p = (pvalue.pipeline
          | ReadFromPubSub(self.topic, self.subscription, self.id_label)
          | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = text_type
+    p.element_type = basestring
     return p
 
 

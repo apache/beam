@@ -24,7 +24,6 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.PA
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 
-import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -47,8 +46,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput.Builder;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -72,6 +74,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.DoFnAndMainOutput;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -88,13 +91,13 @@ public class ParDoTranslation {
       "urn:beam:windowmappingfn:javasdk:0.1";
 
   /** A {@link TransformPayloadTranslator} for {@link ParDo}. */
-  public static class ParDoPayloadTranslator
-      implements TransformPayloadTranslator<MultiOutput<?, ?>> {
-    public static TransformPayloadTranslator create() {
-      return new ParDoPayloadTranslator();
+  public static class ParDoTranslator implements TransformTranslator<MultiOutput<?, ?>> {
+
+    public static TransformTranslator create() {
+      return new ParDoTranslator();
     }
 
-    private ParDoPayloadTranslator() {}
+    private ParDoTranslator() {}
 
     @Override
     public String getUrn(ParDo.MultiOutput<?, ?> transform) {
@@ -102,25 +105,58 @@ public class ParDoTranslation {
     }
 
     @Override
-    public FunctionSpec translate(
-        AppliedPTransform<?, ?, MultiOutput<?, ?>> transform, SdkComponents components)
-        throws IOException {
-      ParDoPayload payload =
-          translateParDo(transform.getTransform(), transform.getPipeline(), components);
-      return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(PAR_DO_TRANSFORM_URN)
-          .setPayload(payload.toByteString())
-          .build();
+    public boolean canTranslate(PTransform<?, ?> pTransform) {
+      return pTransform instanceof ParDo.MultiOutput;
     }
 
-    /** Registers {@link ParDoPayloadTranslator}. */
-    @AutoService(TransformPayloadTranslatorRegistrar.class)
-    public static class Registrar implements TransformPayloadTranslatorRegistrar {
-      @Override
-      public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-          getTransformPayloadTranslators() {
-        return Collections.singletonMap(ParDo.MultiOutput.class, new ParDoPayloadTranslator());
+    @Override
+    public RunnerApi.PTransform translate(
+        AppliedPTransform<?, ?, ?> appliedPTransform,
+        List<AppliedPTransform<?, ?, ?>> subtransforms,
+        SdkComponents components)
+        throws IOException {
+      RunnerApi.PTransform.Builder builder =
+          PTransformTranslation.translateAppliedPTransform(
+              appliedPTransform, subtransforms, components);
+
+      ParDoPayload payload =
+          translateParDo(
+              (ParDo.MultiOutput) appliedPTransform.getTransform(),
+              appliedPTransform.getPipeline(),
+              components);
+      builder.setSpec(
+          RunnerApi.FunctionSpec.newBuilder()
+              .setUrn(PAR_DO_TRANSFORM_URN)
+              .setPayload(payload.toByteString())
+              .build());
+
+      String mainInputId = getMainInputId(builder, payload);
+      PCollection<KV<?, ?>> mainInput =
+          (PCollection) appliedPTransform.getInputs().get(new TupleTag(mainInputId));
+
+      // https://s.apache.org/beam-portability-timers
+      // Add a PCollection and coder for each timer. Also treat them as inputs and outputs.
+      for (String localTimerName : payload.getTimerSpecsMap().keySet()) {
+        PCollection<?> timerPCollection =
+            PCollection.createPrimitiveOutputInternal(
+                // Create a dummy pipeline since we don't want to modify the current
+                // users view of the pipeline they have constructed.
+                Pipeline.create(),
+                mainInput.getWindowingStrategy(),
+                mainInput.isBounded(),
+                KvCoder.of(
+                    ((KvCoder) mainInput.getCoder()).getKeyCoder(),
+                    // TODO: Add support for timer payloads to the SDK
+                    // We currently assume that all payloads are unspecified.
+                    Timer.Coder.of(VoidCoder.of())));
+        timerPCollection.setName(
+            String.format("%s.%s", appliedPTransform.getFullName(), localTimerName));
+        String timerPCollectionId = components.registerPCollection(timerPCollection);
+        builder.putInputs(localTimerName, timerPCollectionId);
+        builder.putOutputs(localTimerName, timerPCollectionId);
       }
+
+      return builder.build();
     }
   }
 
@@ -300,11 +336,17 @@ public class ParDoTranslation {
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
     ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getPayload());
-    String mainInputId =
-        Iterables.getOnlyElement(
-            Sets.difference(
-                ptransform.getInputsMap().keySet(), payload.getSideInputsMap().keySet()));
-    return components.getPcollectionsOrThrow(ptransform.getInputsOrThrow(mainInputId));
+    return components.getPcollectionsOrThrow(
+        ptransform.getInputsOrThrow(getMainInputId(ptransform, payload)));
+  }
+
+  /** Returns the main input id of the ptransform. */
+  private static String getMainInputId(
+      RunnerApi.PTransformOrBuilder ptransform, RunnerApi.ParDoPayload payload) {
+    return Iterables.getOnlyElement(
+        Sets.difference(
+            ptransform.getInputsMap().keySet(),
+            Sets.union(payload.getSideInputsMap().keySet(), payload.getTimerSpecsMap().keySet())));
   }
 
   public static RunnerApi.StateSpec translateStateSpec(
