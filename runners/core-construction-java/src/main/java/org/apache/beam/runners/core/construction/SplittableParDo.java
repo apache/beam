@@ -415,12 +415,19 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @Setup
     public void setup() {
       invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
           KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
+    }
+
+    @Teardown
+    public void tearDown() {
+      invoker.invokeTeardown();
+      invoker = null;
     }
   }
 
@@ -439,6 +446,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @Setup
     public void setup() {
       invoker = DoFnInvokers.invokerFor(splittableFn);
+      invoker.invokeSetup();
     }
 
     @ProcessElement
@@ -458,6 +466,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               throw new UnsupportedOperationException();
             }
           });
+    }
+
+    @Teardown
+    public void tearDown() {
+      invoker.invokeTeardown();
+      invoker = null;
     }
   }
 }

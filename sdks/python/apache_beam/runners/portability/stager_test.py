@@ -16,6 +16,8 @@
 #
 """Unit tests for the stager module."""
 
+from __future__ import absolute_import
+
 import logging
 import os
 import shutil

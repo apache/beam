@@ -18,9 +18,12 @@
 """A object to control to the Job API Co-Process
 """
 
+from __future__ import absolute_import
+
 import logging
 import subprocess
 import time
+from builtins import object
 
 import grpc
 

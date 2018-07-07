@@ -16,6 +16,8 @@
 #
 
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
+
+from __future__ import absolute_import
 from __future__ import print_function
 
 import logging

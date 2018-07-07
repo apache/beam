@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -35,7 +34,6 @@ public class AvroUtils {
       case INT64:
       case FLOAT:
       case DOUBLE:
-      case DECIMAL:
       case BYTE:
       case BOOLEAN:
         ret = convertAvroPrimitiveTypes(beamFieldTypeName, value);
@@ -50,6 +48,8 @@ public class AvroUtils {
       case ARRAY:
         ret = convertAvroArray(beamField, value);
         break;
+      case DECIMAL:
+        throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
         throw new RuntimeException("Does not support converting MAP type value");
       default:
@@ -99,7 +99,7 @@ public class AvroUtils {
       case BOOLEAN:
         return (Boolean) value;
       case DECIMAL:
-        return BigDecimal.valueOf((double) value);
+        throw new RuntimeException("Does not support converting DECIMAL type value");
       case STRING:
         return convertAvroString(value);
       default:

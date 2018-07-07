@@ -164,7 +164,7 @@ public class Main<OptionT extends NexmarkOptions> {
           NexmarkPerf nexmarkPerf = input.getValue();
           TableRow row =
               new TableRow()
-                  .set("timestamp", start.getMillis())
+                  .set("timestamp", start.getMillis() / 1000)
                   .set("runtimeSec", nexmarkPerf.runtimeSec)
                   .set("eventsPerSec", nexmarkPerf.eventsPerSec)
                   .set("numResults", nexmarkPerf.numResults);
