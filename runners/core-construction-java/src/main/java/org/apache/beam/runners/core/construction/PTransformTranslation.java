@@ -78,8 +78,10 @@ public class PTransformTranslation {
   public static final String CREATE_VIEW_TRANSFORM_URN =
       getUrn(StandardPTransforms.DeprecatedPrimitives.CREATE_VIEW);
 
-  public static final String COMBINE_TRANSFORM_URN =
+  public static final String COMBINE_PER_KEY_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+  public static final String COMBINE_GLOBALLY_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY);
   public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);

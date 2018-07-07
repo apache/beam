@@ -151,7 +151,7 @@ public class PipelineTranslationTest {
             equalTo(windowingStrategies.size()));
       } else {
         transforms.add(node);
-        if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
+        if (PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
           // Combine translation introduces a coder that is not assigned to any PCollection
           // in the default expansion, and must be explicitly added here.

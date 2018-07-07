@@ -19,7 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
@@ -60,7 +60,7 @@ public class CombineTranslation {
 
     @Override
     public String getUrn(Combine.PerKey<?, ?, ?> transform) {
-      return COMBINE_TRANSFORM_URN;
+      return COMBINE_PER_KEY_TRANSFORM_URN;
     }
 
     @Override
@@ -69,7 +69,7 @@ public class CombineTranslation {
         throws IOException {
       if (transform.getTransform().getSideInputs().isEmpty()) {
         return FunctionSpec.newBuilder()
-            .setUrn(COMBINE_TRANSFORM_URN)
+            .setUrn(COMBINE_PER_KEY_TRANSFORM_URN)
             .setPayload(payloadForCombine((AppliedPTransform) transform, components).toByteString())
             .build();
       } else {

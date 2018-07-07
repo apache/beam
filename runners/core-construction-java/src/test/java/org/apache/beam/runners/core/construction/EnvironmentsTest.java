@@ -190,7 +190,7 @@ public class EnvironmentsTest implements Serializable {
         PTransform.newBuilder()
             .setSpec(
                 FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.COMBINE_TRANSFORM_URN)
+                    .setUrn(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
                     .setPayload(payload.toByteString())
                     .build())
             .build();
@@ -217,7 +217,7 @@ public class EnvironmentsTest implements Serializable {
         PTransform.newBuilder()
             .setSpec(
                 FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.COMBINE_TRANSFORM_URN)
+                    .setUrn(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
                     .setPayload(payload.toByteString())
                     .build())
             .build();
