@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -47,6 +46,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ExecutableStageDoFnOperator basic functional implementation without side inputs and user state.
@@ -61,7 +62,7 @@ import org.joda.time.Instant;
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
   private static final Logger logger =
-      Logger.getLogger(ExecutableStageDoFnOperator.class.getName());
+      LoggerFactory.getLogger(ExecutableStageDoFnOperator.class.getName());
 
   private final RunnerApi.ExecutableStagePayload payload;
   private final JobInfo jobInfo;
@@ -146,7 +147,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try (RemoteBundle<InputT> bundle =
         stageBundleFactory.getBundle(
             new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
-      logger.finer(String.format("Sending value: %s", element));
+      logger.debug(String.format("Sending value: %s", element));
       bundle.getInputReceiver().accept(element);
     }
   }
