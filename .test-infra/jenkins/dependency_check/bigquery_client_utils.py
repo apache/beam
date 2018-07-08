@@ -16,6 +16,8 @@ from __future__ import print_function
 # limitations under the License.
 #
 
+from __future__ import print_function
+
 import datetime
 import logging
 from google.cloud import bigquery
