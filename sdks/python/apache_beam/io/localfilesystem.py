@@ -127,6 +127,9 @@ class LocalFileSystem(FileSystem):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
+    parent = os.path.dirname(path)
+    if not os.path.exists(parent):
+      os.makedirs(parent)
     raw_file = open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
