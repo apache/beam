@@ -59,7 +59,15 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def default_docker_image():
-    if 'USER' in os.environ:
+    if 'DOCKER_IMAGE' in os.environ:
+      # Perhaps also test if this was built?
+      image = os.environ['DOCKER_IMAGE'] + ':latest'
+      logging.info(
+          'Using latest locally built Python SDK docker image: %s',
+          image
+      )
+      return image
+    elif 'USER' in os.environ:
       # Perhaps also test if this was built?
       logging.info('Using latest locally built Python SDK docker image.')
       return os.environ['USER'] + '-docker-apache.bintray.io/beam/python:latest'
