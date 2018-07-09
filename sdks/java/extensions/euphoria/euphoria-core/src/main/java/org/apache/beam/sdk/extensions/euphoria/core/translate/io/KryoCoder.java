@@ -34,9 +34,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFunction;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
-/**
- * Coder using Kryo as (de)serialization mechanism. TODO: we should drop this class entirely
- */
+/** Coder using Kryo as (de)serialization mechanism. TODO: we should drop this class entirely */
 public class KryoCoder<T> extends CustomCoder<T> {
 
   private static final VoidFunction<Kryo> FACTORY =

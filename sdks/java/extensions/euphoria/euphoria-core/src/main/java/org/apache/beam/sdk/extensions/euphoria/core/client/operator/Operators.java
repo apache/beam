@@ -21,9 +21,7 @@ import com.google.common.collect.Sets;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
-/**
- * This class contains various methods related to {@link Operator}.
- */
+/** This class contains various methods related to {@link Operator}. */
 public class Operators {
 
   /**
@@ -31,8 +29,8 @@ public class Operators {
    * implementation.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static final Set<Class<? extends Operator<?, ?>>> BASIC_OPS = (Set) Sets
-      .newHashSet(FlatMap.class, ReduceStateByKey.class, Union.class);
+  public static final Set<Class<? extends Operator<?, ?>>> BASIC_OPS =
+      (Set) Sets.newHashSet(FlatMap.class, ReduceStateByKey.class, Union.class);
 
   /**
    * Operators that are considered to be basic and expected to be natively supported by each runner
@@ -41,5 +39,4 @@ public class Operators {
   public static Set<Class<? extends Operator<?, ?>>> getBasicOps() {
     return BASIC_OPS;
   }
-
 }

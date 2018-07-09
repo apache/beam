@@ -30,9 +30,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.Consumer;
 
-/**
- * A data sink that stores data in list.
- */
+/** A data sink that stores data in list. */
 @Audience({Audience.Type.CLIENT, Audience.Type.TESTS})
 public class ListDataSink<T> implements DataSink<T> {
 
@@ -43,8 +41,7 @@ public class ListDataSink<T> implements DataSink<T> {
 
   private final int sinkId = System.identityHashCode(this);
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
-  @Nullable
-  private Consumer<Dataset<T>> prepareDataset = null;
+  @Nullable private Consumer<Dataset<T>> prepareDataset = null;
 
   @SuppressWarnings("unchecked")
   protected ListDataSink() {
@@ -60,8 +57,9 @@ public class ListDataSink<T> implements DataSink<T> {
   @SuppressWarnings("unchecked")
   public Writer<T> openWriter(int partitionId) {
     Map<Integer, List<?>> sinkData = storage.get(this);
-    List partitionData = sinkData.computeIfAbsent(partitionId,
-        (key) -> Collections.synchronizedList(new ArrayList()));
+    List partitionData =
+        sinkData.computeIfAbsent(
+            partitionId, (key) -> Collections.synchronizedList(new ArrayList()));
 
     ListWriter w = new ListWriter(partitionId, partitionData);
     writers.add(w);

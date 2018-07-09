@@ -55,9 +55,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * {@code FlowUnfolder} test suite.
- */
+/** {@code FlowUnfolder} test suite. */
 public class FlowUnfolderTest {
 
   private Flow flow;

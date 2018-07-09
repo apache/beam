@@ -34,9 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/**
- * Test behavior of operator {@code ReduceWindow}.
- */
+/** Test behavior of operator {@code ReduceWindow}. */
 public class ReduceWindowTest {
 
   @Test
@@ -59,11 +57,13 @@ public class ReduceWindowTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Long> output = ReduceWindow.of(dataset).reduceBy(e -> 1L)
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(DefaultTrigger.of())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
+    Dataset<Long> output =
+        ReduceWindow.of(dataset)
+            .reduceBy(e -> 1L)
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
@@ -72,8 +72,8 @@ public class ReduceWindowTest {
 
     WindowingDesc windowingDesc = producer.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
   }
 
@@ -93,7 +93,7 @@ public class ReduceWindowTest {
             .output();
 
     ReduceWindow<String, String, Long, ?> producer;
-        producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
+    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertNotNull(producer.valueComparator);
   }
 
@@ -107,11 +107,12 @@ public class ReduceWindowTest {
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .withSortedValues((l, r) -> l.compareTo(r))
-            .applyIf(true, b -> b
-                .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-                .triggeredBy(DefaultTrigger.of())
-                .discardingFiredPanes()
-            )
+            .applyIf(
+                true,
+                b ->
+                    b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                        .triggeredBy(DefaultTrigger.of())
+                        .discardingFiredPanes())
             .output();
 
     @SuppressWarnings("unchecked")
@@ -119,8 +120,8 @@ public class ReduceWindowTest {
         (ReduceWindow<String, String, Long, ?>) output.getProducer();
     WindowingDesc windowingDesc = producer.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }

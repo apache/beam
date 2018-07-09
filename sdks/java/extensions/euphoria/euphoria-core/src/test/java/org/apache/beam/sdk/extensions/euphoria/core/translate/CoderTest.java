@@ -44,9 +44,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.junit.Test;
 
-/**
- * Tests getting coder from functions and type aware functions.
- */
+/** Tests getting coder from functions and type aware functions. */
 public class CoderTest {
 
   private final UnaryFunction<String, String> unaryFunction = a -> a;
@@ -75,8 +73,8 @@ public class CoderTest {
     assertEquals(KryoCoder.class, coder3.getClass());
 
     final Coder<Integer> coder4 =
-        translationContext
-            .getCoder(TypeAwareBinaryFunctor.of(binaryFunctor, TypeDescriptors.integers()));
+        translationContext.getCoder(
+            TypeAwareBinaryFunctor.of(binaryFunctor, TypeDescriptors.integers()));
     assertEquals(VarIntCoder.class, coder4.getClass());
 
     ReduceFunctor<Pair<Integer, Integer>, Pair<Integer, String>> reduceFunctor =
@@ -125,7 +123,5 @@ public class CoderTest {
     Integer testMethod();
   }
 
-  private class NotSerializableClass {
-
-  }
+  private class NotSerializableClass {}
 }

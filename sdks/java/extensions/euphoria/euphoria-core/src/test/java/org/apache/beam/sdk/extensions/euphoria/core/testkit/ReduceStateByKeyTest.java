@@ -55,9 +55,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperat
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.junit.Test;
 
-/**
- * Test operator {@code ReduceStateByKey}.
- */
+/** Test operator {@code ReduceStateByKey}. */
 @Processing(Processing.Type.ALL)
 public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
@@ -90,8 +88,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> "")
                 .valueBy(e -> e)
                 .stateFactory(CountingSortState::new)
-                .mergeStatesBy((target, others) -> {
-                })
+                .mergeStatesBy((target, others) -> {})
                 .output();
           }
 
@@ -267,7 +264,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, Long, CountState<String>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-// TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
+                // TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
                 // .windowBy(Count.of(3))
                 // TODO rewrite windowing into beam once ReduceStateByKey is supported
                 .output();
@@ -636,8 +633,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       this.count =
           context
               .getStorageProvider()
-              .getValueStorage(ValueStorageDescriptor.of(
-                  "count-state", Long.class, 0L));
+              .getValueStorage(ValueStorageDescriptor.of("count-state", Long.class, 0L));
     }
 
     public static <InputT> void combine(
@@ -731,8 +727,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         public Trigger.TriggerResult onElement(long time, Window window, TriggerContext ctx) {
           // ~ we expect the 'time' to be the end of the window which produced the
           // element in the preceding upstream (stateful and windowed) operator
-          assertTrue("Invalid timestamp " + time,
-              time == 15_000L - 1 || time == 25_000L - 1);
+          assertTrue("Invalid timestamp " + time, time == 15_000L - 1 || time == 25_000L - 1);
           return super.onElement(time, window, ctx);
         }
       };
@@ -749,9 +744,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
   }
 
-  /**
-   * String with invalid hash code implementation returning constant.
-   */
+  /** String with invalid hash code implementation returning constant. */
   public static class Word {
 
     private final String str;

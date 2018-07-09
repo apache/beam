@@ -28,9 +28,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders.Output;
 
-/**
- * TODO: complete javadoc.
- */
+/** TODO: complete javadoc. */
 public class Dataset<T> {
 
   private final org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T> wrap;
@@ -45,8 +43,9 @@ public class Dataset<T> {
 
   public <OutputT> Dataset<OutputT> apply(
       UnaryFunction<
-          org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T>,
-          Output<OutputT>> output) {
+              org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T>,
+              Output<OutputT>>
+          output) {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
   }
 

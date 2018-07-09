@@ -71,11 +71,10 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     }
   }
 
-  private static class Collector<InputT, OutputT> implements
-      DoFnCollector.BeamCollector<InputT, OutputT, OutputT> {
+  private static class Collector<InputT, OutputT>
+      implements DoFnCollector.BeamCollector<InputT, OutputT, OutputT> {
 
-    @Nullable
-    private final ExtractEventTime<InputT> eventTimeExtractor;
+    @Nullable private final ExtractEventTime<InputT> eventTimeExtractor;
     private final String operatorName;
 
     private Collector(String operatorName, @Nullable ExtractEventTime<InputT> eventTimeExtractor) {

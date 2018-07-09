@@ -19,9 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 
-/**
- * Test-purpose {@link Window} identified by integer.
- */
+/** Test-purpose {@link Window} identified by integer. */
 public class IntWindow extends Window<IntWindow> {
 
   private int val;

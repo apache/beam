@@ -26,9 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.junit.Test;
 
-/**
- * Test {@code FlatMap} operator's integration with beam.
- */
+/** Test {@code FlatMap} operator's integration with beam. */
 public class FlatMapTest {
 
   @Test

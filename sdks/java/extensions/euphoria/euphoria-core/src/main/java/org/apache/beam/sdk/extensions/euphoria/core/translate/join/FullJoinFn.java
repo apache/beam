@@ -23,19 +23,21 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollect
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * Full join implementation of {@link JoinFn}.
- */
+/** Full join implementation of {@link JoinFn}. */
 public class FullJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
 
-  public FullJoinFn(BinaryFunctor<LeftT, RightT, OutputT> joiner, TupleTag<LeftT> leftTag,
+  public FullJoinFn(
+      BinaryFunctor<LeftT, RightT, OutputT> joiner,
+      TupleTag<LeftT> leftTag,
       TupleTag<RightT> rightTag) {
     super(joiner, leftTag, rightTag);
   }
 
   @Override
   protected void doJoin(
-      ProcessContext c, K key, CoGbkResult value,
+      ProcessContext c,
+      K key,
+      CoGbkResult value,
       Iterable<LeftT> leftSideIter,
       Iterable<RightT> rightSideIter) {
 

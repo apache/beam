@@ -60,38 +60,38 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /**
  * Inner join of two datasets by given key producing single new dataset.
  *
- * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements
- * from streams into {@link Window}s. The join operation is performed within same windows produced
- * on left and right side of input {@link Dataset}s.
+ * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements from
+ * streams into {@link Window}s. The join operation is performed within same windows produced on
+ * left and right side of input {@link Dataset}s.
  *
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} left and right input dataset
- * <li>{@code by .......................} {@link UnaryFunction}s transforming left and right
- * elements into keys
- * <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element
- * from joined window
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code (output | outputValues) ..} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} left and right input dataset
+ *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right
+ *       elements into keys
+ *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element
+ *       from joined window
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-    reason =
-        "Might be useful to override because of performance reasons in a "
-            + "specific join types (e.g. sort join), which might reduce the space "
-            + "complexity",
-    state = StateComplexity.LINEAR,
-    repartitions = 1
+  reason =
+      "Might be useful to override because of performance reasons in a "
+          + "specific join types (e.g. sort join), which might reduce the space "
+          + "complexity",
+  state = StateComplexity.LINEAR,
+  repartitions = 1
 )
 public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseOperator<
-    Object, Either<LeftT, RightT>, K, Pair<K, OutputT>, W,
-    Join<LeftT, RightT, K, OutputT, W>> {
+        Object, Either<LeftT, RightT>, K, Pair<K, OutputT>, W, Join<LeftT, RightT, K, OutputT, W>> {
 
   @SuppressWarnings("unchecked")
   private static final ListStorageDescriptor LEFT_STATE_DESCR =
@@ -101,10 +101,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   private static final ListStorageDescriptor RIGHT_STATE_DESCR =
       ListStorageDescriptor.of("right", (Class) Object.class);
 
-  @VisibleForTesting
-  final UnaryFunction<LeftT, K> leftKeyExtractor;
-  @VisibleForTesting
-  final UnaryFunction<RightT, K> rightKeyExtractor;
+  @VisibleForTesting final UnaryFunction<LeftT, K> leftKeyExtractor;
+  @VisibleForTesting final UnaryFunction<RightT, K> rightKeyExtractor;
   private final Dataset<LeftT> left;
   private final Dataset<RightT> right;
   private final Dataset<Pair<K, OutputT>> output;
@@ -203,24 +201,24 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
             getName() + "::Union", flow, Arrays.asList(leftMap.output(), rightMap.output()));
 
     final ReduceStateByKey<
-        Either<LeftT, RightT>, K, Either<LeftT, RightT>, OutputT, StableJoinState, W>
+            Either<LeftT, RightT>, K, Either<LeftT, RightT>, OutputT, StableJoinState, W>
         reduce =
-        new ReduceStateByKey(
-            getName() + "::ReduceStateByKey",
-            flow,
-            union.output(),
-            keyExtractor,
-            e -> e,
-            getWindowing(),
-            euphoriaWindowing,
-            (StateContext context, Collector ctx) -> {
-              StorageProvider storages = context.getStorageProvider();
-              return ctx == null
-                  ? new StableJoinState(storages)
-                  : new EarlyEmittingJoinState(storages, ctx);
-            },
-            new StateSupport.MergeFromStateMerger<>(),
-            getHints());
+            new ReduceStateByKey(
+                getName() + "::ReduceStateByKey",
+                flow,
+                union.output(),
+                keyExtractor,
+                e -> e,
+                getWindowing(),
+                euphoriaWindowing,
+                (StateContext context, Collector ctx) -> {
+                  StorageProvider storages = context.getStorageProvider();
+                  return ctx == null
+                      ? new StableJoinState(storages)
+                      : new EarlyEmittingJoinState(storages, ctx);
+                },
+                new StateSupport.MergeFromStateMerger<>(),
+                getHints());
 
     final DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);
@@ -228,9 +226,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     return dag;
   }
 
-  /**
-   * Type of join.
-   */
+  /** Type of join. */
   public enum Type {
     INNER,
     LEFT,
@@ -238,9 +234,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     FULL
   }
 
-  /**
-   * Parameters of this operator used in builders.
-   */
+  /** Parameters of this operator used in builders. */
   static class BuilderParams<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -258,12 +252,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       this.right = right;
       this.type = type;
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
 
     private final String name;
@@ -288,9 +279,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
@@ -312,22 +301,21 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        UnaryFunction<LeftT, K> leftKeyExtractor,
+        UnaryFunction<RightT, K> rightKeyExtractor,
         TypeDescriptor<K> keyTypeDescriptor) {
-      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
+      return by(
+          TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
           TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final BuilderParams<LeftT, RightT, K, ?, ?> params;
 
-    UsingBuilder(
-        BuilderParams<LeftT, RightT, K, ?, ?> params) {
+    UsingBuilder(BuilderParams<LeftT, RightT, K, ?, ?> params) {
       this.params = params;
     }
 
@@ -350,15 +338,14 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowingBuilder<LeftT, RightT, K, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
-      Builders.OutputValues<K, OutputT>,
-      OptionalMethodBuilder<WindowingBuilder<LeftT, RightT, K, OutputT>,
-          OutputBuilder<LeftT, RightT, K, OutputT, ?>>,
-      Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>> {
+          Builders.OutputValues<K, OutputT>,
+          OptionalMethodBuilder<
+              WindowingBuilder<LeftT, RightT, K, OutputT>,
+              OutputBuilder<LeftT, RightT, K, OutputT, ?>>,
+          Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>> {
 
     private final BuilderParams<LeftT, RightT, K, OutputT, ?> params;
 
@@ -392,9 +379,12 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public OutputBuilder<LeftT, RightT, K, OutputT, ?> applyIf(boolean cond,
-        UnaryFunction<WindowingBuilder<LeftT, RightT, K, OutputT>,
-            OutputBuilder<LeftT, RightT, K, OutputT, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<LeftT, RightT, K, OutputT, ?> applyIf(
+        boolean cond,
+        UnaryFunction<
+                WindowingBuilder<LeftT, RightT, K, OutputT>,
+                OutputBuilder<LeftT, RightT, K, OutputT, ?>>
+            applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
 
       if (cond) {
@@ -405,9 +395,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
+  /** Trigger defining operator builder. */
   public static class TriggerByBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W>> {
 
@@ -422,12 +410,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
   public static class AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<LeftT, RightT, K, OutputT, W>> {
 
@@ -443,7 +428,6 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
   /**
@@ -480,9 +464,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   private abstract class AbstractJoinState implements State<Either<LeftT, RightT>, OutputT> {
 
     final ListStorage<LeftT> leftElements;
@@ -500,9 +482,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       rightElements.clear();
     }
 
-    /**
-     * This method can be triggered by all joins except INNER.
-     */
+    /** This method can be triggered by all joins except INNER. */
     void flushUnjoinedElems(
         Collector<OutputT> context, Iterable<LeftT> lefts, Iterable<RightT> rights) {
       boolean leftEmpty = !lefts.iterator().hasNext();
@@ -546,8 +526,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
    * An implementation of the join state which will accumulate elements until it is flushed at which
    * point it then emits all elements.
    *
-   * <p>(This implementation is known to work correctly with merging windowing, early triggering,
-   * as well as with timed multi-window windowing (e.g. time sliding.))
+   * <p>(This implementation is known to work correctly with merging windowing, early triggering, as
+   * well as with timed multi-window windowing (e.g. time sliding.))
    */
   private class StableJoinState extends AbstractJoinState
       implements StateSupport.MergeFrom<StableJoinState> {
@@ -592,20 +572,20 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
    * https://github.com/seznam/euphoria/issues/118 for more information):
    *
    * <ul>
-   * <li>This implementation will break the join operator if used with a merging windowing
-   * strategy, since items will be emitted under the hood of a non-final window.
-   * <li>This implementation cannot be used together with early triggering on any windowing
-   * strategy as it will emit each identified pair only once during the whole course of the state's
-   * life cycle.
-   * <li>This implementation will also break time-sliding windowing, as it will raise the
-   * watermark too quickly in downstream operators, thus, marking earlier - but actually still not
-   * too late time-sliding windows as late comers.
+   *   <li>This implementation will break the join operator if used with a merging windowing
+   *       strategy, since items will be emitted under the hood of a non-final window.
+   *   <li>This implementation cannot be used together with early triggering on any windowing
+   *       strategy as it will emit each identified pair only once during the whole course of the
+   *       state's life cycle.
+   *   <li>This implementation will also break time-sliding windowing, as it will raise the
+   *       watermark too quickly in downstream operators, thus, marking earlier - but actually still
+   *       not too late time-sliding windows as late comers.
    * </ul>
    */
   @Experimental
   private class EarlyEmittingJoinState extends AbstractJoinState
       implements State<Either<LeftT, RightT>, OutputT>,
-      StateSupport.MergeFrom<EarlyEmittingJoinState> {
+          StateSupport.MergeFrom<EarlyEmittingJoinState> {
 
     private final Collector<OutputT> context;
 

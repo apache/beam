@@ -32,8 +32,8 @@ import org.apache.beam.sdk.values.TupleTag;
  * @param <K> key type
  * @param <OutputT> type of output elements
  */
-public abstract class JoinFn<LeftT, RightT, K, OutputT> extends
-    DoFn<KV<K, CoGbkResult>, Pair<K, OutputT>> {
+public abstract class JoinFn<LeftT, RightT, K, OutputT>
+    extends DoFn<KV<K, CoGbkResult>, Pair<K, OutputT>> {
 
   protected final BinaryFunctor<LeftT, RightT, OutputT> joiner;
   protected final TupleTag<LeftT> leftTag;
@@ -41,7 +41,8 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT> extends
 
   protected JoinFn(
       BinaryFunctor<LeftT, RightT, OutputT> joiner,
-      TupleTag<LeftT> leftTag, TupleTag<RightT> rightTag) {
+      TupleTag<LeftT> leftTag,
+      TupleTag<RightT> rightTag) {
     this.joiner = joiner;
     this.leftTag = leftTag;
     this.rightTag = rightTag;
@@ -61,7 +62,9 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT> extends
   }
 
   protected abstract void doJoin(
-      ProcessContext c, K key, CoGbkResult value,
+      ProcessContext c,
+      K key,
+      CoGbkResult value,
       Iterable<LeftT> leftSideIter,
       Iterable<RightT> rightSideIter);
 

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * IO centered classes.
- */
+/** IO centered classes. */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.io;

@@ -23,20 +23,18 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-
 /**
  * {@link PTransform} which allows you to build composite transformations in Euphoria API.
  *
  * @param <InputT> type of input elements
  * @param <OutputT> type of output elements
  */
-public class BeamPTransform<InputT, OutputT> extends
-    PTransform<PCollection<InputT>, PCollection<OutputT>> {
+public class BeamPTransform<InputT, OutputT>
+    extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   private final Function<Dataset<InputT>, Dataset<OutputT>> euphoriaTransform;
 
-  private BeamPTransform(
-      Function<Dataset<InputT>, Dataset<OutputT>> euphoriaTransform) {
+  private BeamPTransform(Function<Dataset<InputT>, Dataset<OutputT>> euphoriaTransform) {
     this.euphoriaTransform = euphoriaTransform;
   }
 
@@ -55,5 +53,4 @@ public class BeamPTransform<InputT, OutputT> extends
 
     return flow.unwrapped(output);
   }
-
 }

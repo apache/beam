@@ -30,9 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/**
- * Test behavior of operator {@code SumByKey}.
- */
+/** Test behavior of operator {@code SumByKey}. */
 public class SumByKeyTest {
 
   @Test
@@ -81,8 +79,8 @@ public class SumByKeyTest {
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = sum.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
@@ -95,17 +93,19 @@ public class SumByKeyTest {
     SumByKey.of(dataset)
         .keyBy(s -> s)
         .valueBy(s -> 1L)
-        .applyIf(true, b -> b
-            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-            .triggeredBy(DefaultTrigger.of())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .applyIf(
+            true,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = sum.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }

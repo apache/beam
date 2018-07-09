@@ -26,11 +26,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-/**
- * Base for those operator builders which needs to support windowing.
- */
-class WindowingParams<W extends BoundedWindow>
-    implements WindowAware<Object, W> {
+/** Base for those operator builders which needs to support windowing. */
+class WindowingParams<W extends BoundedWindow> implements WindowAware<Object, W> {
 
   WindowFn<Object, W> windowFn;
   Trigger trigger;
@@ -53,5 +50,4 @@ class WindowingParams<W extends BoundedWindow>
   public Windowing getEuphoriaWindowing() {
     return euphoriaWindowing;
   }
-
 }

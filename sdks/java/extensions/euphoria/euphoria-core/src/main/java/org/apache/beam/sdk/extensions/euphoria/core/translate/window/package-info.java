@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Windowing centered classes.
- */
+/** Windowing centered classes. */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.window;

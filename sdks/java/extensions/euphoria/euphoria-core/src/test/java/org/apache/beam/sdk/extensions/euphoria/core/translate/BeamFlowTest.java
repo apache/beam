@@ -47,9 +47,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * Test for {@link BeamFlow}.
- */
+/** Test for {@link BeamFlow}. */
 public class BeamFlowTest implements Serializable {
 
   private PipelineOptions defaultOptions() {

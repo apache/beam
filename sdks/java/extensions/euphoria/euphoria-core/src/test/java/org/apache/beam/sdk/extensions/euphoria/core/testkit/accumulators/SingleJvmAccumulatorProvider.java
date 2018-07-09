@@ -65,14 +65,14 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
 
   @Override
   public Histogram getHistogram(String name) {
-    return assertType(name, LongHistogram.class, accs.computeIfAbsent(
-        name, s -> new LongHistogram()));
+    return assertType(
+        name, LongHistogram.class, accs.computeIfAbsent(name, s -> new LongHistogram()));
   }
 
   @Override
   public Timer getTimer(String name) {
-    return assertType(name, NanosecondTimer.class, accs.computeIfAbsent(
-         name, s -> new NanosecondTimer()));
+    return assertType(
+        name, NanosecondTimer.class, accs.computeIfAbsent(name, s -> new NanosecondTimer()));
   }
 
   void clear() {
@@ -94,9 +94,7 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
 
   // ~ -----------------------------------------------------------------------
 
-  /**
-   * Accumulator provider factory.
-   */
+  /** Accumulator provider factory. */
   public static final class Factory implements AccumulatorProvider.Factory, SnapshotProvider {
 
     private static final Factory INSTANCE = new Factory();

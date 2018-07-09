@@ -26,8 +26,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
  * @param <InBuilderT> the class of the builder that extends this class
  */
 @Audience(Audience.Type.INTERNAL)
-public interface OptionalMethodBuilder
-    <InBuilderT extends OptionalMethodBuilder<InBuilderT, OutBuilderT>, OutBuilderT> {
+public interface OptionalMethodBuilder<
+    InBuilderT extends OptionalMethodBuilder<InBuilderT, OutBuilderT>, OutBuilderT> {
 
   /**
    * Apply given modification to builder when condition evaluates to {@code true}.

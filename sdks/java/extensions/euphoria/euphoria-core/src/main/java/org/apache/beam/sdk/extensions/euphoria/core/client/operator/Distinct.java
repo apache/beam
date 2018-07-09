@@ -50,24 +50,25 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code [mapped] .................} compare objects retrieved by this {@link UnaryFunction}
- * instead of raw input elements
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code output ...................} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code [mapped] .................} compare objects retrieved by this {@link UnaryFunction}
+ *       instead of raw input elements
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-    reason =
-        "Might be useful to override the default "
-            + "implementation because of performance reasons"
-            + "(e.g. using bloom filters), which might reduce the space complexity",
-    state = StateComplexity.CONSTANT,
-    repartitions = 1
+  reason =
+      "Might be useful to override the default "
+          + "implementation because of performance reasons"
+          + "(e.g. using bloom filters), which might reduce the space complexity",
+  state = StateComplexity.CONSTANT,
+  repartitions = 1
 )
 public class Distinct<InputT, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
@@ -140,17 +141,13 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     Dataset<InputT> input;
     UnaryFunction<InputT, OutputT> mapper;
 
-    public BuilderParams(String name,
-        Dataset<InputT> input) {
+    public BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
   }
 
-
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -165,12 +162,11 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class MappedBuilder<InputT>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, InputT, ?>>, Builders.Output<InputT>,
-      OptionalMethodBuilder<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> {
+      implements Builders.WindowBy<TriggerByBuilder<InputT, InputT, ?>>,
+          Builders.Output<InputT>,
+          OptionalMethodBuilder<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> {
 
     private final BuilderParams<InputT, ?, ?> params;
 
@@ -182,8 +178,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
      * Optionally specifies a function to transform the input elements into another type among which
      * to find the distincts.
      *
-     * <p>This is, while windowing will be applied on basis of original input elements, the
-     * distinct operator will be carried out on the transformed elements.
+     * <p>This is, while windowing will be applied on basis of original input elements, the distinct
+     * operator will be carried out on the transformed elements.
      *
      * @param <OutputT> the type of the transformed elements
      * @param mapper a transform function applied to input element
@@ -192,8 +188,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     public <OutputT> WindowingBuilder<InputT, OutputT> mapped(
         UnaryFunction<InputT, OutputT> mapper) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, OutputT, ?> paramsCasted =
-          (BuilderParams<InputT, OutputT, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, OutputT, ?> paramsCasted = (BuilderParams<InputT, OutputT, ?>) params;
 
       paramsCasted.mapper = Objects.requireNonNull(mapper);
 
@@ -203,8 +199,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, ?> paramsCasted =
-          (BuilderParams<InputT, InputT, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, InputT, ?> paramsCasted = (BuilderParams<InputT, InputT, ?>) params;
 
       paramsCasted.mapper = e -> e;
       return new OutputBuilder<>(paramsCasted).output();
@@ -214,8 +210,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     public <W extends BoundedWindow> TriggerByBuilder<InputT, InputT, ?> windowBy(
         WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, W> paramsCasted =
-          (BuilderParams<InputT, InputT, W>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, InputT, W> paramsCasted = (BuilderParams<InputT, InputT, W>) params;
 
       paramsCasted.mapper = e -> e;
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
@@ -230,7 +226,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public OutputBuilder<InputT, ?, ?> applyIf(boolean cond,
+    public OutputBuilder<InputT, ?, ?> applyIf(
+        boolean cond,
         UnaryFunction<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
 
@@ -242,13 +239,12 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowingBuilder<InputT, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, OutputT, ?>>,
-      Builders.Output<OutputT>,
-      OptionalMethodBuilder<WindowingBuilder<InputT, OutputT>, OutputBuilder<InputT, OutputT, ?>> {
+          Builders.Output<OutputT>,
+          OptionalMethodBuilder<
+              WindowingBuilder<InputT, OutputT>, OutputBuilder<InputT, OutputT, ?>> {
 
     private final BuilderParams<InputT, OutputT, ?> params;
 
@@ -260,8 +256,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     public <W extends BoundedWindow> TriggerByBuilder<InputT, OutputT, W> windowBy(
         WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, OutputT, W> paramsCasted =
-          (BuilderParams<InputT, OutputT, W>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, OutputT, W> paramsCasted = (BuilderParams<InputT, OutputT, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
 
@@ -281,9 +277,10 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public OutputBuilder<InputT, OutputT, ?> applyIf(boolean cond,
-        UnaryFunction<WindowingBuilder<InputT, OutputT>,
-            OutputBuilder<InputT, OutputT, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<InputT, OutputT, ?> applyIf(
+        boolean cond,
+        UnaryFunction<WindowingBuilder<InputT, OutputT>, OutputBuilder<InputT, OutputT, ?>>
+            applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
 
       if (cond) {
@@ -294,9 +291,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
+  /** Trigger defining operator builder. */
   public static class TriggerByBuilder<InputT, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, OutputT, W>> {
 
@@ -311,12 +306,9 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
   public static class AccumulatorModeBuilder<InputT, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, OutputT, W>> {
 
@@ -333,7 +325,6 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
   /**
@@ -353,8 +344,14 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     public Dataset<OutputT> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
       Distinct<InputT, OutputT, W> distinct =
-          new Distinct<>(params.name, flow, params.input, params.mapper,
-              params.getWindowing(), params.euphoriaWindowing, Sets.newHashSet(outputHints));
+          new Distinct<>(
+              params.name,
+              flow,
+              params.input,
+              params.mapper,
+              params.getWindowing(),
+              params.euphoriaWindowing,
+              Sets.newHashSet(outputHints));
       flow.add(distinct);
       return distinct.output();
     }

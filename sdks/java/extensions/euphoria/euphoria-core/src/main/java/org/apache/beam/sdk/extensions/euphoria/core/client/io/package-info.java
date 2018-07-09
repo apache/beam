@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines abstraction of transformation for reading and writing common storage formats.
- */
+/** Defines abstraction of transformation for reading and writing common storage formats. */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;

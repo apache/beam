@@ -29,19 +29,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 
-/**
- * An operator base class. All operators extends this class.
- */
+/** An operator base class. All operators extends this class. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class Operator<InputT, OutputT> implements Serializable {
 
-  /**
-   * Name of the operator.
-   */
+  /** Name of the operator. */
   private final String name;
-  /**
-   * Associated Flow.
-   */
+  /** Associated Flow. */
   private final Flow flow;
 
   protected Set<OutputHint> hints;
@@ -69,9 +63,7 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
     return DAG.of(this);
   }
 
-  /**
-   * @return a collection of all input datasets
-   */
+  /** @return a collection of all input datasets */
   public abstract Collection<Dataset<InputT>> listInputs();
 
   /**
@@ -94,8 +86,6 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
     return hints;
   }
 
-  /**
-   * @return the output dataset
-   */
+  /** @return the output dataset */
   public abstract Dataset<OutputT> output();
 }

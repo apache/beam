@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Classes providing graph representation.
- */
+/** Classes providing graph representation. */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.graph;

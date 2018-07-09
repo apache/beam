@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Collections of operators base classes.
- */
+/** Collections of operators base classes. */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;

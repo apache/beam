@@ -68,27 +68,28 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * Operator performing state-less aggregation by given reduce function. The reduction is performed
  * on all extracted values on each key-window.
  *
- * <p>If provided function is {@link CombinableReduceFunction} partial reduction is performed
- * before shuffle. If the function is not combinable all values must be first sent through the
- * network and the reduction is done afterwards on target machines.
+ * <p>If provided function is {@link CombinableReduceFunction} partial reduction is performed before
+ * shuffle. If the function is not combinable all values must be first sent through the network and
+ * the reduction is done afterwards on target machines.
  *
  * <p>Custom {@link Windowing} can be set, otherwise values from input operator are used.
  *
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code keyBy ....................} key extractor function
- * <li>{@code [valueBy] ................} value extractor function (default: identity)
- * <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link
- * ReduceFunction} for combinable or non-combinable function
- * <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
- * to {@link ReduceFunction} function (applicable only for non-combinable version)
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code (output | outputValues) ..} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code [valueBy] ................} value extractor function (default: identity)
+ *   <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link
+ *       ReduceFunction} for combinable or non-combinable function
+ *   <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
+ *       to {@link ReduceFunction} function (applicable only for non-combinable version)
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
  * @param <InputT> Type of input records
@@ -98,12 +99,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-    reason =
-        "Is very recommended to override because of performance in "
-            + "a specific area of (mostly) batch calculations where combiners "
-            + "can be efficiently used in the executor-specific implementation",
-    state = StateComplexity.CONSTANT_IF_COMBINABLE,
-    repartitions = 1
+  reason =
+      "Is very recommended to override because of performance in "
+          + "a specific area of (mostly) batch calculations where combiners "
+          + "can be efficiently used in the executor-specific implementation",
+  state = StateComplexity.CONSTANT_IF_COMBINABLE,
+  repartitions = 1
 )
 public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
@@ -113,8 +114,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
 
   // builder classes used when input is Dataset<InputT> ----------------------
   final UnaryFunction<InputT, V> valueExtractor;
-  @Nullable
-  final BinaryFunction<V, V, Integer> valueComparator;
+  @Nullable final BinaryFunction<V, V, Integer> valueComparator;
 
   @SuppressWarnings("unchecked")
   ReduceByKey(
@@ -181,9 +181,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     return new OfBuilder(name);
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   static <V> ReduceFunctor<V, V> toReduceFunctor(CombinableReduceFunction<V> reducer1) {
 
     return new ReduceFunctor<V, V>() {
@@ -241,9 +239,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     return DAG.of(reduceState);
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public interface ReduceBy<InputT, K, V> {
 
     /**
@@ -263,8 +259,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
         ReduceFunction<V, OutputT> reducer, TypeDescriptor<OutputT> outputTypeDescriptor) {
       return reduceBy(
-          (Stream<V> in, Collector<OutputT> ctx) ->
-              ctx.collect(reducer.apply(in)), outputTypeDescriptor);
+          (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)),
+          outputTypeDescriptor);
     }
 
     /**
@@ -302,9 +298,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Parameters of this operator used in builders.
-   */
+  /** Parameters of this operator used in builders. */
   private static final class BuilderParams<InputT, K, V, OutputT, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -313,13 +307,10 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     UnaryFunction<InputT, K> keyExtractor;
     UnaryFunction<InputT, V> valueExtractor;
     ReduceFunctor<V, OutputT> reducer;
-    @Nullable
-    BinaryFunction<V, V, Integer> valuesComparator;
+    @Nullable BinaryFunction<V, V, Integer> valuesComparator;
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -334,13 +325,10 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
-    private final BuilderParams<InputT, ?, ?, ?, ?> params =
-        new BuilderParams<>();
+    private final BuilderParams<InputT, ?, ?, ?, ?> params = new BuilderParams<>();
 
     KeyByBuilder(String name, Dataset<InputT> input) {
       params.name = Objects.requireNonNull(name);
@@ -351,8 +339,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <K> ValueByReduceByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
 
       @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, ?, ?, ?> paramsCasted =
-          (BuilderParams<InputT, K, ?, ?, ?>) params;
+      BuilderParams<InputT, K, ?, ?, ?> paramsCasted = (BuilderParams<InputT, K, ?, ?, ?>) params;
 
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
 
@@ -366,9 +353,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ValueByReduceByBuilder<InputT, K> implements ReduceBy<InputT, K, InputT> {
 
     private final BuilderParams<InputT, K, ?, ?, ?> params;
@@ -383,15 +368,14 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      *
      * @param <V> the type of the extracted values
      * @param valueExtractor a user defined function to extract values from the processed input
-     * dataset's elements for later reduction
+     *     dataset's elements for later reduction
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     public <V> ReduceByCombineByBuilder<InputT, K, V> valueBy(
         UnaryFunction<InputT, V> valueExtractor) {
 
       @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, V, ?, ?> paramsCasted =
-          (BuilderParams<InputT, K, V, ?, ?>) params;
+      BuilderParams<InputT, K, V, ?, ?> paramsCasted = (BuilderParams<InputT, K, V, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
       return new ReduceByCombineByBuilder<>(paramsCasted);
@@ -406,8 +390,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <OutputT> WithSortedValuesBuilder<InputT, K, InputT, OutputT> reduceBy(
         ReduceFunctor<InputT, OutputT> reducer) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, InputT, OutputT, ?>
-          paramsCasted = (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
+      @SuppressWarnings("unchecked")
+      final BuilderParams<InputT, K, InputT, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = e -> e;
       paramsCasted.reducer = Objects.requireNonNull(reducer);
@@ -416,9 +401,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ReduceByCombineByBuilder<InputT, K, V> implements ReduceBy<InputT, K, V> {
 
     private final BuilderParams<InputT, K, V, ?, ?> params;
@@ -431,7 +414,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
         ReduceFunctor<V, OutputT> reducer) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      final BuilderParams<InputT, K, V, OutputT, ?> paramsCasted =
           (BuilderParams<InputT, K, V, OutputT, ?>) params;
 
       paramsCasted.reducer = Objects.requireNonNull(reducer);
@@ -440,15 +424,13 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowByBuilder<InputT, K, V, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
-      Builders.OutputValues<K, OutputT>,
-      Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>>,
-      OptionalMethodBuilder<WindowByBuilder<InputT, K, V, OutputT>,
-          OutputBuilder<InputT, K, V, OutputT, ?>> {
+          Builders.OutputValues<K, OutputT>,
+          Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>>,
+          OptionalMethodBuilder<
+              WindowByBuilder<InputT, K, V, OutputT>, OutputBuilder<InputT, K, V, OutputT, ?>> {
 
     final BuilderParams<InputT, K, V, OutputT, ?> params;
 
@@ -481,9 +463,11 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public OutputBuilder<InputT, K, V, OutputT, ?> applyIf(boolean cond,
-        UnaryFunction<WindowByBuilder<InputT, K, V, OutputT>,
-            OutputBuilder<InputT, K, V, OutputT, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<InputT, K, V, OutputT, ?> applyIf(
+        boolean cond,
+        UnaryFunction<
+                WindowByBuilder<InputT, K, V, OutputT>, OutputBuilder<InputT, K, V, OutputT, ?>>
+            applyWhenConditionHolds) {
 
       Objects.requireNonNull(applyWhenConditionHolds);
 
@@ -495,9 +479,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WithSortedValuesBuilder<InputT, K, V, OutputT>
       extends WindowByBuilder<InputT, K, V, OutputT> { //TODO chceme tady tenhle extends ?
 
@@ -553,9 +535,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
+  /** Trigger defining operator builder. */
   public static class TriggerByBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, W>> {
 
@@ -570,12 +550,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
   public static class AccumulatorModeBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, W>> {
 
@@ -592,12 +569,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   static class CombiningReduceState<V1>
       implements State<V1, V1>, StateSupport.MergeFrom<CombiningReduceState<V1>> {
 
@@ -658,12 +632,10 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   private static class NonCombiningReduceState<InputT, OutputT>
       implements State<InputT, OutputT>,
-      StateSupport.MergeFrom<NonCombiningReduceState<InputT, OutputT>> {
+          StateSupport.MergeFrom<NonCombiningReduceState<InputT, OutputT>> {
 
     @SuppressWarnings("unchecked")
     private static final ListStorageDescriptor STORAGE_DESC =
@@ -672,8 +644,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     private final ReduceFunctor<InputT, OutputT> reducer;
     private final ListStorage<InputT> reducibleValues;
     private final SpillTools spill;
-    @Nullable
-    private final BinaryFunction<InputT, InputT, Integer> comparator;
+    @Nullable private final BinaryFunction<InputT, InputT, Integer> comparator;
 
     NonCombiningReduceState(
         StateContext context,

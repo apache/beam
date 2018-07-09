@@ -23,23 +23,17 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
-/**
- * Util for easier creation of TypeDescriptors.
- */
+/** Util for easier creation of TypeDescriptors. */
 public class TypeHint {
 
   public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
       TypeDescriptor<K> key, TypeDescriptor<V> value) {
 
-    return new TypeDescriptor<Pair<K, V>>() {
-    }.where(new TypeParameter<K>() {
-    }, key)
-        .where(new TypeParameter<V>() {
-        }, value);
+    return new TypeDescriptor<Pair<K, V>>() {}.where(new TypeParameter<K>() {}, key)
+        .where(new TypeParameter<V>() {}, value);
   }
 
-  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
-      Class<K> key, Class<V> value) {
+  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(Class<K> key, Class<V> value) {
     return pairs(TypeDescriptor.of(key), TypeDescriptor.of(value));
   }
 }

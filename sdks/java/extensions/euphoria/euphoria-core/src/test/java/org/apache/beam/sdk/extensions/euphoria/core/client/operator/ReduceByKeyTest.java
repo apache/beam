@@ -32,9 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/**
- * Test operator ReduceByKey.
- */
+/** Test operator ReduceByKey. */
 public class ReduceByKeyTest {
 
   @Test
@@ -147,8 +145,8 @@ public class ReduceByKeyTest {
 
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
     assertNull(reduce.valueComparator);
@@ -189,7 +187,6 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueComparator);
   }
 
-
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -200,20 +197,21 @@ public class ReduceByKeyTest {
         .valueBy(s -> 1L)
         .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
         .withSortedValues(Long::compare)
-        .applyIf(true, b -> b
-            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-            .triggeredBy(DefaultTrigger.of())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .applyIf(
+            true,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-    windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
-
   }
 
   @Test
@@ -226,15 +224,16 @@ public class ReduceByKeyTest {
         .valueBy(s -> 1L)
         .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
         .withSortedValues(Long::compare)
-        .applyIf(false, b -> b
-            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-            .triggeredBy(DefaultTrigger.of())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .applyIf(
+            false,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNull(windowingDesc);
   }
-
 }

@@ -25,9 +25,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
-/**
- * Operator with internal state.
- */
+/** Operator with internal state. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
         InputT,
@@ -35,8 +33,7 @@ public abstract class StateAwareWindowWiseOperator<
         K,
         OutputT,
         W extends BoundedWindow,
-        OperatorT extends
-            StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
+        OperatorT extends StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
     extends WindowWiseOperator<InputT, OutputT, W> implements StateAware<KeyInT, K> {
 
   protected final UnaryFunction<KeyInT, K> keyExtractor;

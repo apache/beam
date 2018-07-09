@@ -33,18 +33,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * A group of test focused at {@link BeamPTransform}.
- */
+/** A group of test focused at {@link BeamPTransform}. */
 public class BeamPTransformTest implements Serializable {
 
   private static final String BASE_STRING =
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur et imperdiet nulla,"
           + " vulputate luctus risus. In sed suscipit purus. Curabitur dui eros, eleifend sed "
           + "dignissim eget, euismod sed lorem.";
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
-
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void basicBeamTransformTest() {
@@ -55,12 +51,10 @@ public class BeamPTransformTest implements Serializable {
     final PCollection<String> pCollection =
         pipeline
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
-            .apply("To-UpperCase", BeamPTransform.of(
-                input -> MapElements
-                    .of(input)
-                    .using(s -> s.toUpperCase())
-                    .output()
-            ));
+            .apply(
+                "To-UpperCase",
+                BeamPTransform.of(
+                    input -> MapElements.of(input).using(s -> s.toUpperCase()).output()));
 
     PAssert.that(pCollection).containsInAnyOrder(upperCaseWords);
 
@@ -76,21 +70,18 @@ public class BeamPTransformTest implements Serializable {
     final PCollection<Pair<String, Long>> pCollection =
         pipeline
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
-            .apply("To-UpperCase", BeamPTransform.of((Dataset<String> input) -> {
-                  Dataset<String> upperCase = MapElements
-                      .of(input)
-                      .using(s -> s.toUpperCase())
-                      .output();
+            .apply(
+                "To-UpperCase",
+                BeamPTransform.of(
+                    (Dataset<String> input) -> {
+                      Dataset<String> upperCase =
+                          MapElements.of(input).using(s -> s.toUpperCase()).output();
 
-                  return CountByKey
-                      .of(upperCase)
-                      .keyBy(e -> e)
-                      .output();
-                }
-            ));
+                      return CountByKey.of(upperCase).keyBy(e -> e).output();
+                    }));
 
-    PAssert.that(pCollection).containsInAnyOrder(Pair.of("A", 3L), Pair.of("B", 1L),
-        Pair.of("C", 2L), Pair.of("X", 1L));
+    PAssert.that(pCollection)
+        .containsInAnyOrder(Pair.of("A", 3L), Pair.of("B", 1L), Pair.of("C", 2L), Pair.of("X", 1L));
 
     pipeline.run();
   }
@@ -104,12 +95,10 @@ public class BeamPTransformTest implements Serializable {
     final PCollection<String> pCollection =
         pipeline
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
-            .apply("To-UpperCase", BeamPTransform.of(
-                input -> MapElements
-                    .of(input)
-                    .using(s -> s.toUpperCase())
-                    .output()
-            ));
+            .apply(
+                "To-UpperCase",
+                BeamPTransform.of(
+                    input -> MapElements.of(input).using(s -> s.toUpperCase()).output()));
 
     PAssert.that(pCollection).containsInAnyOrder(upperCaseWords);
 
@@ -132,13 +121,12 @@ public class BeamPTransformTest implements Serializable {
 
     PCollection<Integer> unwrapped = flow.unwrapped(plusOne);
 
-    PCollection<Integer> twicePcollection = unwrapped.apply("Twice", BeamPTransform.of(
-        in -> MapElements.of(in).using(i -> 2 * i).output()
-    ));
+    PCollection<Integer> twicePcollection =
+        unwrapped.apply(
+            "Twice", BeamPTransform.of(in -> MapElements.of(in).using(i -> 2 * i).output()));
 
     PAssert.that(twicePcollection).containsInAnyOrder(4, 6, 8, 10, 12, 14);
 
     pipeline.run();
   }
-
 }

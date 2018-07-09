@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Flow: A chain of transformations/operators of data sets.
- */
+/** Flow: A chain of transformations/operators of data sets. */
 package org.apache.beam.sdk.extensions.euphoria.core.client.flow;

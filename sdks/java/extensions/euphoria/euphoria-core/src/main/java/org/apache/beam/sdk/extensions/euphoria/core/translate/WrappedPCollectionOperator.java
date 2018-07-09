@@ -25,9 +25,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * {@link Operator} that serves as a wrapper between a {@link PCollection} and {@link Dataset}.
- */
+/** {@link Operator} that serves as a wrapper between a {@link PCollection} and {@link Dataset}. */
 class WrappedPCollectionOperator<T> extends Operator<T, T> {
 
   final Dataset<T> output;

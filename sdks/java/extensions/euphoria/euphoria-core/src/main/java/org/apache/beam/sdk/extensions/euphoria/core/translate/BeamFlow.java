@@ -69,13 +69,13 @@ public class BeamFlow extends Flow {
   private <T> BeamFlow(String name, PCollection<T> inputPCollection) {
     super(name, new Settings());
     this.pipeline = inputPCollection.getPipeline();
-    this.context = new TranslationContext(
-        DAG.empty(),
-        accumulatorFactory,
-        pipeline,
-        getSettings(),
-        org.joda.time.Duration.millis(allowedLateness.toMillis())
-    );
+    this.context =
+        new TranslationContext(
+            DAG.empty(),
+            accumulatorFactory,
+            pipeline,
+            getSettings(),
+            org.joda.time.Duration.millis(allowedLateness.toMillis()));
 
     wrapFinishedInputPCollection(inputPCollection);
   }
@@ -102,9 +102,8 @@ public class BeamFlow extends Flow {
   }
 
   /**
-   * Create flow from input {@link PCollection} which is
-   * {@linkplain PCollection#isFinishedSpecifying() finished specifying}.
-   *
+   * Create flow from input {@link PCollection} which is {@linkplain
+   * PCollection#isFinishedSpecifying() finished specifying}.
    *
    * @param pCollection the input {@link PCollection} to wrap into new flow
    * @return constructed flow
@@ -114,8 +113,8 @@ public class BeamFlow extends Flow {
   }
 
   /**
-   * Create flow from input {@link PCollection} which is
-   * {@linkplain PCollection#isFinishedSpecifying() finished specifying}.
+   * Create flow from input {@link PCollection} which is {@linkplain
+   * PCollection#isFinishedSpecifying() finished specifying}.
    *
    * @param name name of the flow
    * @param pCollection the input {@link PCollection} to wrap into new flow
@@ -237,8 +236,8 @@ public class BeamFlow extends Flow {
     FlowTranslator.updateContextBy(unfolded, context);
     // register the output of the sub-dag as output of the original operator
     Dataset<OutputT> output = operator.output();
-    Dataset<OutputT> dagOutput = (Dataset) Iterables.getOnlyElement(unfolded.getLeafs()).get()
-        .output();
+    Dataset<OutputT> dagOutput =
+        (Dataset) Iterables.getOnlyElement(unfolded.getLeafs()).get().output();
     if (output != dagOutput) {
       context.setPCollection(output, unwrapped(dagOutput));
     }
@@ -275,15 +274,13 @@ public class BeamFlow extends Flow {
    *
    * @return associated pipeline
    * @throws NullPointerException when the flow has no associated pipeline. Note that the flow has
-   * associated pipeline if and only if it was created by {@link #of(Pipeline)}.
+   *     associated pipeline if and only if it was created by {@link #of(Pipeline)}.
    */
   public Pipeline getPipeline() {
     return Objects.requireNonNull(pipeline);
   }
 
-  /**
-   * @return {@code true} if this flow already has associated {@link Pipeline}.
-   */
+  /** @return {@code true} if this flow already has associated {@link Pipeline}. */
   boolean hasPipeline() {
     return pipeline != null;
   }

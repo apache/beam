@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
  *
  * @param <T> type of elements being windowed
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by {@link WindowFn}
- * accessible through {@link #getWindowFn()}
+ *     accessible through {@link #getWindowFn()}
  */
 public class WindowingDesc<T, W extends BoundedWindow> implements Serializable {
 
@@ -37,8 +37,8 @@ public class WindowingDesc<T, W extends BoundedWindow> implements Serializable {
   private final Trigger trigger;
   private final WindowingStrategy.AccumulationMode accumulationMode;
 
-  public WindowingDesc(WindowFn<T, W> windowFn,
-      Trigger trigger, AccumulationMode accumulationMode) {
+  public WindowingDesc(
+      WindowFn<T, W> windowFn, Trigger trigger, AccumulationMode accumulationMode) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.accumulationMode = accumulationMode;

@@ -27,7 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.junit.Test;
 
-/** Test operator FlatMap.  */
+/** Test operator FlatMap. */
 public class FlatMapTest {
 
   @Test

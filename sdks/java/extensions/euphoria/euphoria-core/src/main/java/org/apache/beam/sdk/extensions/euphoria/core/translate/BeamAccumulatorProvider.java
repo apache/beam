@@ -84,6 +84,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
 
   /**
    * Metric key for accumulator map.
+   *
    * @param namespace = operator name
    * @param name of metric
    * @return metricKey = namespace + SEPARATOR + name

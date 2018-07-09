@@ -29,9 +29,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperat
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.junit.Test;
 
-/**
- * TODO: add javadoc.
- */
+/** TODO: add javadoc. */
 @Processing(Processing.Type.ALL)
 public class TopPerKeyTest extends AbstractOperatorTest {
 

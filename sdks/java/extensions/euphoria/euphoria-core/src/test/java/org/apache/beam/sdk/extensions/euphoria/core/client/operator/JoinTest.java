@@ -34,9 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/**
- * Test operator Join.
- */
+/** Test operator Join. */
 public class JoinTest {
 
   @Test
@@ -234,10 +232,12 @@ public class JoinTest {
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-        .applyIf(true, b -> b
-            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-            .triggeredBy(AfterWatermark.pastEndOfWindow())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .applyIf(
+            true,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     Join join = (Join) flow.operators().iterator().next();

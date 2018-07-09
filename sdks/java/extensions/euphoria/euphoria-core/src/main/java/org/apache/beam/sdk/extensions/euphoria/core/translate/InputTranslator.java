@@ -50,8 +50,7 @@ class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> 
 
   @Override
   @SuppressWarnings("unchecked")
-  public PCollection<?> translate(
-      FlowUnfolder.InputOperator operator, TranslationContext context) {
+  public PCollection<?> translate(FlowUnfolder.InputOperator operator, TranslationContext context) {
     return doTranslate(operator, context);
   }
 }

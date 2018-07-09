@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Provides fluent API.  */
+/** Provides fluent API. */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
