@@ -135,4 +135,4 @@ cdef class DataflowDistributionCounter(object):
     return self._fast_calculate_bucket_index(element)
 
   cpdef merge(self, accumulators):
-    pass
+    raise NotImplementedError()
