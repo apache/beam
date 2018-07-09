@@ -1,0 +1,113 @@
+# This file is used for auto-assigning reviewers to PRs.
+#
+# The last matching rule wins. For details, see:
+# https://help.github.com/articles/about-codeowners/
+
+# Per-language reviewers.
+*.go @person1 @person2 @person3
+*.java @person1 @person2 @person3
+*.py @person1 @person2 @person3
+
+# SDK components reviewers.
+/sdks/go/ @person1 @person2 @person3
+/sdks/go/test/integration @person1 @person2 @person3
+/sdks/go/test/regression @person1 @person2 @person3
+/sdks/go/examples @person1 @person2 @person3
+/sdks/go/container @person1 @person2 @person3
+/sdks/go/data @person1 @person2 @person3
+/sdks/go/pkg @person1 @person2 @person3
+/sdks/go/cmd @person1 @person2 @person3
+
+/sdks/java/ @person1 @person2 @person3
+/sdks/java/core @person1 @person2 @person3
+/sdks/java/extensions @person1 @person2 @person3
+/sdks/java/container @person1 @person2 @person3
+/sdks/java/fn-execution @person1 @person2 @person3
+/sdks/java/nexmark @person1 @person2 @person3
+/sdks/java/build-tools @person1 @person2 @person3
+/sdks/java/harness @person1 @person2 @person3
+/sdks/java/io @person1 @person2 @person3
+/sdks/java/io/parquet @person1 @person2 @person3
+/sdks/java/io/common @person1 @person2 @person3
+/sdks/java/io/file-based-io-tests @person1 @person2 @person3
+/sdks/java/io/elasticsearch-tests @person1 @person2 @person3
+/sdks/java/io/amazon-web-services @person1 @person2 @person3
+/sdks/java/io/google-cloud-platform @person1 @person2 @person3
+/sdks/java/io/hadoop-input-format @person1 @person2 @person3
+/sdks/java/io/solr @person1 @person2 @person3
+/sdks/java/io/kinesis @person1 @person2 @person3
+/sdks/java/io/redis @person1 @person2 @person3
+/sdks/java/io/mongodb @person1 @person2 @person3
+/sdks/java/io/hcatalog @person1 @person2 @person3
+/sdks/java/io/elasticsearch @person1 @person2 @person3
+/sdks/java/io/jdbc @person1 @person2 @person3
+/sdks/java/io/mqtt @person1 @person2 @person3
+/sdks/java/io/hadoop-file-system @person1 @person2 @person3
+/sdks/java/io/amqp @person1 @person2 @person3
+/sdks/java/io/cassandra @person1 @person2 @person3
+/sdks/java/io/tika @person1 @person2 @person3
+/sdks/java/io/xml @person1 @person2 @person3
+/sdks/java/io/kafka @person1 @person2 @person3
+/sdks/java/io/jms @person1 @person2 @person3
+/sdks/java/io/hbase @person1 @person2 @person3
+/sdks/java/io/hadoop-common @person1 @person2 @person3
+/sdks/java/maven-archetypes @person1 @person2 @person3
+/sdks/java/javadoc @person1 @person2 @person3
+
+/sdks/python/ @person1 @person2 @person3
+/sdks/python/scripts @person1 @person2 @person3
+/sdks/python/container @person1 @person2 @person3
+/sdks/python/apache_beam/runners @person1 @person2 @person3
+/sdks/python/apache_beam/utils @person1 @person2 @person3
+/sdks/python/apache_beam/examples @person1 @person2 @person3
+/sdks/python/apache_beam/internal @person1 @person2 @person3
+/sdks/python/apache_beam/tools @person1 @person2 @person3
+/sdks/python/apache_beam/coders @person1 @person2 @person3
+/sdks/python/apache_beam/portability @person1 @person2 @person3
+/sdks/python/apache_beam/typehints @person1 @person2 @person3
+/sdks/python/apache_beam/options @person1 @person2 @person3
+/sdks/python/apache_beam/transforms @person1 @person2 @person3
+/sdks/python/apache_beam/testing @person1 @person2 @person3
+/sdks/python/apache_beam/metrics @person1 @person2 @person3
+/sdks/python/apache_beam/io @person1 @person2 @person3
+
+# Build and test infrastructure reviewers.
+/.github @person1 @person2 @person3
+/.test-infra @person1 @person2 @person3
+/.test-infra/jenkins @person1 @person2 @person3
+/.test-infra/jupyter @person1 @person2 @person3
+/.test-infra/kubernetes @person1 @person2 @person3
+/buildSrc @person1 @person2 @person3
+/gradle @person1 @person2 @person3
+/release @person1 @person2 @person3
+/release/src @person1 @person2 @person3
+/website/.jenkins @person1 @person2 @person3
+build.gradle @person1 @person2 @person3
+
+# Even more components reviewers.
+/runners @person1 @person2 @person3
+/runners/samza @person1 @person2 @person3
+/runners/gcp @person1 @person2 @person3
+/runners/apex @person1 @person2 @person3
+/runners/core-java @person1 @person2 @person3
+/runners/local-java @person1 @person2 @person3
+/runners/java-fn-execution @person1 @person2 @person3
+/runners/core-construction-java @person1 @person2 @person3
+/runners/flink @person1 @person2 @person3
+/runners/spark @person1 @person2 @person3
+/runners/reference @person1 @person2 @person3
+/runners/gearpump @person1 @person2 @person3
+/runners/extensions-java @person1 @person2 @person3
+/runners/google-cloud-dataflow-java @person1 @person2 @person3
+/runners/direct-java @person1 @person2 @person3
+
+/examples @person1 @person2 @person3
+/examples/java @person1 @person2 @person3
+
+/model @person1 @person2 @person3
+/model/fn-execution @person1 @person2 @person3
+/model/job-management @person1 @person2 @person3
+/model/pipeline @person1 @person2 @person3
+
+/website @person1 @person2 @person3
+/website/src @person1 @person2 @person3
