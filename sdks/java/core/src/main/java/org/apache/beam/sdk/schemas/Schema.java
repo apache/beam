@@ -42,11 +42,11 @@ import org.apache.beam.sdk.values.Row;
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // A mapping between field names an indices.
-  private BiMap<String, Integer> fieldIndices = HashBiMap.create();
-  private List<Field> fields;
+  private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
   // is correct.
-  private int hashCode;
+  private final int hashCode;
 
   /** Builder class for building {@link Schema} objects. */
   public static class Builder {

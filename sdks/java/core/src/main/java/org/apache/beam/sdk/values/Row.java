@@ -55,7 +55,7 @@ import org.joda.time.base.AbstractInstant;
  */
 @Experimental
 public abstract class Row implements Serializable {
-  private Schema schema;
+  private final Schema schema;
 
   Row(Schema schema) {
     this.schema = schema;
@@ -207,7 +207,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#INT16 16} value by field index, {@link ClassCastException} is thrown if
+   * Get a {@link TypeName#INT16} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
   public Short getInt16(int idx) {

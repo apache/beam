@@ -100,7 +100,7 @@ public class StaticSchemaInference {
           break;
         case SETTER:
           if (method.getName().startsWith("set")) {
-            this.name = ReflectUtils.stripPrefix(method.getName(), "get");
+            this.name = ReflectUtils.stripPrefix(method.getName(), "set");
           } else {
             throw new RuntimeException("Setter has wrong prefix " + method.getName());
           }

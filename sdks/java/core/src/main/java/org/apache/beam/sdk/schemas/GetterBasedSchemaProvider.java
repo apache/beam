@@ -83,15 +83,14 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       throw new RuntimeException("Failed to instantiate object ", e);
     }
 
-    List<FieldValueSetter> setters =
-        fieldValueSetterFactory().createSetters(clazz, row.getSchema());
+    Schema schema = row.getSchema();
+    List<FieldValueSetter> setters = fieldValueSetterFactory().createSetters(clazz, schema);
     checkState(
         setters.size() == row.getFieldCount(),
         "Did not have a matching number of setters and fields.");
 
     // Iterate over the row, and set (possibly recursively) each field in the underlying object
     // using the setter.
-    Schema schema = row.getSchema();
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
       FieldValueSetter setter = setters.get(i);
