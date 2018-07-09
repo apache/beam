@@ -75,16 +75,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code keyBy ....................} key extractor function
- * <li>{@code valueBy ..................} value extractor function
- * <li>{@code scoreBy ..................} {@link UnaryFunction} transforming input elements to
- * {@link Comparable} scores
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code output ...................} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code valueBy ..................} value extractor function
+ *   <li>{@code scoreBy ..................} {@link UnaryFunction} transforming input elements to
+ *       {@link Comparable} scores
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -178,11 +179,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     return dag;
   }
 
-  /**
-   * Parameters of this operator used in builders.
-   */
-  private static final class BuiderParams<InputT, K, V, ScoreT extends Comparable<ScoreT>,
-      W extends BoundedWindow>
+  /** Parameters of this operator used in builders. */
+  private static final class BuiderParams<
+          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
       extends WindowingParams<W> {
 
     String name;
@@ -191,19 +190,16 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     UnaryFunction<InputT, V> valueFn;
     UnaryFunction<InputT, ScoreT> scoreFn;
 
-    public BuiderParams(String name,
-        Dataset<InputT> input) {
+    public BuiderParams(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   private static final class MaxScored<V, CompareT extends Comparable<CompareT>>
       implements State<Pair<V, CompareT>, Pair<V, CompareT>>,
-      StateSupport.MergeFrom<MaxScored<V, CompareT>> {
+          StateSupport.MergeFrom<MaxScored<V, CompareT>> {
 
     static final ValueStorageDescriptor<Pair> MAX_STATE_DESCR =
         ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null));
@@ -247,9 +243,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
   // ~ -----------------------------------------------------------------------------
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -264,9 +258,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final BuiderParams<InputT, ?, ?, ?, ?> params;
@@ -278,8 +270,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     @Override
     public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyFn) {
 
-      @SuppressWarnings("unchecked") BuiderParams<InputT, K, ?, ?, ?> paramsCasted =
-          (BuiderParams<InputT, K, ?, ?, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuiderParams<InputT, K, ?, ?, ?> paramsCasted = (BuiderParams<InputT, K, ?, ?, ?>) params;
       paramsCasted.keyFn = requireNonNull(keyFn);
 
       return new ValueByBuilder<>(paramsCasted);
@@ -292,9 +284,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ValueByBuilder<InputT, K> {
 
     private final BuiderParams<InputT, K, ?, ?, ?> params;
@@ -305,8 +295,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
     public <V> ScoreByBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueFn) {
 
-      @SuppressWarnings("unchecked") BuiderParams<InputT, K, V, ?, ?> paramsCasted =
-          (BuiderParams<InputT, K, V, ?, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuiderParams<InputT, K, V, ?, ?> paramsCasted = (BuiderParams<InputT, K, V, ?, ?>) params;
 
       paramsCasted.valueFn = requireNonNull(valueFn);
       return new ScoreByBuilder<>(paramsCasted);
@@ -318,9 +308,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ScoreByBuilder<InputT, K, V> {
 
     private final BuiderParams<InputT, K, V, ?, ?> params;
@@ -332,7 +320,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     public <ScoreT extends Comparable<ScoreT>> WindowByBuilder<InputT, K, V, ScoreT> scoreBy(
         UnaryFunction<InputT, ScoreT> scoreFn) {
 
-      @SuppressWarnings("unchecked") BuiderParams<InputT, K, V, ScoreT, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuiderParams<InputT, K, V, ScoreT, ?> paramsCasted =
           (BuiderParams<InputT, K, V, ScoreT, ?>) params;
 
       paramsCasted.scoreFn = requireNonNull(scoreFn);
@@ -340,14 +329,12 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, ScoreT, ?>>,
-      Builders.Output<Triple<K, V, ScoreT>>,
-      OptionalMethodBuilder<WindowByBuilder<InputT, K, V, ScoreT>,
-                OutputBuilder<InputT, K, V, ScoreT, ?>> {
+          Builders.Output<Triple<K, V, ScoreT>>,
+          OptionalMethodBuilder<
+              WindowByBuilder<InputT, K, V, ScoreT>, OutputBuilder<InputT, K, V, ScoreT, ?>> {
 
     private final BuiderParams<InputT, K, V, ScoreT, ?> params;
 
@@ -359,7 +346,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     public <W extends BoundedWindow> TriggerByBuilder<InputT, K, V, ScoreT, W> windowBy(
         WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") BuiderParams<InputT, K, V, ScoreT, W> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuiderParams<InputT, K, V, ScoreT, W> paramsCasted =
           (BuiderParams<InputT, K, V, ScoreT, W>) params;
 
       paramsCasted.windowFn = requireNonNull(windowing);
@@ -379,9 +367,10 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
 
     @Override
-    public OutputBuilder<InputT, K, V, ScoreT, ?> applyIf(boolean cond,
-        UnaryFunction<WindowByBuilder<InputT, K, V, ScoreT>,
-            OutputBuilder<InputT, K, V, ScoreT, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<InputT, K, V, ScoreT, ?> applyIf(
+        boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, K, V, ScoreT>, OutputBuilder<InputT, K, V, ScoreT, ?>>
+            applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
 
       if (cond) {
@@ -392,11 +381,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
-  public static class TriggerByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>,
-      W extends BoundedWindow>
+  /** Trigger defining operator builder. */
+  public static class TriggerByBuilder<
+          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, ScoreT, W>> {
 
     private final BuiderParams<InputT, K, V, ScoreT, W> params;
@@ -410,14 +397,11 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
-  public static class AccumulatorModeBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>,
-      W extends BoundedWindow>
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
+  public static class AccumulatorModeBuilder<
+          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, ScoreT, W>> {
 
     private final BuiderParams<InputT, K, V, ScoreT, W> params;
@@ -433,7 +417,6 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
   /**
@@ -441,7 +424,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<
-      InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
+          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
       implements Builders.Output<Triple<K, V, ScoreT>> {
 
     private final BuiderParams<InputT, K, V, ScoreT, W> params;
@@ -455,8 +438,15 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       Flow flow = params.input.getFlow();
       TopPerKey<InputT, K, V, ScoreT, W> top =
           new TopPerKey<>(
-              flow, params.name, params.input, params.keyFn, params.valueFn, params.scoreFn,
-              params.getWindowing(), params.euphoriaWindowing, Sets.newHashSet(outputHints));
+              flow,
+              params.name,
+              params.input,
+              params.keyFn,
+              params.valueFn,
+              params.scoreFn,
+              params.getWindowing(),
+              params.euphoriaWindowing,
+              Sets.newHashSet(outputHints));
       flow.add(top);
       return top.output();
     }

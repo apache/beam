@@ -30,9 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/**
- * Test operator CountByKey.
- */
+/** Test operator CountByKey. */
 public class CountByKeyTest {
 
   @Test
@@ -44,8 +42,11 @@ public class CountByKeyTest {
     DefaultTrigger trigger = DefaultTrigger.of();
 
     Dataset<Pair<String, Long>> counted =
-        CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s)
-            .windowBy(windowing).triggeredBy(trigger)
+        CountByKey.named("CountByKey1")
+            .of(dataset)
+            .keyBy(s -> s)
+            .windowBy(windowing)
+            .triggeredBy(trigger)
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
 
@@ -92,8 +93,8 @@ public class CountByKeyTest {
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = count.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
@@ -109,9 +110,7 @@ public class CountByKeyTest {
     CountByKey.named("CountByKey1")
         .of(dataset)
         .keyBy(s -> s)
-        .applyIf(true, b -> b.windowBy(windowing)
-        .triggeredBy(trigger)
-        .discardingFiredPanes())
+        .applyIf(true, b -> b.windowBy(windowing).triggeredBy(trigger).discardingFiredPanes())
         .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();

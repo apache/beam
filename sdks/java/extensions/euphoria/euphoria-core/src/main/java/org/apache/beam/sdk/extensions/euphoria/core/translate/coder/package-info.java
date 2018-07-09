@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Beam coders.
- */
+/** Beam coders. */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.coder;

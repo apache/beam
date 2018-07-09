@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Accumulators to be used in operator test suite.
- */
+/** Accumulators to be used in operator test suite. */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators;

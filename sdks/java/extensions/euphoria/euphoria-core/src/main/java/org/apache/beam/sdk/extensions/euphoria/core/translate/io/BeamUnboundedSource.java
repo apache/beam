@@ -30,9 +30,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
 
-/**
- * A {@link UnboundedSource} created from {@link UnboundedDataSource}.
- */
+/** A {@link UnboundedSource} created from {@link UnboundedDataSource}. */
 public class BeamUnboundedSource<T, OffsetT extends Serializable>
     extends UnboundedSource<T, BeamUnboundedSource.BeamCheckpointMark<OffsetT>> {
 
@@ -164,6 +162,7 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
 
   /**
    * TODO: add javadoc.
+   *
    * @param <OffsetT>
    */
   public static class BeamCheckpointMark<OffsetT>

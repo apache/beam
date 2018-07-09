@@ -37,9 +37,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.junit.Test;
 
-/**
- * Simple test suite for Join operator.
- */
+/** Simple test suite for Join operator. */
 public class JoinTest {
 
   static <T> Dataset<T> addFitsInMemoryHint(Dataset<T> smallDataset) {

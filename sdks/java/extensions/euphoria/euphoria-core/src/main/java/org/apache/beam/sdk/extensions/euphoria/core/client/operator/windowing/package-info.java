@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Collection of windowing oriented classes.
- */
+/** Collection of windowing oriented classes. */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing;

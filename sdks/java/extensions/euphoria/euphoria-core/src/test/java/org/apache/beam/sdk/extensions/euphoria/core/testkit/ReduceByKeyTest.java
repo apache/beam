@@ -79,15 +79,11 @@ import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * Test operator {@code ReduceByKey}.
- */
+/** Test operator {@code ReduceByKey}. */
 @Processing(Processing.Type.ALL)
 public class ReduceByKeyTest extends AbstractOperatorTest {
 
-  /**
-   * Validates the output type upon a `.reduceBy` operation on global window.
-   */
+  /** Validates the output type upon a `.reduceBy` operation on global window. */
   @Test
   public void testReductionType0() {
     execute(
@@ -112,15 +108,12 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           @Override
           public List<Pair<Integer, Set<Integer>>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(0, Sets.newHashSet(2, 4, 6)),
-                Pair.of(1, Sets.newHashSet(1, 3, 5, 7, 9)));
+                Pair.of(0, Sets.newHashSet(2, 4, 6)), Pair.of(1, Sets.newHashSet(1, 3, 5, 7, 9)));
           }
         });
   }
 
-  /**
-   * Validates the output type upon a `.reduceBy` operation on global window.
-   */
+  /** Validates the output type upon a `.reduceBy` operation on global window. */
   @Test
   public void testReductionType0_outputValues() {
     execute(
@@ -144,15 +137,12 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
           @Override
           public List<Set<Integer>> getUnorderedOutput() {
-            return Arrays.asList(
-                Sets.newHashSet(2, 4, 6), Sets.newHashSet(1, 3, 5, 7, 9));
+            return Arrays.asList(Sets.newHashSet(2, 4, 6), Sets.newHashSet(1, 3, 5, 7, 9));
           }
         });
   }
 
-  /**
-   * Validates the output type upon a `.reduceBy` operation on global window.
-   */
+  /** Validates the output type upon a `.reduceBy` operation on global window. */
   @Ignore("Sorting of values is not supported yet.")
   @Test
   public void testReductionType0WithSortedValues() {
@@ -211,9 +201,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         });
   }
 
-  /**
-   * Validates the output type upon a `.reduceBy` operation on windows of size one.
-   */
+  /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test
   public void testReductionType0MultiValues() {
     execute(
@@ -260,7 +248,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
           @Override
           public List<Pair<Integer, Integer>> getUnorderedOutput() {
-//            return Arrays.asList(Pair.of(0, 12), Pair.of(1, 9), Pair.of(1, 16));
+            //            return Arrays.asList(Pair.of(0, 12), Pair.of(1, 9), Pair.of(1, 16));
             return Arrays.asList(Pair.of(0, 12), Pair.of(1, 25));
           }
         });
@@ -554,7 +542,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             return FlatMap.of(reduced)
                 .using(
                     (UnaryFunctor<
-                        Pair<Integer, Set<String>>, Triple<TimeInterval, Integer, Set<String>>>)
+                            Pair<Integer, Set<String>>, Triple<TimeInterval, Integer, Set<String>>>)
                         (elem, context) ->
                             context.collect(
                                 Triple.of(
@@ -579,7 +567,6 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         });
   }
 
-
   @Ignore("Test depends on unsupported ReduceStateByKey operator.")
   @Test
   public void testElementTimestamp() {
@@ -593,16 +580,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         // ~ we expect the 'element time' to be the end of the window which produced the
         // element in the preceding upstream (stateful and windowed) operator
         assertTrue(
-            "Invalid timestamp " + timestamp,
-            timestamp == 15_000L - 1 || timestamp == 25_000L - 1);
+            "Invalid timestamp " + timestamp, timestamp == 15_000L - 1 || timestamp == 25_000L - 1);
 
         return Collections.singleton(GlobalWindow.INSTANCE);
       }
 
       @Override
-      public void mergeWindows(MergeContext c) throws Exception {
-
-      }
+      public void mergeWindows(MergeContext c) throws Exception {}
 
       @Override
       public boolean isCompatible(WindowFn<?, ?> other) {
@@ -645,7 +629,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                     .keyBy(e -> "", TypeDescriptors.strings())
                     .valueBy(Pair::getFirst, TypeDescriptors.integers())
                     .combineBy(Sums.ofInts(), TypeDescriptors.integers())
-//                    .windowBy(Time.of(Duration.ofSeconds(5)))
+                    //                    .windowBy(Time.of(Duration.ofSeconds(5)))
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(5)))
                     .triggeredBy(AfterWatermark.pastEndOfWindow())
                     .discardingFiredPanes()
@@ -796,9 +780,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void mergeWindows(MergeContext c) throws Exception {
-
-    }
+    public void mergeWindows(MergeContext c) throws Exception {}
 
     @Override
     public boolean isNonMerging() {
@@ -872,8 +854,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
     @Override
     public boolean equals(Object obj) {
-      return obj instanceof UniqueWindow
-          && this.id == ((UniqueWindow) obj).id;
+      return obj instanceof UniqueWindow && this.id == ((UniqueWindow) obj).id;
     }
 
     @Override
@@ -882,9 +863,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
   }
 
-  /**
-   * Every instance is unique: this allows us to exercise merging.
-   */
+  /** Every instance is unique: this allows us to exercise merging. */
   public static final class CWindow extends Window<CWindow> {
 
     private static final Object idCounterMutex = new Object();
@@ -972,7 +951,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     @Override
     public void mergeWindows(MergeContext c) throws Exception {
 
-//       merge windows up to bucket size
+      //       merge windows up to bucket size
       Collection<UniqueWindow> windows = c.windows();
       List<UniqueWindow> merges = new ArrayList<>();
       for (UniqueWindow w : windows) {
@@ -983,13 +962,11 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           c.merge(merges, w);
           merges.clear();
         }
-
       }
 
       if (merges.size() > 1) {
         c.merge(merges, merges.get(merges.size() - 1));
       }
-
     }
 
     @Override
@@ -1092,9 +1069,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
   }
 
-  /**
-   * String with invalid hash code implementation returning constant.
-   */
+  /** String with invalid hash code implementation returning constant. */
   public static class Word implements Serializable {
 
     private final String str;

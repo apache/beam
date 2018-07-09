@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * A set of commonly used classes enabling some code reuse.
- */
+/** A set of commonly used classes enabling some code reuse. */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.common;

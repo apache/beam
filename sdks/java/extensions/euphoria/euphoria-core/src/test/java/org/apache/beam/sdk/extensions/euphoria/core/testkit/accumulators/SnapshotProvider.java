@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators;
 import java.time.Duration;
 import java.util.Map;
 
-/**
- * Provider of snapshots.
- */
+/** Provider of snapshots. */
 public interface SnapshotProvider {
 
   Map<String, Long> getCounterSnapshots();

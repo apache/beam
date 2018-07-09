@@ -42,9 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
-/**
- * This class converts Euphoria's {@code Flow} into Beam's Pipeline.
- */
+/** This class converts Euphoria's {@code Flow} into Beam's Pipeline. */
 class FlowTranslator {
 
   private static final Multimap<Class, OperatorTranslator> translators = ArrayListMultimap.create();
@@ -65,14 +63,14 @@ class FlowTranslator {
   }
 
   @SuppressWarnings("unchecked")
-  private static boolean isOperatorDirectlyTranslatable(Operator operator){
+  private static boolean isOperatorDirectlyTranslatable(Operator operator) {
     Collection<OperatorTranslator> availableTranslators = translators.get(operator.getClass());
-    if (availableTranslators.isEmpty()){
+    if (availableTranslators.isEmpty()) {
       return false;
     }
 
-    for (OperatorTranslator translator : availableTranslators){
-      if (translator.canTranslate(operator)){
+    for (OperatorTranslator translator : availableTranslators) {
+      if (translator.canTranslate(operator)) {
         return true;
       }
     }
@@ -85,12 +83,12 @@ class FlowTranslator {
   @SuppressWarnings("unchecked")
   static OperatorTranslator getTranslatorIfAvailable(Operator operator) {
     Collection<OperatorTranslator> availableTranslators = translators.get(operator.getClass());
-    if (availableTranslators.isEmpty()){
+    if (availableTranslators.isEmpty()) {
       return null;
     }
 
-    for (OperatorTranslator translator : availableTranslators){
-      if (translator.canTranslate(operator)){
+    for (OperatorTranslator translator : availableTranslators) {
+      if (translator.canTranslate(operator)) {
         return translator;
       }
     }

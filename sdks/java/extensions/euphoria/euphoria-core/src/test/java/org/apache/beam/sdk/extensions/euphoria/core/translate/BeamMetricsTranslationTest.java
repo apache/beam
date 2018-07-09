@@ -44,12 +44,14 @@ import org.junit.Test;
 public class BeamMetricsTranslationTest {
 
   /**
-   * Test metrics counters on {@link ReduceByKey} and {@link MapElements} operators
-   * Flow:
-   * 1.step RBK increment for all keys, add to histogram its value, collect even numbers.
-   * 2.step MapElements increment for every element, add to histogram its value, map to integer.
-   * 3.step test MapElements with default operator name, increment by value of its element,
-   *   add to histogram 2 times value of its element.
+   * Test metrics counters on {@link ReduceByKey} and {@link MapElements} operators Flow:
+   *
+   * <ol>
+   *   <li>step RBK increment for all keys, add to histogram its value, collect even numbers.
+   *   <li>step MapElements increment for every element, add to histogram its value, map to integer.
+   *   <li>tep test MapElements with default operator name, increment by value of its element, add
+   *       to histogram 2 times value of its element.
+   * </ol>
    */
   @Test
   public void testBeamMetricsTranslation() {
@@ -75,7 +77,6 @@ public class BeamMetricsTranslationTest {
                           }
                         }))
             .output();
-
 
     final String counterName2 = "counter2";
     final String operatorName2 = "map_to_integer";
@@ -125,12 +126,10 @@ public class BeamMetricsTranslationTest {
     DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 4);
   }
 
-
   private void testStep1Metrics(MetricQueryResults metrics, String counterName1, String stepName1) {
     assertThat(
         metrics.getCounters(),
-        Matchers.hasItem(
-            metricsResult(stepName1, counterName1, stepName1, 5L, true)));
+        Matchers.hasItem(metricsResult(stepName1, counterName1, stepName1, 5L, true)));
 
     assertThat(
         metrics.getDistributions(),
@@ -142,8 +141,7 @@ public class BeamMetricsTranslationTest {
   private void testStep2Metrics(MetricQueryResults metrics, String counterName2, String stepName2) {
     assertThat(
         metrics.getCounters(),
-        Matchers.hasItem(
-            metricsResult(stepName2, counterName2, stepName2, 2L, true)));
+        Matchers.hasItem(metricsResult(stepName2, counterName2, stepName2, 2L, true)));
 
     assertThat(
         metrics.getDistributions(),
@@ -156,8 +154,7 @@ public class BeamMetricsTranslationTest {
       MetricQueryResults metrics, String counterName2, String stepName3) {
     assertThat(
         metrics.getCounters(),
-        Matchers.hasItem(
-            metricsResult(stepName3, counterName2, stepName3, 6L, true)));
+        Matchers.hasItem(metricsResult(stepName3, counterName2, stepName3, 6L, true)));
 
     assertThat(
         metrics.getDistributions(),

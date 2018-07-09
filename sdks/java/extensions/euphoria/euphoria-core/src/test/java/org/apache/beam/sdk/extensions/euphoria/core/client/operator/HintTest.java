@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
-/** Test usage of hints in different operators.  */
+/** Test usage of hints in different operators. */
 public class HintTest {
 
   /** Test every node in DAG which was unfolded from original operator, if preserves hints. */

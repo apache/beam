@@ -31,9 +31,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperat
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.junit.Test;
 
-/**
- * Collection of broadcast hash join tests.
- */
+/** Collection of broadcast hash join tests. */
 public class BroadcastHashJoinTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.BOUNDED)

@@ -38,10 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
-
-/**
- * {@link OperatorTranslator Translator } for Euphoria {@link Join} operator.
- */
+/** {@link OperatorTranslator Translator } for Euphoria {@link Join} operator. */
 public class JoinTranslator implements OperatorTranslator<Join> {
 
   @Override
@@ -50,42 +47,52 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     return doTranslate(operator, context);
   }
 
-
-  public <K, LeftT, RightT, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>>
-  doTranslate(Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
+  public <K, LeftT, RightT, OutputT, W extends BoundedWindow>
+      PCollection<Pair<K, OutputT>> doTranslate(
+          Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
 
     Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
 
     // get input data-sets transformed to Pcollections<KV<K,LeftT/RightT>>
-    @SuppressWarnings("unchecked") final PCollection<LeftT> left = (PCollection<LeftT>) context
-        .getInputs(operator).get(0);
-    @SuppressWarnings("unchecked") final PCollection<RightT> right = (PCollection<RightT>) context
-        .getInputs(operator).get(1);
+    @SuppressWarnings("unchecked")
+    final PCollection<LeftT> left = (PCollection<LeftT>) context.getInputs(operator).get(0);
+    @SuppressWarnings("unchecked")
+    final PCollection<RightT> right = (PCollection<RightT>) context.getInputs(operator).get(1);
 
-    PCollection<KV<K, LeftT>> leftKvInput = OperatorTranslatorUtil.getKVInputCollection(
-        left, operator.getLeftKeyExtractor(),
-        keyCoder, new KryoCoder<>(), "::extract-keys-left");
+    PCollection<KV<K, LeftT>> leftKvInput =
+        OperatorTranslatorUtil.getKVInputCollection(
+            left,
+            operator.getLeftKeyExtractor(),
+            keyCoder,
+            new KryoCoder<>(),
+            "::extract-keys-left");
 
-    PCollection<KV<K, RightT>> rightKvInput = OperatorTranslatorUtil.getKVInputCollection(
-        right, operator.getRightKeyExtractor(),
-        keyCoder, new KryoCoder<>(), "::extract-keys-right");
+    PCollection<KV<K, RightT>> rightKvInput =
+        OperatorTranslatorUtil.getKVInputCollection(
+            right,
+            operator.getRightKeyExtractor(),
+            keyCoder,
+            new KryoCoder<>(),
+            "::extract-keys-right");
 
     // and apply the same widowing on input Pcolections since the documentation states:
     //'all of the PCollections you want to group must use the same
     // windowing strategy and window sizing'
-    leftKvInput = WindowingUtils.applyWindowingIfSpecified(
-        operator, leftKvInput, context.getAllowedLateness(operator));
-    rightKvInput = WindowingUtils.applyWindowingIfSpecified(
-        operator, rightKvInput, context.getAllowedLateness(operator));
+    leftKvInput =
+        WindowingUtils.applyWindowingIfSpecified(
+            operator, leftKvInput, context.getAllowedLateness(operator));
+    rightKvInput =
+        WindowingUtils.applyWindowingIfSpecified(
+            operator, rightKvInput, context.getAllowedLateness(operator));
 
     // GoGroupByKey collections
     TupleTag<LeftT> leftTag = new TupleTag<>();
     TupleTag<RightT> rightTag = new TupleTag<>();
 
-    PCollection<KV<K, CoGbkResult>> coGrouped = KeyedPCollectionTuple
-        .of(leftTag, leftKvInput)
-        .and(rightTag, rightKvInput)
-        .apply("::co-group-by-key", CoGroupByKey.create());
+    PCollection<KV<K, CoGbkResult>> coGrouped =
+        KeyedPCollectionTuple.of(leftTag, leftKvInput)
+            .and(rightTag, rightKvInput)
+            .apply("::co-group-by-key", CoGroupByKey.create());
 
     // Join
     JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);
@@ -93,10 +100,11 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     return coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
   }
 
-  private <K, LeftT, RightT, OutputT, W extends BoundedWindow> JoinFn<LeftT, RightT, K, OutputT>
-  chooseJoinFn(
-      Join<LeftT, RightT, K, OutputT, W> operator, TupleTag<LeftT> leftTag,
-      TupleTag<RightT> rightTag) {
+  private <K, LeftT, RightT, OutputT, W extends BoundedWindow>
+      JoinFn<LeftT, RightT, K, OutputT> chooseJoinFn(
+          Join<LeftT, RightT, K, OutputT, W> operator,
+          TupleTag<LeftT> leftTag,
+          TupleTag<RightT> rightTag) {
 
     JoinFn<LeftT, RightT, K, OutputT> joinFn;
     BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
@@ -116,10 +124,11 @@ public class JoinTranslator implements OperatorTranslator<Join> {
         break;
 
       default:
-        throw new UnsupportedOperationException(String.format(
-            "Cannot translate Euphoria '%s' operator to Beam transformations."
-                + " Given join type '%s' is not supported.",
-            Join.class.getSimpleName(), operator.getType()));
+        throw new UnsupportedOperationException(
+            String.format(
+                "Cannot translate Euphoria '%s' operator to Beam transformations."
+                    + " Given join type '%s' is not supported.",
+                Join.class.getSimpleName(), operator.getType()));
     }
     return joinFn;
   }

@@ -21,7 +21,6 @@ import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-
 /** @param <T> */
 @Audience(Audience.Type.INTERNAL)
 public interface TypeDescriptorAware<T> extends Serializable {

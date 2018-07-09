@@ -46,9 +46,7 @@ public class BeamRunnerWrapper {
 
   private AccumulatorProvider.Factory accumulatorFactory = BeamAccumulatorProvider.getFactory();
 
-  /**
-   * Executor to submit flows, if closed all executions should be interrupted.
-   */
+  /** Executor to submit flows, if closed all executions should be interrupted. */
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   private BeamRunnerWrapper(PipelineOptions options) {
@@ -60,18 +58,14 @@ public class BeamRunnerWrapper {
     this.settings = settings;
   }
 
-  /**
-   * @return wrapper around Beam's direct runner. It allows to run {@link Flow} locally.
-   */
+  /** @return wrapper around Beam's direct runner. It allows to run {@link Flow} locally. */
   public static BeamRunnerWrapper ofDirect() {
     final String[] args = {"--runner=DirectRunner"};
     final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
     return new BeamRunnerWrapper(options).withAllowedLateness(java.time.Duration.ofHours(1));
   }
 
-  /**
-   * Blocks until a given {@link Flow} is executed.
-   */
+  /** Blocks until a given {@link Flow} is executed. */
   public Result executeSync(Flow flow) {
     final Pipeline pipeline;
     if (flow instanceof BeamFlow && ((BeamFlow) flow).hasPipeline()) {
@@ -91,10 +85,8 @@ public class BeamRunnerWrapper {
     return CompletableFuture.supplyAsync(() -> executeSync(flow), submitExecutor);
   }
 
-  /**
-   * Result of pipeline's run.
-   */
-  public static class Result{
+  /** Result of pipeline's run. */
+  public static class Result {
 
     private final PipelineResult result;
 
@@ -126,5 +118,4 @@ public class BeamRunnerWrapper {
     LOG.info("Shutting down executor.");
     submitExecutor.shutdownNow();
   }
-
 }

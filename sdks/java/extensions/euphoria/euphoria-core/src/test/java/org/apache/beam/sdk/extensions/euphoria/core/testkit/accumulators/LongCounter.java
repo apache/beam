@@ -20,8 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 
-final class LongCounter
-    implements Counter, Snapshotable<Long> {
+final class LongCounter implements Counter, Snapshotable<Long> {
 
   private AtomicLong value = new AtomicLong();
 

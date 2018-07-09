@@ -103,8 +103,7 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
     List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
     for (int i = 0; i < n; i++) {
       final int partition = i;
-      partitions.add(
-          () -> new UnboundedListReader((List<T>) storage.get(partition)));
+      partitions.add(() -> new UnboundedListReader((List<T>) storage.get(partition)));
     }
     return partitions;
   }
@@ -132,20 +131,15 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
     final List<List<?>> storedData;
 
     if (partition == -1) {
-      partitions =
-          IntStream.range(0, storage.size())
-              .boxed()
-              .collect(Collectors.toList());
+      partitions = IntStream.range(0, storage.size()).boxed().collect(Collectors.toList());
       storedData = storage;
     } else {
       partitions = Collections.singletonList(partition);
       storedData = parent.storage;
     }
 
-    List collectedData = partitions
-        .stream()
-        .flatMap(i -> storedData.get(i).stream())
-        .collect(Collectors.toList());
+    List collectedData =
+        partitions.stream().flatMap(i -> storedData.get(i).stream()).collect(Collectors.toList());
 
     return new BoundedListReader(collectedData);
   }

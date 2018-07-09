@@ -32,36 +32,36 @@ public interface AccumulatorProvider {
    * Get an existing instance of a counter or create a new one.
    *
    * @param name Unique name of the counter.
-   * @return Instance of a counter.
-   * @Deprecated use {@link #getCounter(String, String)} instead
+   * @return Instance of a counter. @Deprecated use {@link #getCounter(String, String)} instead
    */
   Counter getCounter(String name);
 
   /**
    * Get an existing instance of a counter or create a new one.
+   *
    * @param namespace of counter (e.g. operator name)
    * @param name of the counter
    * @return Instance of a counter.
    */
-  default Counter getCounter(String namespace, String name){
+  default Counter getCounter(String namespace, String name) {
     return getCounter(name);
   }
   /**
    * Get an existing instance of a histogram or create a new one.
    *
    * @param name Unique name of the histogram.
-   * @return Instance of a histogram.
-   * @Deprecated use {@link #getHistogram(String, String)}  instead
+   * @return Instance of a histogram. @Deprecated use {@link #getHistogram(String, String)} instead
    */
   Histogram getHistogram(String name);
 
   /**
    * Get an existing instance of a histogram or create a new one.
+   *
    * @param namespace of histogram (e.g. operator name)
    * @param name of the counter
    * @return Instance of a counter.
    */
-  default Histogram getHistogram(String namespace, String name){
+  default Histogram getHistogram(String namespace, String name) {
     return getHistogram(name);
   }
 
@@ -69,8 +69,7 @@ public interface AccumulatorProvider {
    * Get an existing instance of a timer or create a new one.
    *
    * @param name Unique name of the timer.
-   * @return Instance of a timer.
-   * @Deprecated use {@link #getHistogram(String, String)} instead
+   * @return Instance of a timer. @Deprecated use {@link #getHistogram(String, String)} instead
    */
   Timer getTimer(String name);
 

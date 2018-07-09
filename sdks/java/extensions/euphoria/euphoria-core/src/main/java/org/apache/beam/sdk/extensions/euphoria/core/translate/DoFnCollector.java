@@ -31,20 +31,18 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.transforms.DoFn;
 
-/**
- * Collector that outputs elements to {@link BeamCollector}.
- */
+/** Collector that outputs elements to {@link BeamCollector}. */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
-public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, Context,
-    Serializable {
+public class DoFnCollector<InputT, OutputT, ElemT>
+    implements Collector<ElemT>, Context, Serializable {
 
   private final AccumulatorProvider accumulators;
   private final BeamCollector<InputT, OutputT, ElemT> beamCollector;
   private transient DoFn<InputT, OutputT>.ProcessContext context;
 
-  DoFnCollector(AccumulatorProvider accumulators,
-      BeamCollector<InputT, OutputT, ElemT> beamCollector) {
+  DoFnCollector(
+      AccumulatorProvider accumulators, BeamCollector<InputT, OutputT, ElemT> beamCollector) {
     this.accumulators = accumulators;
     this.beamCollector = beamCollector;
   }
@@ -87,6 +85,7 @@ public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, 
   /**
    * Translation of {@link ReduceByKeyTranslator.Collector} collect to Beam's context output.
    * OperatorName serve as namespace for Beam's metrics.
+   *
    * @param <InputT>
    * @param <OutputT>
    * @param <ElemT>

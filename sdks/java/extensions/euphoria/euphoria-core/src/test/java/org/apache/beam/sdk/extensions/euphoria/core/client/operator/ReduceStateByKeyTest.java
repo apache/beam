@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test operator ReduceStateByKey.  */
+/** Test operator ReduceStateByKey. */
 public class ReduceStateByKeyTest {
 
   @Test
@@ -112,7 +112,7 @@ public class ReduceStateByKeyTest {
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNotNull(windowingDesc);
     assertTrue(windowingDesc.getWindowFn() instanceof FixedWindows);
-    assertTrue(windowingDesc.getTrigger() instanceof  DefaultTrigger);
+    assertTrue(windowingDesc.getTrigger() instanceof DefaultTrigger);
     assertNotNull(windowingDesc.getAccumulationMode());
   }
 
@@ -126,17 +126,19 @@ public class ReduceStateByKeyTest {
         .valueBy(s -> 1L)
         .stateFactory(WordCountState::new)
         .mergeStatesBy(WordCountState::combine)
-        .applyIf(true, b -> b
-            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-            .triggeredBy(DefaultTrigger.of())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .applyIf(
+            true,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNotNull(windowingDesc);
     assertTrue(windowingDesc.getWindowFn() instanceof FixedWindows);
-    assertTrue(windowingDesc.getTrigger() instanceof  DefaultTrigger);
+    assertTrue(windowingDesc.getTrigger() instanceof DefaultTrigger);
     assertNotNull(windowingDesc.getAccumulationMode());
   }
 

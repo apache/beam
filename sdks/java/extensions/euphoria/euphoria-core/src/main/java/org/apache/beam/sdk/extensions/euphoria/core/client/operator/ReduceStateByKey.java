@@ -72,8 +72,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  *         .output();
  * }</pre>
  *
- * <p>This example constitutes a windowed word-count program. Each input element is treated as a
- * key to identify an imaginary {@code WordCountState} within each time window assigned to the input
+ * <p>This example constitutes a windowed word-count program. Each input element is treated as a key
+ * to identify an imaginary {@code WordCountState} within each time window assigned to the input
  * element. For such a key/window combination the value {@code 1} gets sent to the corresponding
  * state.
  *
@@ -88,17 +88,18 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code keyBy ....................} key extractor function
- * <li>{@code valueBy ..................} value extractor function
- * <li>{@code stateFactory .............} factory method for {@link State} (see {@link
- * StateFactory})
- * <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code (output | outputValues) ..} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code valueBy ..................} value extractor function
+ *   <li>{@code stateFactory .............} factory method for {@link State} (see {@link
+ *       StateFactory})
+ *   <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
  * @param <InputT> the type of input elements
@@ -109,7 +110,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceStateByKey<
-    InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+        InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
         InputT, InputT, K, Pair<K, OutputT>, W,
         ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
@@ -188,11 +189,9 @@ public class ReduceStateByKey<
     return valueExtractor;
   }
 
-  /**
-   * Parameters of this operator used in builders.
-   */
+  /** Parameters of this operator used in builders. */
   public static class BuilderParams<
-      InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+          InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
       extends WindowingParams<W> {
 
     String name;
@@ -202,17 +201,15 @@ public class ReduceStateByKey<
     StateFactory<V, OutputT, StateT> stateFactory;
     StateMerger<V, OutputT, StateT> stateMerger;
 
-    public BuilderParams(String name, Dataset<InputT> input,
-        UnaryFunction<InputT, K> keyExtractor) {
+    public BuilderParams(
+        String name, Dataset<InputT> input, UnaryFunction<InputT, K> keyExtractor) {
       this.name = name;
       this.input = input;
       this.keyExtractor = keyExtractor;
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -227,9 +224,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final String name;
@@ -243,8 +238,8 @@ public class ReduceStateByKey<
     @Override
     public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
 
-      BuilderParams<InputT, K, ?, ?, ?, ?> params = new BuilderParams<>(
-          name, input, Objects.requireNonNull(keyExtractor));
+      BuilderParams<InputT, K, ?, ?, ?, ?> params =
+          new BuilderParams<>(name, input, Objects.requireNonNull(keyExtractor));
 
       return new ValueByBuilder<>(params);
     }
@@ -262,9 +257,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ValueByBuilder<InputT, K> {
 
     private final BuilderParams<InputT, K, ?, ?, ?, ?> params;
@@ -279,11 +272,12 @@ public class ReduceStateByKey<
      *
      * @param <V> the type of the extracted values
      * @param valueExtractor a user defined function to extract values from the processed input
-     * dataset's elements for later accumulation
+     *     dataset's elements for later accumulation
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public <V> StateFactoryBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
           (BuilderParams<InputT, K, V, ?, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
@@ -291,9 +285,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class StateFactoryBuilder<InputT, K, V> {
 
     private final BuilderParams<InputT, K, V, ?, ?, ?> params;
@@ -306,18 +298,19 @@ public class ReduceStateByKey<
      * Specifies a factory for creating new/empty/blank state instances.
      *
      * @param <OutputT> the type of output elements state instances will produce; along with the
-     * "key", this is part of the type of output elements the {@link ReduceStateByKey} operator will
-     * produce as such
+     *     "key", this is part of the type of output elements the {@link ReduceStateByKey} operator
+     *     will produce as such
      * @param <StateT> the type of the state (implementation)
      * @param stateFactory a user supplied function to create new state instances
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public <OutputT, StateT extends State<V, OutputT>>
-    MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
-        StateFactory<V, OutputT, StateT> stateFactory) {
+        MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
+            StateFactory<V, OutputT, StateT> stateFactory) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, ?>
-          paramsCasted = (BuilderParams<InputT, K, V, OutputT, StateT, ?>) params;
+      @SuppressWarnings("unchecked")
+      final BuilderParams<InputT, K, V, OutputT, StateT, ?> paramsCasted =
+          (BuilderParams<InputT, K, V, OutputT, StateT, ?>) params;
 
       paramsCasted.stateFactory = Objects.requireNonNull(stateFactory);
 
@@ -325,9 +318,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class MergeStateByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
@@ -341,7 +332,7 @@ public class ReduceStateByKey<
      * MergingWindowing window merging}.
      *
      * @param stateMerger a user defined function to merge mutilple states into a specified target
-     * state
+     *     state
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public WindowOfBuilder<InputT, K, V, OutputT, StateT> mergeStatesBy(
@@ -352,15 +343,14 @@ public class ReduceStateByKey<
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowOfBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, StateT, ?>>,
-      Builders.Output<Pair<K, OutputT>>,
-      Builders.OutputValues<K, OutputT>,
-      OptionalMethodBuilder<WindowOfBuilder<InputT, K, V, OutputT, StateT>,
-                OutputBuilder<InputT, K, V, OutputT, StateT, ?>> {
+          Builders.Output<Pair<K, OutputT>>,
+          Builders.OutputValues<K, OutputT>,
+          OptionalMethodBuilder<
+              WindowOfBuilder<InputT, K, V, OutputT, StateT>,
+              OutputBuilder<InputT, K, V, OutputT, StateT, ?>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
 
@@ -369,11 +359,12 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder
-        <InputT, K, V, OutputT, StateT, W> windowBy(WindowFn<Object, W> windowing) {
+    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, V, OutputT, StateT, W> windowBy(
+        WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, W>
-          paramsCasted = (BuilderParams<InputT, K, V, OutputT, StateT, W>) params;
+      @SuppressWarnings("unchecked")
+      final BuilderParams<InputT, K, V, OutputT, StateT, W> paramsCasted =
+          (BuilderParams<InputT, K, V, OutputT, StateT, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
 
@@ -393,9 +384,12 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public OutputBuilder<InputT, K, V, OutputT, StateT, ?> applyIf(boolean cond,
-        UnaryFunction<WindowOfBuilder<InputT, K, V, OutputT, StateT>,
-            OutputBuilder<InputT, K, V, OutputT, StateT, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<InputT, K, V, OutputT, StateT, ?> applyIf(
+        boolean cond,
+        UnaryFunction<
+                WindowOfBuilder<InputT, K, V, OutputT, StateT>,
+                OutputBuilder<InputT, K, V, OutputT, StateT, ?>>
+            applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
 
       if (cond) {
@@ -406,11 +400,9 @@ public class ReduceStateByKey<
     }
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
-  public static class TriggerByBuilder
-      <InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+  /** Trigger defining operator builder. */
+  public static class TriggerByBuilder<
+          InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, StateT, W>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
@@ -424,14 +416,11 @@ public class ReduceStateByKey<
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
-  public static class AccumulatorModeBuilder
-      <InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
+  public static class AccumulatorModeBuilder<
+          InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, StateT, W>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
@@ -447,7 +436,6 @@ public class ReduceStateByKey<
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
   /**
@@ -455,12 +443,10 @@ public class ReduceStateByKey<
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<
-      InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+          InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
       implements Builders.Output<Pair<K, OutputT>>, Builders.OutputValues<K, OutputT> {
 
-    /**
-     * TODO: complete javadoc.
-     */
+    /** TODO: complete javadoc. */
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
     OutputBuilder(BuilderParams<InputT, K, V, OutputT, StateT, W> params) {

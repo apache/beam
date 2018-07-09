@@ -22,9 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 
-final class LongHistogram
-    implements Histogram,
-        Snapshotable<Map<Long, Long>> {
+final class LongHistogram implements Histogram, Snapshotable<Map<Long, Long>> {
 
   final Map<Long, Long> buckets = new ConcurrentHashMap<>();
 

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Collection of tst utility classes.
- */
+/** Collection of tst utility classes. */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit.junit;

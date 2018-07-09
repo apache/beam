@@ -35,9 +35,7 @@ public @interface Processing {
 
   Type value();
 
-  /**
-   * Types of processing.
-   */
+  /** Types of processing. */
   enum Type {
     BOUNDED,
     UNBOUNDED,
