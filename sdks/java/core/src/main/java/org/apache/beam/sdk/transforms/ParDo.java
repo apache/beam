@@ -783,7 +783,7 @@ public class ParDo {
               // TODO
               Collections.emptyMap(),
               input.getWindowingStrategy(),
-              input.isBounded());
+              input.isBounded().and(signature.isBoundedPerElement()));
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {
