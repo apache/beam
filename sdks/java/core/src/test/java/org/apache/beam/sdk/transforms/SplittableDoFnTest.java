@@ -567,6 +567,47 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
+  @Test
+  @Category({UsesSplittableParDo.class})
+  public void testBoundedness() {
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    {
+      PCollection<String> res =
+          foo.apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public void process(@Element String element, OffsetRangeTracker tracker) {
+                      // Doesn't matter
+                    }
+
+                    @GetInitialRestriction
+                    public OffsetRange getInitialRestriction(String element) {
+                      return new OffsetRange(0, 1);
+                    }
+                  }));
+      assertEquals(PCollection.IsBounded.BOUNDED, res.isBounded());
+    }
+    {
+      PCollection<String> res =
+          foo.apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public ProcessContinuation process(
+                        @Element String element, OffsetRangeTracker tracker) {
+                      return stop();
+                    }
+
+                    @GetInitialRestriction
+                    public OffsetRange getInitialRestriction(String element) {
+                      return new OffsetRange(0, 1);
+                    }
+                  }));
+      assertEquals(PCollection.IsBounded.UNBOUNDED, res.isBounded());
+    }
+  }
+
   // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn
   // emits output immediately (i.e. has a pass-through trigger) regardless of input's
   // windowing/triggering strategy.
