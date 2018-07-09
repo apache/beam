@@ -20,6 +20,8 @@ import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: Examples :: Java"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
@@ -49,7 +51,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_api_services_bigquery
-  shadow library.java.findbugs_jsr305
   shadow library.java.google_http_client
   shadow library.java.bigdataoss_util
   shadow library.java.google_auth_library_oauth2_http

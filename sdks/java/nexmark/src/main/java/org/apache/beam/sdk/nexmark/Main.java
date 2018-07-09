@@ -99,7 +99,7 @@ public class Main<OptionT extends NexmarkOptions> {
         }
       }
       if (options.getExportSummaryToBigQuery()) {
-        savePerfsToBigQuery(options, actual, null);
+        savePerfsToBigQuery(options, actual, null, start);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -117,7 +117,8 @@ public class Main<OptionT extends NexmarkOptions> {
   static void savePerfsToBigQuery(
       NexmarkOptions options,
       Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      @Nullable BigQueryServices testBigQueryServices) {
+      @Nullable BigQueryServices testBigQueryServices,
+      Instant start) {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
         pipeline.apply(
@@ -145,6 +146,7 @@ public class Main<OptionT extends NexmarkOptions> {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
+                    new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
                     new TableFieldSchema().setName("runtimeSec").setType("FLOAT"),
                     new TableFieldSchema().setName("eventsPerSec").setType("FLOAT"),
                     new TableFieldSchema().setName("numResults").setType("INTEGER")));
@@ -162,6 +164,7 @@ public class Main<OptionT extends NexmarkOptions> {
           NexmarkPerf nexmarkPerf = input.getValue();
           TableRow row =
               new TableRow()
+                  .set("timestamp", start.getMillis() / 1000)
                   .set("runtimeSec", nexmarkPerf.runtimeSec)
                   .set("eventsPerSec", nexmarkPerf.eventsPerSec)
                   .set("numResults", nexmarkPerf.numResults);

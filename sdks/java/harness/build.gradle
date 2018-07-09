@@ -50,7 +50,6 @@ dependencies {
     compile project(path: it, configuration: "shadow")
   }
   compile library.java.jackson_databind
-  compile library.java.findbugs_jsr305
   compile library.java.guava
   compile library.java.protobuf_java
   compile library.java.grpc_core

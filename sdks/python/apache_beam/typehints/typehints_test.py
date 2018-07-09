@@ -16,9 +16,14 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
+
+from __future__ import absolute_import
+
 import functools
 import inspect
 import unittest
+from builtins import next
+from builtins import range
 
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any

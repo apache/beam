@@ -70,7 +70,6 @@ dependencies {
   shadow library.java.bigdataoss_util
   shadow library.java.avro
   shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
@@ -128,6 +127,7 @@ task validatesRunnerTest(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 

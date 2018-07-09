@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import struct
+from builtins import object
 from functools import partial
 
 import crcmod

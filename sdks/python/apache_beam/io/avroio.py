@@ -41,10 +41,12 @@ Additionally, this module provides a write ``PTransform`` ``WriteToAvro``
 that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
+from __future__ import absolute_import
 
-import cStringIO
+import io
 import os
 import zlib
+from builtins import object
 from functools import partial
 
 import avro
@@ -339,9 +341,9 @@ class _AvroBlock(object):
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
       # We take care to avoid extra copies of data while slicing large objects
-      # by use of a buffer.
-      result = snappy.decompress(buffer(data)[:-4])
-      avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
+      # by use of a memoryview.
+      result = snappy.decompress(memoryview(data)[:-4])
+      avroio.BinaryDecoder(io.BytesIO(data[-4:])).check_crc32(result)
       return result
     else:
       raise ValueError('Unknown codec: %r' % codec)
@@ -351,7 +353,7 @@ class _AvroBlock(object):
 
   def records(self):
     decoder = avroio.BinaryDecoder(
-        cStringIO.StringIO(self._decompressed_block_bytes))
+        io.BytesIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 

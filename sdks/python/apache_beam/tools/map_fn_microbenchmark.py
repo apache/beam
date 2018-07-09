@@ -56,7 +56,7 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
     print("%6d element%s %g sec" % (
         num_elements, " " if num_elements == 1 else "s", timings[num_elements]))
 
-  print
+  print()
   # pylint: disable=unused-variable
   gradient, intercept, r_value, p_value, std_err = stats.linregress(
       *list(zip(*list(timings.items()))))

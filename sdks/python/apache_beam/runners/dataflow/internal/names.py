@@ -20,8 +20,12 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
+from __future__ import absolute_import
+
 # TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
+from builtins import object
+
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
 STAGED_PIPELINE_FILENAME = "pipeline.pb"

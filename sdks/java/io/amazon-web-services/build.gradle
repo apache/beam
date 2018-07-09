@@ -32,7 +32,6 @@ dependencies {
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
-  shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   runtime 'commons-codec:commons-codec:1.9'
   runtime "org.apache.httpcomponents:httpclient:4.5.2"

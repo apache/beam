@@ -23,6 +23,8 @@ verify results.
 
 # Protect against environments where dataflow runner is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+from __future__ import absolute_import
+
 try:
   from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 except ImportError:

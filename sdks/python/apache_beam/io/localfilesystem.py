@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import os
 import shutil
+from builtins import zip
 from glob import glob
 
 from apache_beam.io.filesystem import BeamIOError

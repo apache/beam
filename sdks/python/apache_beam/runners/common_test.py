@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.runners.common import DoFnSignature

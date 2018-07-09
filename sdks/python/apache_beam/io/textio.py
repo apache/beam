@@ -21,6 +21,8 @@
 from __future__ import absolute_import
 
 import logging
+from builtins import object
+from builtins import range
 from functools import partial
 
 from six import integer_types

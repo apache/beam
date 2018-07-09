@@ -69,6 +69,9 @@ class DockerCommand {
   public String runImage(String imageTag, List<String> dockerOpts, List<String> args)
       throws IOException, TimeoutException, InterruptedException {
     checkArgument(!imageTag.isEmpty(), "Docker image tag required");
+    // Pull the image from docker repo. This will be no-op if the image already exists.
+    runShortCommand(
+        ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
     // TODO: Validate args?
     return runShortCommand(
         ImmutableList.<String>builder()

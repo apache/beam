@@ -60,7 +60,10 @@ public class CreatePCollectionViewTranslation {
       throws IOException {
 
     RunnerApi.PTransform transformProto =
-        PTransformTranslation.toProto(application, Collections.emptyList(), SdkComponents.create());
+        PTransformTranslation.toProto(
+            application,
+            Collections.emptyList(),
+            SdkComponents.create(application.getPipeline().getOptions()));
 
     checkArgument(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
@@ -82,7 +85,7 @@ public class CreatePCollectionViewTranslation {
    */
   @Deprecated
   static class CreatePCollectionViewTranslator
-      extends TransformPayloadTranslator.WithDefaultRehydration<View.CreatePCollectionView<?, ?>> {
+      implements TransformPayloadTranslator<View.CreatePCollectionView<?, ?>> {
     @Override
     public String getUrn(View.CreatePCollectionView<?, ?> transform) {
       return PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
@@ -115,11 +118,6 @@ public class CreatePCollectionViewTranslation {
         getTransformPayloadTranslators() {
       return Collections.singletonMap(
           View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

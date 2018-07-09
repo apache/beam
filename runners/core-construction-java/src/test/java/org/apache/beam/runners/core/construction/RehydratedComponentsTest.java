@@ -45,6 +45,7 @@ public class RehydratedComponentsTest {
   @Test
   public void testSimpleCoder() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     Coder<?> coder = VarIntCoder.of();
     String id = sdkComponents.registerCoder(coder);
     RehydratedComponents rehydratedComponents =
@@ -58,6 +59,7 @@ public class RehydratedComponentsTest {
   @Test
   public void testCompoundCoder() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     Coder<?> coder = VarIntCoder.of();
     Coder<?> compoundCoder = NullableCoder.of(coder);
     String compoundCoderId = sdkComponents.registerCoder(compoundCoder);
@@ -81,6 +83,7 @@ public class RehydratedComponentsTest {
   @Test
   public void testWindowingStrategy() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     WindowingStrategy windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(1)))
             .withAllowedLateness(Duration.standardSeconds(4));
@@ -98,6 +101,7 @@ public class RehydratedComponentsTest {
   @Test
   public void testEnvironment() {
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     Environment env = Environment.newBuilder().setUrl("java_test").build();
     String id = sdkComponents.registerEnvironment(env);
     RehydratedComponents rehydratedComponents =

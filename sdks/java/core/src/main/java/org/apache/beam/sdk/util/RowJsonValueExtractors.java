@@ -165,6 +165,18 @@ class RowJsonValueExtractors {
         .build();
   }
 
+  /**
+   * Extracts BigDecimal from the JsonNode if it is within bounds.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<BigDecimal> decimalValueExtractor() {
+    return ValidatingValueExtractor.<BigDecimal>builder()
+        .setExtractor(JsonNode::decimalValue)
+        .setValidator(jsonNode -> jsonNode.isNumber())
+        .build();
+  }
+
   @AutoValue
   public abstract static class ValidatingValueExtractor<W> implements ValueExtractor<W> {
 
