@@ -207,7 +207,7 @@ class ByteBuddyUtils {
    */
   static class ConvertValueForGetter extends TypeConversion<StackManipulation> {
     // The code that reads the value.
-    private StackManipulation readValue;
+    private final StackManipulation readValue;
 
     ConvertValueForGetter(StackManipulation readValue) {
       this.readValue = readValue;

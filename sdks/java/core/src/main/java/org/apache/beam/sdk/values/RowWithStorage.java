@@ -24,7 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 
 /** Concrete subclass of {@link Row} that explicitly stores all fields of the row. */
 public class RowWithStorage extends Row {
-  private List<Object> values;
+  private final List<Object> values;
 
   RowWithStorage(Schema schema, List<Object> values) {
     super(schema);

@@ -38,12 +38,12 @@ import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
  * the appropriate fields from the POJO.
  */
 public class RowWithGetters extends Row {
-  private FieldValueGetterFactory fieldValueGetterFactory;
-  private Object getterTarget;
-  private List<FieldValueGetter> getters;
+  private final FieldValueGetterFactory fieldValueGetterFactory;
+  private final Object getterTarget;
+  private final List<FieldValueGetter> getters;
 
-  private Map<Integer, List> cachedLists = Maps.newHashMap();
-  private Map<Integer, Map> cachedMaps = Maps.newHashMap();
+  private final Map<Integer, List> cachedLists = Maps.newHashMap();
+  private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
   RowWithGetters(Schema schema, FieldValueGetterFactory getterFactory, Object getterTarget) {
     super(schema);
