@@ -32,6 +32,7 @@ from collections import defaultdict
 
 from future.moves.urllib.parse import quote
 from future.moves.urllib.parse import unquote
+from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import coders
