@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""A runner that allows running of Beam pipelines interactively."""
+"""A runner that allows running of Beam pipelines interactively.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -38,6 +41,7 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.interactive import display_manager
 from apache_beam.transforms import combiners
 
+# size of PCollection samples cached.
 SAMPLE_SIZE = 8
 
 
@@ -55,7 +59,7 @@ class InteractiveRunner(runners.PipelineRunner):
     self._cache_manager.cleanup()
 
   def apply(self, transform, pvalueish):
-    # TODO(robertwb): Remove runner interception of apply.
+    # TODO(qinyeli): Remove runner interception of apply.
     return self._underlying_runner.apply(transform, pvalueish)
 
   def run_pipeline(self, pipeline):
@@ -63,12 +67,10 @@ class InteractiveRunner(runners.PipelineRunner):
       self._desired_cache_labels = set()
     print('Running...')
 
-    # pylint: disable=import-error
-    from apache_beam.pipeline import Pipeline
-
     # When possible, invoke a round trip through the runner API.
-    pipeline = Pipeline.from_runner_api(pipeline.to_runner_api(),
-                                        pipeline.runner, pipeline._options)  # pylint: disable=protected-access
+    pipeline = beam.pipeline.Pipeline.from_runner_api(
+        pipeline.to_runner_api(),
+        pipeline.runner, pipeline._options)  # pylint: disable=protected-access
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
@@ -107,10 +109,10 @@ class InteractiveRunner(runners.PipelineRunner):
 
     desired_pcollections = self._desired_pcollections(pipeline_info)
 
-    # TODO(robertwb): Preserve composite structure.
+    # TODO(qinyeli): Preserve composite structure.
     required_transforms = collections.OrderedDict()
     for pcoll_id in desired_pcollections:
-      # TODO(robertwb): Collections consumed by no-output transforms.
+      # TODO(qinyeli): Collections consumed by no-output transforms.
       required_transforms.update(_producing_transforms(pcoll_id, True))
 
     referenced_pcollections = self._referenced_pcollections(
@@ -365,7 +367,7 @@ class Derivation(object):
     return self._hash
 
   def cache_label(self):
-    # TODO(robertwb): Collision resistance?
+    # TODO(qinyeli): Collision resistance?
     return 'Pcoll-%x' % abs(hash(self))
 
   def json(self):
