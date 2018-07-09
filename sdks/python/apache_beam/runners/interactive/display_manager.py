@@ -38,7 +38,6 @@ try:
     pp.text(string)
   plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
   plain.for_type(str, _formatter)
-  plain.for_type(unicode, _formatter)
 
 # NameError is added here because get_ipython() throws "not defined" NameError
 # if not started with IPython.
@@ -117,10 +116,10 @@ class DisplayManager(object):
               self._cache_manager.read('sample', cache_label))
           new_stats[pcoll_id] = {'sample': contents}
           if pcoll_id in self._referenced_pcollections:
-            self._text_samples.append(
+            self._text_samples.append(str(
                 '%s produced %s' % (
                     self._producers[pcoll_id],
-                    interactive_pipeline_graph.format_sample(contents, 5)))
+                    interactive_pipeline_graph.format_sample(contents, 5))))
       if force or new_stats:
         if IPython:
           IPython.core.display.clear_output(True)

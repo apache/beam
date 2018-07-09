@@ -99,7 +99,6 @@ REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
     'fastavro==0.19.7',
-    'graphviz>=0.8,<=0.8.3',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -107,6 +106,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
+    'pydot>=1.2.0,<=1.2.4',
     'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',

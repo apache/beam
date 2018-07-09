@@ -50,7 +50,7 @@ class InteractiveRunnerTest(unittest.TestCase):
             direct_runner.BundleBasedDirectRunner()))
     p.run().wait_until_finish()
     pc0 = (
-        p | 'read' >> beam.Create(range(3))
+        p | 'read' >> beam.Create([1, 2, 3])
         | 'Print1.1' >> beam.Map(print_with_message('Run1.1')))
     pc = pc0 | 'Print1.2' >> beam.Map(print_with_message('Run1.2'))
     p.run().wait_until_finish()

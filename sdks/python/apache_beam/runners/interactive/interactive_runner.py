@@ -38,6 +38,7 @@ from apache_beam import runners
 from apache_beam.io import filesystems
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import display_manager
 from apache_beam.transforms import combiners
 
@@ -51,15 +52,15 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=None):
-    self._underlying_runner = underlying_runner or runners.DirectRunner()
+  def __init__(self, underlying_runner=direct_runner.BundleBasedDirectRunner()):
+    self._underlying_runner = underlying_runner
     self._cache_manager = CacheManager()
 
   def cleanup(self):
     self._cache_manager.cleanup()
 
   def apply(self, transform, pvalueish):
-    # TODO(qinyeli): Remove runner interception of apply.
+    # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
     return self._underlying_runner.apply(transform, pvalueish)
 
   def run_pipeline(self, pipeline):
@@ -414,6 +415,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     return self._pipeline_info.derivation(pcoll_id).cache_label()
 
   def wait_until_finish(self):
+    # PipelineResult is not constructed until pipeline execution is finished.
     return
 
   def get(self, pcoll):
