@@ -43,15 +43,15 @@ public class KryoCoder<T> extends CustomCoder<T> {
    * registrations after its deserialization.
    * </p>
    */
-  private final KryoRegistrar registrar;
+  private final IdentifiedRegistrar registrarWithId;
 
-  private KryoCoder(KryoRegistrar registrar) {
-    this.registrar = registrar;
+  private KryoCoder(IdentifiedRegistrar registrarWithId) {
+    this.registrarWithId = registrarWithId;
   }
 
   /**
    * Creates a {@link KryoCoder} instance which will use {@link Kryo} without class registration.
-   * That degrades performance. Use {@link #of(KryoRegistrar)} whenever possible.
+   * That degrades performance. Use {@link #of(IdentifiedRegistrar)} whenever possible.
    */
   public KryoCoder() {
     this(KryoFactory.NO_OP_REGISTRAR);
@@ -61,8 +61,8 @@ public class KryoCoder<T> extends CustomCoder<T> {
    * Creates a {@link KryoCoder} instance which will use {@link Kryo} with classes registered by
    * {@code registrar}.
    */
-  public static <T> KryoCoder<T> of(KryoRegistrar registrar) {
-    return new KryoCoder<>(registrar);
+  public static <T> KryoCoder<T> of(IdentifiedRegistrar registrarWithId) {
+    return new KryoCoder<>(registrarWithId);
   }
 
   @Override
@@ -70,7 +70,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
 
     Output output = KryoFactory.getKryoOutput();
     output.clear();
-    Kryo kryo = KryoFactory.getOrCreateKryo(registrar);
+    Kryo kryo = KryoFactory.getOrCreateKryo(registrarWithId);
     try {
       kryo.writeClassAndObject(output, value);
     } catch (IllegalArgumentException e) {
@@ -98,7 +98,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
     BoundedInputStream limitedStream = new BoundedInputStream(inStream, lengthOfDecodedObject);
     input.setInputStream(limitedStream);
 
-    Kryo kryo = KryoFactory.getOrCreateKryo(registrar);
+    Kryo kryo = KryoFactory.getOrCreateKryo(registrarWithId);
 
     try {
 

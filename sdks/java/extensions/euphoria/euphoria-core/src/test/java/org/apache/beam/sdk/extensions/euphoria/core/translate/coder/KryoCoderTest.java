@@ -42,7 +42,8 @@ public class KryoCoderTest {
   @Test
   public void testBasicCoding() throws IOException {
 
-    KryoRegistrar registrar = (k) -> k.register(ClassToBeEncoded.class);
+    IdentifiedRegistrar registrar = IdentifiedRegistrar
+        .of((k) -> k.register(ClassToBeEncoded.class));
 
     KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
     assertEncoding(coder);
@@ -51,7 +52,7 @@ public class KryoCoderTest {
   @Test(expected = CoderException.class)
   public void testWrongRegistrarCoding() throws IOException {
 
-    KryoRegistrar registrar = (k) -> { /* No-op  */};
+    IdentifiedRegistrar registrar = IdentifiedRegistrar.of((k) -> { /* No-op  */});
 
     KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
     assertEncoding(coder);
@@ -60,8 +61,9 @@ public class KryoCoderTest {
   @Test(expected = CoderException.class)
   public void testWrongRegistrarDecoding() throws IOException {
 
-    KryoRegistrar registrarCoding = (k) -> k.register(ClassToBeEncoded.class);
-    KryoRegistrar registrarDecoding = (k) -> { /* No-op  */};
+    IdentifiedRegistrar registrarCoding = IdentifiedRegistrar
+        .of((k) -> k.register(ClassToBeEncoded.class));
+    IdentifiedRegistrar registrarDecoding = IdentifiedRegistrar.of((k) -> { /* No-op  */});
 
     KryoCoder<ClassToBeEncoded> coderToEncode = KryoCoder.of(registrarCoding);
     KryoCoder<ClassToBeEncoded> coderToDecode = KryoCoder.of(registrarDecoding);
@@ -71,10 +73,10 @@ public class KryoCoderTest {
 
   @Test
   public void testCodingOfTwoClassesInSerial() throws IOException {
-    KryoRegistrar registrar = (k) -> {
+    IdentifiedRegistrar registrar = IdentifiedRegistrar.of((k) -> {
       k.register(ClassToBeEncoded.class);
       k.register(TestClass.class);
-    };
+    });
 
     KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
     KryoCoder<TestClass> secondCoder = KryoCoder.of(registrar);
@@ -105,7 +107,8 @@ public class KryoCoderTest {
    */
   @Test
   public void testCoderSerialization() throws IOException, ClassNotFoundException {
-    KryoRegistrar registrar = (k) -> k.register(ClassToBeEncoded.class);
+    IdentifiedRegistrar registrar = IdentifiedRegistrar
+        .of((k) -> k.register(ClassToBeEncoded.class));
 
     KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
     ByteArrayOutputStream outStr = new ByteArrayOutputStream();
@@ -124,7 +127,7 @@ public class KryoCoderTest {
 
   @Test
   public void testCodingWithKvCoderKeyIsKryoCoder() throws IOException {
-    KryoRegistrar registrar = (k) -> k.register(TestClass.class);
+    IdentifiedRegistrar registrar = IdentifiedRegistrar.of((k) -> k.register(TestClass.class));
 
     final ListCoder<Void> listCoder = ListCoder.of(VoidCoder.of());
     final KvCoder<TestClass, List<Void>> kvCoder = KvCoder
@@ -154,7 +157,7 @@ public class KryoCoderTest {
 
   @Test
   public void testCodingWithKvCoderValueIsKryoCoder() throws IOException {
-    KryoRegistrar registrar = (k) -> k.register(TestClass.class);
+    IdentifiedRegistrar registrar = IdentifiedRegistrar.of((k) -> k.register(TestClass.class));
 
     final KvCoder<String, TestClass> kvCoder = KvCoder
         .of(StringUtf8Coder.of(), KryoCoder.of(registrar));
@@ -179,10 +182,10 @@ public class KryoCoderTest {
 
   @Test
   public void testCodingWithKvCoderClassToBeEncoded() throws IOException {
-    KryoRegistrar registrar = (k) -> {
+    IdentifiedRegistrar registrar = IdentifiedRegistrar.of((k) -> {
       k.register(TestClass.class);
       k.register(ClassToBeEncoded.class);
-    };
+    });
 
     final ListCoder<Void> listCoder = ListCoder.of(VoidCoder.of());
     final KvCoder<ClassToBeEncoded, List<Void>> kvCoder =

@@ -37,32 +37,29 @@ class KryoFactory {
   private static final int DEFAULT_BUFFER_SIZE = 4096;
 
   /**
-   * No-op registrar. Use of this registrar degrades performance since {@link Kryo} needs to
-   * serialize fully specified class name instead of id.
+   * No-op {@link IdentifiedRegistrar}. Use of this registrar degrades performance since {@link
+   * Kryo} needs to serialize fully specified class name instead of id.
    * <p>
-   * {@link #getOrCreateKryo(KryoRegistrar)} returns {@link Kryo}  which allows for serialization of
-   * unregistered classes when this {@link KryoRegistrar} is used to call it.
+   * {@link #getOrCreateKryo(IdentifiedRegistrar)} returns {@link Kryo}  which allows for
+   * serialization of unregistered classes when this {@link IdentifiedRegistrar} is used to call
+   * it.
    * </p>
    */
-  static final KryoRegistrar NO_OP_REGISTRAR = new KryoRegistrar() {
-    // this needs to be anonymous implementation in order to keep its type after serialization
-    @Override
-    public void registerClasses(Kryo kryo) {
-      //No-Op
-    }
-  };
+  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.of((k) -> {
+  });
 
-
-  private static Kryo createKryo(KryoRegistrar registrar) {
+  private static Kryo createKryo(IdentifiedRegistrar registrarWithId) {
     final Kryo instance = new Kryo();
     ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())
         .setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
 
-    if (NO_OP_REGISTRAR.getClass().equals(registrar.getClass())) {
+    // mere NO_OP_REGISTRAR == registrarWithId is not enough since
+    // NO_OP_REGISTRAR can be deserialized into several instances
+    if (NO_OP_REGISTRAR.getId() == registrarWithId.getId()) {
       instance.setRegistrationRequired(false);
     } else {
       instance.setRegistrationRequired(true);
-      registrar.registerClasses(instance);
+      registrarWithId.getRegistrar().registerClasses(instance);
     }
 
     return instance;
@@ -79,13 +76,13 @@ class KryoFactory {
   /**
    * We need an instance of {@link KryoRegistrar} to do actual {@link Kryo} registration. But since
    * every other instance of the same implementation of {@link KryoRegistrar} should do the same
-   * classes registration, we use {@code Class<? extends KryoRegistrar>} as a key.
-   * <p>
-   * {@link ThreadLocal} us utilized to allow re-usability of {@link Kryo} by many instnces of
+   * classes registration, we use {@link IdentifiedRegistrar IdentifiedRegistrar's} Id as a key.
+   *
+   * {@link ThreadLocal} is utilized to allow re-usability of {@link Kryo} by many instances of
    * {@link KryoCoder}.
-   * </p>
+   *
    */
-  private static Map<Class<? extends KryoRegistrar>, ThreadLocal<Kryo>> kryoByRegistrarType =
+  private static Map<Integer, ThreadLocal<Kryo>> kryoByRegistrarId =
       new HashMap<>();
 
 
@@ -98,17 +95,17 @@ class KryoFactory {
    * (de)serialization of unregistered classes. That is not otherwise allowed.
    * </p>
    */
-  static Kryo getOrCreateKryo(KryoRegistrar registrar) {
-    Objects.requireNonNull(registrar);
+  static Kryo getOrCreateKryo(IdentifiedRegistrar registrarWithId) {
+    Objects.requireNonNull(registrarWithId);
 
-    synchronized (kryoByRegistrarType) {
+    synchronized (kryoByRegistrarId) {
 
-      ThreadLocal<Kryo> kryoThreadLocal = kryoByRegistrarType
-          .computeIfAbsent(registrar.getClass(), (k) -> new ThreadLocal<>());
+      ThreadLocal<Kryo> kryoThreadLocal = kryoByRegistrarId
+          .computeIfAbsent(registrarWithId.getId(), (k) -> new ThreadLocal<>());
 
       Kryo kryoInstance = kryoThreadLocal.get();
       if (kryoInstance == null) {
-        kryoInstance = createKryo(registrar);
+        kryoInstance = createKryo(registrarWithId);
         kryoThreadLocal.set(kryoInstance);
       }
 
