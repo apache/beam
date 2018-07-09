@@ -21,11 +21,13 @@ from __future__ import absolute_import
 
 import argparse
 import logging
+import os
 import re
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -110,6 +112,10 @@ def run(argv=None):
     return '%s: %d' % (word, count)
 
   output = counts | 'format' >> beam.Map(format_result)
+
+  out_dir = os.path.dirname(known_args.output)
+  if not FileSystems.exists(out_dir):
+    FileSystems.mkdirs(out_dir)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
