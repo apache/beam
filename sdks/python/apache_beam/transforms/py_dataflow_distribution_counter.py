@@ -115,4 +115,4 @@ class DataflowDistributionCounter(object):
         self.buckets[first_bucket_offset:last_bucket_offset + 1])
 
   def merge(self, accumulators):
-    pass
+    raise NotImplementedError()
