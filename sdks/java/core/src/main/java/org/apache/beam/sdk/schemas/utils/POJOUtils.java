@@ -46,6 +46,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
@@ -59,7 +60,7 @@ public class POJOUtils {
         c ->
             ReflectUtils.getFields(c)
                 .stream()
-                .map(TypeInformation::new)
+                .map(TypeInformation::forField)
                 .collect(Collectors.toList());
     return StaticSchemaInference.schemaFromClass(clazz, getTypesForClass);
   }
@@ -114,7 +115,7 @@ public class POJOUtils {
     try {
       return builder
           .make()
-          .load(POJOUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -187,7 +188,7 @@ public class POJOUtils {
     try {
       return builder
           .make()
-          .load(POJOUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

@@ -419,7 +419,7 @@ class ByteBuddyUtils {
       // that the POJO can accept.
 
       // Generate the following code:
-      // return new T(value.getMillis);
+      // return new T(value.getMillis());
 
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       return new Compound(
@@ -453,8 +453,8 @@ class ByteBuddyUtils {
 
       // We currently assume that a byte[] setter will always accept a parameter of type byte[].
       return new Compound(
-          readValue, // Load the value.
-          TypeCasting.to(BYTE_ARRAY_TYPE), // Cast to a byte[]
+          readValue,
+          TypeCasting.to(BYTE_ARRAY_TYPE),
           // Create a new ByteBuffer that wraps this byte[].
           MethodInvocation.invoke(
               BYTE_BUFFER_TYPE
@@ -495,7 +495,7 @@ class ByteBuddyUtils {
     @Override
     protected StackManipulation convertPrimitive(TypeDescriptor<?> type) {
       ForLoadedType valueType = new ForLoadedType(type.getRawType());
-      // Unbox teh type.
+      // Unbox the type.
       return new StackManipulation.Compound(
           readValue,
           Assigner.DEFAULT.assign(

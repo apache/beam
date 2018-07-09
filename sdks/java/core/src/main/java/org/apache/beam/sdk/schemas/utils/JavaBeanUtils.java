@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.schemas.utils;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -47,12 +46,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.MethodType;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 
-/** A set of utilities yo generate getter and setter classes for JavaBean objects. */
+/** A set of utilities to generate getter and setter classes for JavaBean objects. */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
@@ -66,14 +65,14 @@ public class JavaBeanUtils {
           ReflectUtils.getMethods(clazz)
               .stream()
               .filter(ReflectUtils::isGetter)
-              .map(m -> new TypeInformation(m, MethodType.GETTER))
+              .map(m -> TypeInformation.forGetter(m))
               .collect(Collectors.toList());
 
       Map<String, TypeInformation> setterTypes =
           ReflectUtils.getMethods(clazz)
               .stream()
               .filter(ReflectUtils::isSetter)
-              .map(m -> new TypeInformation(m, MethodType.SETTER))
+              .map(m -> TypeInformation.forSetter(m))
               .collect(Collectors.toMap(TypeInformation::getName, Function.identity()));
       validateJavaBean(getterTypes, setterTypes);
       return getterTypes;
@@ -89,9 +88,9 @@ public class JavaBeanUtils {
       TypeInformation setterType = setters.get(type.getName());
       if (setterType == null) {
         throw new RuntimeException(
-            "JavaBean contained a setter for field "
+            "JavaBean contained a getter for field "
                 + type.getName()
-                + "but did not contain a matching getter.");
+                + "but did not contain a matching setter.");
       }
       if (!type.equals(setterType)) {
         throw new RuntimeException(
@@ -124,19 +123,11 @@ public class JavaBeanUtils {
                     .filter(ReflectUtils::isGetter)
                     .map(JavaBeanUtils::createGetter)
                     .collect(Collectors.toMap(FieldValueGetter::name, Function.identity()));
-            List<FieldValueGetter> getters = Lists.newArrayList();
-            for (int i = 0; i < schema.getFieldCount(); ++i) {
-              getters.add(getterMap.get(schema.getField(i).getName()));
-            }
-            System.out.println("Returning for Schema " + schema + " getters " + getters);
-
-            return getters;
-            /*
             return schema
                 .getFields()
                 .stream()
                 .map(f -> getterMap.get(f.getName()))
-                .collect(Collectors.toList());*/
+                .collect(Collectors.toList());
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -144,7 +135,7 @@ public class JavaBeanUtils {
   }
 
   private static <T> FieldValueGetter createGetter(Method getterMethod) {
-    TypeInformation typeInformation = new TypeInformation(getterMethod, MethodType.GETTER);
+    TypeInformation typeInformation = TypeInformation.forGetter(getterMethod);
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
@@ -154,7 +145,7 @@ public class JavaBeanUtils {
     try {
       return builder
           .make()
-          .load(POJOUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -168,7 +159,7 @@ public class JavaBeanUtils {
 
   private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
       DynamicType.Builder<FieldValueGetter> builder, Method method) {
-    TypeInformation typeInformation = new TypeInformation(method, MethodType.GETTER);
+    TypeInformation typeInformation = TypeInformation.forGetter(method);
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(typeInformation.getName()))
@@ -211,7 +202,7 @@ public class JavaBeanUtils {
   }
 
   private static <T> FieldValueSetter createSetter(Method setterMethod) {
-    TypeInformation typeInformation = new TypeInformation(setterMethod, MethodType.SETTER);
+    TypeInformation typeInformation = TypeInformation.forSetter(setterMethod);
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
@@ -221,7 +212,7 @@ public class JavaBeanUtils {
     try {
       return builder
           .make()
-          .load(POJOUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -229,13 +220,13 @@ public class JavaBeanUtils {
         | IllegalAccessException
         | NoSuchMethodException
         | InvocationTargetException e) {
-      throw new RuntimeException("Unable to generate a getter for getter '" + setterMethod + "'");
+      throw new RuntimeException("Unable to generate a setter for setter '" + setterMethod + "'");
     }
   }
 
   private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
       DynamicType.Builder<FieldValueSetter> builder, Method method) {
-    TypeInformation typeInformation = new TypeInformation(method, MethodType.SETTER);
+    TypeInformation typeInformation = TypeInformation.forSetter(method);
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(typeInformation.getName()))
@@ -268,7 +259,7 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        TypeInformation typeInformation = new TypeInformation(method, MethodType.GETTER);
+        TypeInformation typeInformation = TypeInformation.forGetter(method);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
@@ -308,7 +299,7 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        TypeInformation typeInformation = new TypeInformation(method, MethodType.SETTER);
+        TypeInformation typeInformation = TypeInformation.forSetter(method);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 

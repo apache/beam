@@ -65,53 +65,55 @@ public class StaticSchemaInference {
 
   /** Relevant information about a Java type. */
   public static class TypeInformation {
-    private String name;
-    private TypeDescriptor type;
-    private boolean nullable;
+    private final String name;
+    private final TypeDescriptor type;
+    private final boolean nullable;
 
     /** Construct a {@link TypeInformation}. */
-    public TypeInformation(String name, TypeDescriptor type, boolean nullable) {
+    private TypeInformation(String name, TypeDescriptor type, boolean nullable) {
       this.name = name;
       this.type = type;
       this.nullable = nullable;
     }
 
     /** Construct a {@link TypeInformation} from a class member variable. */
-    public TypeInformation(Field field) {
-      this(
+    public static TypeInformation forField(Field field) {
+      return new TypeInformation(
           field.getName(),
           TypeDescriptor.of(field.getGenericType()),
           field.getAnnotation(Nullable.class) != null);
     }
 
-    /** Construct a {@link TypeInformation} from a class getter or setter. */
-    public TypeInformation(Method method, MethodType methodType) {
-      switch (methodType) {
-        case GETTER:
-          if (method.getName().startsWith("get")) {
-            this.name = ReflectUtils.stripPrefix(method.getName(), "get");
-          } else if (method.getName().startsWith("is")) {
-            this.name = ReflectUtils.stripPrefix(method.getName(), "is");
-          } else {
-            throw new RuntimeException("Getter has wrong prefix " + method.getName());
-          }
-          this.type = TypeDescriptor.of(method.getGenericReturnType());
-          this.nullable = method.getAnnotation(Nullable.class) != null;
-          break;
-        case SETTER:
-          if (method.getName().startsWith("set")) {
-            this.name = ReflectUtils.stripPrefix(method.getName(), "set");
-          } else {
-            throw new RuntimeException("Setter has wrong prefix " + method.getName());
-          }
-          if (method.getParameterCount() != 1) {
-            throw new RuntimeException("Setter methods should take a single argument.");
-          }
-          this.type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
-          this.nullable =
-              Arrays.stream(method.getParameterAnnotations()[0])
-                  .anyMatch(Nullable.class::isInstance);
+    /** Construct a {@link TypeInformation} from a class getter. */
+    public static TypeInformation forGetter(Method method) {
+      String name;
+      if (method.getName().startsWith("get")) {
+        name = ReflectUtils.stripPrefix(method.getName(), "get");
+      } else if (method.getName().startsWith("is")) {
+        name = ReflectUtils.stripPrefix(method.getName(), "is");
+      } else {
+        throw new RuntimeException("Getter has wrong prefix " + method.getName());
       }
+      TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
+      boolean nullable = method.getAnnotation(Nullable.class) != null;
+      return new TypeInformation(name, type, nullable);
+    }
+
+    /** Construct a {@link TypeInformation} from a class setter. */
+    public static TypeInformation forSetter(Method method) {
+      String name;
+      if (method.getName().startsWith("set")) {
+        name = ReflectUtils.stripPrefix(method.getName(), "set");
+      } else {
+        throw new RuntimeException("Setter has wrong prefix " + method.getName());
+      }
+      if (method.getParameterCount() != 1) {
+        throw new RuntimeException("Setter methods should take a single argument.");
+      }
+      TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
+      boolean nullable =
+          Arrays.stream(method.getParameterAnnotations()[0]).anyMatch(Nullable.class::isInstance);
+      return new TypeInformation(name, type, nullable);
     }
 
     public String getName() {
