@@ -93,7 +93,7 @@ public class SchemaRegistryTest {
     tryGetters(registry);
   }
 
-  static final class Provider extends SchemaProvider {
+  static final class Provider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptors.strings())) {
@@ -125,7 +125,7 @@ public class SchemaRegistryTest {
 
   static class TestSchemaClass {}
 
-  static final class TestAutoProvider extends SchemaProvider {
+  static final class TestAutoProvider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
@@ -143,6 +143,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
         return r -> (T) new TestSchemaClass();
@@ -169,7 +170,7 @@ public class SchemaRegistryTest {
   @DefaultSchema(TestDefaultSchemaProvider.class)
   static class TestDefaultSchemaClass {}
 
-  static final class TestDefaultSchemaProvider extends SchemaProvider {
+  static final class TestDefaultSchemaProvider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
@@ -187,6 +188,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
         return r -> (T) new TestSchemaClass();

@@ -20,7 +20,9 @@ package org.apache.beam.sdk.transforms;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -349,5 +351,41 @@ public class ParDoSchemaTest implements Serializable {
                   @ProcessElement
                   public void process(@FieldAccess("a") Row row) {}
                 }));
+  }
+
+  /** Test POJO. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class InferredPojo {
+    public String stringField;
+    public Integer integerField;
+
+    public InferredPojo(String stringField, Integer integerField) {
+      this.stringField = stringField;
+      this.integerField = integerField;
+    }
+
+    public InferredPojo() {}
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testInferredSchemaPipeline() {
+    List<InferredPojo> pojoList =
+        Lists.newArrayList(
+            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<InferredPojo, String>() {
+                      @ProcessElement
+                      public void process(@Element Row row, OutputReceiver<String> r) {
+                        r.output(row.getString(0) + ":" + row.getInt32(1));
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
   }
 }
