@@ -450,6 +450,7 @@ public class FlinkStreamingPortablePipelineTranslator
         FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
+    Map<String, TupleTag<?>> collectionIdToTupleTag = Maps.newHashMap();
     // order output names for deterministic mapping
     for (String localOutputName : new TreeMap<>(outputIndexMap).keySet()) {
       String collectionId = outputs.get(localOutputName);
@@ -461,6 +462,7 @@ public class FlinkStreamingPortablePipelineTranslator
       tagsToOutputTags.put(tupleTag, new OutputTag<>(localOutputName, typeInformation));
       tagsToCoders.put(tupleTag, windowCoder);
       tagsToIds.put(tupleTag, outputIndexMap.get(localOutputName));
+      collectionIdToTupleTag.put(collectionId, tupleTag);
     }
 
     final SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
@@ -487,7 +489,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
     // TODO: side inputs
     DoFnOperator<InputT, OutputT> doFnOperator =
-        new ExecutableStageDoFnOperator<InputT, OutputT>(
+        new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
             inputCoder,
             mainOutputTag,
@@ -498,7 +500,8 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.batchFactory());
+            FlinkExecutableStageContext.batchFactory(),
+            collectionIdToTupleTag);
 
     outputStream =
         inputDataStream.transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);
