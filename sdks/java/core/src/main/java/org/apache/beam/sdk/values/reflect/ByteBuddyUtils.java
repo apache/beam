@@ -21,6 +21,7 @@ package org.apache.beam.sdk.values.reflect;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -36,10 +37,11 @@ class ByteBuddyUtils {
    * FieldValueGetter}.
    */
   static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
-      ByteBuddy byteBuddy, Class clazz) {
+      ByteBuddy byteBuddy, Class clazz, Type fieldType) {
 
     TypeDescription.Generic getterGenericType =
-        TypeDescription.Generic.Builder.parameterizedType(FieldValueGetter.class, clazz).build();
+        TypeDescription.Generic.Builder.parameterizedType(FieldValueGetter.class, clazz, fieldType)
+            .build();
 
     return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
   }

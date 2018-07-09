@@ -18,20 +18,14 @@
 
 package org.apache.beam.sdk.values.reflect;
 
-import org.apache.beam.sdk.annotations.Internal;
+import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
- */
-@Internal
-public interface FieldValueGetter<ObjectT, ValueT> {
-  ValueT get(ObjectT object);
-
-  String name();
-
-  Class type();
+/** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
+public class JavaBeanSetterFactory implements FieldValueSetterFactory {
+  @Override
+  public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getSetters(targetClass, schema);
+  }
 }

@@ -15,23 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.values.reflect;
-
-import org.apache.beam.sdk.annotations.Internal;
-
 /**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ * Defines utilities for deailing with schemas.
  *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
+ * <p>For further details, see the documentation for each class in this package.
  */
-@Internal
-public interface FieldValueGetter<ObjectT, ValueT> {
-  ValueT get(ObjectT object);
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.schemas.utils;
 
-  String name();
-
-  Class type();
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

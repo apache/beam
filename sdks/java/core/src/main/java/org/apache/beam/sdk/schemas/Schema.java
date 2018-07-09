@@ -42,8 +42,11 @@ import org.apache.beam.sdk.values.Row;
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // A mapping between field names an indices.
-  private BiMap<String, Integer> fieldIndices = HashBiMap.create();
-  private List<Field> fields;
+  private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private final List<Field> fields;
+  // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
+  // is correct.
+  private final int hashCode;
 
   /** Builder class for building {@link Schema} objects. */
   public static class Builder {
@@ -79,6 +82,11 @@ public class Schema implements Serializable {
 
     public Builder addByteField(String name) {
       fields.add(Field.of(name, FieldType.BYTE));
+      return this;
+    }
+
+    public Builder addByteArrayField(String name) {
+      fields.add(Field.of(name, FieldType.BYTES));
       return this;
     }
 
@@ -157,6 +165,7 @@ public class Schema implements Serializable {
     for (Field field : fields) {
       fieldIndices.put(field.getName(), index++);
     }
+    this.hashCode = Objects.hash(fieldIndices, fields);
   }
 
   public static Schema of(Field... fields) {
@@ -186,7 +195,7 @@ public class Schema implements Serializable {
 
   @Override
   public int hashCode() {
-    return Objects.hash(fieldIndices, getFields());
+    return hashCode;
   }
 
   public List<Field> getFields() {
@@ -214,6 +223,7 @@ public class Schema implements Serializable {
     STRING, // String.
     DATETIME, // Date and time.
     BOOLEAN, // Boolean.
+    BYTES, // Byte array.
     ARRAY,
     MAP,
     ROW; // The field is itself a nested row.
@@ -319,6 +329,9 @@ public class Schema implements Serializable {
 
     /** The type of byte fields. */
     public static final FieldType BYTE = FieldType.of(TypeName.BYTE);
+
+    /** The type of bytes fields. */
+    public static final FieldType BYTES = FieldType.of(TypeName.BYTES);
 
     /** The type of int16 fields. */
     public static final FieldType INT16 = FieldType.of(TypeName.INT16);

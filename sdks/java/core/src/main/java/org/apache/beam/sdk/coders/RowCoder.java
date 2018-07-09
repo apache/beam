@@ -38,6 +38,7 @@ public class RowCoder extends CustomCoder<Row> {
   static final ImmutableMap<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
           .put(TypeName.BYTE, ByteCoder.of())
+          .put(TypeName.BYTES, ByteArrayCoder.of())
           .put(TypeName.INT16, BigEndianShortCoder.of())
           .put(TypeName.INT32, BigEndianIntegerCoder.of())
           .put(TypeName.INT64, BigEndianLongCoder.of())
@@ -132,6 +133,9 @@ public class RowCoder extends CustomCoder<Row> {
           listSizeBytes += estimatedSizeBytes(typeDescriptor.getCollectionElementType(), elem);
         }
         return 4 + listSizeBytes;
+      case BYTES:
+        byte[] bytes = (byte[]) value;
+        return 4L + bytes.length;
       case MAP:
         Map<Object, Object> map = (Map<Object, Object>) value;
         long mapSizeBytes = 0;
