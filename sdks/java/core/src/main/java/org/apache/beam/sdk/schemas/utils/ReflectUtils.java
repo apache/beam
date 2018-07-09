@@ -38,8 +38,8 @@ import org.apache.beam.sdk.schemas.Schema;
 /** A set of reflection helper methods. */
 public class ReflectUtils {
   static class ClassWithSchema {
-    Class clazz;
-    Schema schema;
+    private final Class clazz;
+    private final Schema schema;
 
     public ClassWithSchema(Class clazz, Schema schema) {
       this.clazz = clazz;
