@@ -114,12 +114,15 @@ public class ReflectUtils {
     }
     return (method.getName().startsWith("is")
         && method.getName().length() > 2
+        && method.getParameterCount() == 0
         && (Boolean.TYPE.equals(method.getReturnType())
             || Boolean.class.equals(method.getReturnType())));
   }
 
   static boolean isSetter(Method method) {
-    return Void.TYPE.equals(method.getReturnType()) && method.getName().startsWith("set");
+    return Void.TYPE.equals(method.getReturnType())
+        && method.getParameterCount() == 1
+        && method.getName().startsWith("set");
   }
 
   static String stripPrefix(String methodName, String prefix) {
