@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Euphoria to Beam translation package.
- */
+/** Euphoria to Beam translation package. */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;

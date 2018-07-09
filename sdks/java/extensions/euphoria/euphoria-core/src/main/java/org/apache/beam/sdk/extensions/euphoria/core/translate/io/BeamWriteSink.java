@@ -28,9 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-/**
- * Write to output sink using beam.
- */
+/** Write to output sink using beam. */
 @DoFn.BoundedPerElement
 public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
 
@@ -63,7 +61,7 @@ public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
     }
 
     @StartBundle
-    public void setupBundle(){
+    public void setupBundle() {
       writer = sink.openWriter(partitionId);
     }
 
@@ -81,7 +79,6 @@ public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
     }
 
     @Teardown
-    public void tearDown() throws IOException {
-    }
+    public void tearDown() throws IOException {}
   }
 }

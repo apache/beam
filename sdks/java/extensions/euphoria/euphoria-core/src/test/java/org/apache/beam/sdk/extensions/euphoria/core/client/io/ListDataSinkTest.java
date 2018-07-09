@@ -23,9 +23,7 @@ import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.extensions.euphoria.core.testing.DatasetAssert;
 import org.junit.Test;
 
-/**
- * Test of {@link ListDataSink}.
- */
+/** Test of {@link ListDataSink}. */
 public class ListDataSinkTest {
 
   @Test

@@ -38,10 +38,11 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
  * Common methods used in operator builders.
  *
  * <p>They serve several purposes:
+ *
  * <ul>
- * <li>Defines united API among all the {@link Operator Operators}.</li>
- * <li>Enables to share related javadoc.</li>
- * <li>Allows for mandatory chaining of some builders. See {@link WindowBy}.</li>
+ *   <li>Defines united API among all the {@link Operator Operators}.
+ *   <li>Enables to share related javadoc.
+ *   <li>Allows for mandatory chaining of some builders. See {@link WindowBy}.
  * </ul>
  *
  * <p>For internal usage only.
@@ -77,7 +78,7 @@ public class Builders {
      *
      * @param <K> the type of the extracted key
      * @param keyExtractor a user defined function to extract keys from the processed input
-     * dataset's elements
+     *     dataset's elements
      * @return the next builder to complete the setup of the operator
      */
     <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor);
@@ -90,10 +91,8 @@ public class Builders {
   /**
    * First windowing builder which starts builders chain defining Beam windowing.
    *
-   * <p>
-   * It consumes {@link WindowFn} and it is followed by {@link TriggeredBy} and {@link
+   * <p>It consumes {@link WindowFn} and it is followed by {@link TriggeredBy} and {@link
    * AccumulatorMode} builders.
-   * </p>
    *
    * @param <OutTriggerBuilderT> type of following {@link TriggeredBy} builder.
    */
@@ -106,7 +105,7 @@ public class Builders {
      *
      * @param <W> the type of the windowing, subclass of {@link BoundedWindow}
      * @param windowing {@link BoundedWindow} subclass used to represent the windows used by given
-     * {@link WindowFn}.It represents windowing strategy to apply to the input elements.
+     *     {@link WindowFn}.It represents windowing strategy to apply to the input elements.
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     <W extends BoundedWindow> OutTriggerBuilderT windowBy(WindowFn<Object, W> windowing);
@@ -120,7 +119,7 @@ public class Builders {
      * @param windowing the windowing strategy to apply to the input dataset
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      * @deprecated This method is deprecated and will be removed in future. It is left here for
-     * backward compatibility.
+     *     backward compatibility.
      */
     @Deprecated
     <W extends Window<W>> Object windowBy(Windowing<?, W> windowing);
@@ -155,9 +154,7 @@ public class Builders {
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public interface Output<T> {
 
     /**
@@ -169,9 +166,7 @@ public class Builders {
     Dataset<T> output(OutputHint... outputHints);
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public interface OutputValues<K, V> extends Output<Pair<K, V>> {
 
     /**

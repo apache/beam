@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
-/**
- * Mock class of UnboundedReader.
- */
+/** Mock class of UnboundedReader. */
 class EmptyReader<T> implements UnboundedReader<T, MockStreamDataSource.Offset> {
 
   @Override

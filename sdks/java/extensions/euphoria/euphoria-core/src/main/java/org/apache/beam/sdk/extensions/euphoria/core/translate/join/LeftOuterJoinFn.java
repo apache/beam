@@ -23,10 +23,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollect
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.TupleTag;
 
-
-/**
- * Left outer join implementation of {@link JoinFn}.
- */
+/** Left outer join implementation of {@link JoinFn}. */
 public class LeftOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
 
   public LeftOuterJoinFn(
@@ -38,7 +35,9 @@ public class LeftOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, Ri
 
   @Override
   protected void doJoin(
-      ProcessContext c, K key, CoGbkResult value,
+      ProcessContext c,
+      K key,
+      CoGbkResult value,
       Iterable<LeftT> leftSideIter,
       Iterable<RightT> rightSideIter) {
 
@@ -61,5 +60,4 @@ public class LeftOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, Ri
   public String getFnName() {
     return "::left-outer-join";
   }
-
 }

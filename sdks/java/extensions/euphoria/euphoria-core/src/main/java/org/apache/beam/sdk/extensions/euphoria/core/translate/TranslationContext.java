@@ -60,9 +60,7 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
- */
+/** Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}. */
 class TranslationContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);

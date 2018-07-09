@@ -62,8 +62,8 @@ public final class GlobalWindowing<T> implements Windowing<T, GlobalWindowing.Wi
   }
 
   /** Singleton window. */
-  public static final class Window extends
-      org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window<
+  public static final class Window
+      extends org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window<
           GlobalWindowing.Window> {
 
     static final Window INSTANCE = new Window();

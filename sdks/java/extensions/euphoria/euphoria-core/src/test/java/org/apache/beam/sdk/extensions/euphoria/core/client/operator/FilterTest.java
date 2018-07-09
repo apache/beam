@@ -24,7 +24,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.junit.Test;
 
-/** Test operator Filter.  */
+/** Test operator Filter. */
 public class FilterTest {
 
   @Test

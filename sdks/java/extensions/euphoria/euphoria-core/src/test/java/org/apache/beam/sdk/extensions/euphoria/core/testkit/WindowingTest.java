@@ -349,9 +349,7 @@ public class WindowingTest extends AbstractOperatorTest {
         });
   }
 
-  /**
-   * Just simple enum to be used during testing.
-   */
+  /** Just simple enum to be used during testing. */
   public enum Type {
     FRUIT,
     VEGETABLE
@@ -386,6 +384,7 @@ public class WindowingTest extends AbstractOperatorTest {
 
   /**
    * Pair of items where both items implement {@link Comparable}.
+   *
    * @param <T0> first item type
    * @param <T1> second item type
    */

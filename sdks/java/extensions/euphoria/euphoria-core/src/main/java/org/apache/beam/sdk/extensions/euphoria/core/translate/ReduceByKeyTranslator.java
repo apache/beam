@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.stream.StreamSupport;
@@ -41,14 +40,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * Translator for {@code ReduceByKey} operator.
- */
+/** Translator for {@code ReduceByKey} operator. */
 class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @SuppressWarnings("unchecked")
-  private static <InputT, K, V, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>>
-  doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, TranslationContext context) {
+  private static <InputT, K, V, OutputT, W extends BoundedWindow>
+      PCollection<Pair<K, OutputT>> doTranslate(
+          ReduceByKey<InputT, K, V, OutputT, W> operator, TranslationContext context) {
 
     //TODO Could we even do values sorting ?
     checkState(operator.getValueComparator() == null, "Values sorting is not supported.");
@@ -61,8 +59,9 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     final Coder<K> keyCoder = context.getCoder(keyExtractor);
     final Coder<V> valueCoder = context.getCoder(valueExtractor);
 
-    final PCollection<InputT> input = WindowingUtils.applyWindowingIfSpecified(operator,
-        context.getInput(operator), context.getAllowedLateness(operator));
+    final PCollection<InputT> input =
+        WindowingUtils.applyWindowingIfSpecified(
+            operator, context.getInput(operator), context.getAllowedLateness(operator));
 
     // ~ create key & value extractor
     final MapElements<InputT, KV<K, V>> extractor =
@@ -118,8 +117,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
       ReduceFunctor<InputT, OutputT> reducer) {
 
-    @SuppressWarnings("unchecked") final ReduceFunctor<InputT, InputT> combiner =
-        (ReduceFunctor<InputT, InputT>) reducer;
+    @SuppressWarnings("unchecked")
+    final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
 
     return (Iterable<InputT> input) -> {
       SingleValueCollector<InputT> collector = new SingleValueCollector<>();

@@ -25,9 +25,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 
-/**
- * {@code Collector} for combinable functors.
- */
+/** {@code Collector} for combinable functors. */
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   private T elem;

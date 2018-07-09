@@ -32,9 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/**
- * Test behavior of operator {@code TopPerKey}.
- */
+/** Test behavior of operator {@code TopPerKey}. */
 public class TopPerKeyTest {
 
   @Test
@@ -103,8 +101,8 @@ public class TopPerKeyTest {
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
     WindowingDesc windowingDesc = tpk.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
@@ -118,18 +116,19 @@ public class TopPerKeyTest {
         .keyBy(s -> s)
         .valueBy(s -> 1L)
         .scoreBy(s -> 1L)
-        .applyIf(true, b -> b
-            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-            .triggeredBy(DefaultTrigger.of())
-            .accumulatingFiredPanes()
-        )
+        .applyIf(
+            true,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulatingFiredPanes())
         .output();
 
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
     WindowingDesc windowingDesc = tpk.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-        windowingDesc.getWindowFn());
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }

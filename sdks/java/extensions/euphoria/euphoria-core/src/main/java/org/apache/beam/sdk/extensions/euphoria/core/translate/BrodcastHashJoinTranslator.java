@@ -63,10 +63,10 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
       Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
     Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
 
-    @SuppressWarnings("unchecked") final PCollection<LeftT> left = (PCollection<LeftT>) context
-        .getInputs(operator).get(0);
-    @SuppressWarnings("unchecked") final PCollection<RightT> right = (PCollection<RightT>) context
-        .getInputs(operator).get(1);
+    @SuppressWarnings("unchecked")
+    final PCollection<LeftT> left = (PCollection<LeftT>) context.getInputs(operator).get(0);
+    @SuppressWarnings("unchecked")
+    final PCollection<RightT> right = (PCollection<RightT>) context.getInputs(operator).get(1);
 
     final PCollection<KV<K, LeftT>> leftKvInput =
         getKVInputCollection(
@@ -114,25 +114,22 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
    */
   @Override
   public boolean canTranslate(Join operator) {
-    @SuppressWarnings("unchecked") final ArrayList<Dataset> inputs = new ArrayList(
-        operator.listInputs());
+    @SuppressWarnings("unchecked")
+    final ArrayList<Dataset> inputs = new ArrayList(operator.listInputs());
     if (inputs.size() != 2) {
       return false;
     }
     final Dataset leftDataset = inputs.get(0);
     final Dataset rightDataset = inputs.get(1);
     return (operator.getType() == Join.Type.LEFT && hasFitsInMemoryHint(rightDataset.getProducer())
-        || operator.getType() == Join.Type.RIGHT
-        && hasFitsInMemoryHint(leftDataset.getProducer()))
+            || operator.getType() == Join.Type.RIGHT
+                && hasFitsInMemoryHint(leftDataset.getProducer()))
         && isAllowedWindowing(operator.getWindowing());
   }
 
-  /**
-   * BroadcastHashJoin supports only GlobalWindow or none.
-   */
+  /** BroadcastHashJoin supports only GlobalWindow or none. */
   private boolean isAllowedWindowing(WindowingDesc<?, ?> windowing) {
-    return windowing == null
-        || (windowing.getWindowFn() instanceof GlobalWindows);
+    return windowing == null || (windowing.getWindowFn() instanceof GlobalWindows);
   }
 
   static class BroadcastHashRightJoinFn<K, LeftT, RightT, OutputT>

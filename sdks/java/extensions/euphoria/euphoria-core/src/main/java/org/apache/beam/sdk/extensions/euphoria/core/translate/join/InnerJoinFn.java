@@ -23,9 +23,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollect
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * Inner join implementation of {@link JoinFn}.
- */
+/** Inner join implementation of {@link JoinFn}. */
 public class InnerJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
 
   public InnerJoinFn(
@@ -37,7 +35,9 @@ public class InnerJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT
 
   @Override
   protected void doJoin(
-      ProcessContext c, K key, CoGbkResult value,
+      ProcessContext c,
+      K key,
+      CoGbkResult value,
       Iterable<LeftT> leftSideIter,
       Iterable<RightT> rightSideIter) {
 
@@ -55,5 +55,4 @@ public class InnerJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT
   public String getFnName() {
     return "::inner-join";
   }
-
 }

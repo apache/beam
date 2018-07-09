@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * @param <V> the type of the second element of the pair
  */
 @Audience(Audience.Type.CLIENT)
-public abstract class Pair<K, V> implements Serializable{
+public abstract class Pair<K, V> implements Serializable {
 
   private static final Comparator<Pair> CMP_BY_FIRST =
       (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());
@@ -45,7 +45,7 @@ public abstract class Pair<K, V> implements Serializable{
     this.second = second;
   }
 
-  protected Pair(){
+  protected Pair() {
     this.first = null;
     this.second = null;
   }
@@ -74,7 +74,7 @@ public abstract class Pair<K, V> implements Serializable{
    *
    * @param <K> the type of key of the pairs to compare
    * @param <V> type of the value of the pairs - can be anything since the returned comparator does
-   * not used it at all
+   *     not used it at all
    * @return a comparator based on the {@link #getFirst()} property of pairs
    */
   @SuppressWarnings({"unchecked", "UnusedDeclaration"})
@@ -86,7 +86,7 @@ public abstract class Pair<K, V> implements Serializable{
    * Retrieves a comparator which compares pairs by their {@link #getSecond()} member.
    *
    * @param <K> the type of key of the pairs - can be anything since the returned comparator does
-   * not used it at all
+   *     not used it at all
    * @param <V> type of the value of the pairs to compare
    * @return a comparator based on the {@link #getSecond()} ()} property of pairs
    */
@@ -117,8 +117,8 @@ public abstract class Pair<K, V> implements Serializable{
    * @param second the second element of the pair
    * @return a newly constructed pair
    */
-  public static <K extends Serializable, V extends Serializable> Pair<K, V> ofSerializable(K first,
-      V second) {
+  public static <K extends Serializable, V extends Serializable> Pair<K, V> ofSerializable(
+      K first, V second) {
     return new SerializablePair<>(first, second);
   }
 
@@ -129,7 +129,6 @@ public abstract class Pair<K, V> implements Serializable{
   public V getSecond() {
     return second;
   }
-
 
   @Override
   public boolean equals(Object obj) {
@@ -171,14 +170,14 @@ public abstract class Pair<K, V> implements Serializable{
     }
   }
 
-  private static class SerializablePair<K extends Serializable, V extends Serializable> extends
-      Pair<K, V> implements Serializable {
+  private static class SerializablePair<K extends Serializable, V extends Serializable>
+      extends Pair<K, V> implements Serializable {
 
     private SerializablePair(K first, V second) {
       super(first, second);
     }
 
-    protected SerializablePair(){
+    protected SerializablePair() {
       super();
     }
 

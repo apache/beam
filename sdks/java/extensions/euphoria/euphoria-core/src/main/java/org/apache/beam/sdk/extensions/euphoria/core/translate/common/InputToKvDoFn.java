@@ -39,5 +39,4 @@ public class InputToKvDoFn<InputT, K> extends DoFn<InputT, KV<K, InputT>> {
     K key = keyExtractor.apply(element);
     c.output(KV.of(key, element));
   }
-
 }

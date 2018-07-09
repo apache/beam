@@ -27,25 +27,21 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.TestSuiteRunne
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
-/**
- * Euphoria operators test suite.
- */
+/** Euphoria operators test suite. */
 @RunWith(TestSuiteRunner.class)
 @Suite.SuiteClasses({
-//        BroadcastHashJoinTest.class,
-    CountByKeyTest.class,
-    DistinctTest.class,
-    FilterTest.class,
-    FlatMapTest.class,
-    JoinTest.class,
-    MapElementsTest.class,
-    ReduceByKeyTest.class,
-    //    ReduceStateByKeyTest.class,
-    SumByKeyTest.class,
-//    TopPerKeyTest.class, - uncomment when ReduceStateByKey is supported
-    UnionTest.class,
-//        WindowingTest.class,
+  //        BroadcastHashJoinTest.class,
+  CountByKeyTest.class,
+  DistinctTest.class,
+  FilterTest.class,
+  FlatMapTest.class,
+  JoinTest.class,
+  MapElementsTest.class,
+  ReduceByKeyTest.class,
+  //    ReduceStateByKeyTest.class,
+  SumByKeyTest.class,
+  //    TopPerKeyTest.class, - uncomment when ReduceStateByKey is supported
+  UnionTest.class,
+  //        WindowingTest.class,
 })
-public class OperatorsTestSuite {
-
-}
+public class OperatorsTestSuite {}

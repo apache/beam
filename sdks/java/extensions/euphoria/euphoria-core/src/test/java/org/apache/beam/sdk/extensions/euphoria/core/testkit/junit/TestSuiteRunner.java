@@ -44,9 +44,7 @@ import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * TODO: add javadoc.
- */
+/** TODO: add javadoc. */
 public class TestSuiteRunner extends Suite { //TODO rename
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSuiteRunner.class);
@@ -58,8 +56,8 @@ public class TestSuiteRunner extends Suite { //TODO rename
 
     // ~ for each encountered test method set up a special runner
     Optional<Type> kPType = getProcessingType(klass);
-    BeamRunnerWrapper runner = BeamRunnerWrapper.ofDirect()
-        .withAllowedLateness(Duration.ofHours(1));
+    BeamRunnerWrapper runner =
+        BeamRunnerWrapper.ofDirect().withAllowedLateness(Duration.ofHours(1));
     Class<?>[] testClasses = getAnnotatedClasses(klass);
     for (Class<?> testClass : testClasses) {
       boolean isOperatorTest = isAbstractOperatorTest(testClass);
@@ -105,8 +103,7 @@ public class TestSuiteRunner extends Suite { //TODO rename
       acc.add(new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, null));
     } else {
       for (Object[] params : paramsList) {
-        acc.add(
-            new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, params));
+        acc.add(new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, params));
       }
     }
   }

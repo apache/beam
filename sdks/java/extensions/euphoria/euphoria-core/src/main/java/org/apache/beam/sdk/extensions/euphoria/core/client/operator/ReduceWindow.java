@@ -55,17 +55,18 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code [valueBy] ................} value extractor function (default: identity)
- * <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link
- * ReduceFunction} for combinable or non-combinable function
- * <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
- * to {@link ReduceFunction} function (applicable only for non-combinable version)
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code output ...................} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code [valueBy] ................} value extractor function (default: identity)
+ *   <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link
+ *       ReduceFunction} for combinable or non-combinable function
+ *   <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
+ *       to {@link ReduceFunction} function (applicable only for non-combinable version)
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -184,9 +185,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     return (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in));
   }
 
-  /**
-   * Parameters of this operator used in builders.
-   */
+  /** Parameters of this operator used in builders. */
   private static class BuilderParams<InputT, V, OutputT, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -194,20 +193,15 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     Dataset<InputT> input;
     UnaryFunction<InputT, V> valueExtractor;
     ReduceFunctor<V, OutputT> reducer;
-    @Nullable
-    BinaryFunction<V, V, Integer> valueComparator;
+    @Nullable BinaryFunction<V, V, Integer> valueComparator;
 
-    public BuilderParams(String name,
-        Dataset<InputT> input) {
+    public BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     final String name;
@@ -220,12 +214,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     public <T> ValueBuilder<T> of(Dataset<T> input) {
       return new ValueBuilder<>(name, Objects.requireNonNull(input));
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ValueBuilder<InputT> {
 
     private final BuilderParams<InputT, ?, ?, ?> params;
@@ -236,8 +227,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
 
     public <V> ReduceBuilder<InputT, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, V, ?, ?> paramsCasted =
-          (BuilderParams<InputT, V, ?, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, V, ?, ?> paramsCasted = (BuilderParams<InputT, V, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
       return new ReduceBuilder<>(paramsCasted);
@@ -247,7 +238,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
         ReduceFunction<InputT, OutputT> reducer) {
 
       Objects.requireNonNull(reducer);
-      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, OutputT, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, InputT, OutputT, ?> paramsCasted =
           (BuilderParams<InputT, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = e -> e;
@@ -260,7 +252,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
         ReduceFunctor<InputT, OutputT> reducer) {
 
       Objects.requireNonNull(reducer);
-      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, OutputT, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, InputT, OutputT, ?> paramsCasted =
           (BuilderParams<InputT, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = e -> e;
@@ -273,7 +266,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
         CombinableReduceFunction<InputT> reducer) {
 
       Objects.requireNonNull(reducer);
-      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, InputT, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, InputT, InputT, ?> paramsCasted =
           (BuilderParams<InputT, InputT, InputT, ?>) params;
 
       paramsCasted.valueExtractor = e -> e;
@@ -281,12 +275,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
 
       return new WindowByBuilder<>(paramsCasted);
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ReduceBuilder<InputT, V> {
 
     private final BuilderParams<InputT, V, ?, ?> params;
@@ -303,7 +294,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     public <OutputT> SortableOutputBuilder<InputT, V, OutputT> reduceBy(
         ReduceFunctor<V, OutputT> reducer) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, V, OutputT, ?> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, V, OutputT, ?> paramsCasted =
           (BuilderParams<InputT, V, OutputT, ?>) params;
 
       paramsCasted.reducer = Objects.requireNonNull(reducer);
@@ -313,8 +305,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
 
     public WindowByBuilder<InputT, V, V> combineBy(CombinableReduceFunction<V> reducer) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, V, V, ?> paramsCasted =
-          (BuilderParams<InputT, V, V, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, V, V, ?> paramsCasted = (BuilderParams<InputT, V, V, ?>) params;
 
       Objects.requireNonNull(reducer);
       paramsCasted.reducer = ReduceByKey.toReduceFunctor(reducer);
@@ -322,13 +314,11 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowByBuilder<InputT, V, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>>,
-      OptionalMethodBuilder<WindowByBuilder<InputT, V, OutputT>,
-                OutputBuilder<InputT, V, OutputT, ?>> {
+          OptionalMethodBuilder<
+              WindowByBuilder<InputT, V, OutputT>, OutputBuilder<InputT, V, OutputT, ?>> {
 
     private final BuilderParams<InputT, V, OutputT, ?> params;
 
@@ -344,7 +334,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     public <W extends BoundedWindow> TriggerByBuilder<InputT, V, OutputT, W> windowBy(
         WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, V, OutputT, W> paramsCasted =
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, V, OutputT, W> paramsCasted =
           (BuilderParams<InputT, V, OutputT, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
@@ -359,9 +350,10 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public OutputBuilder<InputT, V, OutputT, ?> applyIf(boolean cond,
-        UnaryFunction<WindowByBuilder<InputT, V, OutputT>,
-            OutputBuilder<InputT, V, OutputT, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<InputT, V, OutputT, ?> applyIf(
+        boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, V, OutputT>, OutputBuilder<InputT, V, OutputT, ?>>
+            applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
       if (cond) {
         return applyWhenConditionHolds.apply(this);
@@ -371,9 +363,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link #output()}.
-   */
+  /** Last builder in a chain. It concludes this operators creation by calling {@link #output()}. */
   public static class OutputBuilder<InputT, V, OutputT, W extends BoundedWindow> {
 
     private final BuilderParams<InputT, V, OutputT, W> params;
@@ -386,17 +376,20 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       Flow flow = params.input.getFlow();
       ReduceWindow<InputT, V, OutputT, ?> operator =
           new ReduceWindow<>(
-              params.name, flow, params.input, params.valueExtractor, params.getWindowing(),
-              params.euphoriaWindowing, params.reducer, params.valueComparator);
+              params.name,
+              flow,
+              params.input,
+              params.valueExtractor,
+              params.getWindowing(),
+              params.euphoriaWindowing,
+              params.reducer,
+              params.valueComparator);
       flow.add(operator);
       return operator.output();
     }
-
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
+  /** Trigger defining operator builder. */
   public static class TriggerByBuilder<InputT, V, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, V, OutputT, W>> {
 
@@ -411,12 +404,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
   public static class AccumulatorModeBuilder<InputT, V, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, V, OutputT, W>> {
 
@@ -433,12 +423,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class SortableOutputBuilder<InputT, V, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>> {
 

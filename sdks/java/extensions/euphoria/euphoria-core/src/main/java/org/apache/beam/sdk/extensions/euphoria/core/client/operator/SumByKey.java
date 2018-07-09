@@ -63,15 +63,16 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code keyBy ....................} key extractor function
- * <li>{@code [valueBy] ................} {@link UnaryFunction} transforming from input element to
- * long (default: {@code e -> 1L})
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code (output | outputValues) ..} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code [valueBy] ................} {@link UnaryFunction} transforming from input element to
+ *       long (default: {@code e -> 1L})
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -90,7 +91,14 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       UnaryFunction<InputT, Long> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing) {
-    this(name, flow, input, keyExtractor, valueExtractor, windowing, euphoriaWindowing,
+    this(
+        name,
+        flow,
+        input,
+        keyExtractor,
+        valueExtractor,
+        windowing,
+        euphoriaWindowing,
         Collections.emptySet());
   }
 
@@ -146,9 +154,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     return DAG.of(reduceByKey);
   }
 
-  /**
-   * Parameters of this operator used in builders.
-   */
+  /** Parameters of this operator used in builders. */
   private static class BuilderParams<InputT, K, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -157,17 +163,13 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     UnaryFunction<InputT, K> keyExtractor;
     UnaryFunction<InputT, Long> valueExtractor;
 
-    BuilderParams(String name,
-        Dataset<InputT> input) {
+    BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
-
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -182,23 +184,21 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final BuilderParams<InputT, ?, ?> params;
 
     KeyByBuilder(String name, Dataset<InputT> input) {
-      this.params = new BuilderParams<>(
-          Objects.requireNonNull(name), Objects.requireNonNull(input));
+      this.params =
+          new BuilderParams<>(Objects.requireNonNull(name), Objects.requireNonNull(input));
     }
 
     @Override
     public <K> ValueByWindowByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, K, ?> paramsCasted =
-          (BuilderParams<InputT, K, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, K, ?> paramsCasted = (BuilderParams<InputT, K, ?>) params;
 
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
 
@@ -212,13 +212,11 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ValueByWindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-      Builders.Output<Pair<K, Long>>,
-      Builders.OutputValues<K, Long> {
+          Builders.Output<Pair<K, Long>>,
+          Builders.OutputValues<K, Long> {
 
     private final BuilderParams<InputT, K, ?> params;
 
@@ -227,8 +225,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     public WindowByBuilder<InputT, K> valueBy(UnaryFunction<InputT, Long> valueExtractor) {
-      params.valueExtractor =
-          TypeAwareUnaryFunction.of(valueExtractor, TypeDescriptors.longs());
+      params.valueExtractor = TypeAwareUnaryFunction.of(valueExtractor, TypeDescriptors.longs());
       return new WindowByBuilder<>(params);
     }
 
@@ -236,8 +233,8 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     public <W extends BoundedWindow> TriggerByBuilder<InputT, K, W> windowBy(
         WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, K, W> paramsCasted =
-          (BuilderParams<InputT, K, W>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, K, W> paramsCasted = (BuilderParams<InputT, K, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
       return new TriggerByBuilder<>(paramsCasted);
@@ -258,14 +255,12 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class WindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-      Builders.Output<Pair<K, Long>>,
-      Builders.OutputValues<K, Long>,
-      OptionalMethodBuilder<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
+          Builders.Output<Pair<K, Long>>,
+          Builders.OutputValues<K, Long>,
+          OptionalMethodBuilder<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
 
     private final BuilderParams<InputT, K, ?> params;
 
@@ -277,8 +272,8 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     public <W extends BoundedWindow> TriggerByBuilder<InputT, K, W> windowBy(
         WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, K, W> paramsCasted =
-          (BuilderParams<InputT, K, W>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, K, W> paramsCasted = (BuilderParams<InputT, K, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
       return new TriggerByBuilder<>(paramsCasted);
@@ -296,9 +291,10 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public OutputBuilder<InputT, K, ?> applyIf(boolean cond,
-        UnaryFunction<WindowByBuilder<InputT, K>,
-            OutputBuilder<InputT, K, ?>> applyWhenConditionHolds) {
+    public OutputBuilder<InputT, K, ?> applyIf(
+        boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>>
+            applyWhenConditionHolds) {
       Objects.requireNonNull(applyWhenConditionHolds);
 
       if (cond) {
@@ -309,9 +305,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Trigger defining operator builder.
-   */
+  /** Trigger defining operator builder. */
   public static class TriggerByBuilder<InputT, K, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, W>> {
 
@@ -326,12 +320,9 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       params.trigger = Objects.requireNonNull(trigger);
       return new AccumulatorModeBuilder<>(params);
     }
-
   }
 
-  /**
-   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
-   */
+  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
   public static class AccumulatorModeBuilder<InputT, K, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, W>> {
 
@@ -348,7 +339,6 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
   }
 
   /**
@@ -356,8 +346,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, K, W extends BoundedWindow>
-      implements Builders.Output<Pair<K, Long>>,
-      Builders.OutputValues<K, Long> {
+      implements Builders.Output<Pair<K, Long>>, Builders.OutputValues<K, Long> {
 
     private final BuilderParams<InputT, K, W> params;
 

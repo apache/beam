@@ -24,18 +24,16 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * Shared utility methods among operator translators.
- */
+/** Shared utility methods among operator translators. */
 public class OperatorTranslatorUtil {
 
-  /**
-   * Transform input to KV elements.
-   */
+  /** Transform input to KV elements. */
   public static <K, ValueT> PCollection<KV<K, ValueT>> getKVInputCollection(
       PCollection<ValueT> inputPCollection,
       UnaryFunction<ValueT, K> keyExtractor,
-      Coder<K> keyCoder, Coder<ValueT> valueCoder, String transformName) {
+      Coder<K> keyCoder,
+      Coder<ValueT> valueCoder,
+      String transformName) {
 
     @SuppressWarnings("unchecked")
     PCollection<ValueT> typedInput = inputPCollection;
@@ -47,5 +45,4 @@ public class OperatorTranslatorUtil {
 
     return kvInput;
   }
-
 }

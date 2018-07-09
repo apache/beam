@@ -24,16 +24,14 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
-/**
- * Collection of method helpful when dealing with windowing translations.
- */
+/** Collection of method helpful when dealing with windowing translations. */
 public class WindowingUtils {
 
   public static <InputT, OutputT, W extends BoundedWindow>
-  PCollection<InputT> applyWindowingIfSpecified(
-      WindowWiseOperator<?, OutputT, W> operator,
-      PCollection<InputT> input,
-      Duration allowedLateness) {
+      PCollection<InputT> applyWindowingIfSpecified(
+          WindowWiseOperator<?, OutputT, W> operator,
+          PCollection<InputT> input,
+          Duration allowedLateness) {
 
     WindowingDesc<Object, W> userSpecifiedWindowing = operator.getWindowing();
 
@@ -43,8 +41,8 @@ public class WindowingUtils {
 
     @SuppressWarnings("unchecked")
     org.apache.beam.sdk.transforms.windowing.Window<InputT> beamWindow =
-        org.apache.beam.sdk.transforms.windowing.Window
-            .into((WindowFn<InputT, ?>) userSpecifiedWindowing.getWindowFn())
+        org.apache.beam.sdk.transforms.windowing.Window.into(
+                (WindowFn<InputT, ?>) userSpecifiedWindowing.getWindowFn())
             .triggering(userSpecifiedWindowing.getTrigger());
 
     switch (userSpecifiedWindowing.getAccumulationMode()) {

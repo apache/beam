@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.util.IOUtils;
 import org.junit.Test;
 
-/** Test behavior of IOUtils.  */
+/** Test behavior of IOUtils. */
 public class IOUtilsTest {
 
   @Test(expected = IOException.class)

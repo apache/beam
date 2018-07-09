@@ -17,7 +17,8 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(enableFindbugs: false, enableErrorProne: false, failOnWarning: false)
+//applyJavaNature(enableFindbugs: false, failOnWarning: false) //TODO remove
+applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL :: Core"
 
@@ -29,7 +30,7 @@ dependencies {
     shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
     compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
     shadow library.java.guava
-    compileOnly library.java.findbugs_jsr305
+    //compileOnly library.java.findbugs_jsr305 //TODO remove if not needed
     testCompile library.java.mockito_core
     testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
     shadow 'com.google.code.findbugs:annotations:3.0.+'

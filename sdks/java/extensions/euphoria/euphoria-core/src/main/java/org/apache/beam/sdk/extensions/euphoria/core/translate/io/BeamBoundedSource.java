@@ -27,9 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedDataSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * A {@link BoundedSource} created from {@link BoundedDataSource}.
- */
+/** A {@link BoundedSource} created from {@link BoundedDataSource}. */
 public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   private final BoundedDataSource<T> wrap;

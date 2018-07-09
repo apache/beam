@@ -26,7 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.junit.Test;
 
-/** Test operator MapElement.  */
+/** Test operator MapElement. */
 public class MapElementsTest {
 
   @Test

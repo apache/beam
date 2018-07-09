@@ -51,9 +51,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * Simple test suite for RBK.
- */
+/** Simple test suite for RBK. */
 public class ReduceByKeyTest {
 
   @Test

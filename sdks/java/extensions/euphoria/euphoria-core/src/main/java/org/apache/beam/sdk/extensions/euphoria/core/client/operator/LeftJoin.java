@@ -35,23 +35,24 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * Left outer join of two input datasets producing single new dataset.
  *
- * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements
- * from streams into {@link Window}s. The join operation is performed within same windows produced
- * on left and right side of input {@link Dataset}s.
+ * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements from
+ * streams into {@link Window}s. The join operation is performed within same windows produced on
+ * left and right side of input {@link Dataset}s.
  *
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} left and right input dataset
- * <li>{@code by .......................} {@link UnaryFunction}s transforming left and right
- * elements into keys
- * <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element
- * from joined window
- * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
- * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
- * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
- * <li>{@code (output | outputValues) ..} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} left and right input dataset
+ *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right
+ *       elements into keys
+ *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element
+ *       from joined window
+ *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
+ *       windowing
+ *   <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
+ *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -77,9 +78,7 @@ public class LeftJoin {
     return new OfBuilder(name);
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
 
     private final String name;
@@ -104,13 +103,10 @@ public class LeftJoin {
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
-
 
     ByBuilder(BuilderParams<LeftT, RightT, ?, ?, ?> params) {
       this.params = params;
@@ -130,16 +126,16 @@ public class LeftJoin {
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        UnaryFunction<LeftT, K> leftKeyExtractor,
+        UnaryFunction<RightT, K> rightKeyExtractor,
         TypeDescriptor<K> keyTypeDescriptor) {
-      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
+      return by(
+          TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
           TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final BuilderParams<LeftT, RightT, K, ?, ?> params;
@@ -157,8 +153,8 @@ public class LeftJoin {
       BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
           (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
 
-      paramsCasted.joinFunc = (left, right, context) ->
-          joinFunc.apply(left, Optional.ofNullable(right), context);
+      paramsCasted.joinFunc =
+          (left, right, context) -> joinFunc.apply(left, Optional.ofNullable(right), context);
 
       return new Join.WindowingBuilder<>(paramsCasted);
     }

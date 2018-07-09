@@ -37,9 +37,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing.Typ
 import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamRunnerWrapper;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 
-/**
- * Base class for test description of a test case.
- */
+/** Base class for test description of a test case. */
 public abstract class AbstractOperatorTest implements Serializable {
 
   /**
@@ -130,10 +128,9 @@ public abstract class AbstractOperatorTest implements Serializable {
     /**
      * Retrieve expected outputs.
      *
-     *<p>These outputs will be compared irrespective of order.
+     * <p>These outputs will be compared irrespective of order.
      *
-     *  @return list of expected outputs that will be compared irrespective of order
-     *
+     * @return list of expected outputs that will be compared irrespective of order
      */
     default List<T> getUnorderedOutput() {
       throw new UnsupportedOperationException(

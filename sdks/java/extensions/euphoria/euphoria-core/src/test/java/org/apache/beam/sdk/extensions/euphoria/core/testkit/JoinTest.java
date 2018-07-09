@@ -56,9 +56,7 @@ import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * Test operator {@code Join}.
- */
+/** Test operator {@code Join}. */
 @Processing(Processing.Type.ALL)
 public class JoinTest extends AbstractOperatorTest {
 
@@ -425,8 +423,7 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void joinOnSessionWindowingNoEarlyTriggering() {
     execute(
-        new JoinTestCase<
-            Pair<String, Long>, Pair<String, Long>, Pair<String, String>>() {
+        new JoinTestCase<Pair<String, Long>, Pair<String, Long>, Pair<String, String>>() {
 
           @Override
           protected List<Pair<String, Long>> getLeftInput() {
@@ -449,7 +446,8 @@ public class JoinTest extends AbstractOperatorTest {
                 Join.of(left, right)
                     .by(p -> "", p -> "")
                     .using(
-                        (Pair<String, Long> l, Pair<String, Long> r,
+                        (Pair<String, Long> l,
+                            Pair<String, Long> r,
                             Collector<Pair<String, String>> c) ->
                             c.collect(Pair.of(l.getFirst(), r.getFirst())))
                     .windowBy(Sessions.withGapDuration(org.joda.time.Duration.millis(10)))
@@ -463,10 +461,7 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           public List<Pair<String, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of("fi", "ha"),
-                Pair.of("fi", "ho"),
-                Pair.of("fa", "ha"),
-                Pair.of("fa", "ho"));
+                Pair.of("fi", "ha"), Pair.of("fi", "ho"), Pair.of("fa", "ha"), Pair.of("fa", "ho"));
           }
         });
   }
@@ -509,7 +504,7 @@ public class JoinTest extends AbstractOperatorTest {
                           c.getHistogram("hist-" + l.getFirst().charAt(1)).add(2345, 8);
                           c.collect(Triple.of(window, l.getFirst(), r.getFirst()));
                         })
-//                    .windowBy(Time.of(Duration.ofMillis(3)))
+                    //                    .windowBy(Time.of(Duration.ofMillis(3)))
                     .windowBy(FixedWindows.of(org.joda.time.Duration.millis(3)))
                     .triggeredBy(AfterWatermark.pastEndOfWindow())
                     .discardingFiredPanes()
@@ -542,9 +537,7 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  /**
-   * Base for join test cases.
-   */
+  /** Base for join test cases. */
   public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
 
     @Override
@@ -560,7 +553,6 @@ public class JoinTest extends AbstractOperatorTest {
 
     protected abstract List<RightT> getRightInput();
   }
-
 
   /**
    * Elements with even numeric values are are assigned to one 'even' window. All others are

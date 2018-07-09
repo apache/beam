@@ -22,14 +22,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * TODO: complete javadoc.
- */
+/** TODO: complete javadoc. */
 public class TypeAwareReduceFunctor<InT, OutT>
     extends AbstractTypeAware<ReduceFunctor<InT, OutT>, OutT> implements ReduceFunctor<InT, OutT> {
 
-  private TypeAwareReduceFunctor(ReduceFunctor<InT, OutT> functor,
-      TypeDescriptor<OutT> resultType) {
+  private TypeAwareReduceFunctor(
+      ReduceFunctor<InT, OutT> functor, TypeDescriptor<OutT> resultType) {
     super(functor, resultType);
   }
 
