@@ -40,7 +40,7 @@ public class RegisterCoders extends CoderProvider {
 
   private final Map<TypeDescriptor, Coder<?>> typeToCoder;
   private final Map<Class<?>, Coder<?>> classToCoder;
-  private final KryoRegistrar kryoRegistrar;
+  private final IdentifiedRegistrar kryoRegistrarWithId;
 
 
   private RegisterCoders(
@@ -49,7 +49,7 @@ public class RegisterCoders extends CoderProvider {
       KryoRegistrar kryoRegistrar) {
     this.typeToCoder = typeToCoder;
     this.classToCoder = classToCoder;
-    this.kryoRegistrar = kryoRegistrar;
+    this.kryoRegistrarWithId = IdentifiedRegistrar.of(kryoRegistrar);
   }
 
 
@@ -92,11 +92,11 @@ public class RegisterCoders extends CoderProvider {
 
   private <T> Coder<T> createKryoCoderIfClassRegistered(Class<? super T> rawType) {
 
-    if (kryoRegistrar == null) {
+    if (kryoRegistrarWithId == null) {
       return null;
     }
 
-    Kryo kryo = KryoFactory.getOrCreateKryo(kryoRegistrar);
+    Kryo kryo = KryoFactory.getOrCreateKryo(kryoRegistrarWithId);
     ClassResolver classResolver = kryo.getClassResolver();
 
     Registration registration = classResolver.getRegistration(rawType);
@@ -104,7 +104,7 @@ public class RegisterCoders extends CoderProvider {
       return null;
     }
 
-    Coder<T> coder = KryoCoder.of(kryoRegistrar);
+    Coder<T> coder = KryoCoder.of(kryoRegistrarWithId);
     classToCoder.put(rawType, coder);
 
     return coder;
@@ -168,7 +168,7 @@ public class RegisterCoders extends CoderProvider {
     private final Map<Class<?>, Coder<?>> classToCoder = new HashMap<>();
     private KryoRegistrar registrar;
 
-    public Builder(Pipeline pipeline) {
+    Builder(Pipeline pipeline) {
       this.pipeline = pipeline;
     }
 
