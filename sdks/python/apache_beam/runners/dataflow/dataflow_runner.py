@@ -265,7 +265,6 @@ class DataflowRunner(PipelineRunner):
               new_side_input.pvalue.producer = map_to_void_key
               map_to_void_key.add_output(new_side_input.pvalue)
               parent.add_part(map_to_void_key)
-              transform_node.update_input_refcounts()
             elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
               # Ensure the input coder is a KV coder and patch up the
               # access pattern to appease Dataflow.
@@ -596,7 +595,6 @@ class DataflowRunner(PipelineRunner):
 
     # Attach side inputs.
     si_dict = {}
-    # We must call self._cache.get_pvalue exactly once due to refcounting.
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
