@@ -68,6 +68,11 @@ public class FileSystemsTest {
     assertTrue(
         FileSystems.getFileSystemInternal(toLocalResourceId("File://home").getScheme())
             instanceof LocalFileSystem);
+    if (SystemUtils.IS_OS_WINDOWS) {
+      assertTrue(
+          FileSystems.getFileSystemInternal(toLocalResourceId("c:\\home\\").getScheme())
+              instanceof LocalFileSystem);
+    }
   }
 
   @Test
