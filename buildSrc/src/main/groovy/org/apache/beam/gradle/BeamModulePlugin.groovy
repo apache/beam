@@ -793,7 +793,6 @@ artifactId=${project.name}
           }
 
           publications {
-            testing(MavenPublication) { from project.components.java }
             mavenJava(MavenPublication) {
               artifact project.shadowJar { // Strip the "shaded" classifier.
                 classifier null }
