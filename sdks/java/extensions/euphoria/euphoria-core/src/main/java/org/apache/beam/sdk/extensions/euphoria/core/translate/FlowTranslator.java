@@ -58,7 +58,7 @@ class FlowTranslator {
     // extended operators
     translators.put(ReduceByKey.class, new ReduceByKeyTranslator());
     translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
-    translators.put(Join.class, new BrodcastHashJoinTranslator());
+    translators.put(Join.class, new BroadcastHashJoinTranslator());
     translators.put(Join.class, new JoinTranslator());
   }
 
