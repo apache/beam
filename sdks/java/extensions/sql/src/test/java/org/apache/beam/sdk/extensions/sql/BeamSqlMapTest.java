@@ -92,6 +92,29 @@ public class BeamSqlMapTest {
   }
 
   @Test
+  public void testSelectMapFieldKeyValueSameType() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addMapField("f_intStringMap", Schema.FieldType.STRING, Schema.FieldType.STRING)
+            .build();
+
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery",
+            SqlTransform.query("SELECT 42, MAP['aa', '1'] as `f_map` FROM PCOLLECTION"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", "1")).build(),
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", "1")).build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testAccessMapElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 

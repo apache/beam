@@ -147,6 +147,17 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
    * represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
   static BeamSqlExpression buildExpression(RexNode rexNode) {
+    BeamSqlExpression ret = getBeamSqlExpression(rexNode);
+
+    if (!ret.accept()) {
+      throw new IllegalStateException(
+          ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");
+    }
+
+    return ret;
+  }
+
+  private static BeamSqlExpression getBeamSqlExpression(RexNode rexNode) {
     BeamSqlExpression ret;
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
@@ -156,11 +167,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       if (SqlTypeName.CHAR_TYPES.contains(type) && node.getValue() instanceof NlsString) {
         // NlsString is not serializable, we need to convert
         // it to string explicitly.
-        return BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
+        ret = BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
       } else if (isDateNode(type, value)) {
         // does this actually make sense?
         // Calcite actually treat Calendar as the java type of Date Literal
-        return BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
+        ret = BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
       } else {
         // node.getTypeName().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"
@@ -207,7 +218,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           }
         }
 
-        return BeamSqlPrimitive.of(realType, realValue);
+        ret = BeamSqlPrimitive.of(realType, realValue);
       }
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
@@ -394,13 +405,15 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
           // date functions
         case "Reinterpret":
-          return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
+          break;
         case "CEIL":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
-            return new BeamSqlCeilExpression(subExps);
+            ret = new BeamSqlCeilExpression(subExps);
           } else {
-            return new BeamSqlOperatorExpression(DateOperators.DATETIME_CEIL, subExps);
+            ret = new BeamSqlOperatorExpression(DateOperators.DATETIME_CEIL, subExps);
           }
+          break;
 
         case "FLOOR":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
@@ -412,53 +425,67 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
         case "EXTRACT_DATE":
         case "EXTRACT":
-          return new BeamSqlOperatorExpression(DateOperators.EXTRACT, subExps);
+          ret = new BeamSqlOperatorExpression(DateOperators.EXTRACT, subExps);
+          break;
 
         case "LOCALTIME":
         case "CURRENT_TIME":
-          return new BeamSqlCurrentTimeExpression(subExps);
+          ret = new BeamSqlCurrentTimeExpression(subExps);
+          break;
 
         case "CURRENT_TIMESTAMP":
         case "LOCALTIMESTAMP":
-          return new BeamSqlCurrentTimestampExpression(subExps);
+          ret = new BeamSqlCurrentTimestampExpression(subExps);
+          break;
 
         case "CURRENT_DATE":
-          return new BeamSqlCurrentDateExpression();
+          ret = new BeamSqlCurrentDateExpression();
+          break;
 
         case "DATETIME_PLUS":
-          return new BeamSqlDatetimePlusExpression(subExps);
+          ret = new BeamSqlDatetimePlusExpression(subExps);
+          break;
 
           // array functions
         case "ARRAY":
-          return new BeamSqlArrayExpression(subExps);
+          ret = new BeamSqlArrayExpression(subExps);
+          break;
           // map functions
         case "MAP":
-          return new BeamSqlMapExpression(subExps);
+          ret = new BeamSqlMapExpression(subExps);
+          break;
 
         case "ITEM":
           switch (subExps.get(0).getOutputType()) {
             case MAP:
-              return new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
+              ret = new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
+              break;
             case ARRAY:
-              return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+              ret = new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+              break;
             default:
               throw new UnsupportedOperationException(
                   "Operator: " + opName + " is not supported yet");
           }
+          break;
 
           // collections functions
         case "ELEMENT":
-          return new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
+          break;
 
         case "CARDINALITY":
-          return new BeamSqlCardinalityExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlCardinalityExpression(subExps, node.type.getSqlTypeName());
+          break;
 
         case "DOT":
-          return new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
+          break;
 
           // DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
-          return new BeamSqlDefaultExpression();
+          ret = new BeamSqlDefaultExpression();
+          break;
 
         case "CASE":
           ret = new BeamSqlCaseExpression(subExps);
@@ -506,14 +533,6 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       throw new UnsupportedOperationException(
           String.format("%s is not supported yet", rexNode.getClass().toString()));
     }
-
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4622
-    // Many paths above do not reach this validation
-    if (!ret.accept()) {
-      throw new IllegalStateException(
-          ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");
-    }
-
     return ret;
   }
 
