@@ -344,7 +344,7 @@ Below, we'll look at these features in more detail.
 
 Let's suppose scoring in our game depends on the speed at which a user can "click" on their phone. `GameStats`'s abuse detection analyzes each user's score data to detect if a user has an abnormally high "click rate" and thus an abnormally high score. This might indicate that the game is being played by a bot that operates significantly faster than a human could play.
 
-To determine whether or not a score is "abnormally" high, `GameStats` calculates the average of every score in that fixed-time window, and then checks each score individual score against the average score multiplied by an arbitrary weight factor (in our case, 2.5). Thus, any score more than 2.5 times the average is deemed to be the product of spam. The `GameStats` pipeline tracks a list of "spam" users and filters those users out of the team score calculations for the team leader board.
+To determine whether or not a score is "abnormally" high, `GameStats` calculates the average of every score in that fixed-time window, and then checks each individual score against the average score multiplied by an arbitrary weight factor (in our case, 2.5). Thus, any score more than 2.5 times the average is deemed to be the product of spam. The `GameStats` pipeline tracks a list of "spam" users and filters those users out of the team score calculations for the team leader board.
 
 Since the average depends on the pipeline data, we need to calculate it, and then use that calculated data in a subsequent `ParDo` transform that filters scores that exceed the weighted value. To do this, we can pass the calculated average to as a [side input]({{ site.baseurl }}/documentation/programming-guide/#side-inputs) to the filtering `ParDo`.
 
