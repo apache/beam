@@ -751,40 +751,12 @@ artifactId=${project.name}
         }
         project.artifacts.archives project.javadocJar
 
-        // Only sign artifacts if we are performing a release
-        if (isRelease(project)) {
-          project.apply plugin: "signing"
-          project.signing {
-            useGpgCmd()
-            // Drop the unshaded jar because we don't want to publish it.
-            // Otherwise the unshaded one is the only one published since they
-            // both have no classifier and the names conflict.
-            def unshaded = project.configurations.archives.getArtifacts().matching({ artifact ->
-              artifact.classifier == ""
-            }).toList()
-            project.configurations.archives.getArtifacts().removeAll(unshaded)
-            sign project.configurations.archives
-          }
-
-          project.model {
-            tasks.generatePomFileForMavenJavaPublication {
-              destination = project.file("${project.buildDir}/publications/mavenJava/pom.xml")
-            }
-            tasks.publishMavenJavaPublicationToMavenLocal { dependsOn project.tasks.signArchives }
-            tasks.publishMavenJavaPublicationToMavenRepository { dependsOn project.tasks.signArchives }
-          }
-        }
-
-        project.uploadArchives {
-          repositories {
-            mavenDeployer {
-              beforeDeployment { deployment -> isRelease() && signing.signPom(deployment) }
-            }
-          }
-        }
-
         project.publishing {
           repositories {
+            maven {
+              name "testPublicationLocal"
+              url "file://${project.rootProject.projectDir}/testPublication/"
+            }
             maven {
               url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease()
                       ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
@@ -942,34 +914,16 @@ artifactId=${project.name}
   limitations under the License.
 ''')
                 elem.insertBefore(hdr, elem.getFirstChild())
-
-                // create the sign pom artifact
-                def pomFile = project.file("${project.buildDir}/publications/mavenJava/pom.xml")
-                writeTo(pomFile)
-                if (isRelease()) {
-                  def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                  artifact(pomAscFile) {
-                    classifier = null
-                    extension = 'pom.asc'
-                  }
-                }
-              }
-
-              // create the signed artifacts
-              if (isRelease(project)) {
-                project.tasks.signArchives.signatureFiles.each {
-                  artifact(it) {
-                    def matcher = it.file =~ /-(tests|sources|test-sources|javadoc)\.jar\.asc$/
-                    if (matcher.find()) {
-                      classifier = matcher.group(1)
-                    } else {
-                      classifier = null
-                    }
-                    extension = 'jar.asc'
-                  }
-                }
               }
             }
+          }
+        }
+        // Only sign artifacts if we are performing a release
+        if (isRelease(project)) {
+          project.apply plugin: "signing"
+          project.signing {
+            useGpgCmd()
+            sign project.publishing.publications
           }
         }
       }
