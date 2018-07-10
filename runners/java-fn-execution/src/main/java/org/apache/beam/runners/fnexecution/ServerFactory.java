@@ -21,16 +21,16 @@ package org.apache.beam.runners.fnexecution;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.net.HostAndPort;
-import io.grpc.BindableService;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.netty.NettyServerBuilder;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
+import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyServerBuilder;
 
 /** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {
