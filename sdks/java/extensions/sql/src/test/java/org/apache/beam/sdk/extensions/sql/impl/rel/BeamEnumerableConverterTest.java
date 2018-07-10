@@ -136,7 +136,8 @@ public class BeamEnumerableConverterTest {
             null,
             null,
             false,
-            new FakeTable());
+            new FakeTable(),
+            null);
 
     Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
     Enumerator<Object> enumerator = enumerable.enumerator();
