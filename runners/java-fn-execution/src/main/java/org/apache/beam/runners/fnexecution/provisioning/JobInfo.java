@@ -19,9 +19,9 @@
 package org.apache.beam.runners.fnexecution.provisioning;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.Struct;
 import java.io.Serializable;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 
 /**
  * A subset of {@link org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo} that

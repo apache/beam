@@ -21,7 +21,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.protobuf.Struct;
 import java.io.IOException;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -29,6 +28,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
