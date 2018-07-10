@@ -27,7 +27,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -365,7 +365,8 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
+                          pCollectionIdsToConsumers,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
@@ -426,7 +427,8 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
+                          pCollectionIdsToConsumers,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
