@@ -53,6 +53,8 @@ class InteractiveRunner(runners.PipelineRunner):
   """
 
   def __init__(self, underlying_runner=direct_runner.BundleBasedDirectRunner()):
+    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
+    # once interactive_runner works with FnAPI mode
     self._underlying_runner = underlying_runner
     self._cache_manager = CacheManager()
 

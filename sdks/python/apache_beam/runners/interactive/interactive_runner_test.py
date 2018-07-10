@@ -43,7 +43,7 @@ def print_with_message(msg):
 class InteractiveRunnerTest(unittest.TestCase):
 
   def test_basic(self):
-    # TODO(qinyeli) remove explicitly overriding underlying runner
+    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
     # once interactive_runner works with FnAPI mode
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
@@ -68,7 +68,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         words = text_line.split()
         return words
 
-    # TODO(qinyeli) remove explicitly overriding underlying runner
+    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
     # once interactive_runner works with FnAPI mode
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
