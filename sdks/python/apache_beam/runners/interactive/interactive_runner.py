@@ -162,7 +162,6 @@ class InteractiveRunner(runners.PipelineRunner):
         cache_manager=self._cache_manager,
         referenced_pcollections=referenced_pcollections,
         required_transforms=required_transforms)
-    display.update_display(True)
     display.start_periodic_update()
     result = pipeline_slice.run()
     result.wait_until_finish()

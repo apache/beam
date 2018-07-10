@@ -143,6 +143,7 @@ class DisplayManager(object):
 
   def start_periodic_update(self):
     """Start a thread that periodically updates the display."""
+    self.update_display(True)
     self._periodic_update = True
 
     def _updater():
