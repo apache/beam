@@ -6,7 +6,7 @@
 # Per-language reviewers.
 *.go @herohde @person2 @person3
 *.java @person1 @person2 @person3
-*.py @pabloem @person2 @person3
+*.py @pabloem @robertwb @person3
 
 # SDK components reviewers.
 /sdks/go/ @herohde @person2 @person3
@@ -98,9 +98,9 @@ build.gradle @person1 @person2 @person3
 /examples/java @person1 @person2 @person3
 
 /model @herohde @person2 @person3
-/model/fn-execution @herohde @person2 @person3
-/model/job-management @herohde @person2 @person3
-/model/pipeline @herohde @person2 @person3
+/model/fn-execution @herohde @robertwb @person3
+/model/job-management @herohde @robertwb @person3
+/model/pipeline @herohde @robertwb @person3
 
 /website @person1 @person2 @person3
 /website/src @person1 @person2 @person3
