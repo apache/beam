@@ -168,8 +168,8 @@ class InteractiveRunner(runners.PipelineRunner):
     result.wait_until_finish()
     display.stop_periodic_update()
 
-    return PipelineResult(result, self, original_context, pipeline_info,
-                          self._cache_manager, pcolls_to_pcoll_id)
+    return PipelineResult(result, self, pipeline_info, self._cache_manager,
+                          pcolls_to_pcoll_id)
 
   def _pcolls_to_pcoll_id(self, pipeline, original_context):
     """Returns a dict mapping PCollections string to PCollection IDs.
@@ -332,26 +332,36 @@ class PipelineInfo(object):
     return self._producers[pcoll_id]
 
   def derivation(self, pcoll_id):
-    """Returns the Deviation corresponding to the PCollection."""
+    """Returns the Derivation corresponding to the PCollection."""
     if pcoll_id not in self._derivations:
       transform_id, output_tag = self._producers[pcoll_id]
       transform_proto = self._proto.transforms[transform_id]
       self._derivations[pcoll_id] = Derivation({
           input_tag: self.derivation(input_id)
           for input_tag, input_id in transform_proto.inputs.items()
-      }, {
-          'urn': transform_proto.spec.urn,
-          'payload': transform_proto.spec.payload.decode('latin1')
-      }, output_tag)
+      }, transform_proto, output_tag)
     return self._derivations[pcoll_id]
 
 
 class Derivation(object):
-  """Helper for PipelineInfo."""
+  """Records derivation info of a PCollection. Helper for PipelineInfo."""
 
-  def __init__(self, inputs, transform_info, output_tag):
+  def __init__(self, inputs, transform_proto, output_tag):
+    """Constructor of Derivation.
+
+    Args:
+      inputs: (Dict[str, str]) a dict that contains input PCollections to the
+        producing PTransform of the output PCollection. Maps local names to IDs.
+      transform_proto: (Transform proto) the producing PTransform of the output
+        PCollection.
+      output_tag: (str) local name of the output PCollection; this is the
+        PCollection in analysis.
+    """
     self._inputs = inputs
-    self._transform_info = transform_info
+    self._transform_info = {
+        'urn': transform_proto.spec.urn,
+        'payload': transform_proto.spec.payload.decode('latin1')
+    }
     self._output_tag = output_tag
     self._hash = None
 
@@ -383,6 +393,7 @@ class Derivation(object):
 
 
 class SafeFastPrimitivesCoder(coders.Coder):
+  """This class add an quote/unquote step to escape special characters."""
 
   def encode(self, value):
     return urllib.quote(coders.coders.FastPrimitivesCoder().encode(value))
@@ -401,11 +412,10 @@ def set_proto_map(proto_map, new_value):
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
 
-  def __init__(self, underlying_result, runner, context, pipeline_info,
-               cache_manager, pcolls_to_pcoll_id):
+  def __init__(self, underlying_result, runner, pipeline_info, cache_manager,
+               pcolls_to_pcoll_id):
     super(PipelineResult, self).__init__(underlying_result.state)
     self._runner = runner
-    self._pipeline_context = context
     self._pipeline_info = pipeline_info
     self._cache_manager = cache_manager
     self._pcolls_to_pcoll_id = pcolls_to_pcoll_id

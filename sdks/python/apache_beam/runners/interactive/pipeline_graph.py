@@ -97,7 +97,6 @@ class PipelineGraph(object):
       vertex_dict[transform.unique_name] = {}
 
       for pcoll_id in transform.outputs.values():
-
         # For PCollections without consuming PTransforms, we add an invisible
         # PTransform node as the consumer.
         if pcoll_id not in self._consumers:
