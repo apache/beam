@@ -105,7 +105,8 @@ job('beam_SeedJob') {
   steps {
     dsl {
       // A list or a glob of other groovy files to process.
-      external('.test-infra/jenkins/job_*.groovy')
+      external('.test-infra/jenkins/*.groovy')
+      external('.test-infra/jenkins/**/*.groovy')
 
       // If a job is removed from the script, disable it (rather than deleting).
       removeAction('DISABLE')

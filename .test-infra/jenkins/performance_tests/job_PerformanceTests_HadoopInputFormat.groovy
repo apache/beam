@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import CommonProperties as commonProperties
+import common.CommonPropertiesFromDir as commonProperties
 
 String jobName = "beam_PerformanceTests_HadoopInputFormat"
 
