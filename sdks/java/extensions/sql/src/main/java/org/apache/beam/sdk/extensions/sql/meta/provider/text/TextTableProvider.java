@@ -37,6 +37,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -132,10 +133,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public PCollection<Row> expand(PCollection<String> input) {
-      return input.apply(
-          "linesToRows",
-          MapElements.into(TypeDescriptors.rows())
-              .via(s -> Row.withSchema(SCHEMA).addValue(s).build()));
+      return input
+          .apply(
+              "linesToRows",
+              MapElements.into(TypeDescriptors.rows())
+                  .via(s -> Row.withSchema(SCHEMA).addValue(s).build()))
+          .setSchema(SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity());
     }
   }
 

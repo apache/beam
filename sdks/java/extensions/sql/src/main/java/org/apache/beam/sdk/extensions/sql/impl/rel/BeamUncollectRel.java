@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -68,7 +69,8 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
       PCollection<Row> uncollected =
           upstream
               .apply(ParDo.of(new UncollectDoFn(outputSchema)))
-              .setCoder(outputSchema.getRowCoder());
+              .setSchema(
+                  outputSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
 
       return uncollected;
     }

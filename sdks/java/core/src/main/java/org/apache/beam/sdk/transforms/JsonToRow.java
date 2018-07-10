@@ -98,7 +98,7 @@ public class JsonToRow {
                       context.output(jsonToRow(objectMapper(), context.element()));
                     }
                   }))
-          .setCoder(schema.getRowCoder());
+          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
     }
 
     private ObjectMapper objectMapper() {

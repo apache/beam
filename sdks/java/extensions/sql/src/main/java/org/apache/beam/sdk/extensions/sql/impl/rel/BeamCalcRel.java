@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -72,9 +73,16 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
 
       BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamCalcRel.this.getProgram());
 
+      Schema schema = CalciteUtils.toBeamSchema(rowType);
       PCollection<Row> projectStream =
-          upstream.apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))));
-      projectStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+          upstream
+              .apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))))
+              .setSchema(
+                  schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+      projectStream.setSchema(
+          CalciteUtils.toBeamSchema(getRowType()),
+          SerializableFunctions.identity(),
+          SerializableFunctions.identity());
 
       return projectStream;
     }
@@ -93,7 +101,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
   }
 
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */
-  public static class CalcFn extends DoFn<Row, Row> {
+  private static class CalcFn extends DoFn<Row, Row> {
     private BeamSqlExpressionExecutor executor;
     private Schema outputSchema;
 
