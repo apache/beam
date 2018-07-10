@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -189,37 +190,40 @@ public class BeamJoinTransforms {
 
     @Override
     public PCollection<Row> expand(PCollection<Row> input) {
-      return input.apply(
-          "join_as_lookup",
-          ParDo.of(
-              new DoFn<Row, Row>() {
-                @Setup
-                public void setup() {
-                  seekableTable.setUp();
-                }
+      return input
+          .apply(
+              "join_as_lookup",
+              ParDo.of(
+                  new DoFn<Row, Row>() {
+                    @Setup
+                    public void setup() {
+                      seekableTable.setUp();
+                    }
 
-                @ProcessElement
-                public void processElement(ProcessContext context) {
-                  Row factRow = context.element();
-                  Row joinSubRow = extractJoinSubRow(factRow);
-                  List<Row> lookupRows = seekableTable.seekRow(joinSubRow);
-                  for (Row lr : lookupRows) {
-                    context.output(combineTwoRowsIntoOneHelper(factRow, lr));
-                  }
-                }
+                    @ProcessElement
+                    public void processElement(ProcessContext context) {
+                      Row factRow = context.element();
+                      Row joinSubRow = extractJoinSubRow(factRow);
+                      List<Row> lookupRows = seekableTable.seekRow(joinSubRow);
+                      for (Row lr : lookupRows) {
+                        context.output(combineTwoRowsIntoOneHelper(factRow, lr));
+                      }
+                    }
 
-                @Teardown
-                public void teardown() {
-                  seekableTable.tearDown();
-                }
+                    @Teardown
+                    public void teardown() {
+                      seekableTable.tearDown();
+                    }
 
-                private Row extractJoinSubRow(Row factRow) {
-                  List<Object> joinSubsetValues =
-                      factJoinIdx.stream().map(factRow::getValue).collect(toList());
+                    private Row extractJoinSubRow(Row factRow) {
+                      List<Object> joinSubsetValues =
+                          factJoinIdx.stream().map(factRow::getValue).collect(toList());
 
-                  return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
-                }
-              }));
+                      return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
+                    }
+                  }))
+          .setSchema(
+              joinSubsetType, SerializableFunctions.identity(), SerializableFunctions.identity());
     }
   }
 }

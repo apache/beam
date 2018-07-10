@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -27,19 +29,21 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.reflect.InferredRowCoder;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Tests for automatic inferring schema from the input {@link PCollection} of pojos. */
-public class InferredRowCoderSqlTest {
+/** Tests for automatic inferring schema from the input {@link PCollection} of JavaBeans. */
+public class InferredJavaBeanSqlTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  /** Person POJO. */
-  public static class PersonPojo implements Serializable {
+  /** Person Bean. */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class PersonBean implements Serializable {
     private Integer ageYears;
     private String name;
+
+    public PersonBean() {}
 
     public Integer getAgeYears() {
       return ageYears;
@@ -49,16 +53,27 @@ public class InferredRowCoderSqlTest {
       return name;
     }
 
-    PersonPojo(String name, Integer ageYears) {
+    PersonBean(String name, Integer ageYears) {
       this.ageYears = ageYears;
+      this.name = name;
+    }
+
+    public void setAgeYears(Integer ageYears) {
+      this.ageYears = ageYears;
+    }
+
+    public void setName(String name) {
       this.name = name;
     }
   }
 
-  /** Order POJO. */
-  public static class OrderPojo implements Serializable {
+  /** Order JavaBean. */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class OrderBean implements Serializable {
     private Integer amount;
     private String buyerName;
+
+    public OrderBean() {}
 
     public Integer getAmount() {
       return amount;
@@ -68,20 +83,25 @@ public class InferredRowCoderSqlTest {
       return buyerName;
     }
 
-    OrderPojo(String buyerName, Integer amount) {
+    OrderBean(String buyerName, Integer amount) {
       this.amount = amount;
+      this.buyerName = buyerName;
+    }
+
+    public void setAmount(Integer amount) {
+      this.amount = amount;
+    }
+
+    public void setBuyerName(String buyerName) {
       this.buyerName = buyerName;
     }
   }
 
   @Test
   public void testSelect() {
-    PCollection<PersonPojo> input =
+    PCollection<PersonBean> input =
         PBegin.in(pipeline)
-            .apply(
-                "input",
-                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
-                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
+            .apply("input", Create.of(new PersonBean("Foo", 5), new PersonBean("Bar", 53)));
 
     String sql = "SELECT name, ageYears FROM PCOLLECTION";
 
@@ -101,12 +121,9 @@ public class InferredRowCoderSqlTest {
 
   @Test
   public void testProject() {
-    PCollection<PersonPojo> input =
+    PCollection<PersonBean> input =
         PBegin.in(pipeline)
-            .apply(
-                "input",
-                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
-                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
+            .apply("input", Create.of(new PersonBean("Foo", 5), new PersonBean("Bar", 53)));
 
     String sql = "SELECT name FROM PCOLLECTION";
 
@@ -123,25 +140,21 @@ public class InferredRowCoderSqlTest {
 
   @Test
   public void testJoin() {
-    PCollection<PersonPojo> people =
+    PCollection<PersonBean> people =
         PBegin.in(pipeline)
-            .apply(
-                "people",
-                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
-                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
+            .apply("people", Create.of(new PersonBean("Foo", 5), new PersonBean("Bar", 53)));
 
-    PCollection<OrderPojo> orders =
+    PCollection<OrderBean> orders =
         PBegin.in(pipeline)
             .apply(
                 "orders",
                 Create.of(
-                        new OrderPojo("Foo", 15),
-                        new OrderPojo("Foo", 10),
-                        new OrderPojo("Foo", 5),
-                        new OrderPojo("Bar", 53),
-                        new OrderPojo("Bar", 54),
-                        new OrderPojo("Bar", 55))
-                    .withCoder(InferredRowCoder.ofSerializable(OrderPojo.class)));
+                    new OrderBean("Foo", 15),
+                    new OrderBean("Foo", 10),
+                    new OrderBean("Foo", 5),
+                    new OrderBean("Bar", 53),
+                    new OrderBean("Bar", 54),
+                    new OrderBean("Bar", 55)));
 
     String sql =
         "SELECT name, amount "
@@ -170,25 +183,21 @@ public class InferredRowCoderSqlTest {
 
   @Test
   public void testAggregation() {
-    PCollection<PersonPojo> people =
+    PCollection<PersonBean> people =
         PBegin.in(pipeline)
-            .apply(
-                "people",
-                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
-                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
+            .apply("people", Create.of(new PersonBean("Foo", 5), new PersonBean("Bar", 53)));
 
-    PCollection<OrderPojo> orders =
+    PCollection<OrderBean> orders =
         PBegin.in(pipeline)
             .apply(
                 "orders",
                 Create.of(
-                        new OrderPojo("Foo", 15),
-                        new OrderPojo("Foo", 10),
-                        new OrderPojo("Foo", 5),
-                        new OrderPojo("Bar", 53),
-                        new OrderPojo("Bar", 54),
-                        new OrderPojo("Bar", 55))
-                    .withCoder(InferredRowCoder.ofSerializable(OrderPojo.class)));
+                    new OrderBean("Foo", 15),
+                    new OrderBean("Foo", 10),
+                    new OrderBean("Foo", 5),
+                    new OrderBean("Bar", 53),
+                    new OrderBean("Bar", 54),
+                    new OrderBean("Bar", 55)));
 
     String sql =
         "SELECT name, SUM(amount) as total "

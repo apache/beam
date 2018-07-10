@@ -57,7 +57,10 @@ public class JsonToRowTest implements Serializable {
                 jsonPerson("person5", "40", "true")));
 
     PCollection<Row> personRows =
-        jsonPersons.apply(JsonToRow.withSchema(personSchema)).setCoder(personSchema.getRowCoder());
+        jsonPersons
+            .apply(JsonToRow.withSchema(personSchema))
+            .setSchema(
+                personSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     PAssert.that(personRows)
         .containsInAnyOrder(

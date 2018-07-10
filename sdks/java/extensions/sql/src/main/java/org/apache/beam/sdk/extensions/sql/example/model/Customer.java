@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
 
 /** Describes a customer. */
+@DefaultSchema(JavaBeanSchema.class)
 public class Customer implements Serializable {
   private String name;
   private int id;
@@ -31,6 +34,8 @@ public class Customer implements Serializable {
     this.countryOfResidence = countryOfResidence;
   }
 
+  public Customer() {}
+
   public String getName() {
     return name;
   }
@@ -41,5 +46,17 @@ public class Customer implements Serializable {
 
   public String getCountryOfResidence() {
     return countryOfResidence;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public void setCountryOfResidence(String countryOfResidence) {
+    this.countryOfResidence = countryOfResidence;
   }
 }

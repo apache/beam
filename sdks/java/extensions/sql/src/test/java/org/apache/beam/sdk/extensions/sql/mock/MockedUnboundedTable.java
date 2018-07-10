@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -88,7 +89,9 @@ public class MockedUnboundedTable extends MockedTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    TestStream.Builder<Row> values = TestStream.create(schema.getRowCoder());
+    TestStream.Builder<Row> values =
+        TestStream.create(
+            schema, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
