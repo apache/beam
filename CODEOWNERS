@@ -20,7 +20,7 @@
 /sdks/java/extensions/protobuf @person1 @person2 @person3
 /sdks/java/extensions/sketching @person1 @person2 @person3
 /sdks/java/extensions/sorter @person1 @person2 @person3
-/sdks/java/extensions/sql @person1 @person2 @person3
+/sdks/java/extensions/sql @akedin @apilloud @amaliujia @XuMingmin @xumingming
 /sdks/java/container @herohde @person2 @person3
 /sdks/java/fn-execution @lcwik @person2 @person3
 /sdks/java/nexmark @person1 @person2 @aromanenko-dev
