@@ -27,9 +27,9 @@
 /sdks/java/build-tools @person1 @person2 @person3
 /sdks/java/harness @person1 @person2 @person3
 /sdks/java/io @person1 @person2 @person3
-/sdks/java/io/parquet @person1 @person2 @person3
+/sdks/java/io/parquet @lgajowy @person2 @person3
 /sdks/java/io/common @person1 @person2 @person3
-/sdks/java/io/file-based-io-tests @person1 @person2 @person3
+/sdks/java/io/file-based-io-tests @lgajowy @kkucharc @person3
 /sdks/java/io/elasticsearch-tests @person1 @person2 @person3
 /sdks/java/io/amazon-web-services @person1 @person2 @person3
 /sdks/java/io/google-cloud-platform @person1 @person2 @person3
@@ -73,10 +73,10 @@
 
 # Build and test infrastructure reviewers.
 /.github @person1 @person2 @person3
-/.test-infra @person1 @person2 @person3
-/.test-infra/jenkins @person1 @person2 @person3
+/.test-infra @lgajowy @person2 @person3
+/.test-infra/jenkins @lgajowy @kkucharc @person3
 /.test-infra/jupyter @person1 @person2 @person3
-/.test-infra/kubernetes @person1 @person2 @person3
+/.test-infra/kubernetes @lgajowy @kkucharc @person3
 /buildSrc @person1 @person2 @person3
 /gradle @person1 @person2 @person3
 /release @person1 @person2 @person3
