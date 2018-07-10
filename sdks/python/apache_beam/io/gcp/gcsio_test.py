@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 """Tests for Google Cloud Storage client."""
+from __future__ import absolute_import
 from __future__ import division
 
 import errno

@@ -49,6 +49,9 @@ class FakeFile(io.BytesIO):
   def __eq__(self, other):
     return self.stat == other.stat and self.getvalue() == self.getvalue()
 
+  def __hash__(self):
+    return hash((self.stat, self.getvalue()))
+
   def close(self):
     self.saved_data = self.getvalue()
     io.BytesIO.close(self)

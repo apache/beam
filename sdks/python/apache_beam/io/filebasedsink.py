@@ -373,6 +373,9 @@ class FileBasedSink(iobase.Sink):
     # pylint: disable=unidiomatic-typecheck
     return type(self) == type(other) and self.__dict__ == other.__dict__
 
+  def __hash__(self):
+    return hash((type(self), self.__dict__))
+
 
 class FileBasedSinkWriter(iobase.Writer):
   """The writer for FileBasedSink.

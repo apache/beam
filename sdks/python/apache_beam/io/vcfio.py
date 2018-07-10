@@ -29,6 +29,7 @@ from builtins import object
 from collections import namedtuple
 
 from future.utils import iteritems
+from past.builtins import long
 from past.builtins import unicode
 
 import vcf
@@ -123,6 +124,9 @@ class Variant(object):
     return (isinstance(other, Variant) and
             vars(self) == vars(other))
 
+  def __hash__(self):
+    return hash((type(self), vars(self)))
+
   def __repr__(self):
     return ', '.join(
         [str(s) for s in [self.reference_name,
@@ -214,6 +218,9 @@ class VariantCall(object):
   def __eq__(self, other):
     return ((self.name, self.genotype, self.phaseset, self.info) ==
             (other.name, other.genotype, other.phaseset, other.info))
+
+  def __hash__(self):
+    return hash((self.name, self.genotype, self.phaseset, self.info))
 
   def __repr__(self):
     return ', '.join(
@@ -407,7 +414,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, int, str, unicode, bool))):
+              isinstance(data, (int, float, long, str, unicode, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)
