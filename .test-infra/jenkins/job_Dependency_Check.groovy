@@ -16,34 +16,34 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 job('beam_Dependency_Check') {
   description('Runs Beam dependency check.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonProperties.setTopLevelMainJobProperties(delegate)
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
+  commonProperties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Beam Dependency Check',
     'Run Dependency Check')
 
   // This is a job that runs weekly.
-  common_job_properties.setAutoJob(
+  commonProperties.setAutoJob(
     delegate,
     '0 12 * * 1')
 
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonProperties.checkoutDir)
       tasks(':runBeamDependencyCheck')
-      common_job_properties.setGradleSwitches(delegate)
+      commonProperties.setGradleSwitches(delegate)
       switches('-Drevision=release')
     }
 
-    shell('cd ' + common_job_properties.checkoutDir +
+    shell('cd ' + commonProperties.checkoutDir +
             ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
   }
 

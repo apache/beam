@@ -16,21 +16,21 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 job(jobName) {
     // Set default Beam job properties.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+    commonProperties.setTopLevelMainJobProperties(delegate)
 
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
-    common_job_properties.setAutoJob(
+    commonProperties.setAutoJob(
             delegate,
             'H */6 * * *')
 
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
+    commonProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
             'Java MongoDBIO Performance Test',
             'Run Java MongoDBIO Performance Test')
@@ -41,8 +41,8 @@ job(jobName) {
             numberOfRecords: '10000000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace(jobName)
-    String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
+    String namespace = commonProperties.getKubernetesNamespace(jobName)
+    String kubeconfig = commonProperties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [
             kubeconfig              : kubeconfig,
@@ -52,13 +52,13 @@ job(jobName) {
             beam_sdk                : 'java',
             beam_it_module          : 'sdks/java/io/mongodb',
             beam_it_class           : 'org.apache.beam.sdk.io.mongodb.MongoDBIOIT',
-            beam_it_options         : common_job_properties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml'),
-            beam_options_config_file: common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/pkb-config.yml'),
+            beam_it_options         : commonProperties.joinPipelineOptions(pipelineOptions),
+            beam_kubernetes_scripts : commonProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml'),
+            beam_options_config_file: commonProperties.makePathAbsolute('src/.test-infra/kubernetes/mongodb/load-balancer/pkb-config.yml'),
             bigquery_table          : 'beam_performance.mongodbioit_pkb_results'
     ]
 
-    common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
-    common_job_properties.buildPerformanceTest(delegate, testArgs)
-    common_job_properties.cleanupKubernetes(delegate, namespace, kubeconfig)
+    commonProperties.setupKubernetes(delegate, namespace, kubeconfig)
+    commonProperties.buildPerformanceTest(delegate, testArgs)
+    commonProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
 }
