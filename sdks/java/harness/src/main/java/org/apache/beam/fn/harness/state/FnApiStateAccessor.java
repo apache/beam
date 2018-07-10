@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,6 +57,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 public class FnApiStateAccessor implements SideInputReader, StateBinder {
