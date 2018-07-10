@@ -341,8 +341,8 @@ class _AvroBlock(object):
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
       # We take care to avoid extra copies of data while slicing large objects
-      # by use of a buffer.
-      result = snappy.decompress(buffer(data)[:-4])
+      # by use of a memoryview.
+      result = snappy.decompress(memoryview(data)[:-4])
       avroio.BinaryDecoder(io.BytesIO(data[-4:])).check_crc32(result)
       return result
     else:
