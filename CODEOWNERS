@@ -4,24 +4,17 @@
 # https://help.github.com/articles/about-codeowners/
 
 # Per-language reviewers.
-*.go @person1 @person2 @person3
+*.go @herohde @person2 @person3
 *.java @person1 @person2 @person3
 *.py @pabloem @person2 @person3
 
 # SDK components reviewers.
-/sdks/go/ @person1 @person2 @person3
-/sdks/go/test/integration @person1 @person2 @person3
-/sdks/go/test/regression @person1 @person2 @person3
-/sdks/go/examples @person1 @person2 @person3
-/sdks/go/container @person1 @person2 @person3
-/sdks/go/data @person1 @person2 @person3
-/sdks/go/pkg @person1 @person2 @person3
-/sdks/go/cmd @person1 @person2 @person3
+/sdks/go/ @herohde @person2 @person3
 
 /sdks/java/ @person1 @person2 @person3
 /sdks/java/core @person1 @person2 @person3
 /sdks/java/extensions @person1 @person2 @person3
-/sdks/java/container @person1 @person2 @person3
+/sdks/java/container @herohde @person2 @person3
 /sdks/java/fn-execution @person1 @person2 @person3
 /sdks/java/nexmark @person1 @person2 @person3
 /sdks/java/build-tools @person1 @person2 @person3
@@ -56,7 +49,7 @@
 
 /sdks/python/ @person1 @person2 @person3
 /sdks/python/scripts @person1 @person2 @person3
-/sdks/python/container @person1 @person2 @person3
+/sdks/python/container @herohde @person2 @person3
 /sdks/python/apache_beam/runners @pabloem @person2 @person3
 /sdks/python/apache_beam/utils @pabloem @person2 @person3
 /sdks/python/apache_beam/examples @person1 @person2 @person3
@@ -87,7 +80,7 @@ build.gradle @person1 @person2 @person3
 # Even more components reviewers.
 /runners @person1 @person2 @person3
 /runners/samza @person1 @person2 @person3
-/runners/gcp @pabloem @person2 @person3
+/runners/gcp @pabloem @herohde @person3
 /runners/apex @person1 @person2 @person3
 /runners/core-java @person1 @person2 @person3
 /runners/local-java @person1 @person2 @person3
@@ -104,10 +97,10 @@ build.gradle @person1 @person2 @person3
 /examples @person1 @person2 @person3
 /examples/java @person1 @person2 @person3
 
-/model @person1 @person2 @person3
-/model/fn-execution @person1 @person2 @person3
-/model/job-management @person1 @person2 @person3
-/model/pipeline @person1 @person2 @person3
+/model @herohde @person2 @person3
+/model/fn-execution @herohde @person2 @person3
+/model/job-management @herohde @person2 @person3
+/model/pipeline @herohde @person2 @person3
 
 /website @person1 @person2 @person3
 /website/src @person1 @person2 @person3
