@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
@@ -45,7 +46,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * {@link org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin} when one side of
  * the join fits in memory so it can be distributed in hashmap with the other side.
  */
-public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
+public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
 
   public static boolean hasFitsInMemoryHint(Operator operator) {
     return operator != null
@@ -121,9 +122,9 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
     }
     final Dataset leftDataset = inputs.get(0);
     final Dataset rightDataset = inputs.get(1);
-    return (operator.getType() == Join.Type.LEFT && hasFitsInMemoryHint(rightDataset.getProducer())
-            || operator.getType() == Join.Type.RIGHT
-                && hasFitsInMemoryHint(leftDataset.getProducer()))
+    Type type = operator.getType();
+    return ((type == Join.Type.LEFT && hasFitsInMemoryHint(rightDataset.getProducer()))
+            || (type == Join.Type.RIGHT && hasFitsInMemoryHint(leftDataset.getProducer())))
         && isAllowedWindowing(operator.getWindowing());
   }
 

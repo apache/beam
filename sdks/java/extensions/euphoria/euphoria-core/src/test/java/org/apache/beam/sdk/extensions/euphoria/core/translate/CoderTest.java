@@ -100,16 +100,16 @@ public class CoderTest {
   @Test
   public void testLambdaReturnType() {
 
-    assertEquals(String.class, translationContext.getLambdaReturnType(unaryFunction));
+    assertEquals(String.class, TranslationContext.getLambdaReturnType(unaryFunction));
 
     UnaryFunction<String, Pair<String, String>> unaryFunction2 = a -> Pair.of(a, a);
 
-    assertEquals(Pair.class, translationContext.getLambdaReturnType(unaryFunction2));
+    assertEquals(Pair.class, TranslationContext.getLambdaReturnType(unaryFunction2));
 
     //noinspection Convert2Lambda - test returning type for anonymous inner class
     assertEquals(
         Integer.class,
-        translationContext.getLambdaReturnType(
+        TranslationContext.getLambdaReturnType(
             new AnonymousClass() {
               @Override
               public Integer testMethod() {
@@ -123,5 +123,5 @@ public class CoderTest {
     Integer testMethod();
   }
 
-  private class NotSerializableClass {}
+  private static class NotSerializableClass {}
 }

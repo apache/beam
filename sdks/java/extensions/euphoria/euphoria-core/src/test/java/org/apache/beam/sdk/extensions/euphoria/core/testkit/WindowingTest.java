@@ -18,20 +18,14 @@
 package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
@@ -45,9 +39,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TimeTrigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
@@ -226,46 +217,47 @@ public class WindowingTest extends AbstractOperatorTest {
           @Override
           protected Dataset<Triple<Instant, Instant, Integer>> getOutput(
               Dataset<Pair<Instant, String>> input) {
-            CSession windowing =
-                new CSession(Duration.ofMinutes(5)) {
-                  @Override
-                  public TriggerResult onElement(
-                      long time, TimeInterval window, TriggerContext ctx) {
-                    ValueStorage<Integer> str = ctx.getValueStorage(CSession.TR_STATE);
-                    str.set(str.get() + 1);
-                    return super.onElement(time, window, ctx);
-                  }
+            /*CSession windowing =
+            new CSession(Duration.ofMinutes(5)) {
+              @Override
+              public TriggerResult onElement(
+                  long time, TimeInterval window, TriggerContext ctx) {
+                ValueStorage<Integer> str = ctx.getValueStorage(CSession.TR_STATE);
+                str.set(str.get() + 1);
+                return super.onElement(time, window, ctx);
+              }
 
-                  @Override
-                  public void onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
-                    ctx.mergeStoredState(CSession.TR_STATE);
-                    super.onMerge(window, ctx);
-                  }
+              @Override
+              public void onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
+                ctx.mergeStoredState(CSession.TR_STATE);
+                super.onMerge(window, ctx);
+              }
 
-                  @Override
-                  public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
-                    assertTrState(window, ctx);
-                    return super.onTimer(time, window, ctx);
-                  }
+              @Override
+              public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
+                assertTrState(window, ctx);
+                return super.onTimer(time, window, ctx);
+              }
 
-                  @Override
-                  public void onClear(TimeInterval window, TriggerContext ctx) {
-                    // ~ 7 minutes is the size of the final target window
-                    if (window.getDurationMillis() == Duration.ofMinutes(7).toMillis()) {
-                      assertTrState(window, ctx);
-                      if (!ON_CLEAR_VALIDATED.compareAndSet(false, true)) {
-                        fail("!ON_CLEAR_VALIDATED!");
-                      }
-                    }
-                    ctx.getValueStorage(TR_STATE).clear();
-                    super.onClear(window, ctx);
+              @Override
+              public void onClear(TimeInterval window, TriggerContext ctx) {
+                // ~ 7 minutes is the size of the final target window
+                if (window.getDurationMillis() == Duration.ofMinutes(7).toMillis()) {
+                  assertTrState(window, ctx);
+                  if (!ON_CLEAR_VALIDATED.compareAndSet(false, true)) {
+                    fail("!ON_CLEAR_VALIDATED!");
                   }
+                }
+                ctx.getValueStorage(TR_STATE).clear();
+                super.onClear(window, ctx);
+              }
 
-                  private void assertTrState(TimeInterval window, TriggerContext ctx) {
-                    ValueStorage<Integer> str = ctx.getValueStorage(CSession.TR_STATE);
-                    assertEquals(3, str.get().intValue());
-                  }
-                };
+              private void assertTrState(TimeInterval window, TriggerContext ctx) {
+                ValueStorage<Integer> str = ctx.getValueStorage(CSession.TR_STATE);
+                assertEquals(3, str.get().intValue());
+              }
+            };
+            */
 
             input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
             Dataset<Pair<String, Integer>> pairs =
@@ -431,6 +423,7 @@ public class WindowingTest extends AbstractOperatorTest {
     }
   }
 
+  /*
   static class CSession<T> implements MergingWindowing<T, TimeInterval>, Trigger<TimeInterval> {
 
     static final ValueStorageDescriptor<Integer> TR_STATE =
@@ -493,4 +486,5 @@ public class WindowingTest extends AbstractOperatorTest {
       return wrap.hashCode();
     }
   }
+  */
 }

@@ -20,11 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.time.Duration;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
@@ -101,7 +98,6 @@ public class ReduceWindowTest {
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
-    Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
 
     Dataset<Long> output =
         ReduceWindow.of(dataset)

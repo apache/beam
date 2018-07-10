@@ -56,7 +56,7 @@ public class JoinTest {
             .findFirst()
             .orElse(null);
 
-    assertThat(operatorTranslator, instanceOf(BrodcastHashJoinTranslator.class));
+    assertThat(operatorTranslator, instanceOf(BroadcastHashJoinTranslator.class));
   }
 
   static void checkRightJoin(
