@@ -79,14 +79,14 @@ include:
 
 A typical Beam driver program works as follows:
 
-* Create a `Pipeline` object and set the pipeline execution options, including
+* **Create** a `Pipeline` object and set the pipeline execution options, including
   the Pipeline Runner.
 * Create an initial `PCollection` for pipeline data, either using the IOs
   to read data from an external storage system, or using a `Create` transform to
   build a `PCollection` from in-memory data.
-* Apply **PTransforms** to each `PCollection`. Transforms can change, filter,
+* **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
-  transform creates a new output `PCollection` *without consuming the input
+  transform creates a new output `PCollection` *without modifying the input
   collection*. A typical pipeline applies subsequent transforms to the each new
   output `PCollection` in turn until processing is complete. However, note that
   a pipeline does not have to be a single straight line of transforms applied
@@ -1072,7 +1072,7 @@ If your input `PCollection` uses the default global windowing, the default
 behavior is to return a `PCollection` containing one item. That item's value
 comes from the accumulator in the combine function that you specified when
 applying `Combine`. For example, the Beam provided sum combine function returns
-a zero value (the sum of an empty input), while the max combine function returns
+a zero value (the sum of an empty input), while the min combine function returns
 a maximal or infinite value.
 
 To have `Combine` instead return an empty `PCollection` if the input is empty,
