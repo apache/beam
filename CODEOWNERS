@@ -26,31 +26,31 @@
 /sdks/java/nexmark @person1 @person2 @aromanenko-dev
 /sdks/java/build-tools @jasonkuster @swegner @person3
 /sdks/java/harness @lcwik @person2 @person3
-/sdks/java/io @jbonofre @lcwik @chamikaramj
+/sdks/java/io @jbonofre @lcwik @chamikaramj @timrobertson100
 /sdks/java/io/parquet @lgajowy @jbonofre @aromanenko-dev
-/sdks/java/io/common @chamikaramj @person2 @person3
-/sdks/java/io/file-based-io-tests @lgajowy @kkucharc @chamikaramj
-/sdks/java/io/elasticsearch-tests @person1 @person2 @person3
+/sdks/java/io/common @chamikaramj @timrobertson100 @person3
+/sdks/java/io/file-based-io-tests @lgajowy @kkucharc @chamikaramj @timrobertson100
+/sdks/java/io/elasticsearch-tests @timrobertson100 @person2 @person3
 /sdks/java/io/amazon-web-services @person1 @person2 @person3
 /sdks/java/io/google-cloud-platform @lcwik @chamikaramj @person3
-/sdks/java/io/hadoop-input-format @aromanenko-dev @person2 @person3
-/sdks/java/io/solr @person1 @person2 @person3
+/sdks/java/io/hadoop-input-format @aromanenko-dev @timrobertson100 @person3
+/sdks/java/io/solr @timrobertson100 @person2 @person3
 /sdks/java/io/kinesis @aromanenko-dev @person2 @person3
 /sdks/java/io/redis @jbonofre @person2 @person3
 /sdks/java/io/mongodb @jbonofre @person2 @person3
-/sdks/java/io/hcatalog @person1 @person2 @person3
-/sdks/java/io/elasticsearch @jbonofre @person2 @person3
-/sdks/java/io/jdbc @jbonofre @person2 @person3
+/sdks/java/io/hcatalog @timrobertson100 @person2 @person3
+/sdks/java/io/elasticsearch @jbonofre @timrobertson100 @person3
+/sdks/java/io/jdbc @jbonofre @timrobertson100 @person3
 /sdks/java/io/mqtt @jbonofre @person2 @person3
-/sdks/java/io/hadoop-file-system @person1 @person2 @person3
+/sdks/java/io/hadoop-file-system @timrobertson100 @person2 @person3
 /sdks/java/io/amqp @jbonofre @person2 @person3
 /sdks/java/io/cassandra @jbonofre @person2 @person3
 /sdks/java/io/tika @person1 @person2 @person3
 /sdks/java/io/xml @person1 @person2 @person3
 /sdks/java/io/kafka @person1 @person2 @person3
 /sdks/java/io/jms @jbonofre @person2 @person3
-/sdks/java/io/hbase @person1 @aromanenko-dev @person3
-/sdks/java/io/hadoop-common @person1 @person2 @person3
+/sdks/java/io/hbase @timrobertson100 @aromanenko-dev @person3
+/sdks/java/io/hadoop-common @timrobertson100 @person2 @person3
 /sdks/java/maven-archetypes @person1 @person2 @person3
 /sdks/java/javadoc @melap @person2 @person3
 
@@ -69,7 +69,7 @@
 /sdks/python/apache_beam/transforms @pabloem @aaltay @charlesccychen
 /sdks/python/apache_beam/testing @pabloem @aaltay @person3
 /sdks/python/apache_beam/metrics @pabloem @aaltay @person3
-/sdks/python/apache_beam/io @chamikaramj @aaltay @person3
+/sdks/python/apache_beam/io @chamikaramj @aaltay @udim
 
 # Build and test infrastructure reviewers.
 /.github @person1 @person2 @person3
@@ -109,5 +109,5 @@ build.gradle @lcwik @person2 @person3
 /model/job-management @herohde @robertwb @lcwik
 /model/pipeline @herohde @robertwb @lcwik
 
-/website @melap @person2 @person3
-/website/src @melap @person2 @person3
+/website @melap @timrobertson100 @person3
+/website/src @melap @timrobertson100 @person3
