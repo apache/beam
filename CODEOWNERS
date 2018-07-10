@@ -5,16 +5,16 @@
 
 # Per-language reviewers.
 *.go @herohde @person2 @person3
-*.java @lcwik @kennknowles @aaltay
+*.java @lukecwik @kennknowles @aaltay
 *.py @pabloem @robertwb @aaltay @charlesccychen
 
 # SDK components reviewers.
 /sdks/go/ @herohde @person2 @person3
 
 /sdks/java/ @aaltay @kennknowles @person3
-/sdks/java/core @lcwik @person2 @person3
+/sdks/java/core @lukecwik @person2 @person3
 /sdks/java/extensions @person1 @person2 @person3
-/sdks/java/extensions/google-cloud-platform-core @lcwik @chamikaramj @person3
+/sdks/java/extensions/google-cloud-platform-core @lukecwik @chamikaramj @person3
 /sdks/java/extensions/jackson @person1 @person2 @person3
 /sdks/java/extensions/join-library @person1 @person2 @person3
 /sdks/java/extensions/protobuf @person1 @person2 @person3
@@ -22,17 +22,17 @@
 /sdks/java/extensions/sorter @person1 @person2 @person3
 /sdks/java/extensions/sql @akedin @apilloud @amaliujia @XuMingmin @xumingming @kennknowles
 /sdks/java/container @herohde @aaltay @person3
-/sdks/java/fn-execution @lcwik @person2 @person3
+/sdks/java/fn-execution @lukecwik @person2 @person3
 /sdks/java/nexmark @person1 @person2 @aromanenko-dev
 /sdks/java/build-tools @jasonkuster @swegner @person3
-/sdks/java/harness @lcwik @person2 @person3
-/sdks/java/io @jbonofre @lcwik @chamikaramj @timrobertson100
+/sdks/java/harness @lukecwik @person2 @person3
+/sdks/java/io @jbonofre @lukecwik @chamikaramj @timrobertson100
 /sdks/java/io/parquet @lgajowy @jbonofre @aromanenko-dev
 /sdks/java/io/common @chamikaramj @timrobertson100 @person3
 /sdks/java/io/file-based-io-tests @lgajowy @kkucharc @chamikaramj @timrobertson100
 /sdks/java/io/elasticsearch-tests @timrobertson100 @person2 @person3
 /sdks/java/io/amazon-web-services @person1 @person2 @person3
-/sdks/java/io/google-cloud-platform @lcwik @chamikaramj @person3
+/sdks/java/io/google-cloud-platform @lukecwik @chamikaramj @person3
 /sdks/java/io/hadoop-input-format @aromanenko-dev @timrobertson100 @person3
 /sdks/java/io/solr @timrobertson100 @person2 @person3
 /sdks/java/io/kinesis @aromanenko-dev @person2 @person3
@@ -77,37 +77,37 @@
 /.test-infra/jenkins @lgajowy @kkucharc @person3
 /.test-infra/jupyter @person1 @person2 @person3
 /.test-infra/kubernetes @lgajowy @kkucharc @person3
-/buildSrc @lcwik @person2 @person3
-/gradle @lcwik @person2 @person3
+/buildSrc @lukecwik @person2 @person3
+/gradle @lukecwik @person2 @person3
 /release @jbonofre @person2 @person3
 /release/src @person1 @person2 @person3
 /website/.jenkins @person1 @person2 @person3
-build.gradle @lcwik @person2 @person3
+build.gradle @lukecwik @person2 @person3
 
 # Even more components reviewers.
 /runners @person1 @person2 @person3
 /runners/samza @person1 @person2 @person3
-/runners/gcp @pabloem @herohde @lcwik @aaltay
+/runners/gcp @pabloem @herohde @lukecwik @aaltay
 /runners/apex @person1 @person2 @person3
-/runners/core-java @lcwik @person2 @person3
-/runners/local-java @lcwik @person2 @person3
-/runners/java-fn-execution @lcwik @person2 @person3
-/runners/core-construction-java @lcwik @person2 @person3
+/runners/core-java @lukecwik @person2 @person3
+/runners/local-java @lukecwik @person2 @person3
+/runners/java-fn-execution @lukecwik @person2 @person3
+/runners/core-construction-java @lukecwik @person2 @person3
 /runners/flink @person1 @person2 @person3
 /runners/spark @jbonofre @person2 @person3
-/runners/reference @lcwik @person2 @person3
+/runners/reference @lukecwik @person2 @person3
 /runners/gearpump @person1 @person2 @person3
 /runners/extensions-java @person1 @person2 @person3
-/runners/google-cloud-dataflow-java @pabloem @lcwik @person3
-/runners/direct-java @lcwik @person2 @person3
+/runners/google-cloud-dataflow-java @pabloem @lukecwik @person3
+/runners/direct-java @lukecwik @person2 @person3
 
 /examples @aaltay @person2 @person3
-/examples/java @lcwik @aaltay @person3
+/examples/java @lukecwik @aaltay @person3
 
-/model @herohde @lcwik @person3
-/model/fn-execution @herohde @robertwb @lcwik
-/model/job-management @herohde @robertwb @lcwik
-/model/pipeline @herohde @robertwb @lcwik
+/model @herohde @lukecwik @person3
+/model/fn-execution @herohde @robertwb @lukecwik
+/model/job-management @herohde @robertwb @lukecwik
+/model/pipeline @herohde @robertwb @lukecwik
 
 /website @melap @timrobertson100 @person3
 /website/src @melap @timrobertson100 @person3
