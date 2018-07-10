@@ -5,34 +5,34 @@
 
 # Per-language reviewers.
 *.go @herohde @person2 @person3
-*.java @lcwik @person2 @person3
-*.py @pabloem @robertwb @person3
+*.java @lcwik @kennknowles @aaltay
+*.py @pabloem @robertwb @aaltay @charlesccychen
 
 # SDK components reviewers.
 /sdks/go/ @herohde @person2 @person3
 
-/sdks/java/ @person1 @person2 @person3
+/sdks/java/ @aaltay @kennknowles @person3
 /sdks/java/core @lcwik @person2 @person3
 /sdks/java/extensions @person1 @person2 @person3
-/sdks/java/extensions/google-cloud-platform-core @lcwik @person2 @person3
+/sdks/java/extensions/google-cloud-platform-core @lcwik @chamikaramj @person3
 /sdks/java/extensions/jackson @person1 @person2 @person3
 /sdks/java/extensions/join-library @person1 @person2 @person3
 /sdks/java/extensions/protobuf @person1 @person2 @person3
 /sdks/java/extensions/sketching @person1 @person2 @person3
 /sdks/java/extensions/sorter @person1 @person2 @person3
-/sdks/java/extensions/sql @akedin @apilloud @amaliujia @XuMingmin @xumingming
-/sdks/java/container @herohde @person2 @person3
+/sdks/java/extensions/sql @akedin @apilloud @amaliujia @XuMingmin @xumingming @kennknowles
+/sdks/java/container @herohde @aaltay @person3
 /sdks/java/fn-execution @lcwik @person2 @person3
 /sdks/java/nexmark @person1 @person2 @aromanenko-dev
-/sdks/java/build-tools @person1 @person2 @person3
+/sdks/java/build-tools @jasonkuster @swegner @person3
 /sdks/java/harness @lcwik @person2 @person3
-/sdks/java/io @jbonofre @lcwik @person3
+/sdks/java/io @jbonofre @lcwik @chamikaramj
 /sdks/java/io/parquet @lgajowy @jbonofre @aromanenko-dev
-/sdks/java/io/common @person1 @person2 @person3
-/sdks/java/io/file-based-io-tests @lgajowy @kkucharc @person3
+/sdks/java/io/common @chamikaramj @person2 @person3
+/sdks/java/io/file-based-io-tests @lgajowy @kkucharc @chamikaramj
 /sdks/java/io/elasticsearch-tests @person1 @person2 @person3
 /sdks/java/io/amazon-web-services @person1 @person2 @person3
-/sdks/java/io/google-cloud-platform @lcwik @person2 @person3
+/sdks/java/io/google-cloud-platform @lcwik @chamikaramj @person3
 /sdks/java/io/hadoop-input-format @aromanenko-dev @person2 @person3
 /sdks/java/io/solr @person1 @person2 @person3
 /sdks/java/io/kinesis @aromanenko-dev @person2 @person3
@@ -52,24 +52,24 @@
 /sdks/java/io/hbase @person1 @aromanenko-dev @person3
 /sdks/java/io/hadoop-common @person1 @person2 @person3
 /sdks/java/maven-archetypes @person1 @person2 @person3
-/sdks/java/javadoc @person1 @person2 @person3
+/sdks/java/javadoc @melap @person2 @person3
 
-/sdks/python/ @person1 @person2 @person3
-/sdks/python/scripts @person1 @person2 @person3
-/sdks/python/container @herohde @person2 @person3
-/sdks/python/apache_beam/runners @pabloem @person2 @person3
-/sdks/python/apache_beam/utils @pabloem @person2 @person3
-/sdks/python/apache_beam/examples @person1 @person2 @person3
-/sdks/python/apache_beam/internal @person1 @person2 @person3
+/sdks/python/ @aaltay @charlesccychen @person3
+/sdks/python/scripts @aaltay @person2 @person3
+/sdks/python/container @herohde @aaltay @person3
+/sdks/python/apache_beam/runners @pabloem @charlesccychen @person3
+/sdks/python/apache_beam/utils @pabloem @charlesccychen @person3
+/sdks/python/apache_beam/examples @aaltay @person2 @person3
+/sdks/python/apache_beam/internal @aaltay @person2 @person3
 /sdks/python/apache_beam/tools @pabloem @person2 @person3
-/sdks/python/apache_beam/coders @person1 @person2 @person3
-/sdks/python/apache_beam/portability @person1 @person2 @person3
-/sdks/python/apache_beam/typehints @person1 @person2 @person3
-/sdks/python/apache_beam/options @pabloem @person2 @person3
-/sdks/python/apache_beam/transforms @pabloem @person2 @person3
-/sdks/python/apache_beam/testing @pabloem @person2 @person3
-/sdks/python/apache_beam/metrics @pabloem @person2 @person3
-/sdks/python/apache_beam/io @person1 @person2 @person3
+/sdks/python/apache_beam/coders @charlesccychen @person2 @person3
+/sdks/python/apache_beam/portability @charlesccychen @robertwb @aaltay
+/sdks/python/apache_beam/typehints @charlesccychen @person2 @person3
+/sdks/python/apache_beam/options @pabloem @charlesccychen @person3
+/sdks/python/apache_beam/transforms @pabloem @aaltay @person3
+/sdks/python/apache_beam/testing @pabloem @aaltay @person3
+/sdks/python/apache_beam/metrics @pabloem @aaltay @person3
+/sdks/python/apache_beam/io @chamikaramj @aaltay @person3
 
 # Build and test infrastructure reviewers.
 /.github @person1 @person2 @person3
@@ -87,7 +87,7 @@ build.gradle @lcwik @person2 @person3
 # Even more components reviewers.
 /runners @person1 @person2 @person3
 /runners/samza @person1 @person2 @person3
-/runners/gcp @pabloem @herohde @lcwik
+/runners/gcp @pabloem @herohde @lcwik @aaltay
 /runners/apex @person1 @person2 @person3
 /runners/core-java @lcwik @person2 @person3
 /runners/local-java @lcwik @person2 @person3
@@ -101,13 +101,13 @@ build.gradle @lcwik @person2 @person3
 /runners/google-cloud-dataflow-java @pabloem @lcwik @person3
 /runners/direct-java @lcwik @person2 @person3
 
-/examples @person1 @person2 @person3
-/examples/java @lcwik @person2 @person3
+/examples @aaltay @person2 @person3
+/examples/java @lcwik @aaltay @person3
 
 /model @herohde @lcwik @person3
 /model/fn-execution @herohde @robertwb @lcwik
 /model/job-management @herohde @robertwb @lcwik
 /model/pipeline @herohde @robertwb @lcwik
 
-/website @person1 @person2 @person3
-/website/src @person1 @person2 @person3
+/website @melap @person2 @person3
+/website/src @melap @person2 @person3
