@@ -96,6 +96,7 @@ public class OutputDeduplicatorTest {
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one)),
             ImmutableList.of(PipelineNode.pCollection(oneOut.getUniqueName(), oneOut)));
     ExecutableStage twoStage =
@@ -103,6 +104,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("two", two)),
             ImmutableList.of(PipelineNode.pCollection(twoOut.getUniqueName(), twoOut)));
@@ -186,6 +188,7 @@ public class OutputDeduplicatorTest {
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
             ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
@@ -194,6 +197,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("two", two), PipelineNode.pTransform("shared", shared)),
@@ -296,6 +300,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one), sharedTransform),
             ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
@@ -436,6 +441,7 @@ public class OutputDeduplicatorTest {
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("multi", three),
                 PipelineNode.pTransform("shared", shared),
@@ -449,6 +455,7 @@ public class OutputDeduplicatorTest {
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
             ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
@@ -457,6 +464,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("two", two),

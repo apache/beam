@@ -26,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -80,6 +81,9 @@ public interface ExecutableStage {
    */
   Collection<SideInputReference> getSideInputs();
 
+  /** Returns the set of {@link PTransformNode PTransforms} that contain user state. */
+  Collection<UserStateReference> getUserStates();
+
   /**
    * Returns the leaf {@link PCollectionNode PCollections} of this {@link ExecutableStage}.
    *
@@ -132,8 +136,14 @@ public interface ExecutableStage {
       payload.addSideInputs(
           SideInputId.newBuilder()
               .setTransformId(sideInput.transform().getId())
-              .setLocalName(sideInput.localName())
-              .build());
+              .setLocalName(sideInput.localName()));
+    }
+
+    for (UserStateReference userState : getUserStates()) {
+      payload.addUserStates(
+          UserStateId.newBuilder()
+              .setTransformId(userState.transform().getId())
+              .setLocalName(userState.localName()));
     }
 
     int outputIndex = 0;
@@ -179,6 +189,7 @@ public interface ExecutableStage {
   static ExecutableStage fromPayload(ExecutableStagePayload payload) {
     Components components = payload.getComponents();
     Environment environment = payload.getEnvironment();
+
     PCollectionNode input =
         PipelineNode.pCollection(
             payload.getInput(), components.getPcollectionsOrThrow(payload.getInput()));
@@ -187,6 +198,12 @@ public interface ExecutableStage {
             .getSideInputsList()
             .stream()
             .map(sideInputId -> SideInputReference.fromSideInputId(sideInputId, components))
+            .collect(Collectors.toList());
+    List<UserStateReference> userStates =
+        payload
+            .getUserStatesList()
+            .stream()
+            .map(userStateId -> UserStateReference.fromUserStateId(userStateId, components))
             .collect(Collectors.toList());
     List<PTransformNode> transforms =
         payload
@@ -201,6 +218,6 @@ public interface ExecutableStage {
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
     return ImmutableExecutableStage.of(
-        components, environment, input, sideInputs, transforms, outputs);
+        components, environment, input, sideInputs, userStates, transforms, outputs);
   }
 }
