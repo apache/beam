@@ -56,7 +56,7 @@ buildscript {
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
     classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"                                      // Enable a code formatting plugin
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.9"                                       // Enable Go code compilation
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.10"                                      // Enable Go code compilation
     classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
     classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
     classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
@@ -174,16 +174,15 @@ task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
 
-  // TODO: reenable when https://github.com/gogradle/gogradle/issues/225 is fixed
-  // dependsOn ":beam-sdks-go-examples:build"
-  // dependsOn ":beam-sdks-go-test:build"
+  dependsOn ":beam-sdks-go-examples:build"
+  dependsOn ":beam-sdks-go-test:build"
 
   // Ensure all container Go boot code builds as well.
-  // dependsOn ":beam-sdks-java-container:build"
-  // dependsOn ":beam-sdks-python-container:build"
-  // dependsOn ":beam-sdks-go-container:build"
-  // dependsOn ":beam-runners-gcp-gcemd:build"
-  // dependsOn ":beam-runners-gcp-gcsproxy:build"
+  dependsOn ":beam-sdks-java-container:build"
+  dependsOn ":beam-sdks-python-container:build"
+  dependsOn ":beam-sdks-go-container:build"
+  dependsOn ":beam-runners-gcp-gcemd:build"
+  dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {
