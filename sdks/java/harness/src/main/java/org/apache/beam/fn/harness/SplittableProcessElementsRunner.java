@@ -36,9 +36,11 @@ import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElement
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableProcessElementInvoker;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -82,7 +84,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
           context,
           windowedCoder,
           (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
-              (Collection) context.tagToConsumer.get(context.mainOutputTag),
+              (Collection) context.localNameToConsumer.get(context.mainOutputTag.getId()),
           Iterables.getOnlyElement(context.pTransform.getInputsMap().keySet()));
     }
   }
@@ -196,7 +198,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
                       Collection<? extends BoundedWindow> windows,
                       PaneInfo pane) {
                     Collection<FnDataReceiver<WindowedValue<AdditionalOutputT>>> consumers =
-                        (Collection) context.tagToConsumer.get(tag);
+                        (Collection) context.localNameToConsumer.get(tag.getId());
                     if (consumers == null) {
                       throw new IllegalArgumentException(
                           String.format("Unknown output tag %s", tag));
@@ -245,6 +247,12 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
                   .setDelaySec(0.001 * result.getContinuation().resumeDelay().getMillis())
                   .build()));
     }
+  }
+
+  @Override
+  public void processTimer(
+      String timerId, TimeDomain timeDomain, WindowedValue<KV<Object, Timer>> input) {
+    throw new UnsupportedOperationException("Timers are unsupported in a SplittableDoFn.");
   }
 
   @Override
