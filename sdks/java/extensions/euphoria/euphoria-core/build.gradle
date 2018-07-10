@@ -39,7 +39,7 @@ dependencies {
     testCompile library.java.hamcrest_library
     testCompile library.java.slf4j_simple
     testCompile library.java.mockito_core
-    testCompile project(path: ":beam-sdks-java-core", configuration: "testArtifact")
+    testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     testCompile project(':beam-runners-direct-java')
 }
 
