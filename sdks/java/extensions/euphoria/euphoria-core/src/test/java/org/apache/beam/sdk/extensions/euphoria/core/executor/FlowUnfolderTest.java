@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Iterables;
@@ -137,7 +138,7 @@ public class FlowUnfolderTest {
     Node<Operator<?, ?>> secondFlatMap =
         getOnlyAndValidate(firstReduceStateByKey.getChildren(), FlatMap.class);
     // the second flatMap is the second input to the union
-    assertTrue(union == getOnlyAndValidate(secondFlatMap.getChildren(), Union.class));
+    assertSame(union, getOnlyAndValidate(secondFlatMap.getChildren(), Union.class));
   }
 
   @Test(expected = IllegalArgumentException.class)

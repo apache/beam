@@ -39,6 +39,7 @@ final class NanosecondTimer implements Timer, Snapshotable<Map<Duration, Long>> 
     add(duration.toNanos(), TimeUnit.NANOSECONDS);
   }
 
+  @Override
   public Map<Duration, Long> getSnapshot() {
     Map<Duration, Long> m = Maps.newHashMapWithExpectedSize(hist.buckets.size());
     hist.buckets.forEach((key, count) -> m.put(Duration.ofNanos(key), count));

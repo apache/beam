@@ -181,7 +181,8 @@ class TranslationContext {
     return inferCoderFromLambda(unaryFunction).orElse(getFallbackCoder(unaryFunction));
   }
 
-  <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunctor<InputT, OutputT> unaryFunctor) {
+  private <InputT, OutputT> Coder<OutputT> getCoderBasedOnFunctor(
+      UnaryFunctor<InputT, OutputT> unaryFunctor) {
     if (unaryFunctor instanceof TypeAwareUnaryFunctor) {
       return getCoder(((TypeAwareUnaryFunctor<InputT, OutputT>) unaryFunctor).getTypeDescriptor());
     }
@@ -261,7 +262,7 @@ class TranslationContext {
     Operator<?, ?> op = dataset.getProducer();
     if (op instanceof FlatMap) {
       FlatMap<?, T> m = (FlatMap) op;
-      return getCoder(m.getFunctor());
+      return getCoderBasedOnFunctor(m.getFunctor());
     } else if (op instanceof Union) {
       Union<T> u = (Union) op;
       Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));

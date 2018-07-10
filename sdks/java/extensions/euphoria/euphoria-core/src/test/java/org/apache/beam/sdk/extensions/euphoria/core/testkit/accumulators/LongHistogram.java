@@ -38,6 +38,7 @@ final class LongHistogram implements Histogram, Snapshotable<Map<Long, Long>> {
     add(value, 1);
   }
 
+  @Override
   public Map<Long, Long> getSnapshot() {
     return new HashMap<>(buckets);
   }
