@@ -180,6 +180,10 @@ class GreedyPCollectionFusers {
     // side inputs can be fused with other transforms in the same environment which are not
     // upstream of any of the side inputs.
     return pipeline.getSideInputs(parDo).isEmpty()
+        // Since we lack the ability to mark upstream transforms as key preserving, we
+        // purposefully break fusion here to provide runners the opportunity to insert a
+        // grouping operation
+        && pipeline.getUserStates(parDo).isEmpty()
         && compatibleEnvironments(parDo, other, pipeline);
   }
 

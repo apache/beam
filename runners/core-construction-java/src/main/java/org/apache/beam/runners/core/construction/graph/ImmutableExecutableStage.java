@@ -35,6 +35,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
       Environment environment,
       PCollectionNode input,
       Collection<SideInputReference> sideInputs,
+      Collection<UserStateReference> userStates,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     Components prunedComponents =
@@ -46,7 +47,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
                     .stream()
                     .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)))
             .build();
-    return of(prunedComponents, environment, input, sideInputs, transforms, outputs);
+    return of(prunedComponents, environment, input, sideInputs, userStates, transforms, outputs);
   }
 
   public static ImmutableExecutableStage of(
@@ -54,6 +55,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
       Environment environment,
       PCollectionNode input,
       Collection<SideInputReference> sideInputs,
+      Collection<UserStateReference> userStates,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     return new AutoValue_ImmutableExecutableStage(
@@ -61,6 +63,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
         environment,
         input,
         ImmutableSet.copyOf(sideInputs),
+        ImmutableSet.copyOf(userStates),
         ImmutableSet.copyOf(transforms),
         ImmutableSet.copyOf(outputs));
   }
@@ -77,6 +80,9 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
 
   @Override
   public abstract Collection<SideInputReference> getSideInputs();
+
+  @Override
+  public abstract Collection<UserStateReference> getUserStates();
 
   @Override
   public abstract Collection<PTransformNode> getTransforms();
