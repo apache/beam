@@ -174,8 +174,7 @@ class GcsIO(object):
             credentials=credentials,
             get_credentials=False,
             http=get_new_http())
-        local_state.gcsio_instance = (
-            super(GcsIO, cls).__new__(cls, storage_client))
+        local_state.gcsio_instance = super(GcsIO, cls).__new__(cls)
         local_state.gcsio_instance.client = storage_client
       return local_state.gcsio_instance
 
