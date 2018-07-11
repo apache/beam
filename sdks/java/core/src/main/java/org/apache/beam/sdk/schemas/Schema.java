@@ -579,14 +579,7 @@ public class Schema implements Serializable {
   private static Schema fromFields(List<Field> fields) {
     return new Schema(fields);
   }
-
-  // TODO: Remove this function!
-  /** Return the coder for a {@link Row} with this schema. */
-  @Deprecated
-  public RowCoder getRowCoder() {
-    return RowCoder.of(this);
-  }
-
+  
   /** Return the list of all field names. */
   public List<String> getFieldNames() {
     return getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());
