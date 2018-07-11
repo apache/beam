@@ -26,7 +26,6 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -71,8 +70,7 @@ public class SqlQuery2Test {
 
   @Test
   public void testSkipsEverySecondElement() throws Exception {
-    PCollection<Event> bids =
-        testPipeline.apply(Create.of(BIDS_EVENTS));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery2(2))).containsInAnyOrder(BIDS_EVEN);
 
@@ -81,8 +79,7 @@ public class SqlQuery2Test {
 
   @Test
   public void testSkipsEveryThirdElement() throws Exception {
-    PCollection<Event> bids =
-        testPipeline.apply(Create.of(BIDS_EVENTS));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery2(3))).containsInAnyOrder(BIDS_EVERY_THIRD);
 
@@ -90,8 +87,7 @@ public class SqlQuery2Test {
   }
 
   private static Bid newBid(long id) {
-    return new Bid(id, 3L, 100L,
-        new DateTime(432342L + id), "extra_" + id);
+    return new Bid(id, 3L, 100L, new DateTime(432342L + id), "extra_" + id);
   }
 
   private static AuctionPrice newAuctionPrice(Bid bid) {

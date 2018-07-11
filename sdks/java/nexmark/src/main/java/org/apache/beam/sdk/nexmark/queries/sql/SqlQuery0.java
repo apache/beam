@@ -60,14 +60,16 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> 
 
   @Override
   public PCollection<Bid> expand(PCollection<Event> allEvents) {
-     PCollection<Row> rows =  allEvents
+    PCollection<Row> rows =
+        allEvents
             .apply(Filter.by(IS_BID))
             .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
 
-     return rows.apply(getName() + ".Serialize", logBytesMetric(rows.getCoder()))
-         .apply(QUERY)
-         .apply(Convert.fromRows(Bid.class));
+    return rows.apply(getName() + ".Serialize", logBytesMetric(rows.getCoder()))
+        .apply(QUERY)
+        .apply(Convert.fromRows(Bid.class));
   }
+
   private PTransform<? super PCollection<Row>, PCollection<Row>> logBytesMetric(
       final Coder<Row> coder) {
 

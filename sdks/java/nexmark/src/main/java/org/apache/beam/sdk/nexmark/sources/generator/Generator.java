@@ -223,8 +223,8 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
 
     Event event;
     if (rem < GeneratorConfig.PERSON_PROPORTION) {
-      event = new Event(nextPerson(newEventId, random,
-          new DateTime(adjustedEventTimestamp), config));
+      event =
+          new Event(nextPerson(newEventId, random, new DateTime(adjustedEventTimestamp), config));
     } else if (rem < GeneratorConfig.PERSON_PROPORTION + GeneratorConfig.AUCTION_PROPORTION) {
       event =
           new Event(

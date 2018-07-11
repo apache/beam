@@ -73,8 +73,16 @@ public class AuctionGenerator {
     int currentSize = 8 + name.length() + desc.length() + 8 + 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.getAvgAuctionByteSize());
     return new Auction(
-        id, name, desc, initialBid, reserve,
-        new DateTime(timestamp), new Instant(expires), seller, category, extra);
+        id,
+        name,
+        desc,
+        initialBid,
+        reserve,
+        new DateTime(timestamp),
+        new Instant(expires),
+        seller,
+        category,
+        extra);
   }
 
   /**

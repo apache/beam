@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link Schema} describes the fields in {@link Row}. */
@@ -579,7 +578,7 @@ public class Schema implements Serializable {
   private static Schema fromFields(List<Field> fields) {
     return new Schema(fields);
   }
-  
+
   /** Return the list of all field names. */
   public List<String> getFieldNames() {
     return getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());

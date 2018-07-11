@@ -28,7 +28,6 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -89,8 +88,7 @@ public class SqlQuery3Test {
 
   @Test
   public void testJoinsPeopleWithAuctions() throws Exception {
-    PCollection<Event> events =
-        testPipeline.apply(Create.of(PEOPLE_AND_AUCTIONS_EVENTS));
+    PCollection<Event> events = testPipeline.apply(Create.of(PEOPLE_AND_AUCTIONS_EVENTS));
 
     PAssert.that(events.apply(new SqlQuery3(new NexmarkConfiguration())))
         .containsInAnyOrder(RESULTS);

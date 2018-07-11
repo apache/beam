@@ -34,17 +34,13 @@ import org.junit.Test;
 /** Unit tests for {@link SqlQuery1}. */
 public class SqlQuery1Test {
 
-  private static final Bid BID1_USD = new Bid(5L, 3L, 100L,
-      new DateTime(43234234L), "extra1");
+  private static final Bid BID1_USD = new Bid(5L, 3L, 100L, new DateTime(43234234L), "extra1");
 
-  private static final Bid BID2_USD = new Bid(6L, 4L, 500L,
-      new DateTime(13234234L), "extra2");
+  private static final Bid BID2_USD = new Bid(6L, 4L, 500L, new DateTime(13234234L), "extra2");
 
-  private static final Bid BID1_EUR = new Bid(5L, 3L, 89L,
-      new DateTime(43234234L), "extra1");
+  private static final Bid BID1_EUR = new Bid(5L, 3L, 89L, new DateTime(43234234L), "extra1");
 
-  private static final Bid BID2_EUR = new Bid(6L, 4L, 445L,
-      new DateTime(13234234L), "extra2");
+  private static final Bid BID2_EUR = new Bid(6L, 4L, 445L, new DateTime(13234234L), "extra2");
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
@@ -60,9 +56,9 @@ public class SqlQuery1Test {
     PCollection<Event> bids =
         testPipeline.apply(
             TestStream.create(
-                registry.getSchema(Event.class),
-                registry.getToRowFunction(Event.class),
-                registry.getFromRowFunction(Event.class))
+                    registry.getSchema(Event.class),
+                    registry.getToRowFunction(Event.class),
+                    registry.getFromRowFunction(Event.class))
                 .addElements(new Event(BID1_USD))
                 .addElements(new Event(BID2_USD))
                 .advanceWatermarkToInfinity());
