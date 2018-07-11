@@ -16,18 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 
-/** A factory interface for creating {@link FieldValueSetter} objects corresponding to a class. */
-public interface FieldValueSetterFactory extends Serializable {
+/** A factory interface for creating {@link FieldValueGetter} objects corresponding to a class. */
+public interface FieldValueGetterFactory extends Serializable {
   /**
    * Returns a list of {@link FieldValueGetter}s for the target class.
    *
    * <p>The returned list is ordered by the order of matching fields in the schema.
    */
-  List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema);
+  List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema);
 }

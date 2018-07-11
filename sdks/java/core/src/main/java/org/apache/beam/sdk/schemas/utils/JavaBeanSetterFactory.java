@@ -16,5 +16,17 @@
  * limitations under the License.
  */
 
-/** Classes to generate BeamRecords from pojos. */
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas.utils;
+
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
+import org.apache.beam.sdk.schemas.Schema;
+
+/** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
+public class JavaBeanSetterFactory implements FieldValueSetterFactory {
+  @Override
+  public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getSetters(targetClass, schema);
+  }
+}

@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas.utils;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.POJOUtils;
 
 /** A factory for creating {@link FieldValueSetter} objects for a POJO. */
 public class PojoValueSetterFactory implements FieldValueSetterFactory {

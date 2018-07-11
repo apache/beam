@@ -22,10 +22,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
-import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
-import org.apache.beam.sdk.values.reflect.PojoValueGetterFactory;
-import org.apache.beam.sdk.values.reflect.PojoValueSetterFactory;
+import org.apache.beam.sdk.schemas.utils.PojoValueGetterFactory;
+import org.apache.beam.sdk.schemas.utils.PojoValueSetterFactory;
 
 /**
  * A {@link SchemaProvider} for Java POJO objects.
