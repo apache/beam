@@ -91,10 +91,9 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
   public PCollection<NameCityStateId> expand(PCollection<Event> allEvents) {
     PCollection<Event> windowed = fixedWindows(allEvents);
 
-    PCollection<Row> auctions = filter(windowed, e -> e.newAuction != null, Auction.class,
-        Type.AUCTION);
-    PCollection<Row> people = filter(windowed, e -> e.newPerson != null, Person.class,
-        Type.PERSON);
+    PCollection<Row> auctions =
+        filter(windowed, e -> e.newAuction != null, Auction.class, Type.AUCTION);
+    PCollection<Row> people = filter(windowed, e -> e.newPerson != null, Person.class, Type.PERSON);
 
     PCollectionTuple inputStreams = createStreamsTuple(auctions, people);
 
@@ -115,7 +114,9 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
   }
 
   private PCollection<Row> filter(
-      PCollection<Event> allEvents, SerializableFunction<Event, Boolean> filter, Class clazz,
+      PCollection<Event> allEvents,
+      SerializableFunction<Event, Boolean> filter,
+      Class clazz,
       Event.Type eventType) {
 
     String modelName = clazz.getSimpleName();

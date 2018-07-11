@@ -91,8 +91,11 @@ public class RowSizeTest {
   public void testParDoConvertsToRecordSize() throws Exception {
     PCollection<Row> rows =
         testPipeline.apply(
-            TestStream.create(SchemaCoder.of(ROW_TYPE,
-                SerializableFunctions.identity(), SerializableFunctions.identity()))
+            TestStream.create(
+                    SchemaCoder.of(
+                        ROW_TYPE,
+                        SerializableFunctions.identity(),
+                        SerializableFunctions.identity()))
                 .addElements(ROW)
                 .advanceWatermarkToInfinity());
 

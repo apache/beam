@@ -59,8 +59,7 @@ public class SqlQuery7Test {
 
   @Test
   public void testBids() throws Exception {
-    PCollection<Event> bids =
-        testPipeline.apply(Create.of(BIDS_EVENTS));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery7(config))).containsInAnyOrder(RESULTS);
 
@@ -69,7 +68,10 @@ public class SqlQuery7Test {
 
   private static Bid newBid(long auction, long bidder, long price, long index) {
     return new Bid(
-        auction, bidder, price,
-        new DateTime(432342L + index * config.windowSizeSec * 1000), "extra_" + auction);
+        auction,
+        bidder,
+        price,
+        new DateTime(432342L + index * config.windowSizeSec * 1000),
+        "extra_" + auction);
   }
 }

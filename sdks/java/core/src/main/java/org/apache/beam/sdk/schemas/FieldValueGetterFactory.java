@@ -20,13 +20,14 @@ package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.Schema;
 
-/** A factory interface for creating {@link FieldValueGetter} objects corresponding to a class. */
+/**
+ * A factory interface for creating {@link org.apache.beam.sdk.schemas.FieldValueGetter} objects
+ * corresponding to a class.
+ */
 public interface FieldValueGetterFactory extends Serializable {
   /**
-   * Returns a list of {@link FieldValueGetter}s for the target class.
+   * Returns a list of {@link org.apache.beam.sdk.schemas.FieldValueGetter}s for the target class.
    *
    * <p>The returned list is ordered by the order of matching fields in the schema.
    */

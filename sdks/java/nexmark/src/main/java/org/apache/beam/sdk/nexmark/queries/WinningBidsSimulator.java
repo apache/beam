@@ -163,8 +163,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
     TimestampedValue<Event> timestampedEvent = nextInput();
     if (timestampedEvent == null) {
       // No more events. Flush any still open auctions.
-      TimestampedValue<AuctionBid> result =
-          nextWinningBid(BoundedWindow.TIMESTAMP_MAX_VALUE);
+      TimestampedValue<AuctionBid> result = nextWinningBid(BoundedWindow.TIMESTAMP_MAX_VALUE);
       if (result == null) {
         // We are done.
         allDone();

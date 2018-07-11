@@ -20,10 +20,10 @@ package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.schemas.utils.JavaBeanGetterFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanSetterFactory;
+import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link SchemaProvider} for Java Bean objects.

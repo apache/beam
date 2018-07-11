@@ -103,7 +103,7 @@ public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Auctio
             .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
 
     return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
-            .apply(query)
-            .apply(Convert.fromRows(AuctionCount.class));
+        .apply(query)
+        .apply(Convert.fromRows(AuctionCount.class));
   }
 }

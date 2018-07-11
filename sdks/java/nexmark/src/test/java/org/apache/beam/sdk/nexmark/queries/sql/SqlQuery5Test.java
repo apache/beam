@@ -64,8 +64,7 @@ public class SqlQuery5Test {
   public void testBids() throws Exception {
     assertEquals(Long.valueOf(config.windowSizeSec), Long.valueOf(config.windowPeriodSec * 2));
 
-    PCollection<Event> bids =
-        testPipeline.apply(Create.of(BIDS_EVENTS));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery5(config))).containsInAnyOrder(RESULTS);
 
@@ -74,7 +73,10 @@ public class SqlQuery5Test {
 
   private static Bid newBid(long auction, long index) {
     return new Bid(
-        auction, 3L, 100L,
-        new DateTime(432342L + index * config.windowPeriodSec * 1000), "extra_" + auction);
+        auction,
+        3L,
+        100L,
+        new DateTime(432342L + index * config.windowPeriodSec * 1000),
+        "extra_" + auction);
   }
 }

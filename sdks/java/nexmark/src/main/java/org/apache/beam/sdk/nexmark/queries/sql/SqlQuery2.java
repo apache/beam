@@ -59,10 +59,10 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Auctio
 
   @Override
   public PCollection<AuctionPrice> expand(PCollection<Event> allEvents) {
-        return allEvents
-            .apply(Filter.by(IS_BID))
-            .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID))
-            .apply(query)
-            .apply(Convert.fromRows(AuctionPrice.class));
+    return allEvents
+        .apply(Filter.by(IS_BID))
+        .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID))
+        .apply(query)
+        .apply(Convert.fromRows(AuctionPrice.class));
   }
 }

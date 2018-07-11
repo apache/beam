@@ -40,14 +40,13 @@ public class SelectEvent extends PTransform<PCollection<Event>, PCollection<Row>
     switch (eventType) {
       case PERSON:
         return schema.indexOf("newPerson");
-        case AUCTION:
-          return schema.indexOf("newAuction");
-        case BID:
-          return schema.indexOf("bid");
-        default:
-          throw new RuntimeException("Unexpected event type.");
-      }
-
+      case AUCTION:
+        return schema.indexOf("newAuction");
+      case BID:
+        return schema.indexOf("bid");
+      default:
+        throw new RuntimeException("Unexpected event type.");
+    }
   }
 
   @Override
@@ -56,14 +55,18 @@ public class SelectEvent extends PTransform<PCollection<Event>, PCollection<Row>
       throw new RuntimeException("Input PCollection must have a schema!");
     }
     int index = getNestedIndex(input.getSchema());
-    return input.apply(ParDo.of(
-        new DoFn<Event, Row>() {
-          @ProcessElement
-          public void processElement(@Element Row row, OutputReceiver<Row> o) {
-            o.output(row.getRow(index));
-          }
-        }))
-        .setSchema(input.getSchema().getField(index).getType().getRowSchema(),
-            SerializableFunctions.identity(), SerializableFunctions.identity());
+    return input
+        .apply(
+            ParDo.of(
+                new DoFn<Event, Row>() {
+                  @ProcessElement
+                  public void processElement(@Element Row row, OutputReceiver<Row> o) {
+                    o.output(row.getRow(index));
+                  }
+                }))
+        .setSchema(
+            input.getSchema().getField(index).getType().getRowSchema(),
+            SerializableFunctions.identity(),
+            SerializableFunctions.identity());
   }
 }
