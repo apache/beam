@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.functions;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Iterables;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -66,7 +67,7 @@ public class FlinkExecutableStageFunction<InputT>
   private transient RuntimeContext runtimeContext;
   private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
-  private transient StageBundleFactory<InputT> stageBundleFactory;
+  private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
 
   public FlinkExecutableStageFunction(
@@ -109,10 +110,12 @@ public class FlinkExecutableStageFunction<InputT>
     checkState(
         stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
-    try (RemoteBundle<InputT> bundle =
+    try (RemoteBundle bundle =
         stageBundleFactory.getBundle(
             new ReceiverFactory(collector, outputMap), stateRequestHandler, progressHandler)) {
-      FnDataReceiver<WindowedValue<InputT>> receiver = bundle.getInputReceiver();
+      // TODO(BEAM-4681): Add support to Flink to support portable timers.
+      FnDataReceiver<WindowedValue<?>> receiver =
+          Iterables.getOnlyElement(bundle.getInputReceivers().values());
       for (WindowedValue<InputT> input : iterable) {
         receiver.accept(input);
       }

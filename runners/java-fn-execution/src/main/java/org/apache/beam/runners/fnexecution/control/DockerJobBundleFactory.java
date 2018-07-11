@@ -42,7 +42,6 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrie
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
@@ -178,7 +177,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   }
 
   @Override
-  public <T> StageBundleFactory<T> forStage(ExecutableStage executableStage) {
+  public StageBundleFactory forStage(ExecutableStage executableStage) {
     WrappedSdkHarnessClient wrappedClient =
         environmentCache.getUnchecked(executableStage.getEnvironment());
     ExecutableProcessBundleDescriptor processBundleDescriptor;
@@ -238,31 +237,31 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     return Platform.OTHER;
   }
 
-  private static class SimpleStageBundleFactory<InputT> implements StageBundleFactory<InputT> {
+  private static class SimpleStageBundleFactory implements StageBundleFactory {
 
-    private final BundleProcessor<InputT> processor;
+    private final BundleProcessor processor;
     private final ExecutableProcessBundleDescriptor processBundleDescriptor;
 
     // Store the wrapped client in order to keep a live reference into the cache.
     private WrappedSdkHarnessClient wrappedClient;
 
-    static <InputT> SimpleStageBundleFactory<InputT> create(
+    static SimpleStageBundleFactory create(
         WrappedSdkHarnessClient wrappedClient,
         ExecutableProcessBundleDescriptor processBundleDescriptor) {
       @SuppressWarnings("unchecked")
-      BundleProcessor<InputT> processor =
+      BundleProcessor processor =
           wrappedClient
               .getClient()
               .getProcessor(
                   processBundleDescriptor.getProcessBundleDescriptor(),
-                  (RemoteInputDestination) processBundleDescriptor.getRemoteInputDestination(),
+                  processBundleDescriptor.getRemoteInputDestinations(),
                   wrappedClient.getStateServer().getService());
-      return new SimpleStageBundleFactory<>(processBundleDescriptor, processor, wrappedClient);
+      return new SimpleStageBundleFactory(processBundleDescriptor, processor, wrappedClient);
     }
 
     SimpleStageBundleFactory(
         ExecutableProcessBundleDescriptor processBundleDescriptor,
-        BundleProcessor<InputT> processor,
+        BundleProcessor processor,
         WrappedSdkHarnessClient wrappedClient) {
       this.processBundleDescriptor = processBundleDescriptor;
       this.processor = processor;
@@ -270,7 +269,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     }
 
     @Override
-    public RemoteBundle<InputT> getBundle(
+    public RemoteBundle getBundle(
         OutputReceiverFactory outputReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler)

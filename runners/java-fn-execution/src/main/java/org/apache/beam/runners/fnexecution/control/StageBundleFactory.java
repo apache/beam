@@ -28,9 +28,9 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
  * <p>Closing a StageBundleFactory signals that the stage has completed and any resources bound to
  * its lifetime can be cleaned up.
  */
-public interface StageBundleFactory<T> extends AutoCloseable {
+public interface StageBundleFactory extends AutoCloseable {
   /** Get a new {@link RemoteBundle bundle} for processing the data in an executable stage. */
-  RemoteBundle<T> getBundle(
+  RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler)
