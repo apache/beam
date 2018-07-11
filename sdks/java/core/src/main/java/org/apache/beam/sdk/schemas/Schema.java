@@ -580,8 +580,9 @@ public class Schema implements Serializable {
     return new Schema(fields);
   }
 
+  // TODO: Remove this function!
   /** Return the coder for a {@link Row} with this schema. */
-  public RowCoder getRowCoder() {
+  @Deprecated  public RowCoder getRowCoder() {
     return RowCoder.of(this);
   }
 
