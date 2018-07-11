@@ -61,7 +61,7 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
       Queue<Bid> queue = winningBidsPerSeller.get(auction.seller);
       if (queue == null) {
         queue =
-            new PriorityQueue<Bid>(10, (Bid b1, Bid b2) -> Long.compare(b1.dateTime, b2.dateTime));
+            new PriorityQueue<Bid>(10, (Bid b1, Bid b2) -> b1.dateTime.compareTo(b2.dateTime));
       }
       Long total = totalWinningBidPricesPerSeller.get(auction.seller);
       if (total == null) {

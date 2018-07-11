@@ -92,6 +92,11 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
       FieldValueSetter setter = setters.get(i);
+      if (setter == null) {
+        throw new RuntimeException("NULL SETTER FOR " + clazz.getSimpleName()
+            + " field name " + schema.getField(i).getName()
+            + " schema " + schema);
+      }
       setter.set(
           object,
           fromValue(
@@ -112,7 +117,6 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     if (value == null) {
       return null;
     }
-
     if (TypeName.ROW.equals(type.getTypeName())) {
       return (T) fromRow((Row) value, (Class) fieldType);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
