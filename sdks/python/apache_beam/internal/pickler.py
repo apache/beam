@@ -43,7 +43,7 @@ import dill
 # Dill 0.28.0 renamed dill.dill to dill._dill:
 # https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
 # TODO: Remove this once Beam depends on dill >= 0.28
-if not hasattr(dill, 'dill'):
+if not getattr(dill, 'dill', None):
     dill.dill = dill._dill
 
 
