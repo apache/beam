@@ -16,16 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.POJOUtils;
+import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 
-/** A factory for creating {@link FieldValueGetter} objects for a POJO. */
-public class PojoValueGetterFactory implements FieldValueGetterFactory {
-  @Override
-  public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
-    return POJOUtils.getGetters(targetClass, schema);
-  }
+/**
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>An interface to access a field of a class.
+ *
+ * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
+ */
+@Internal
+public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
+  ValueT get(ObjectT object);
+
+  String name();
+
+  Class type();
 }

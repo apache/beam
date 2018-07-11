@@ -35,13 +35,10 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
-import org.apache.beam.sdk.values.reflect.FieldValueSetter;
-import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
 
 /**
  * A {@link SchemaProvider} base class that vends schemas and rows based on {@link
- * org.apache.beam.sdk.values.reflect.FieldValueGetter}s.
+ * FieldValueGetter}s.
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {

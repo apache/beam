@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas.utils;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 
 /** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
 public class JavaBeanGetterFactory implements FieldValueGetterFactory {

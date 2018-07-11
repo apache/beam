@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
 import java.lang.reflect.Type;
