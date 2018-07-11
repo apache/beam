@@ -1329,7 +1329,7 @@ artifactId=${project.name}
         inputs.files project.configurations.shadowTest.artifacts.files
         doLast {
           (project.configurations.shadow.artifacts.files + project.configurations.shadowTest.artifacts.files).each {
-            FileTree exposedClasses = zipTree(it).matching {
+            FileTree exposedClasses = project.zipTree(it).matching {
               include "**/*.class"
               exclude "org/apache/beam/**"
             }
