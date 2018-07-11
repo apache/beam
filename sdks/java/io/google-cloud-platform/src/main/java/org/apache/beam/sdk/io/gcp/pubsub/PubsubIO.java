@@ -33,7 +33,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.naming.SizeLimitExceededException;
-
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -798,15 +797,15 @@ public class PubsubIO {
     }
 
     /**
-     * Writes to Pub/Sub are batched to efficiently send data. The value of the attribute will
-     * be a number representing the number of Pub/Sub messages to queue before sending off the
-     * bulk request. For example, if given 1000 the write sink will wait until 1000 messages have
-     * been received, or the pipeline has finished, whichever is first.
+     * Writes to Pub/Sub are batched to efficiently send data. The value of the attribute will be a
+     * number representing the number of Pub/Sub messages to queue before sending off the bulk
+     * request. For example, if given 1000 the write sink will wait until 1000 messages have been
+     * received, or the pipeline has finished, whichever is first.
      *
      * <p>Pub/Sub has a limitation of 10mb per individual request/batch. This attribute was
      * requested dynamic to allow larger Pub/Sub messages to be sent using this source. Thus
-     * allowing customizable batches and control of number of events before the 10mb size limit
-     * is hit.
+     * allowing customizable batches and control of number of events before the 10mb size limit is
+     * hit.
      */
     public Write<T> withMaxBatchSize(int batchSize) {
       return toBuilder().setMaxBatchSize(batchSize).build();
@@ -863,12 +862,12 @@ public class PubsubIO {
 
       switch (input.isBounded()) {
         case BOUNDED:
-          input.apply(ParDo.of(new PubsubBoundedWriter(
-              MoreObjects.firstNonNull(getMaxBatchSize(),
-                      MAX_PUBLISH_BATCH_SIZE),
-              MoreObjects.firstNonNull(getMaxBatchBytesSize(),
-                      MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT)
-          )));
+          input.apply(
+              ParDo.of(
+                  new PubsubBoundedWriter(
+                      MoreObjects.firstNonNull(getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE),
+                      MoreObjects.firstNonNull(
+                          getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT))));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
           return input
@@ -879,12 +878,12 @@ public class PubsubIO {
                       NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
                       getTimestampAttribute(),
                       getIdAttribute(),
-                      100 /* numShards */)),
-              MoreObjects.firstNonNull(getMaxBatchSize(),
-                      PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
-              MoreObjects.firstNonNull(getMaxBatchBytesSize(),
-                      PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES)
-          ));
+                      100 /* numShards */,
+                      MoreObjects.firstNonNull(
+                          getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
+                      MoreObjects.firstNonNull(
+                          getMaxBatchBytesSize(),
+                          PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES)));
       }
       throw new RuntimeException(); // cases are exhaustive.
     }
@@ -937,14 +936,16 @@ public class PubsubIO {
         Map<String, String> attributes = message.getAttributeMap();
 
         if (payload.length > maxPublishBatchByteSize) {
-          String msg = String.format("Pub/Sub message size (%d) exceeded maximum batch size (%d)",
+          String msg =
+              String.format(
+                  "Pub/Sub message size (%d) exceeded maximum batch size (%d)",
                   payload.length, maxPublishBatchByteSize);
           throw new SizeLimitExceededException(msg);
         }
 
         // Checking before adding the message stops us from violating the max bytes
         if (((currentOutputBytes + payload.length) >= maxPublishBatchByteSize)
-                || (output.size() >= maxPublishBatchSize)) {
+            || (output.size() >= maxPublishBatchSize)) {
           publish();
         }
 
