@@ -50,7 +50,7 @@ class FakeFile(io.BytesIO):
     return self.stat == other.stat and self.getvalue() == self.getvalue()
 
   def __hash__(self):
-    return hash((self.stat, self.getvalue()))
+    return hash((frozenset(self.stat.items()), self.getvalue()))
 
   def close(self):
     self.saved_data = self.getvalue()

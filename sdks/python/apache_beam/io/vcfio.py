@@ -220,7 +220,8 @@ class VariantCall(object):
             (other.name, other.genotype, other.phaseset, other.info))
 
   def __hash__(self):
-    return hash((self.name, self.genotype, self.phaseset, self.info))
+    return hash((self.name, self.genotype,
+                 self.phaseset, frozenset(self.info.items())))
 
   def __repr__(self):
     return ', '.join(

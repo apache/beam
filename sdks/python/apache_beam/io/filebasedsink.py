@@ -374,7 +374,7 @@ class FileBasedSink(iobase.Sink):
     return type(self) == type(other) and self.__dict__ == other.__dict__
 
   def __hash__(self):
-    return hash((type(self), self.__dict__))
+    return hash((type(self), frozenset(self.__dict__.items())))
 
 
 class FileBasedSinkWriter(iobase.Writer):

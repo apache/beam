@@ -28,8 +28,6 @@ from builtins import zip
 
 from past.builtins import long
 
-from past.builtins import long
-
 from apache_beam.io import iobase
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',

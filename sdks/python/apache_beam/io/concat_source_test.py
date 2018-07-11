@@ -76,10 +76,12 @@ class RangeSource(iobase.BoundedSource):
   # For testing
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._start == other._start and self._end == other._end)
+            and self._start == other._start
+            and self._end == other._end
+            and self._split_freq == other._split_freq)
 
   def __hash__(self):
-    return hash((type(self), self._start, self._end))
+    return hash((type(self), self._start, self._end, self._split_freq))
 
   def __ne__(self, other):
     return not self == other
