@@ -17,16 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.rules.CalcRemoveRule;
-import org.apache.calcite.tools.RuleSet;
 
 /** Convertion for Beam SQL. */
 public enum BeamLogicalConvention implements Convention {
@@ -53,14 +49,7 @@ public enum BeamLogicalConvention implements Convention {
   }
 
   @Override
-  public void register(RelOptPlanner planner) {
-    for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
-      for (RelOptRule rule : ruleSet) {
-        planner.addRule(rule);
-      }
-    }
-    planner.removeRule(CalcRemoveRule.INSTANCE);
-  }
+  public void register(RelOptPlanner planner) {}
 
   @Override
   public String toString() {

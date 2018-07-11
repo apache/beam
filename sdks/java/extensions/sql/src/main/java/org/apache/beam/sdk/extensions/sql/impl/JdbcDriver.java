@@ -21,12 +21,14 @@ import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCom
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -37,7 +39,12 @@ import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.jdbc.Driver;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.rel.rules.CalcRemoveRule;
+import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.tools.RuleSet;
 
 /**
  * Calcite JDBC driver with Beam defaults.
@@ -73,6 +80,21 @@ public class JdbcDriver extends Driver {
     } finally {
       Thread.currentThread().setContextClassLoader(origLoader);
     }
+    // inject beam rules into planner
+    Hook.PLANNER.addThread(
+        new Function<RelOptPlanner, Void>() {
+          @Override
+          public Void apply(RelOptPlanner planner) {
+            for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
+              for (RelOptRule rule : ruleSet) {
+                planner.addRule(rule);
+              }
+            }
+            planner.removeRule(CalcRemoveRule.INSTANCE);
+            return null;
+          }
+        });
+    // register JDBC driver
     INSTANCE.register();
   }
 
