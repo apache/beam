@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonProperties as commonProperties
 
 // This job runs the Beam Python performance tests on PerfKit Benchmarker.
 job('beam_PerformanceTests_Python'){
   // Set default Beam job properties.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonProperties.setTopLevelMainJobProperties(delegate)
 
   // Run job in postcommit every 6 hours, don't trigger every push.
-  common_job_properties.setAutoJob(
+  commonProperties.setAutoJob(
       delegate,
       'H */6 * * *')
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
+  commonProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Python SDK Performance Test',
       'Run Python Performance Test')
@@ -52,7 +52,7 @@ job('beam_PerformanceTests_Python'){
       beam_it_args: pipelineArgsJoined
   ]
 
-  common_job_properties.buildPerformanceTest(delegate, argMap)
+  commonProperties.buildPerformanceTest(delegate, argMap)
 
   // [BEAM-3809] Python performance tests are failing.
   disabled()
