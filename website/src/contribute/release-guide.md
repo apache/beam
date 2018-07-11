@@ -301,7 +301,6 @@ Update [sdks/python/apache_beam/version.py](https://github.com/apache/beam/blob/
 
 Update Java runner specific configurations in release branch:
 * [beam/runners/google-cloud-dataflow-java/build.gradle](https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/build.gradle): change value of 'dataflow.container_version' to 'beam-release_version_number'(e.g, 'beam-master-20180601' to 'beam-2.5.0')
-* [beam/runners/google-cloud-dataflow-java/pom.xml](https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/pom.xml): change value of 'version' field (e.g, '2.5.0-SNAPSHOT' to '2.5.0') 
 
 ### Start a snapshot build
 
