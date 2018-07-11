@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // These jobs list details about each beam runner, to clarify what software
 // is on each machine.
@@ -27,13 +27,13 @@ nums.each {
     description("Run inventory on ${machine}")
 
     // Set common parameters.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Sets that this is a cron job.
-    common_job_properties.setCronJob(delegate, '45 18 * * *')
+    commonJobProperties.setCronJob(delegate, '45 18 * * *')
 
     // Allows triggering this build against pull requests.
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
+    commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Machine Inventory',
       "Run Inventory ${machine}")
