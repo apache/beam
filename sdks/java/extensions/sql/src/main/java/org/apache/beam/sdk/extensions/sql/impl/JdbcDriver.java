@@ -81,7 +81,7 @@ public class JdbcDriver extends Driver {
       Thread.currentThread().setContextClassLoader(origLoader);
     }
     // inject beam rules into planner
-    Hook.PLANNER.addThread(
+    Hook.PLANNER.add(
         new Function<RelOptPlanner, Void>() {
           @Override
           public Void apply(RelOptPlanner planner) {
