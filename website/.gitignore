@@ -3,7 +3,7 @@ _site
 .jekyll-metadata
 vendor/
 .bundle/
-.testcontent/
+content/
 
 # Ignore IntelliJ files.
 .idea/

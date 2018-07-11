@@ -129,6 +129,9 @@ rat {
     "**/_config.yml",
     "**/_config_test.yml",
     "**/.htaccess",
+    "website/.bundle/**/*",
+    "website/.sass-cache/**/*",
+    "website/.testcontent/**/*",
     "website/src/_sass/_bootstrap.scss",
     "website/src/_sass/bootstrap/**/*",
     "website/src/js/bootstrap*.js",
@@ -208,6 +211,12 @@ task pythonPreCommit() {
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
+
+task websitePreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-website:preCommit"
+}
+
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
