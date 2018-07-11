@@ -57,6 +57,7 @@ public class ImmutableExecutableStageTest {
                         ParDoPayload.newBuilder()
                             .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
+                            .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
@@ -78,12 +79,16 @@ public class ImmutableExecutableStageTest {
     SideInputReference sideInputRef =
         SideInputReference.of(
             transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+    UserStateReference userStateRef =
+        UserStateReference.of(
+            transformNode, "user_state", PipelineNode.pCollection("input.out", input));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.ofFullComponents(
             components,
             env,
             PipelineNode.pCollection("input.out", input),
             Collections.singleton(sideInputRef),
+            Collections.singleton(userStateRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)));
 
