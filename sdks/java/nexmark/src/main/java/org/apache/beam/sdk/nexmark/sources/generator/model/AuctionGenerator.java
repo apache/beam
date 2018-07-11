@@ -28,6 +28,8 @@ import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerat
 import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
 
 /** AuctionGenerator. */
 public class AuctionGenerator {
@@ -71,7 +73,8 @@ public class AuctionGenerator {
     int currentSize = 8 + name.length() + desc.length() + 8 + 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.getAvgAuctionByteSize());
     return new Auction(
-        id, name, desc, initialBid, reserve, timestamp, expires, seller, category, extra);
+        id, name, desc, initialBid, reserve,
+        new DateTime(timestamp), new Instant(expires), seller, category, extra);
   }
 
   /**

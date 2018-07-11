@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.schemas.utils;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.Maps;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -206,7 +208,7 @@ public class POJOUtils {
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(field.getName()))
         .method(ElementMatchers.named("type"))
-        .intercept(FixedValue.reference(field.getType()))
+        .intercept(FixedValue.reference(checkNotNull(field.getType())))
         .method(ElementMatchers.named("elementType"))
         .intercept(ByteBuddyUtils.getArrayComponentType(TypeDescriptor.of(field.getGenericType())))
         .method(ElementMatchers.named("mapKeyType"))

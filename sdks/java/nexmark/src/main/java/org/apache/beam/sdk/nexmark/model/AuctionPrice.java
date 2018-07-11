@@ -29,8 +29,11 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 
 /** Result of Query2. */
+@DefaultSchema(JavaFieldSchema.class)
 public class AuctionPrice implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
 
@@ -56,14 +59,13 @@ public class AuctionPrice implements KnownSize, Serializable {
         }
       };
 
-  @JsonProperty public final long auction;
+  @JsonProperty public long auction;
 
   /** Price in cents. */
-  @JsonProperty public final long price;
+  @JsonProperty public long price;
 
-  // For Avro only.
   @SuppressWarnings("unused")
-  private AuctionPrice() {
+  public AuctionPrice() {
     auction = 0;
     price = 0;
   }
