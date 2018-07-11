@@ -104,7 +104,10 @@ public class MockedUnboundedTable extends MockedTable {
       }
     }
 
-    return begin.apply(
-        "MockedUnboundedTable_" + COUNTER.incrementAndGet(), values.advanceWatermarkToInfinity());
+    return begin
+        .apply(
+            "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
+            values.advanceWatermarkToInfinity())
+        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
   }
 }
