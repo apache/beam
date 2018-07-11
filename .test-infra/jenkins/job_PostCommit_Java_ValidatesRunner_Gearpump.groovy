@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Gearpump
@@ -29,7 +29,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Gearpum
   previousNames('beam_PostCommit_Java_RunnableOnService_Gearpump')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
+  commonJobProperties.setTopLevelMainJobProperties(
     delegate,
     'master')
 
@@ -41,9 +41,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Gearpum
   // Gradle goals for this job.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-runners-gearpump:validatesRunner')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
     }
   }
 }

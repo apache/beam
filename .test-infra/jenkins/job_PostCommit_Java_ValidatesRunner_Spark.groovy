@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark_G
   previousNames('beam_PostCommit_Java_RunnableOnService_Spark')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
   // Publish all test results to Jenkins
   publishers {
@@ -37,9 +37,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark_G
   // Gradle goals for this job.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-runners-spark:validatesRunner')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
     }
   }
 }
