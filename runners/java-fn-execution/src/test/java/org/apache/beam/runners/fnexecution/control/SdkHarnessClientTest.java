@@ -33,7 +33,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
-import java.io.IOException;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -44,8 +44,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -97,11 +95,70 @@ public class SdkHarnessClientTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private SdkHarnessClient sdkHarnessClient;
+  private ProcessBundleDescriptor descriptor;
+  private BeamFnApi.Target sdkGrpcReadTarget;
+  private BeamFnApi.Target sdkGrpcWriteTarget;
 
   @Before
-  public void setup() {
+  public void setup() throws Exception {
     MockitoAnnotations.initMocks(this);
     sdkHarnessClient = SdkHarnessClient.usingFnApiClient(fnApiControlClient, dataService);
+
+    Pipeline userPipeline = Pipeline.create();
+    TupleTag<String> outputTag = new TupleTag<>();
+    userPipeline
+        .apply("create", Create.of("foo"))
+        .apply("proc", ParDo.of(new TestFn()).withOutputTags(outputTag, TupleTagList.empty()));
+    RunnerApi.Pipeline userProto = PipelineTranslation.toProto(userPipeline);
+
+    ProcessBundleDescriptor.Builder pbdBuilder =
+        ProcessBundleDescriptor.newBuilder()
+            .setId("my_id")
+            .putAllEnvironments(userProto.getComponents().getEnvironmentsMap())
+            .putAllWindowingStrategies(userProto.getComponents().getWindowingStrategiesMap())
+            .putAllCoders(userProto.getComponents().getCodersMap());
+    RunnerApi.Coder fullValueCoder =
+        CoderTranslation.toProto(WindowedValue.getFullCoder(StringUtf8Coder.of(), Coder.INSTANCE))
+            .getCoder();
+    pbdBuilder.putCoders("wire_coder", fullValueCoder);
+
+    PTransform targetProcessor = userProto.getComponents().getTransformsOrThrow("proc");
+    RemoteGrpcPort port =
+        RemoteGrpcPort.newBuilder()
+            .setApiServiceDescriptor(harness.dataEndpoint())
+            .setCoderId("wire_coder")
+            .build();
+    RemoteGrpcPortRead readNode =
+        RemoteGrpcPortRead.readFromPort(
+            port, getOnlyElement(targetProcessor.getInputsMap().values()));
+    RemoteGrpcPortWrite writeNode =
+        RemoteGrpcPortWrite.writeToPort(
+            getOnlyElement(targetProcessor.getOutputsMap().values()), port);
+    // TODO: Ensure cross-env (Runner <-> SDK GRPC Read/Write Node) coders are length-prefixed
+    for (String pc : targetProcessor.getInputsMap().values()) {
+      pbdBuilder.putPcollections(pc, userProto.getComponents().getPcollectionsOrThrow(pc));
+    }
+    for (String pc : targetProcessor.getOutputsMap().values()) {
+      pbdBuilder.putPcollections(pc, userProto.getComponents().getPcollectionsOrThrow(pc));
+    }
+    pbdBuilder
+        .putTransforms("proc", targetProcessor)
+        .putTransforms("read", readNode.toPTransform())
+        .putTransforms("write", writeNode.toPTransform());
+    descriptor = pbdBuilder.build();
+
+    sdkGrpcReadTarget =
+        BeamFnApi.Target.newBuilder()
+            .setName(
+                getOnlyElement(descriptor.getTransformsOrThrow("read").getOutputsMap().keySet()))
+            .setPrimitiveTransformReference("read")
+            .build();
+    sdkGrpcWriteTarget =
+        BeamFnApi.Target.newBuilder()
+            .setName(
+                getOnlyElement(descriptor.getTransformsOrThrow("write").getInputsMap().keySet()))
+            .setPrimitiveTransformReference("write")
+            .build();
   }
 
   @Test
@@ -118,7 +175,7 @@ public class SdkHarnessClientTest {
     RemoteInputDestination<WindowedValue<Integer>> remoteInputs =
         RemoteInputDestination.of(
             FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
-            Target.getDefaultInstance());
+            sdkGrpcReadTarget);
 
     BundleProcessor<?> processor1 = sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
     BundleProcessor<?> processor2 = sdkHarnessClient.getProcessor(descriptor2, remoteInputs);
@@ -144,7 +201,7 @@ public class SdkHarnessClientTest {
     RemoteInputDestination<WindowedValue<Integer>> remoteInputs =
         RemoteInputDestination.of(
             FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
-            Target.getDefaultInstance());
+            sdkGrpcReadTarget);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("containing a state");
@@ -153,10 +210,6 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testNewBundleNoDataDoesNotCrash() throws Exception {
-    String descriptorId1 = "descriptor1";
-
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -166,10 +219,10 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget));
     when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
 
-    try (ActiveBundle<String> activeBundle =
+    try (ActiveBundle activeBundle =
         processor.newBundle(Collections.emptyMap(), BundleProgressHandler.unsupported())) {
       // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
       // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
@@ -185,34 +238,16 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testNewBundleAndProcessElements() throws Exception {
-    ProcessBundleDescriptor processBundleDescriptor =
-        getProcessBundleDescriptor(harness.dataEndpoint());
-
-    BeamFnApi.Target sdkGrpcReadTarget =
-        BeamFnApi.Target.newBuilder()
-            .setName(
-                getOnlyElement(
-                    processBundleDescriptor.getTransformsOrThrow("read").getOutputsMap().keySet()))
-            .setPrimitiveTransformReference("read")
-            .build();
-    BeamFnApi.Target sdkGrpcWriteTarget =
-        BeamFnApi.Target.newBuilder()
-            .setName(
-                getOnlyElement(
-                    processBundleDescriptor.getTransformsOrThrow("write").getInputsMap().keySet()))
-            .setPrimitiveTransformReference("write")
-            .build();
-
     SdkHarnessClient client = harness.client();
     BundleProcessor<String> processor =
         client.getProcessor(
-            processBundleDescriptor,
+            descriptor,
             RemoteInputDestination.of(
                 FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE),
                 sdkGrpcReadTarget));
 
     Collection<WindowedValue<String>> outputs = new ArrayList<>();
-    try (ActiveBundle<String> activeBundle =
+    try (ActiveBundle activeBundle =
         processor.newBundle(
             Collections.singletonMap(
                 sdkGrpcWriteTarget,
@@ -221,7 +256,8 @@ public class SdkHarnessClientTest {
                         LengthPrefixCoder.of(StringUtf8Coder.of()), Coder.INSTANCE),
                     outputs::add)),
             BundleProgressHandler.unsupported())) {
-      FnDataReceiver<WindowedValue<String>> bundleInputReceiver = activeBundle.getInputReceiver();
+      FnDataReceiver<WindowedValue<?>> bundleInputReceiver =
+          Iterables.getOnlyElement(activeBundle.getInputReceivers().values());
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("foo"));
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("bar"));
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("baz"));
@@ -238,14 +274,11 @@ public class SdkHarnessClientTest {
 
   @Test
   public void handleCleanupWhenInputSenderFails() throws Exception {
-    String descriptorId1 = "descriptor1";
     Exception testException = new Exception();
 
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
     CloseableFnDataReceiver mockInputSender = mock(CloseableFnDataReceiver.class);
 
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -255,7 +288,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -265,10 +298,9 @@ public class SdkHarnessClientTest {
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     try {
-      try (ActiveBundle<String> activeBundle =
+      try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
-              mockProgressHandler)) {
+              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver), mockProgressHandler)) {
         // We shouldn't be required to complete the process bundle response future.
       }
       fail("Exception expected");
@@ -282,7 +314,6 @@ public class SdkHarnessClientTest {
 
   @Test
   public void handleCleanupWithStateWhenInputSenderFails() throws Exception {
-    String descriptorId1 = "descriptor1";
     Exception testException = new Exception();
 
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
@@ -295,8 +326,6 @@ public class SdkHarnessClientTest {
     StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -306,9 +335,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor,
-            RemoteInputDestination.of(coder, Target.getDefaultInstance()),
-            mockStateDelegator);
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget), mockStateDelegator);
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -317,9 +344,9 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle =
+      try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
+              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver),
               mockStateHandler,
               mockProgressHandler)) {
         // We shouldn't be required to complete the process bundle response future.
@@ -341,8 +368,6 @@ public class SdkHarnessClientTest {
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
     CloseableFnDataReceiver mockInputSender = mock(CloseableFnDataReceiver.class);
 
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -352,7 +377,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -360,10 +385,9 @@ public class SdkHarnessClientTest {
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     try {
-      try (ActiveBundle<String> activeBundle =
+      try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
-              mockProgressHandler)) {
+              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver), mockProgressHandler)) {
         processBundleResponseFuture.completeExceptionally(testException);
       }
       fail("Exception expected");
@@ -377,7 +401,6 @@ public class SdkHarnessClientTest {
 
   @Test
   public void handleCleanupWithStateWhenProcessingBundleFails() throws Exception {
-    String descriptorId1 = "descriptor1";
     Exception testException = new Exception();
 
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
@@ -389,8 +412,6 @@ public class SdkHarnessClientTest {
     StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -400,18 +421,16 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor,
-            RemoteInputDestination.of(coder, Target.getDefaultInstance()),
-            mockStateDelegator);
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget), mockStateDelegator);
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle =
+      try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
+              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver),
               mockStateHandler,
               mockProgressHandler)) {
         processBundleResponseFuture.completeExceptionally(testException);
@@ -428,14 +447,11 @@ public class SdkHarnessClientTest {
 
   @Test
   public void handleCleanupWhenAwaitingOnClosingOutputReceivers() throws Exception {
-    String descriptorId1 = "descriptor1";
     Exception testException = new Exception();
 
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
     CloseableFnDataReceiver mockInputSender = mock(CloseableFnDataReceiver.class);
 
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -445,7 +461,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
     doThrow(testException).when(mockOutputReceiver).awaitCompletion();
@@ -454,10 +470,9 @@ public class SdkHarnessClientTest {
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     try {
-      try (ActiveBundle<String> activeBundle =
+      try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
-              mockProgressHandler)) {
+              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver), mockProgressHandler)) {
         // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
         // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
         // the response.
@@ -477,7 +492,6 @@ public class SdkHarnessClientTest {
 
   @Test
   public void handleCleanupWithStateWhenAwaitingOnClosingOutputReceivers() throws Exception {
-    String descriptorId1 = "descriptor1";
     Exception testException = new Exception();
 
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
@@ -489,8 +503,6 @@ public class SdkHarnessClientTest {
     StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
-    ProcessBundleDescriptor descriptor =
-        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
@@ -500,9 +512,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor,
-            RemoteInputDestination.of(coder, Target.getDefaultInstance()),
-            mockStateDelegator);
+            descriptor, RemoteInputDestination.of(coder, sdkGrpcReadTarget), mockStateDelegator);
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
     doThrow(testException).when(mockOutputReceiver).awaitCompletion();
@@ -510,9 +520,9 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle =
+      try (ActiveBundle activeBundle =
           processor.newBundle(
-              ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
+              ImmutableMap.of(sdkGrpcWriteTarget, mockRemoteOutputReceiver),
               mockStateHandler,
               mockProgressHandler)) {
         // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
@@ -530,52 +540,6 @@ public class SdkHarnessClientTest {
     } catch (Exception e) {
       assertEquals(testException, e);
     }
-  }
-
-  private BeamFnApi.ProcessBundleDescriptor getProcessBundleDescriptor(
-      Endpoints.ApiServiceDescriptor endpoint) throws IOException {
-    Pipeline userPipeline = Pipeline.create();
-    TupleTag<String> outputTag = new TupleTag<>();
-    userPipeline
-        .apply("create", Create.of("foo"))
-        .apply("proc", ParDo.of(new TestFn()).withOutputTags(outputTag, TupleTagList.empty()));
-    RunnerApi.Pipeline userProto = PipelineTranslation.toProto(userPipeline);
-
-    ProcessBundleDescriptor.Builder pbdBuilder =
-        ProcessBundleDescriptor.newBuilder()
-            .setId("my_id")
-            .putAllEnvironments(userProto.getComponents().getEnvironmentsMap())
-            .putAllWindowingStrategies(userProto.getComponents().getWindowingStrategiesMap())
-            .putAllCoders(userProto.getComponents().getCodersMap());
-    RunnerApi.Coder fullValueCoder =
-        CoderTranslation.toProto(WindowedValue.getFullCoder(StringUtf8Coder.of(), Coder.INSTANCE))
-            .getCoder();
-    pbdBuilder.putCoders("wire_coder", fullValueCoder);
-
-    PTransform targetProcessor = userProto.getComponents().getTransformsOrThrow("proc");
-    RemoteGrpcPort port =
-        RemoteGrpcPort.newBuilder()
-            .setApiServiceDescriptor(endpoint)
-            .setCoderId("wire_coder")
-            .build();
-    RemoteGrpcPortRead readNode =
-        RemoteGrpcPortRead.readFromPort(
-            port, getOnlyElement(targetProcessor.getInputsMap().values()));
-    RemoteGrpcPortWrite writeNode =
-        RemoteGrpcPortWrite.writeToPort(
-            getOnlyElement(targetProcessor.getOutputsMap().values()), port);
-    // TODO: Ensure cross-env (Runner <-> SDK GRPC Read/Write Node) coders are length-prefixed
-    for (String pc : targetProcessor.getInputsMap().values()) {
-      pbdBuilder.putPcollections(pc, userProto.getComponents().getPcollectionsOrThrow(pc));
-    }
-    for (String pc : targetProcessor.getOutputsMap().values()) {
-      pbdBuilder.putPcollections(pc, userProto.getComponents().getPcollectionsOrThrow(pc));
-    }
-    pbdBuilder
-        .putTransforms("proc", targetProcessor)
-        .putTransforms("read", readNode.toPTransform())
-        .putTransforms("write", writeNode.toPTransform());
-    return pbdBuilder.build();
   }
 
   private static class TestFn extends DoFn<String, String> {

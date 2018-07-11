@@ -149,7 +149,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     }
 
     @Override
-    public RemoteBundle<T> getBundle(
+    public RemoteBundle getBundle(
         OutputReceiverFactory outputReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler) {
@@ -167,7 +167,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
             targetCoders.getKey(),
-            RemoteOutputReceiver.of((Coder) targetCoders.getValue(), outputReceiver));
+            RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
     }
