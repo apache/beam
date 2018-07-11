@@ -186,10 +186,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public PCollection<Row> expand(PCollection<String> input) {
-      return input.apply(
-          "csvToRow",
-          FlatMapElements.into(TypeDescriptors.rows())
-              .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
+      return input
+          .apply(
+              "csvToRow",
+              FlatMapElements.into(TypeDescriptors.rows())
+                  .via(s -> csvLines2BeamRows(csvFormat, s, schema)))
+          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
     }
   }
 }

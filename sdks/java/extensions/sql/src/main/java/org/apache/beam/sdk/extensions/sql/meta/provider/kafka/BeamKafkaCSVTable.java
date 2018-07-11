@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -68,18 +69,20 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
-      return input.apply(
-          "decodeRecord",
-          ParDo.of(
-              new DoFn<KV<byte[], byte[]>, Row>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  String rowInString = new String(c.element().getValue(), UTF_8);
-                  for (Row row : csvLines2BeamRows(format, rowInString, schema)) {
-                    c.output(row);
-                  }
-                }
-              }));
+      return input
+          .apply(
+              "decodeRecord",
+              ParDo.of(
+                  new DoFn<KV<byte[], byte[]>, Row>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      String rowInString = new String(c.element().getValue(), UTF_8);
+                      for (Row row : csvLines2BeamRows(format, rowInString, schema)) {
+                        c.output(row);
+                      }
+                    }
+                  }))
+          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
     }
   }
 
