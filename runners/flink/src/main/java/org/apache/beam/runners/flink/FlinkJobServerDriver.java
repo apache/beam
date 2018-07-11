@@ -21,6 +21,9 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -45,8 +48,10 @@ public class FlinkJobServerDriver implements Runnable {
   private final ListeningExecutorService executor;
   private final ServerConfiguration configuration;
   private final ServerFactory serverFactory;
+  private GrpcFnServer<InMemoryJobService> server;
 
-  private static class ServerConfiguration {
+  /** Configuration for the jobServer. */
+  public static class ServerConfiguration {
     @Option(name = "--job-host", required = true, usage = "The job server host string")
     private String host = "";
 
@@ -57,21 +62,11 @@ public class FlinkJobServerDriver implements Runnable {
     private String flinkMasterUrl = "[auto]";
   }
 
-  public static void main(String[] args) throws IOException {
-    ServerConfiguration configuration = new ServerConfiguration();
-    CmdLineParser parser = new CmdLineParser(configuration);
-    try {
-      parser.parseArgument(args);
-    } catch (CmdLineException e) {
-      LOG.error("Unable to parse command line arguments.", e);
-      printUsage(parser);
-      return;
-    }
+  public static void main(String[] args) throws Exception {
     //TODO: Expose the fileSystem related options.
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
-    FlinkJobServerDriver driver = fromConfig(configuration);
-    driver.run();
+    fromConfig(parseServerConfiguration(args)).run();
   }
 
   private static void printUsage(CmdLineParser parser) {
@@ -79,6 +74,27 @@ public class FlinkJobServerDriver implements Runnable {
         String.format("Usage: java %s arguments...", FlinkJobServerDriver.class.getSimpleName()));
     parser.printUsage(System.err);
     System.err.println();
+  }
+
+  private static ServerConfiguration parseServerConfiguration(String[] args) {
+    ServerConfiguration configuration = new ServerConfiguration();
+    CmdLineParser parser = new CmdLineParser(configuration);
+    try {
+      parser.parseArgument(args);
+    } catch (CmdLineException e) {
+      LOG.error("Unable to parse command line arguments.", e);
+      printUsage(parser);
+      throw new IllegalArgumentException("Unable to parse command line arguments.", e);
+    }
+    return configuration;
+  }
+
+  public static FlinkJobServerDriver fromHostAndParams(String host, String[] args) {
+    List<String> argsList = new ArrayList<>(Arrays.asList(args));
+    argsList.add("--job-host=" + host);
+    ServerConfiguration configuration = parseServerConfiguration(argsList.toArray(new String[argsList.size()]));
+    configuration.host = host;
+    return fromConfig(configuration);
   }
 
   public static FlinkJobServerDriver fromConfig(ServerConfiguration configuration) {
@@ -109,12 +125,28 @@ public class FlinkJobServerDriver implements Runnable {
   @Override
   public void run() {
     try {
-      GrpcFnServer<InMemoryJobService> server = createJobServer();
+      server = createJobServer();
       server.getServer().awaitTermination();
     } catch (InterruptedException e) {
       LOG.warn("Job server interrupted", e);
     } catch (Exception e) {
       LOG.warn("Exception during job server creation", e);
+    } finally {
+      stop();
+    }
+  }
+
+  public void start() throws IOException {
+    server = createJobServer();
+  }
+
+  public void stop() {
+    if (server != null) {
+      try {
+        server.close();
+      } catch (Exception e) {
+        LOG.error("Error while closing the server.");
+      }
     }
   }
 
