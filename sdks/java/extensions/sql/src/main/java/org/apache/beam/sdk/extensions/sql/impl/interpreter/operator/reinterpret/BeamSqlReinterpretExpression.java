@@ -48,6 +48,10 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
+    if (getOperands().size() != 1) {
+      return false;
+    }
+
     // Interval types will be already converted into BIGINT after evaluation.
     SqlTypeFamily opTypeFamily = opType(0).getFamily();
     if (opTypeFamily.equals(SqlTypeFamily.INTERVAL_DAY_TIME)
@@ -55,7 +59,7 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
       return true;
     }
 
-    return getOperands().size() == 1 && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
+    return REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
   @Override
