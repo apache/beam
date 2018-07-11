@@ -52,13 +52,14 @@ class SdkHarness(object):
     self._worker_count = worker_count
     self._worker_index = 0
     if credentials is None:
-      logging.info('Creating insecure channel.')
+      logging.info('Creating insecure control channel.')
       self._control_channel = grpc.insecure_channel(control_address)
     else:
-      logging.info('Creating secure channel.')
+      logging.info('Creating secure control channel.')
       self._control_channel = grpc.secure_channel(control_address, credentials)
-      grpc.channel_ready_future(self._control_channel).result()
-      logging.info('Secure channel established.')
+    grpc.channel_ready_future(self._control_channel).result(timeout=60)
+    logging.info('Control channel established.')
+
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor())
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
