@@ -326,6 +326,8 @@ class common_job_properties {
         shell('.env/bin/pip install -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
         shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
+
+        shell('.env/bin/python '+ common_job_properties.checkoutDir + '.test-infra/jenkins/verify_performance_tests_results.py')
     }
   }
 
