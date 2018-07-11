@@ -87,6 +87,9 @@ This is a collection of documents that may or may not be up to date.
 - Beam DSL_SQL branch API review [[doc](https://s.apache.org/beam-sql-dsl-api-review)]
 - Complex Types Support for Beam SQL DDL [[mail](https://lists.apache.org/thread.html/c494e521cb6865b1ae19a68e8e653afc562df7744e8d08087249cbe0@%3Cdev.beam.apache.org%3E)]
 - [SQL] Reject unsupported inputs to Joins [[mail](https://lists.apache.org/thread.html/e7a442fa9cf6b76a5b435493170508f6c42fb9ccef9bcef434424f79@%3Cdev.beam.apache.org%3E)]
+- Integrating runners & IO [[doc](https://docs.google.com/document/d/1ZFVlnldrIYhUgOfxIT2JcmTFFSWTl4HwAnQsnwiNL1g)]
+- Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
+- Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
 
 ### Portability
 - Fn API
