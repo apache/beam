@@ -35,6 +35,12 @@ import org.slf4j.LoggerFactory;
  * {@link TestPortableRunner} is a pipeline runner that wraps a {@link PortableRunner} when running
  * tests against the {@link TestPipeline}.
  *
+ * This runner requires a JobServerDriver with following methods.
+ *
+ * public static Object fromParams(String... params)
+ * public String start() // Start JobServer and returns the JobServer host and port.
+ * public void start() // Stop the JobServer and free all resources.
+ *
  * @see TestPipeline
  */
 public class TestPortableRunner extends PipelineRunner<PipelineResult> {
@@ -56,7 +62,7 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
   public PipelineResult run(Pipeline pipeline) {
     TestPortablePipelineOptions testPortablePipelineOptions =
         options.as(TestPortablePipelineOptions.class);
-    String jobServerHost = "localhost:8099";
+    String jobServerHostPort;
     Object jobServerDriver;
     Class<?> jobServerDriverClass;
     try {
@@ -78,9 +84,10 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
       try {
         jobServerDriver =
             jobServerDriverClass
-                .getMethod("fromHostAndParams", String.class, String[].class)
-                .invoke(null, jobServerHost, parameters);
-        jobServerDriverClass.getMethod("start").invoke(jobServerDriver);
+                .getMethod("fromParams", String[].class)
+                .invoke(null, (Object) parameters);
+        jobServerHostPort =
+            (String) jobServerDriverClass.getMethod("start").invoke(jobServerDriver);
       } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
         throw new IllegalArgumentException(e);
       }
@@ -94,7 +101,7 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
     try {
       PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
       portableOptions.setRunner(PortableRunner.class);
-      portableOptions.setJobEndpoint(jobServerHost);
+      portableOptions.setJobEndpoint(jobServerHostPort);
       PortableRunner runner = PortableRunner.fromOptions(portableOptions);
       PipelineResult result = runner.run(pipeline);
       result.waitUntilFinish();

@@ -17,13 +17,11 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -48,11 +46,12 @@ public class FlinkJobServerDriver implements Runnable {
   private final ListeningExecutorService executor;
   private final ServerConfiguration configuration;
   private final ServerFactory serverFactory;
-  private GrpcFnServer<InMemoryJobService> server;
+  private GrpcFnServer<InMemoryJobService> jobServer;
+  private GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
 
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
-    @Option(name = "--job-host", required = true, usage = "The job server host string")
+    @Option(name = "--job-host", usage = "The job server host string")
     private String host = "";
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
@@ -66,7 +65,7 @@ public class FlinkJobServerDriver implements Runnable {
     //TODO: Expose the fileSystem related options.
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
-    fromConfig(parseServerConfiguration(args)).run();
+    fromParams(args).run();
   }
 
   private static void printUsage(CmdLineParser parser) {
@@ -89,12 +88,8 @@ public class FlinkJobServerDriver implements Runnable {
     return configuration;
   }
 
-  public static FlinkJobServerDriver fromHostAndParams(String host, String[] args) {
-    List<String> argsList = new ArrayList<>(Arrays.asList(args));
-    argsList.add("--job-host=" + host);
-    ServerConfiguration configuration = parseServerConfiguration(argsList.toArray(new String[argsList.size()]));
-    configuration.host = host;
-    return fromConfig(configuration);
+  public static FlinkJobServerDriver fromParams(String[] args) {
+    return fromConfig(parseServerConfiguration(args));
   }
 
   public static FlinkJobServerDriver fromConfig(ServerConfiguration configuration) {
@@ -125,8 +120,8 @@ public class FlinkJobServerDriver implements Runnable {
   @Override
   public void run() {
     try {
-      server = createJobServer();
-      server.getServer().awaitTermination();
+      jobServer = createJobServer();
+      jobServer.getServer().awaitTermination();
     } catch (InterruptedException e) {
       LOG.warn("Job server interrupted", e);
     } catch (Exception e) {
@@ -136,33 +131,52 @@ public class FlinkJobServerDriver implements Runnable {
     }
   }
 
-  public void start() throws IOException {
-    server = createJobServer();
+  public String start() throws IOException {
+    jobServer = createJobServer();
+    return jobServer.getApiServiceDescriptor().getUrl();
   }
 
   public void stop() {
-    if (server != null) {
+    if (jobServer != null) {
       try {
-        server.close();
+        jobServer.close();
+        LOG.info("JobServer stopped on {}", jobServer.getApiServiceDescriptor().getUrl());
+        jobServer = null;
       } catch (Exception e) {
-        LOG.error("Error while closing the server.");
+        LOG.error("Error while closing the jobServer.");
+      }
+    }
+    if (artifactStagingServer != null) {
+      try {
+        artifactStagingServer.close();
+        LOG.info(
+            "ArtifactStagingServer stopped on {}", jobServer.getApiServiceDescriptor().getUrl());
+        artifactStagingServer = null;
+      } catch (Exception e) {
+        LOG.error("Error while closing the artifactStagingServer.");
       }
     }
   }
 
   private GrpcFnServer<InMemoryJobService> createJobServer() throws IOException {
     InMemoryJobService service = createJobService();
-    Endpoints.ApiServiceDescriptor descriptor =
-        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(configuration.host).build();
-    return GrpcFnServer.create(service, descriptor, serverFactory);
+    GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer;
+    if (Strings.isNullOrEmpty(configuration.host)) {
+      jobServiceGrpcFnServer = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    } else {
+      Endpoints.ApiServiceDescriptor descriptor =
+          Endpoints.ApiServiceDescriptor.newBuilder().setUrl(configuration.host).build();
+      jobServiceGrpcFnServer = GrpcFnServer.create(service, descriptor, serverFactory);
+    }
+    LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+    return jobServiceGrpcFnServer;
   }
 
   private InMemoryJobService createJobService() throws IOException {
-    GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
-        createArtifactStagingService();
+    artifactStagingServer = createArtifactStagingService();
     JobInvoker invoker = createJobInvoker();
     return InMemoryJobService.create(
-        artifactStagingService.getApiServiceDescriptor(),
+        artifactStagingServer.getApiServiceDescriptor(),
         (String session) -> {
           try {
             return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
@@ -177,7 +191,12 @@ public class FlinkJobServerDriver implements Runnable {
   private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
       throws IOException {
     BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
-    return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
+        GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    LOG.info(
+        "ArtifactStagingService started on {}",
+        artifactStagingService.getApiServiceDescriptor().getUrl());
+    return artifactStagingService;
   }
 
   private JobInvoker createJobInvoker() throws IOException {
