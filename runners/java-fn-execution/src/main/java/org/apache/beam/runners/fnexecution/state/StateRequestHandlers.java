@@ -325,13 +325,13 @@ public class StateRequestHandlers {
    * Returns an adapter which converts a {@link BagUserStateHandlerFactory} to a {@link
    * StateRequestHandler}.
    *
-   * <p>The {@link MultimapSideInputHandlerFactory} is required to handle all multimap side inputs
-   * contained within the {@link ExecutableProcessBundleDescriptor}. See {@link
-   * ExecutableProcessBundleDescriptor#getMultimapSideInputSpecs} for the set of multimap side
-   * inputs that are contained.
+   * <p>The {@link SideInputHandlerFactory} is required to handle all multimap side inputs contained
+   * within the {@link ExecutableProcessBundleDescriptor}. See {@link
+   * ExecutableProcessBundleDescriptor#getSideInputSpecs} for the set of multimap side inputs that
+   * are contained.
    *
-   * <p>Instances of {@link MultimapSideInputHandler}s returned by the {@link
-   * MultimapSideInputHandlerFactory} are cached.
+   * <p>Instances of {@link SideInputHandler}s returned by the {@link SideInputHandlerFactory} are
+   * cached.
    */
   public static StateRequestHandler forBagUserStateHandlerFactory(
       ExecutableProcessBundleDescriptor processBundleDescriptor,
