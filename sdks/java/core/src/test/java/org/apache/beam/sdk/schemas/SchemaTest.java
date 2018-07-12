@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -155,5 +158,111 @@ public class SchemaTest {
     assertEquals(FieldType.INT32, schema.getField(0).getType());
     assertEquals("f_string", schema.getField(1).getName());
     assertEquals(FieldType.STRING, schema.getField(1).getType());
+  }
+
+  @Test
+  public void testEquivalent() {
+    final Schema expectedNested1 =
+        Schema.builder().addStringField("yard1").addInt64Field("yard2").build();
+
+    final Schema expectedSchema1 =
+        Schema.builder()
+            .addStringField("field1")
+            .addInt64Field("field2")
+            .addRowField("field3", expectedNested1)
+            .addArrayField("field4", FieldType.row(expectedNested1))
+            .addMapField("field5", FieldType.STRING, FieldType.row(expectedNested1))
+            .build();
+
+    final Schema expectedNested2 =
+        Schema.builder().addInt64Field("yard2").addStringField("yard1").build();
+
+    final Schema expectedSchema2 =
+        Schema.builder()
+            .addMapField("field5", FieldType.STRING, FieldType.row(expectedNested2))
+            .addArrayField("field4", FieldType.row(expectedNested2))
+            .addRowField("field3", expectedNested2)
+            .addInt64Field("field2")
+            .addStringField("field1")
+            .build();
+
+    assertNotEquals(expectedSchema1, expectedSchema2);
+    assertTrue(expectedSchema1.equivalent(expectedSchema2));
+  }
+
+  @Test
+  public void testPrimitiveNotEquivalent() {
+    Schema schema1 = Schema.builder().addInt64Field("foo").build();
+    Schema schema2 = Schema.builder().addStringField("foo").build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+
+    schema1 = Schema.builder().addInt64Field("foo").build();
+    schema2 = Schema.builder().addInt64Field("bar").build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+
+    schema1 = Schema.builder().addInt64Field("foo").build();
+    schema2 = Schema.builder().addNullableField("foo", FieldType.INT64).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+  }
+
+  @Test
+  public void testNestedNotEquivalent() {
+    Schema nestedSchema1 = Schema.builder().addInt64Field("foo").build();
+    Schema nestedSchema2 = Schema.builder().addStringField("foo").build();
+
+    Schema schema1 = Schema.builder().addRowField("foo", nestedSchema1).build();
+    Schema schema2 = Schema.builder().addRowField("foo", nestedSchema2).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+  }
+
+  @Test
+  public void testArrayNotEquivalent() {
+    Schema schema1 = Schema.builder().addArrayField("foo", FieldType.BOOLEAN).build();
+    Schema schema2 = Schema.builder().addArrayField("foo", FieldType.DATETIME).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+  }
+
+  @Test
+  public void testNestedArraysNotEquivalent() {
+    Schema nestedSchema1 = Schema.builder().addInt64Field("foo").build();
+    Schema nestedSchema2 = Schema.builder().addStringField("foo").build();
+
+    Schema schema1 = Schema.builder().addArrayField("foo", FieldType.row(nestedSchema1)).build();
+    Schema schema2 = Schema.builder().addArrayField("foo", FieldType.row(nestedSchema2)).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+  }
+
+  @Test
+  public void testMapNotEquivalent() {
+    Schema schema1 =
+        Schema.builder().addMapField("foo", FieldType.STRING, FieldType.BOOLEAN).build();
+    Schema schema2 =
+        Schema.builder().addMapField("foo", FieldType.DATETIME, FieldType.BOOLEAN).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+
+    schema1 = Schema.builder().addMapField("foo", FieldType.STRING, FieldType.BOOLEAN).build();
+    schema2 = Schema.builder().addMapField("foo", FieldType.STRING, FieldType.STRING).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
+  }
+
+  @Test
+  public void testNestedMapsNotEquivalent() {
+    Schema nestedSchema1 = Schema.builder().addInt64Field("foo").build();
+    Schema nestedSchema2 = Schema.builder().addStringField("foo").build();
+
+    Schema schema1 =
+        Schema.builder().addMapField("foo", FieldType.STRING, FieldType.row(nestedSchema1)).build();
+    Schema schema2 =
+        Schema.builder().addMapField("foo", FieldType.STRING, FieldType.row(nestedSchema2)).build();
+    assertNotEquals(schema1, schema2);
+    assertFalse(schema1.equivalent(schema2));
   }
 }

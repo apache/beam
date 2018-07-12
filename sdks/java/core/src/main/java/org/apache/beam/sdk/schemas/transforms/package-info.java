@@ -15,19 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Defines transforms that work on PCollections with schemas..
+ *
+ * <p>For further details, see the documentation for each class in this package.
+ */
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.schemas.transforms;
 
-package org.apache.beam.sdk.values.reflect;
-
-import java.io.Serializable;
-import java.util.List;
-import org.apache.beam.sdk.schemas.Schema;
-
-/** A factory interface for creating {@link FieldValueSetter} objects corresponding to a class. */
-public interface FieldValueSetterFactory extends Serializable {
-  /**
-   * Returns a list of {@link FieldValueGetter}s for the target class.
-   *
-   * <p>The returned list is ordered by the order of matching fields in the schema.
-   */
-  List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema);
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;
