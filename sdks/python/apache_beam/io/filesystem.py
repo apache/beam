@@ -39,6 +39,8 @@ from builtins import zip
 
 from future import standard_library
 from future.utils import with_metaclass
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -50,13 +52,6 @@ DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
 __all__ = ['CompressionTypes', 'CompressedFile', 'FileMetadata', 'FileSystem',
            'MatchResult']
-
-try:
-  unicode       # pylint: disable=unicode-builtin
-  long          # pylint: disable=long-builtin
-except NameError:
-  unicode = str
-  long = int
 
 
 class CompressionTypes(object):
