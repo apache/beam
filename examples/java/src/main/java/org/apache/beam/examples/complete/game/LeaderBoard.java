@@ -93,7 +93,7 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
   /** Options supported by {@link LeaderBoard}. */
-  public interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
+  public interface Options extends ExampleOptions, StreamingOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
