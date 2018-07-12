@@ -4,110 +4,110 @@
 # https://help.github.com/articles/about-codeowners/
 
 # Per-language reviewers.
-*.go @herohde @person2 @person3
+*.go @herohde
 *.java @lukecwik @kennknowles @aaltay
 *.py @pabloem @robertwb @aaltay @charlesccychen
 
 # SDK components reviewers.
-/sdks/go/ @herohde @person2 @person3
+/sdks/go/ @herohde
 
-/sdks/java/ @aaltay @kennknowles @person3
-/sdks/java/core @lukecwik @person2 @person3
-/sdks/java/extensions @person1 @person2 @person3
-/sdks/java/extensions/google-cloud-platform-core @lukecwik @chamikaramj @person3
-/sdks/java/extensions/jackson @person1 @person2 @person3
-/sdks/java/extensions/join-library @person1 @person2 @person3
-/sdks/java/extensions/protobuf @person1 @person2 @person3
-/sdks/java/extensions/sketching @person1 @person2 @person3
-/sdks/java/extensions/sorter @person1 @person2 @person3
+/sdks/java/ @aaltay @kennknowles
+/sdks/java/core @lukecwik
+#/sdks/java/extensions
+/sdks/java/extensions/google-cloud-platform-core @lukecwik @chamikaramj
+#/sdks/java/extensions/jackson
+#/sdks/java/extensions/join-library
+#/sdks/java/extensions/protobuf
+#/sdks/java/extensions/sketching
+#/sdks/java/extensions/sorter
 /sdks/java/extensions/sql @akedin @apilloud @amaliujia @XuMingmin @xumingming @kennknowles
-/sdks/java/container @herohde @aaltay @person3
-/sdks/java/fn-execution @lukecwik @person2 @person3
-/sdks/java/nexmark @echauchot @person2 @aromanenko-dev
-/sdks/java/build-tools @jasonkuster @swegner @person3
-/sdks/java/harness @lukecwik @person2 @person3
+/sdks/java/container @herohde @aaltay
+/sdks/java/fn-execution @lukecwik
+/sdks/java/nexmark @echauchot @aromanenko-dev
+/sdks/java/build-tools @jasonkuster @swegner
+/sdks/java/harness @lukecwik
 /sdks/java/io @jbonofre @lukecwik @chamikaramj @timrobertson100
 /sdks/java/io/parquet @lgajowy @jbonofre @aromanenko-dev
-/sdks/java/io/common @chamikaramj @timrobertson100 @person3
+/sdks/java/io/common @chamikaramj @timrobertson100
 /sdks/java/io/file-based-io-tests @lgajowy @kkucharc @chamikaramj @timrobertson100
-/sdks/java/io/elasticsearch-tests @echauchot @timrobertson100 @person2 @person3
-/sdks/java/io/amazon-web-services @person1 @person2 @person3
-/sdks/java/io/google-cloud-platform @lukecwik @chamikaramj @person3
-/sdks/java/io/hadoop-input-format @aromanenko-dev @timrobertson100 @person3
-/sdks/java/io/solr @timrobertson100 @person2 @person3
-/sdks/java/io/kinesis @aromanenko-dev @person2 @person3
-/sdks/java/io/redis @jbonofre @person2 @person3
-/sdks/java/io/mongodb @jbonofre @person2 @person3
-/sdks/java/io/hcatalog @timrobertson100 @person2 @person3
-/sdks/java/io/elasticsearch @echauchot @jbonofre @timrobertson100 @person3
-/sdks/java/io/jdbc @jbonofre @timrobertson100 @person3
-/sdks/java/io/mqtt @jbonofre @person2 @person3
-/sdks/java/io/hadoop-file-system @timrobertson100 @person2 @person3
-/sdks/java/io/amqp @jbonofre @person2 @person3
-/sdks/java/io/cassandra @jbonofre @echauchot @person3
-/sdks/java/io/tika @person1 @person2 @person3
-/sdks/java/io/xml @person1 @person2 @person3
-/sdks/java/io/kafka @person1 @person2 @person3
-/sdks/java/io/jms @jbonofre @person2 @person3
-/sdks/java/io/hbase @timrobertson100 @aromanenko-dev @person3
-/sdks/java/io/hadoop-common @timrobertson100 @person2 @person3
-/sdks/java/maven-archetypes @person1 @person2 @person3
-/sdks/java/javadoc @melap @person2 @person3
+/sdks/java/io/elasticsearch-tests @echauchot @timrobertson100
+#/sdks/java/io/amazon-web-services
+/sdks/java/io/google-cloud-platform @lukecwik @chamikaramj
+/sdks/java/io/hadoop-input-format @aromanenko-dev @timrobertson100
+/sdks/java/io/solr @timrobertson100
+/sdks/java/io/kinesis @aromanenko-dev
+/sdks/java/io/redis @jbonofre
+/sdks/java/io/mongodb @jbonofre
+/sdks/java/io/hcatalog @timrobertson100
+/sdks/java/io/elasticsearch @echauchot @jbonofre @timrobertson100
+/sdks/java/io/jdbc @jbonofre @timrobertson100
+/sdks/java/io/mqtt @jbonofre
+/sdks/java/io/hadoop-file-system @timrobertson100
+/sdks/java/io/amqp @jbonofre
+/sdks/java/io/cassandra @jbonofre @echauchot
+#/sdks/java/io/tika
+#/sdks/java/io/xml
+#/sdks/java/io/kafka
+/sdks/java/io/jms @jbonofre
+/sdks/java/io/hbase @timrobertson100 @aromanenko-dev
+/sdks/java/io/hadoop-common @timrobertson100
+#/sdks/java/maven-archetypes
+/sdks/java/javadoc @melap
 
-/sdks/python/ @aaltay @charlesccychen @person3
-/sdks/python/scripts @aaltay @person2 @person3
+/sdks/python/ @aaltay @charlesccychen
+/sdks/python/scripts @aaltay
 /sdks/python/container @herohde @aaltay @charlesccychen
-/sdks/python/apache_beam/runners @pabloem @charlesccychen @person3
-/sdks/python/apache_beam/utils @pabloem @charlesccychen @person3
-/sdks/python/apache_beam/examples @aaltay @charlesccychen @person3
-/sdks/python/apache_beam/internal @aaltay @charlesccychen @person3
-/sdks/python/apache_beam/tools @pabloem @charlesccychen @person3
-/sdks/python/apache_beam/coders @charlesccychen @person2 @person3
+/sdks/python/apache_beam/runners @pabloem @charlesccychen
+/sdks/python/apache_beam/utils @pabloem @charlesccychen
+/sdks/python/apache_beam/examples @aaltay @charlesccychen
+/sdks/python/apache_beam/internal @aaltay @charlesccychen
+/sdks/python/apache_beam/tools @pabloem @charlesccychen
+/sdks/python/apache_beam/coders @charlesccychen
 /sdks/python/apache_beam/portability @charlesccychen @robertwb @aaltay
-/sdks/python/apache_beam/typehints @charlesccychen @person2 @person3
-/sdks/python/apache_beam/options @pabloem @charlesccychen @person3
+/sdks/python/apache_beam/typehints @charlesccychen
+/sdks/python/apache_beam/options @pabloem @charlesccychen
 /sdks/python/apache_beam/transforms @pabloem @aaltay @charlesccychen
-/sdks/python/apache_beam/testing @pabloem @aaltay @person3
-/sdks/python/apache_beam/metrics @pabloem @aaltay @person3
+/sdks/python/apache_beam/testing @pabloem @aaltay
+/sdks/python/apache_beam/metrics @pabloem @aaltay
 /sdks/python/apache_beam/io @chamikaramj @aaltay @udim
 
 # Build and test infrastructure reviewers.
-/.github @person1 @person2 @person3
-/.test-infra @lgajowy @person2 @person3
+#/.github
+/.test-infra @lgajowy
 /.test-infra/jenkins @lgajowy @kkucharc @echauchot
-/.test-infra/jupyter @person1 @person2 @person3
-/.test-infra/kubernetes @lgajowy @kkucharc @person3
-/buildSrc @lukecwik @person2 @person3
-/gradle @lukecwik @person2 @person3
-/release @jbonofre @person2 @person3
-/release/src @person1 @person2 @person3
-/website/.jenkins @person1 @person2 @person3
-build.gradle @lukecwik @person2 @person3
+/.test-infra/jupyter @udim
+/.test-infra/kubernetes @lgajowy @kkucharc
+/buildSrc @lukecwik
+/gradle @lukecwik
+/release @jbonofre
+#/release/src
+#/website/.jenkins
+build.gradle @lukecwik
 
 # Even more components reviewers.
-/runners @person1 @person2 @person3
-/runners/samza @person1 @person2 @person3
+#/runners
+#/runners/samza
 /runners/gcp @pabloem @herohde @lukecwik @aaltay
-/runners/apex @person1 @person2 @person3
-/runners/core-java @lukecwik @echauchot @person3
-/runners/local-java @lukecwik @person2 @person3
-/runners/java-fn-execution @lukecwik @person2 @person3
-/runners/core-construction-java @lukecwik @person2 @person3
-/runners/flink @person1 @person2 @person3
-/runners/spark @jbonofre @person2 @person3
-/runners/reference @lukecwik @person2 @person3
-/runners/gearpump @person1 @person2 @person3
-/runners/extensions-java @echauchot @person2 @person3
-/runners/google-cloud-dataflow-java @pabloem @lukecwik @person3
-/runners/direct-java @lukecwik @person2 @person3
+#/runners/apex
+/runners/core-java @lukecwik @echauchot
+/runners/local-java @lukecwik
+/runners/java-fn-execution @lukecwik
+/runners/core-construction-java @lukecwik
+#/runners/flink
+/runners/spark @jbonofre
+/runners/reference @lukecwik
+#/runners/gearpump
+/runners/extensions-java @echauchot
+/runners/google-cloud-dataflow-java @pabloem @lukecwik
+/runners/direct-java @lukecwik
 
-/examples @aaltay @person2 @person3
-/examples/java @lukecwik @aaltay @person3
+/examples @aaltay
+/examples/java @lukecwik @aaltay
 
-/model @herohde @lukecwik @person3
+/model @herohde @lukecwik
 /model/fn-execution @herohde @robertwb @lukecwik
 /model/job-management @herohde @robertwb @lukecwik
 /model/pipeline @herohde @robertwb @lukecwik
 
-/website @melap @timrobertson100 @person3
-/website/src @melap @timrobertson100 @person3
+/website @melap @timrobertson100
+/website/src @melap @timrobertson100
