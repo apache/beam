@@ -14,11 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-"""This is the experimental direct runner for testing the job api that
-sends a runner API proto over the API and then runs it on the other side.
-"""
-
-from __future__ import absolute_import
-
-from apache_beam.runners.experimental.python_rpc_direct.python_rpc_direct_runner import PythonRPCDirectRunner

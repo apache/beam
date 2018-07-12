@@ -15,22 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.hbase;
 
-package org.apache.beam.runners.fnexecution;
+import org.apache.hadoop.hbase.client.Scan;
 
-import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
+/**
+ * A class to encapsulate a query to HBase. It is composed by the id of the table and the {@link
+ * Scan} object.
+ */
+public final class HBaseQuery {
 
-/** An interface sharing common behavior with services used during execution of user Fns. */
-public interface FnService extends AutoCloseable, BindableService {
-  /**
-   * {@inheritDoc}.
-   *
-   * <p>There should be no more calls to any service method by the time a call to {@link #close()}
-   * begins. Specifically, this means that a {@link org.apache.beam.vendor.grpc.v1.io.grpc.Server}
-   * that this service is bound to should have completed a call to the {@link
-   * org.apache.beam.vendor.grpc.v1.io.grpc.Server#shutdown()} method, and all future incoming calls
-   * will be rejected.
-   */
+  public static HBaseQuery of(String tableId, Scan scan) {
+    return new HBaseQuery(tableId, scan);
+  }
+
+  private HBaseQuery(String tableId, Scan scan) {
+    this.tableId = tableId;
+    this.scan = scan;
+  }
+
+  public String getTableId() {
+    return tableId;
+  }
+
+  public Scan getScan() {
+    return scan;
+  }
+
   @Override
-  void close() throws Exception;
+  public String toString() {
+    return "HBaseQuery{" + "tableId='" + tableId + '\'' + ", scan=" + scan + '}';
+  }
+
+  private final String tableId;
+  private final Scan scan;
 }

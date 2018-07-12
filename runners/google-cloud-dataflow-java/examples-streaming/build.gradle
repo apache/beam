@@ -44,7 +44,7 @@ task preCommit(type: Test) {
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
   include "**/WordCountIT.class"
   // Don't include WindowedWordCountIT, since it is already included in
-  // :runners:google-cloud-dataflow-java:examples:preCommit and runs
+  // :beam-runners-google-cloud-dataflow-java-examples:preCommit and runs
   // identically (ignores the --streaming flag).
   forkEvery 1
   maxParallelForks 4

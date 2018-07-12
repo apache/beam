@@ -29,6 +29,7 @@ from builtins import object
 from collections import namedtuple
 
 from future.utils import iteritems
+from past.builtins import unicode
 
 import vcf
 
@@ -38,13 +39,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
-
-try:
-  unicode  # pylint: disable=unicode-builtin
-  int        # Python 2
-except NameError:
-  unicode = str
-  long = int  # Python 3
 
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',

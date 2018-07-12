@@ -24,20 +24,14 @@ from __future__ import absolute_import
 import base64
 from builtins import object
 
-import google.protobuf
-from google.protobuf import wrappers_pb2
+import google.protobuf.wrappers_pb2
+from future.moves import pickle
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
-
-# This is for py2/3 compatibility. cPickle was renamed pickle in python 3.
-try:
-  import cPickle as pickle # Python 2
-except ImportError:
-  import pickle # Python 3
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -277,7 +271,7 @@ class Coder(object):
   def to_runner_api_parameter(self, context):
     return (
         python_urns.PICKLED_CODER,
-        wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
 
   @staticmethod

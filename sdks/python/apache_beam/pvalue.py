@@ -31,17 +31,14 @@ import itertools
 from builtins import hex
 from builtins import object
 
+from past.builtins import unicode
+
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 __all__ = [
     'PCollection',

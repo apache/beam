@@ -24,15 +24,12 @@ import logging
 import math
 import threading
 
+from past.builtins import long
+
 from apache_beam.io import iobase
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
-
-try:
-  long  # pylint: disable=long-builtin
-except NameError:
-  long = int
 
 
 class OffsetRangeTracker(iobase.RangeTracker):
