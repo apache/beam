@@ -35,11 +35,13 @@ import org.slf4j.LoggerFactory;
  * {@link TestPortableRunner} is a pipeline runner that wraps a {@link PortableRunner} when running
  * tests against the {@link TestPipeline}.
  *
- * This runner requires a JobServerDriver with following methods.
+ * <p>This runner requires a JobServerDriver with following methods.
  *
- * public static Object fromParams(String... params)
- * public String start() // Start JobServer and returns the JobServer host and port.
- * public void start() // Stop the JobServer and free all resources.
+ * <ul>
+ *   <li>public static Object fromParams(String... params)
+ *   <li>public String start() // Start JobServer and returns the JobServer host and port.
+ *   <li>public void start() // Stop the JobServer and free all resources.
+ * </ul>
  *
  * @see TestPipeline
  */

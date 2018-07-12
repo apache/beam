@@ -41,8 +41,8 @@ public interface TestPortablePipelineOptions extends TestPipelineOptions, Portab
 
   void setJobServerConfig(String jobServerConfig);
 
-  @AutoService(PipelineOptionsRegistrar.class)
   /** Register {@link TestPortablePipelineOptions}. */
+  @AutoService(PipelineOptionsRegistrar.class)
   class TestPortablePipelineOptionsRegistrar implements PipelineOptionsRegistrar {
 
     @Override
