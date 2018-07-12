@@ -33,7 +33,6 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -322,15 +321,12 @@ class DoOperation(Operation):
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics_v2' in RuntimeValueProvider.experiments:
-          si_counter = opcounters.SideInputReadCounter(
-              self.counter_factory,
-              self.state_sampler,
-              declaring_step=self.name_context.step_name,
-              # Inputs are 1-indexed, so we add 1 to i in the side input id
-              input_index=i + 1)
-        else:
-          si_counter = opcounters.NoOpTransformIOCounter()
+        si_counter = opcounters.SideInputReadCounter(
+            self.counter_factory,
+            self.state_sampler,
+            declaring_step=self.name_context.step_name,
+            # Inputs are 1-indexed, so we add 1 to i in the side input id
+            input_index=i + 1)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
