@@ -24,7 +24,6 @@ import inspect
 import random
 import re
 import types
-from builtins import filter
 from builtins import map
 from builtins import object
 from builtins import range
@@ -64,6 +63,11 @@ from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
+
+try:
+  from itertools import ifilter as filter
+except ImportError:
+  pass
 
 __all__ = [
     'DoFn',
