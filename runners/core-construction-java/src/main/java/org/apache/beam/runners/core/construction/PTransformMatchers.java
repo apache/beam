@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 
 /**
@@ -262,6 +263,56 @@ public class PTransformMatchers {
       @Override
       public String toString() {
         return MoreObjects.toStringHelper("SplittableParDoMultiMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   */
+  public static PTransformMatcher splittableProcessKeyedBounded() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof SplittableParDo.ProcessKeyedElements) {
+          DoFn<?, ?> fn = ((SplittableParDo.ProcessKeyedElements) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.processElement().isSplittable()
+              && signature.isBoundedPerElement() == IsBounded.BOUNDED;
+        }
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableProcessKeyedBoundedMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   */
+  public static PTransformMatcher splittableProcessKeyedUnbounded() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof SplittableParDo.ProcessKeyedElements) {
+          DoFn<?, ?> fn = ((SplittableParDo.ProcessKeyedElements) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.processElement().isSplittable()
+              && signature.isBoundedPerElement() == IsBounded.UNBOUNDED;
+        }
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableProcessKeyedUnboundedMatcher").toString();
       }
     };
   }
