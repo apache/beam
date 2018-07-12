@@ -58,8 +58,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * Utilities for implementing {@link ProcessKeyedElements} using {@link KeyedWorkItem} and
+ * Utility transforms and overrides for running (typically unbounded) splittable DoFn's with
+ * checkpointing by implementing {@link ProcessKeyedElements} using {@link KeyedWorkItem} and
  * runner-specific {@link StateInternals} and {@link TimerInternals}.
+ *
+ * <p>A runner that uses {@link OverrideFactory} will need to also provide runner-specific overrides
+ * for {@link GBKIntoKeyedWorkItems} and {@link ProcessElements}.
  */
 public class SplittableParDoViaKeyedWorkItems {
   /**
