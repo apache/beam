@@ -41,8 +41,8 @@ limitations under the License.
        * Create separate module per source set
        * Store generated project files externally
        * Use default gradle wrapper
-4. Delegate build actions to Gradle by going to Settings > Build, Execution,
-   Deployment > Build Tools > Gradle and checking "Delegate IDE build/run
+4. Delegate build actions to Gradle by going to Preferences > Build, Execution,
+   Deployment > Build Tools > Gradle > Runner and checking "Delegate IDE build/run
    actions to gradle".
 
 This should result in a working Gradle project. Build the project by executing
