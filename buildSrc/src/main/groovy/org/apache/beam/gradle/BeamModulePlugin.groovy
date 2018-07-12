@@ -642,7 +642,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
-      project.tasks.withType(JavaCompile) { options.compilerArgs += "-XepDisableWarningsInGeneratedCode" }
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
@@ -663,9 +662,14 @@ class BeamModulePlugin implements Plugin<Project> {
         testCompile.extendsFrom shadowTest
       }
 
+      project.jar {
+        classifier = "unshaded"
+        zip64 true
+      }
+
       // Always configure the shadowJar classifier and merge service files.
       project.shadowJar({
-        classifier = "shaded"
+        classifier = null
         mergeServiceFiles()
         zip64 true
         into("META-INF/") {
@@ -678,7 +682,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.task('shadowTestJar', type: ShadowJar, {
         group = "Shadow"
         description = "Create a combined JAR of project and test dependencies"
-        classifier = "shaded-tests"
+        classifier = "tests"
         from project.sourceSets.test.output
         configurations = [
           project.configurations.testRuntime
@@ -797,12 +801,11 @@ artifactId=${project.name}
 
           publications {
             mavenJava(MavenPublication) {
-              artifact project.shadowJar { // Strip the "shaded" classifier.
-                classifier null }
-              artifact project.shadowTestJar, { classifier "tests" }
-              artifact project.sourcesJar, { classifier "sources" }
-              artifact project.testSourcesJar, { classifier "testSources" }
-              artifact project.javadocJar, { classifier "javadoc" }
+              artifact project.shadowJar
+              artifact project.shadowTestJar
+              artifact project.sourcesJar
+              artifact project.testSourcesJar
+              artifact project.javadocJar
 
               pom {
                 name = project.description
