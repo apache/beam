@@ -33,13 +33,15 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
+import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
-import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -114,13 +116,13 @@ public class SplittableDoFnTest implements Serializable {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testPairWithIndexBasicBounded() {
     testPairWithIndexBasic(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
   public void testPairWithIndexBasicUnbounded() {
     testPairWithIndexBasic(IsBounded.UNBOUNDED);
   }
@@ -147,13 +149,13 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
   public void testPairWithIndexWindowedTimestampedUnbounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.UNBOUNDED);
   }
@@ -278,13 +280,13 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testOutputAfterCheckpointBounded() {
     testOutputAfterCheckpoint(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
   public void testOutputAfterCheckpointUnbounded() {
     testOutputAfterCheckpoint(IsBounded.UNBOUNDED);
   }
@@ -341,13 +343,13 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testSideInputBounded() {
     testSideInput(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
   public void testSideInputUnbounded() {
     testSideInput(IsBounded.UNBOUNDED);
   }
@@ -368,7 +370,7 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesSplittableParDo.class,
+    UsesBoundedSplittableParDo.class,
     UsesSplittableParDoWithWindowedSideInputs.class
   })
   public void testWindowedSideInputBounded() {
@@ -378,8 +380,8 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesSplittableParDo.class,
-    UsesSplittableParDoWithWindowedSideInputs.class
+    UsesUnboundedSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class,
   })
   public void testWindowedSideInputUnbounded() {
     testWindowedSideInput(IsBounded.UNBOUNDED);
@@ -490,7 +492,7 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesSplittableParDo.class,
+    UsesBoundedSplittableParDo.class,
     UsesSplittableParDoWithWindowedSideInputs.class
   })
   public void testWindowedSideInputWithCheckpointsBounded() {
@@ -500,9 +502,8 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesSplittableParDo.class,
+    UsesUnboundedSplittableParDo.class,
     UsesSplittableParDoWithWindowedSideInputs.class,
-    UsesUnboundedPCollections.class
   })
   public void testWindowedSideInputWithCheckpointsUnbounded() {
     testWindowedSideInputWithCheckpoints(IsBounded.UNBOUNDED);
@@ -596,13 +597,13 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testAdditionalOutputBounded() {
     testAdditionalOutput(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
   public void testAdditionalOutputUnbounded() {
     testAdditionalOutput(IsBounded.UNBOUNDED);
   }
@@ -626,7 +627,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
   public void testLateData() {
 
     Instant base = Instant.now();
@@ -669,13 +670,12 @@ public class SplittableDoFnTest implements Serializable {
 
   private static class SDFWithLifecycleBase extends DoFn<String, String> {
     private enum State {
-      BEFORE_SETUP,
       OUTSIDE_BUNDLE,
       INSIDE_BUNDLE,
       TORN_DOWN
     }
 
-    private State state = State.BEFORE_SETUP;
+    private transient State state;
 
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(String value) {
@@ -692,7 +692,7 @@ public class SplittableDoFnTest implements Serializable {
 
     @Setup
     public void setUp() {
-      assertEquals(State.BEFORE_SETUP, state);
+      assertEquals(null, state);
       state = State.OUTSIDE_BUNDLE;
     }
 
@@ -735,13 +735,13 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, UsesBoundedSplittableParDo.class})
   public void testLifecycleMethodsBounded() {
     testLifecycleMethods(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, UsesUnboundedSplittableParDo.class})
   public void testLifecycleMethodsUnbounded() {
     testLifecycleMethods(IsBounded.UNBOUNDED);
   }
@@ -754,7 +754,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({UsesSplittableParDo.class})
+  @Category(NeedsRunner.class)
   public void testBoundedness() {
     PCollection<String> foo = p.apply(Create.of("foo"));
     {

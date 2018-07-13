@@ -39,7 +39,9 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -61,6 +63,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final Accumulator<MetricsContainerStepMap> metricsAccum;
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
+  private transient boolean wasSetupCalled;
   private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> additionalOutputTags;
@@ -90,7 +93,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       boolean stateful) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
-    this.doFn = doFn;
+    this.doFn = SerializableUtils.clone(doFn);
     this.options = options;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
@@ -102,6 +105,10 @@ public class MultiDoFnFunction<InputT, OutputT>
   @Override
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
+    if (!wasSetupCalled) {
+      DoFnInvokers.invokerFor(doFn).invokeSetup();
+      wasSetupCalled = true;
+    }
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
