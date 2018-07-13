@@ -109,7 +109,7 @@ def createValidatesRunnerTask(Map m) {
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
       } else {
-        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       }
       excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'

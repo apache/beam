@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -80,6 +82,13 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
                 PTransformOverride.of(
                     PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
                     new CreateStreamingGearpumpView.Factory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.splittableProcessKeyedBounded(),
+                    new SplittableParDoNaiveBounded.OverrideFactory()))
             .build();
 
     pipeline.replaceAll(overrides);
