@@ -27,13 +27,13 @@ This page illustrates the usage of Beam SQL with example code.
 Before applying a SQL query to a `PCollection`, the data in the collection must
 be in `Row` format. A `Row` represents a single, immutable record in a Beam SQL
 `PCollection`. The names and types of the fields/columns in the row are defined
-by its associated [RowType]({{ site.baseurl }}/documentation/sdks/javadoc/{{
-site.release_latest }}/index.html?org/apache/beam/sdk/values/RowType.html).
-For SQL queries, you should use the [RowSqlType.builder()]({{ site.baseurl
+by its associated [Schema]({{ site.baseurl }}/documentation/sdks/javadoc/{{
+site.release_latest }}/index.html?org/apache/beam/sdk/schemas/Schema.html).
+You can use the [Schema.builder()]({{ site.baseurl
 }}/documentation/sdks/javadoc/{{ site.release_latest
-}}/index.html?org/apache/beam/sdk/extensions/sql/RowSqlType.html) to create
-`RowTypes`, it allows creating schemas with all supported SQL types (see [Data
-Types]({{ site.baseurl }}/documentation/dsls/sql/data-types) for more details on supported primitive data types).
+}}/index.html?org/apache/beam/sdk/schemas/Schema.html) to create
+`Schemas`. See [Data
+Types]({{ site.baseurl }}/documentation/dsls/sql/data-types) for more details on supported primitive data types.
 
 
 A `PCollection<Row>` can be obtained multiple ways, for example:
@@ -44,18 +44,18 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
 
     ```java
     // Define the record type (i.e., schema).
-    RowType appType = 
-        RowSqlType
+    Schema appSchema = 
+        Schema
           .builder()
-          .withIntegerField("appId")
-          .withVarcharField("description")
-          .withTimestampField("rowtime")
+          .addInt32Field("appId")
+          .addStringField("description")
+          .addDateTimeField("rowtime")
           .build();
 
     // Create a concrete row with that type.
     Row row = 
         Row
-          .withRowType(appType)
+          .withSchema(appSchema)
           .addValues(1, "Some cool app", new Date())
           .build();
 
@@ -65,11 +65,11 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
           .in(p)
           .apply(Create
                     .of(row)
-                    .withCoder(appType.getRowCoder()));
+                    .withCoder(appSchema.getRowCoder()));
     ```
   - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format.
 
-    **Note:** you have to manually set the coder of the result by calling `setCoder(appType.getRowCoder())`:
+    **Note:** you have to manually set the coder of the result by calling `setCoder(appSchema.getRowCoder())`:
     ```java
     // An example POJO class.
     class AppPojo {
@@ -90,11 +90,11 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               // Get the current POJO instance
               AppPojo pojo = c.element();
 
-              // Create a Row with the appType schema 
+              // Create a Row with the appSchema schema 
               // and values from the current POJO
               Row appRow = 
                     Row
-                      .withRowType(appType)
+                      .withSchema(appSchema)
                       .addValues(
                         pojo.appId, 
                         pojo.description, 
@@ -105,7 +105,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               c.output(appRow);
             }
           }))
-      .setCoder(appType.getRowCoder());
+      .setCoder(appSchema.getRowCoder());
     ```
 
   - **As an output of another `BeamSql` query**. Details in the next section.
@@ -132,12 +132,13 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
     For example, you can join two `PCollections`:  
     ```java
     // Create the schema for reviews
-    RowType reviewType = 
-        RowSqlType.
-          .withIntegerField("appId")
-          .withIntegerField("reviewerId")
+    Schema reviewSchema = 
+        Schema.
+          .builder()
+          .addInt32Field("appId")
+          .addInt32Field("reviewerId")
           .withFloatField("rating")
-          .withTimestampField("rowtime")
+          .addDateTimeField("rowtime")
           .build();
     
     // Obtain the reviews records with this schema
