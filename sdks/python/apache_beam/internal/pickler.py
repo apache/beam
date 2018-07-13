@@ -44,6 +44,12 @@ import dill
 # TODO: Remove this once Beam depends on dill >= 0.2.8
 if not getattr(dill, 'dill', None):
   dill.dill = dill._dill
+  sys.modules['dill.dill'] = dill._dill
+
+# TODO: Remove once Dataflow has containers with a preinstalled dill >= 0.2.8
+if not getattr(dill, '_dill', None):
+  dill._dill = dill.dill
+  sys.modules['dill._dill'] = dill.dill
 
 
 def _is_nested_class(cls):
