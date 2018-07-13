@@ -21,15 +21,32 @@ from jira import JIRA
 class JiraClient:
   def __init__(self, options, basic_auth, project):
     self.jira = JIRA(options, basic_auth=basic_auth)
-    self.project = self.jira.project(project)
+    self.project = project
 
 
-  def get_issues_all(self):
-    # TODO
-    pass
+  def get_issues_by_summary(self, summary):
+    """
+    Find issues by using the summary (issue title)
+    Args:
+      summary
+    Return:
+      a list of issues
+    """
+    try:
+      issues = self.jira.search_issues("project={0} AND summary ~ '{1}'".format(self.project, summary))
+    except Exception as e:
+      raise
+    return issues
 
 
-  def get_issue(self, key):
+  def get_issue_by_key(self, key):
+    """
+    Find issue by using the key (e.g BEAM-1234)
+    Args:
+      key
+    Return:
+      issue
+    """
     try:
       issue = self.jira.issue(key)
     except Exception, e:
@@ -38,25 +55,65 @@ class JiraClient:
 
 
   def create_issue(self, summary, components, description='', issuetype='Bug', assignee=None, parent_key=None):
-    issue_dict = {
+    """
+    Create a new issue
+    Args:
+      summary - Issue title
+      components - A list of components
+      description (optional) - A string that describes the issue
+      issuetype (optional) - Bug, Improvement, New Feature, Sub-task, Task, Wish, etc.
+      assignee (optional) - A string of JIRA user name
+      parent_key (optional) - The parent issue key is required when creating a subtask.
+    Return:
+      Issue created
+    """
+    feilds = {
       'project': {'key': self.project},
       'summary': summary,
       'description': description,
       'issuetype': {'name': issuetype},
-      'components': [{'name': components}],
+      'components': [],
     }
+    for component in components:
+      feilds['components'].append({'name': component})
     if assignee is not None:
-      issue_dict['assignee'] = {'name': assignee}
+      feilds['assignee'] = {'name': assignee}
     if parent_key is not None:
-      issue_dict['parent'] = {'key': parent_key}
+      feilds['parent'] = {'key': parent_key}
+      feilds['issuetype'] = {'name': 'Sub-task'}
+    try:
+      new_issue = self.jira.create_issue(fields = feilds)
+    except Exception as e:
+      raise
+    return new_issue
 
-    new_issue = jira.create_issue(fields = issue_dict)
 
-
-  def comment_issue(self):
-    #TODO:
-    pass
-
-  def close_issue(self):
-    #TODO:
-    pass
+  def update_issue(self, issue, summary=None, components=None, description=None, assignee=None,  notify=True):
+    """
+    Create a new issue
+    Args:
+      issue - Jira issue object
+      summary (optional) - Issue title
+      components (optional) - A list of components
+      description (optional) - A string that describes the issue
+      assignee (optional) - A string of JIRA user name
+      notify - Query parameter notifyUsers. If true send the email with notification that the issue was updated to users that watch it.
+               Admin or project admin permissions are required to disable the notification.
+    Return:
+      Issue created
+    """
+    fields={}
+    if summary is not None:
+      fields['summary'] = summary
+    if description is not None:
+      fields['description'] = description
+    if assignee is not None:
+      fields['assignee'] = {'name': assignee}
+    if components is not None:
+      fields['components'] = []
+      for component in components:
+        fields['components'].append({'name': component})
+    try:
+      issue.update(fields=fields, notify=notify)
+    except Exception as e:
+      raise
