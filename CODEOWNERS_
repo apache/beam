@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-# This file is used for auto-assigning reviewers to PRs.
-#
-# The last matching rule wins. For details, see:
-# https://help.github.com/articles/about-codeowners/
+# This file is used for suggesting reviewers for PRs.
+# The last matching rule wins.
+# See https://help.github.com/articles/about-codeowners/ for path pattern
+# examples.
 
 # Per-language reviewers.
 *.go @herohde
@@ -26,9 +26,9 @@
 *.py @pabloem @robertwb @aaltay @charlesccychen
 
 # SDK components reviewers.
-/sdks/go/ @herohde
+/sdks/go @herohde
 
-/sdks/java/ @aaltay @kennknowles
+/sdks/java @aaltay @kennknowles
 /sdks/java/core @lukecwik
 #/sdks/java/extensions
 /sdks/java/extensions/google-cloud-platform-core @lukecwik @chamikaramj
@@ -71,7 +71,7 @@
 #/sdks/java/maven-archetypes
 /sdks/java/javadoc @melap
 
-/sdks/python/ @aaltay @charlesccychen
+/sdks/python @aaltay @charlesccychen
 /sdks/python/scripts @aaltay
 /sdks/python/container @herohde @aaltay @charlesccychen
 /sdks/python/apache_beam/runners @pabloem @charlesccychen
