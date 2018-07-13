@@ -65,5 +65,39 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--monitorJobs=true',
               '--flinkMaster=local"'].join(' '))
     }
+    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--queryLanguage=sql',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--flinkMaster=local"'].join(' '))
+    }
+    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--queryLanguage=sql',
+              '--streaming=true',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--flinkMaster=local"'].join(' '))
+    }
   }
 }

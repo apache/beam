@@ -65,5 +65,39 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceEncodability=true',
               '--enforceImmutability=true"'].join(' '))
     }
+    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING DIRECT RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=DirectRunner',
+              '--queryLanguage=sql',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
+    }
+    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING DIRECT RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=DirectRunner',
+              '--queryLanguage=sql',
+              '--streaming=true',
+              '--suite=SMOKE',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
+    }
   }
 }
