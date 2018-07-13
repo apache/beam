@@ -136,7 +136,7 @@ public class SyntheticOptions implements Serializable {
    * The size of a single record used for size estimation in bytes. If less than zero, keySizeBytes
    * + valueSizeBytes is used.
    */
-  @JsonProperty public final long bytesPerRecord = -1;
+  @JsonProperty public final long bytesPerRecord;
 
   /** The number of distinct "hot" keys. */
   @JsonProperty public long numHotKeys;
@@ -207,7 +207,12 @@ public class SyntheticOptions implements Serializable {
    * spent spinning. The remaining time is spent sleeping. For each millisecond of processing time
    * we choose to spin with probability equal to this fraction.
    */
-  @JsonProperty public final double cpuUtilizationInMixedDelay = 0.1;
+  @JsonProperty public final double cpuUtilizationInMixedDelay;
+
+  SyntheticOptions() {
+    cpuUtilizationInMixedDelay = 0.1;
+    bytesPerRecord = -1;
+  }
 
   @JsonDeserialize
   public void setSeed(int seed) {
