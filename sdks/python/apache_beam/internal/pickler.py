@@ -39,12 +39,6 @@ import zlib
 
 import dill
 
-# Dill 0.28.0 renamed dill.dill to dill._dill:
-# https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
-# TODO: Remove this once Beam depends on dill >= 0.2.8
-if not getattr(dill, 'dill', None):
-  dill.dill = dill._dill
-
 
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
