@@ -45,7 +45,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 
 /**
  * This {@link SyntheticOptions} class provides common parameterizable synthetic options that are
- * used by {@link SyntheticBoundedInput}.
+ * used by {@link SyntheticBoundedIO}.
  */
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
@@ -62,7 +62,7 @@ public class SyntheticOptions implements Serializable {
   }
 
   /** Mapper for (de)serializing JSON. */
-  public static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
    * Wrapper over a distribution. Unfortunately commons-math does not provide a common interface
@@ -136,7 +136,7 @@ public class SyntheticOptions implements Serializable {
    * The size of a single record used for size estimation in bytes. If less than zero, keySizeBytes
    * + valueSizeBytes is used.
    */
-  @JsonProperty public long bytesPerRecord = -1;
+  @JsonProperty public final long bytesPerRecord = -1;
 
   /** The number of distinct "hot" keys. */
   @JsonProperty public long numHotKeys;
@@ -194,20 +194,20 @@ public class SyntheticOptions implements Serializable {
    * unbounded source uses RateLimiter to control QPS.
    */
   @JsonDeserialize(using = SamplerDeserializer.class)
-  public Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
+  private final Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
 
   /**
    * When 'delayDistribution' is configured, this indicates how the delay enforced ("SLEEP", "CPU",
    * or "MIXED").
    */
-  @JsonProperty public DelayType delayType = DelayType.SLEEP;
+  @JsonProperty public final DelayType delayType = DelayType.SLEEP;
 
   /**
    * CPU utilization when delayType is 'MIXED'. This determines the fraction of processing time
    * spent spinning. The remaining time is spent sleeping. For each millisecond of processing time
    * we choose to spin with probability equal to this fraction.
    */
-  @JsonProperty public double cpuUtilizationInMixedDelay = 0.1;
+  @JsonProperty public final double cpuUtilizationInMixedDelay = 0.1;
 
   @JsonDeserialize
   public void setSeed(int seed) {

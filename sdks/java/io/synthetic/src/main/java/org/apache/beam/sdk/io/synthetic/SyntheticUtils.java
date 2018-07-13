@@ -25,7 +25,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 
-/** Utility functions used in {@link org.apache.beam.sdk.io.common.synthetic}. */
+/** Utility functions used in {@link org.apache.beam.sdk.io.synthetic}. */
 class SyntheticUtils {
   // cpu delay implementation:
 

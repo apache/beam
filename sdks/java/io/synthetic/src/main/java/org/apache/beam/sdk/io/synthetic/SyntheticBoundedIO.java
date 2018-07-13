@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -72,6 +73,7 @@ import org.slf4j.LoggerFactory;
  * PCollection<KV<byte[], byte[]>> input = p.apply(SyntheticBoundedInput.readFrom(sso));
  * }</pre>
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class SyntheticBoundedIO {
   /** Read from the synthetic source options. */
   public static Read.Bounded<KV<byte[], byte[]>> readFrom(SyntheticSourceOptions options) {
@@ -90,7 +92,7 @@ public class SyntheticBoundedIO {
       this(0, sourceOptions.numRecords, sourceOptions);
     }
 
-    public SyntheticBoundedSource(
+    SyntheticBoundedSource(
         long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
       super(startOffset, endOffset, 1);
       this.sourceOptions = sourceOptions;
@@ -152,7 +154,7 @@ public class SyntheticBoundedIO {
     }
 
     @Override
-    public SyntheticSourceReader createReader(PipelineOptions pipelineOptions) throws IOException {
+    public SyntheticSourceReader createReader(PipelineOptions pipelineOptions) {
       return new SyntheticSourceReader(this);
     }
 
@@ -177,7 +179,7 @@ public class SyntheticBoundedIO {
       return res;
     }
 
-    protected List<OffsetRange> generateBundleSizes(int desiredNumBundles) {
+    private List<OffsetRange> generateBundleSizes(int desiredNumBundles) {
       List<OffsetRange> result = new ArrayList<>();
 
       // Generate relative bundle sizes using the given distribution.
@@ -268,14 +270,14 @@ public class SyntheticBoundedIO {
      * #delayDistribution}.
      */
     @JsonDeserialize(using = SamplerDeserializer.class)
-    public Sampler initializeDelayDistribution =
+    final Sampler initializeDelayDistribution =
         fromRealDistribution(new ConstantRealDistribution(0));
 
     /**
      * Generates a random delay value for the synthetic source initialization using the distribution
      * defined by {@link #initializeDelayDistribution}.
      */
-    public Duration nextInitializeDelay(long seed) {
+    Duration nextInitializeDelay(long seed) {
       return Duration.millis((long) initializeDelayDistribution.sample(seed));
     }
 
@@ -315,7 +317,7 @@ public class SyntheticBoundedIO {
       public final KV<byte[], byte[]> kv;
       public final Duration sleepMsec;
 
-      public Record(KV<byte[], byte[]> kv, long sleepMsec) {
+      Record(KV<byte[], byte[]> kv, long sleepMsec) {
         this.kv = kv;
         this.sleepMsec = new Duration(sleepMsec);
       }
@@ -337,7 +339,7 @@ public class SyntheticBoundedIO {
     private long currentOffset;
     private boolean isAtSplitPoint;
 
-    public SyntheticSourceReader(SyntheticBoundedSource source) {
+    SyntheticSourceReader(SyntheticBoundedSource source) {
       super(source);
       this.currentKvPair = null;
       this.splitPointFrequencyRecords = source.sourceOptions.splitPointFrequencyRecords;
@@ -391,7 +393,7 @@ public class SyntheticBoundedIO {
     }
 
     @Override
-    protected boolean advanceImpl() throws IOException {
+    protected boolean advanceImpl() {
       currentOffset++;
       isAtSplitPoint =
           (splitPointFrequencyRecords == 0) || (currentOffset % splitPointFrequencyRecords == 0);
@@ -410,7 +412,7 @@ public class SyntheticBoundedIO {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
       // Nothing
     }
 
