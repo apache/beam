@@ -92,8 +92,7 @@ public class SyntheticBoundedIO {
       this(0, sourceOptions.numRecords, sourceOptions);
     }
 
-    SyntheticBoundedSource(
-        long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
+    SyntheticBoundedSource(long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
       super(startOffset, endOffset, 1);
       this.sourceOptions = sourceOptions;
       LOG.debug("Constructing {}", toString());
