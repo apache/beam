@@ -106,8 +106,8 @@ public class JavaBeanSchemaTest {
     assertEquals((int) 3, row.getInt32("anInt"));
     assertEquals((long) 4, row.getInt64("aLong"));
     assertEquals(true, row.getBoolean("aBoolean"));
-    assertEquals(DATE, row.getDateTime("dateTime"));
-    assertEquals(DATE, row.getDateTime("instant"));
+    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
     assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
@@ -160,8 +160,8 @@ public class JavaBeanSchemaTest {
     assertEquals((int) 3, nestedRow.getInt32("anInt"));
     assertEquals((long) 4, nestedRow.getInt64("aLong"));
     assertEquals(true, nestedRow.getBoolean("aBoolean"));
-    assertEquals(DATE, nestedRow.getDateTime("dateTime"));
-    assertEquals(DATE, nestedRow.getDateTime("instant"));
+    assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), nestedRow.getDateTime("instant"));
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("byteBuffer"));
     assertEquals(BigDecimal.ONE, nestedRow.getDecimal("bigDecimal"));

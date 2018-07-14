@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
@@ -56,10 +57,13 @@ public class RowWithGetters extends Row {
   @Override
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   public <T> T getValue(int fieldIdx) {
-    FieldType type = getSchema().getField(fieldIdx).getType();
+    Field field = getSchema().getField(fieldIdx);
+    FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);
-
-    return getValue(type, fieldValue, fieldIdx);
+    if (fieldValue == null && !field.getNullable()) {
+      throw new RuntimeException("Null value set on non-nullable field" + field);
+    }
+    return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
   }
 
   private List getListValue(FieldType elementType, Object fieldValue) {
