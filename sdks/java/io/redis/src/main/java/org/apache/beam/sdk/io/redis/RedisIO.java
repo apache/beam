@@ -353,7 +353,7 @@ public class RedisIO {
       bufferedKeys.add(key);
       this.window = window;
       this.lastMsg = processContext.timestamp();
-      if (bufferedKeys.size() > getBatchSize()) {
+      if (bufferedKeys.size() >= getBatchSize()) {
         List<KV<String, String>> kvs = fetchAndFlush();
         for (KV<String, String> kv : kvs) {
           processContext.output(kv);
