@@ -335,31 +335,31 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-      - name: Splittable DoFn
+      - name: Splittable DoFn (SDF)
         values:
           - class: model
             l1: 'Partially'
             l2: DoFn where processing of each element can be split for parallelism, or suspended and resumed
             l3: Allows users to develop DoFn's that process a single element in portions ("restrictions"), executed in parallel or sequentially. This supersedes the unbounded and bounded `Source` APIs by supporting all of their features on a per-element basis. See http://s.apache.org/splittable-do-fn. Design is in progress on achieving parity with Source API regarding progress signals.
           - class: dataflow
-            l1: 'Partially'
-            l2: supported in streaming mode
-            l3: Supports checkpointing (sequentially processing an element over several, potentially infinitely many calls). Does not yet support autotuning features of the Source API.
+            l1: 'Yes'
+            l2:
+            l3: Does not yet support autotuning features of the Source API.
           - class: flink
-            l1: 'No'
-            l2: implementation in streaming mode coming soon
+            l1: 'Yes'
+            l2:
             l3:
           - class: spark
-            l1: 'No'
-            l2: not implemented
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
             l3:
           - class: apex
-            l1: 'No'
-            l2: implementation in streaming mode coming soon
-            l3:
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
+            l3: implementation in streaming mode coming soon
           - class: gearpump
-            l1: 'No'
-            l2: not implemented
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
             l3:
           - class: mapreduce
             l1: 'No'
@@ -374,8 +374,8 @@ categories:
             l2: not implemented
             l3:
           - class: samza
-            l1: 'No'
-            l2: not implemented
+            l1: 'Partially'
+            l2: supports bounded-per-element SDFs
             l3:
       - name: Metrics
         values:
