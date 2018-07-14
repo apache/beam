@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.values.reflect;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.annotations.Internal;
  * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
  */
 @Internal
-public interface FieldValueGetter<ObjectT, ValueT> {
+public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
   ValueT get(ObjectT object);
 
   String name();

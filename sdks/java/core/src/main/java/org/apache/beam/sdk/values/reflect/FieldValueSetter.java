@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.values.reflect;
 
+import java.io.Serializable;
 import java.lang.reflect.Type;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
@@ -31,7 +32,7 @@ import org.apache.beam.sdk.annotations.Internal;
  * fields.
  */
 @Internal
-public interface FieldValueSetter<ObjectT, ValueT> {
+public interface FieldValueSetter<ObjectT, ValueT> extends Serializable {
   /** Sets the specified field on object to value. */
   void set(ObjectT object, ValueT value);
 
