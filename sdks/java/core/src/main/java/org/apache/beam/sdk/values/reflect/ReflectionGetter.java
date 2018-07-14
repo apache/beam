@@ -30,7 +30,7 @@ import java.lang.reflect.Method;
 class ReflectionGetter implements FieldValueGetter {
   private String name;
   private Class type;
-  private Method getter;
+  private transient Method getter;
 
   ReflectionGetter(Method getter) {
     this.getter = getter;
