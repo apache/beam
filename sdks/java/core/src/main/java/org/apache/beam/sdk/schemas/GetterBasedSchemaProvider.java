@@ -110,6 +110,10 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   @SuppressWarnings("unchecked")
   private <T> T fromValue(
       FieldType type, T value, Type fieldType, Type elemenentType, Type keyType, Type valueType) {
+    if (value == null) {
+      return null;
+    }
+
     if (TypeName.ROW.equals(type.getTypeName())) {
       return (T) fromRow((Row) value, (Class) fieldType);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
