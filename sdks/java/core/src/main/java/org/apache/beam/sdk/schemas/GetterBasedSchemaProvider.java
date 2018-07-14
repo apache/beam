@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -108,8 +109,13 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   }
 
   @SuppressWarnings("unchecked")
+  @Nullable
   private <T> T fromValue(
       FieldType type, T value, Type fieldType, Type elemenentType, Type keyType, Type valueType) {
+    if (value == null) {
+      return null;
+    }
+
     if (TypeName.ROW.equals(type.getTypeName())) {
       return (T) fromRow((Row) value, (Class) fieldType);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {

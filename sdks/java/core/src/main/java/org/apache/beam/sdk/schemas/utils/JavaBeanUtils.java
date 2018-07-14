@@ -94,7 +94,15 @@ public class JavaBeanUtils {
       }
       if (!type.equals(setterType)) {
         throw new RuntimeException(
-            "JavaBean contained mismatching setter for field" + type.getName());
+            "JavaBean contained setter for field "
+                + type.getName()
+                + " that had a mismatching type.");
+      }
+      if (!type.isNullable() == setterType.isNullable()) {
+        throw new RuntimeException(
+            "JavaBean contained setter for field "
+                + type.getName()
+                + " that had a mismatching nullable attribute.");
       }
     }
   }
