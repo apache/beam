@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.redis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -34,11 +35,13 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Instant;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -109,6 +112,7 @@ public class RedisIO {
     return new AutoValue_RedisIO_Read.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
         .setKeyPattern("*")
+        .setBatchSize(1000)
         .build();
   }
 
@@ -119,6 +123,7 @@ public class RedisIO {
   public static ReadAll readAll() {
     return new AutoValue_RedisIO_ReadAll.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setBatchSize(1000)
         .build();
   }
 
@@ -142,6 +147,8 @@ public class RedisIO {
     @Nullable
     abstract String keyPattern();
 
+    abstract int batchSize();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -151,6 +158,8 @@ public class RedisIO {
 
       @Nullable
       abstract Builder setKeyPattern(String keyPattern);
+
+      abstract Builder setBatchSize(int batchSize);
 
       abstract Read build();
     }
@@ -185,6 +194,10 @@ public class RedisIO {
       return builder().setConnectionConfiguration(connection).build();
     }
 
+    public Read withBatchSize(int batchSize) {
+      return builder().setBatchSize(batchSize).build();
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       connectionConfiguration().populateDisplayData(builder);
@@ -197,7 +210,10 @@ public class RedisIO {
       return input
           .apply(Create.of(keyPattern()))
           .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
-          .apply(RedisIO.readAll().withConnectionConfiguration(connectionConfiguration()));
+          .apply(
+              RedisIO.readAll()
+                  .withConnectionConfiguration(connectionConfiguration())
+                  .withBatchSize(batchSize()));
     }
   }
 
@@ -209,12 +225,16 @@ public class RedisIO {
     @Nullable
     abstract RedisConnectionConfiguration connectionConfiguration();
 
+    abstract int batchSize();
+
     abstract ReadAll.Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       @Nullable
       abstract ReadAll.Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      abstract ReadAll.Builder setBatchSize(int batchSize);
 
       abstract ReadAll build();
     }
@@ -244,12 +264,16 @@ public class RedisIO {
       return builder().setConnectionConfiguration(connection).build();
     }
 
+    public ReadAll withBatchSize(int batchSize) {
+      return builder().setBatchSize(batchSize).build();
+    }
+
     @Override
     public PCollection<KV<String, String>> expand(PCollection<String> input) {
       checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
 
       return input
-          .apply(ParDo.of(new ReadFn(connectionConfiguration())))
+          .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
           .apply(new Reparallelize());
     }
@@ -303,18 +327,60 @@ public class RedisIO {
   }
   /** A {@link DoFn} requesting Redis server to get key/value pairs. */
   private static class ReadFn extends BaseReadFn<KV<String, String>> {
+    private int batchSize;
+    private List<String> bufferedKeys;
+    BoundedWindow window;
+    Instant lastMsg;
 
-    ReadFn(RedisConnectionConfiguration connectionConfiguration) {
+    @StartBundle
+    public void startBundle(StartBundleContext context) {
+      bufferedKeys = new ArrayList<>();
+    }
+
+    ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
       super(connectionConfiguration);
+      this.batchSize = batchSize;
+    }
+
+    private int getBatchSize() {
+      return batchSize;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext processContext) throws Exception {
+    public void processElement(ProcessContext processContext, BoundedWindow window)
+        throws Exception {
       String key = processContext.element();
+      bufferedKeys.add(key);
+      this.window = window;
+      this.lastMsg = processContext.timestamp();
+      if (bufferedKeys.size() > getBatchSize()) {
+        List<KV<String, String>> kvs = fetchAndFlush();
+        for (KV<String, String> kv : kvs) {
+          processContext.output(kv);
+        }
+      }
+    }
 
-      String value = jedis.get(key);
-      if (value != null) {
-        processContext.output(KV.of(key, value));
+    private List<KV<String, String>> fetchAndFlush() {
+      String[] keys = new String[bufferedKeys.size()];
+      bufferedKeys.toArray(keys);
+      List<String> results = jedis.mget(keys);
+      assert bufferedKeys.size() == results.size();
+      List<KV<String, String>> kvs = new ArrayList<>(bufferedKeys.size());
+      for (int i = 0; i < bufferedKeys.size(); i++) {
+        if (results.get(i) != null) {
+          kvs.add(KV.of(bufferedKeys.get(i), results.get(i)));
+        }
+      }
+      bufferedKeys = new ArrayList<>();
+      return kvs;
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) throws Exception {
+      List<KV<String, String>> kvs = fetchAndFlush();
+      for (KV<String, String> kv : kvs) {
+        context.output(kv, lastMsg, window);
       }
     }
   }
