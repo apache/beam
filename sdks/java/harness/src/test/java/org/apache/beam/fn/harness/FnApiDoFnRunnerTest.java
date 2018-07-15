@@ -32,7 +32,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -73,6 +72,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -152,7 +152,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     PCollection<String> outputPCollection =
         valuePCollection.apply(TEST_PTRANSFORM_ID, ParDo.of(new TestStatefulDoFn()));
 
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
@@ -310,7 +310,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     defaultSingletonSideInputView, singletonSideInputView, iterableSideInputView)
                 .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
 
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId =
@@ -433,7 +433,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             ParDo.of(new TestSideInputIsAccessibleForDownstreamCallersDoFn(iterableSideInputView))
                 .withSideInputs(iterableSideInputView));
 
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);

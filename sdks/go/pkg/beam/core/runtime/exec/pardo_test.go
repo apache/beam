@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -94,4 +95,56 @@ func TestParDo(t *testing.T) {
 	if !equalList(sum.Elements, expectedSum) {
 		t.Errorf("pardo(sumFn) side input = %v, want %v", extractValues(sum.Elements...), extractValues(expectedSum...))
 	}
+}
+
+func emitSumFn(n int, emit func(int)) {
+	emit(n + 1)
+}
+
+// BenchmarkParDo_EmitSumFn measures the overhead of invoking a ParDo in a plan.
+//
+// On @lostluck's desktop:
+// BenchmarkParDo_EmitSumFn-12    	 1000000	      1606 ns/op	     585 B/op	       7 allocs/op
+func BenchmarkParDo_EmitSumFn(b *testing.B) {
+	fn, err := graph.NewDoFn(emitSumFn)
+	if err != nil {
+		b.Fatalf("invalid function: %v", err)
+	}
+
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil)
+	if err != nil {
+		b.Fatalf("invalid pardo: %v", err)
+	}
+	var in []int
+	for i := 0; i < b.N; i++ {
+		in = append(in)
+	}
+
+	process := make(chan MainInput, 1)
+	out := &CaptureNode{UID: 1}
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
+	n := &BenchRoot{UID: 4, Elements: process, Out: pardo}
+	p, err := NewPlan("a", []Unit{n, pardo, out})
+	if err != nil {
+		b.Fatalf("failed to construct plan: %v", err)
+	}
+	go func() {
+		if err := p.Execute(context.Background(), "1", nil); err != nil {
+			b.Fatalf("execute failed: %v", err)
+		}
+		if err := p.Down(context.Background()); err != nil {
+			b.Fatalf("down failed: %v", err)
+		}
+	}()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		process <- MainInput{Key: FullValue{
+			Windows:   window.SingleGlobalWindow,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       1,
+		}}
+	}
+	close(process)
 }

@@ -41,18 +41,18 @@ Additionally, this module provides a write ``PTransform`` ``WriteToAvro``
 that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
+from __future__ import absolute_import
 
-import cStringIO
+import io
 import os
 import zlib
+from builtins import object
 from functools import partial
 
 import avro
 from avro import io as avroio
 from avro import datafile
 from avro import schema
-from fastavro.read import block_reader
-from fastavro.write import Writer
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink
@@ -339,9 +339,9 @@ class _AvroBlock(object):
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
       # We take care to avoid extra copies of data while slicing large objects
-      # by use of a buffer.
-      result = snappy.decompress(buffer(data)[:-4])
-      avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
+      # by use of a memoryview.
+      result = snappy.decompress(memoryview(data)[:-4])
+      avroio.BinaryDecoder(io.BytesIO(data[-4:])).check_crc32(result)
       return result
     else:
       raise ValueError('Unknown codec: %r' % codec)
@@ -351,7 +351,7 @@ class _AvroBlock(object):
 
   def records(self):
     decoder = avroio.BinaryDecoder(
-        cStringIO.StringIO(self._decompressed_block_bytes))
+        io.BytesIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 
@@ -441,6 +441,9 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
       start_offset = 0
 
     with self.open_file(file_name) as f:
+      # TODO(BEAM-4749): fastavro fails to install in MacOS.
+      from fastavro.read import block_reader  # pylint: disable=wrong-import-position
+
       blocks = block_reader(f)
       sync_marker = blocks._header['sync']
 
@@ -594,6 +597,9 @@ class _AvroSink(filebasedsink.FileBasedSink):
 class _FastAvroSink(_AvroSink):
   """A sink for avro files that uses the `fastavro` library"""
   def open(self, temp_path):
+    # TODO(BEAM-4749): fastavro fails to install in MacOS.
+    from fastavro.write import Writer  # pylint: disable=wrong-import-position
+
     file_handle = super(_AvroSink, self).open(temp_path)
     return Writer(file_handle, self._schema.to_json(), self._codec)
 

@@ -64,7 +64,6 @@ dependencies {
   shadow library.java.google_auth_library_oauth2_http
   shadow library.java.slf4j_api
   shadow library.java.protobuf_java
-  shadow library.java.findbugs_jsr305
   shadow library.java.avro
   shadow library.java.proto_google_cloud_spanner_admin_database_v1
   shadow library.java.proto_google_common_protos

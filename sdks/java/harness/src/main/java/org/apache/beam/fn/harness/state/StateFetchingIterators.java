@@ -18,7 +18,6 @@
 package org.apache.beam.fn.harness.state;
 
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /**
  * Adapters which convert a a logical series of chunks using continuation tokens over the Beam Fn

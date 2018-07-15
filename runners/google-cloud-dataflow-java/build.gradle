@@ -36,7 +36,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20180619'
+    'dataflow.container_version' : 'beam-master-20180710'
   ]
 }
 
@@ -70,7 +70,6 @@ dependencies {
   shadow library.java.bigdataoss_util
   shadow library.java.avro
   shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
@@ -128,6 +127,7 @@ task validatesRunnerTest(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 

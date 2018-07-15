@@ -31,5 +31,7 @@ import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
 
 
-def load(raw_events):
-  return raw_events | 'ParseEventFn' >> beam.ParDo(ParseEventFn())  # pylint: disable=expression-not-assigned
+def load(raw_events, query_args=None):
+  return (raw_events
+          | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
+         )  # pylint: disable=expression-not-assigned

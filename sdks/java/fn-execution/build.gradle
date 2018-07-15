@@ -23,19 +23,13 @@ description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
 the Beam Portability Framework."""
 
-
 dependencies {
   compile library.java.guava
-  compile library.java.findbugs_jsr305
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
-  shadow library.java.grpc_core
-  shadow library.java.grpc_stub
-  shadow library.java.grpc_netty
-  shadow library.java.netty_transport_native_epoll
   provided library.java.junit
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

@@ -39,18 +39,13 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
-  shadow library.java.protobuf_java
-  shadow library.java.protobuf_java_util
-  shadow library.java.findbugs_jsr305
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  shadow library.java.grpc_core
-  shadow library.java.grpc_stub
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_annotations
   shadowTest library.java.jackson_dataformat_yaml
-  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadowTest")
+  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
 }

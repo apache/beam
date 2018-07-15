@@ -106,6 +106,64 @@ public class PTransformMatchers {
 
   /**
    * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that requires stable input, as signified by {@link ProcessElementMethod#requiresStableInput()}.
+   */
+  public static PTransformMatcher requiresStableInputParDoSingle() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.SingleOutput) {
+          DoFn<?, ?> fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.processElement().requiresStableInput();
+        }
+        return false;
+      }
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("RequiresStableInputParDoSingleMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
+   * that requires stable input, as signified by {@link ProcessElementMethod#requiresStableInput()}.
+   */
+  public static PTransformMatcher requiresStableInputParDoMulti() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.MultiOutput) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.processElement().requiresStableInput();
+        }
+        return false;
+      }
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("RequiresStableInputParDoMultiMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
    * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
   public static PTransformMatcher splittableParDoSingle() {

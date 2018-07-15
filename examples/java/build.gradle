@@ -20,6 +20,8 @@ import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: Examples :: Java"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
@@ -49,7 +51,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_api_services_bigquery
-  shadow library.java.findbugs_jsr305
   shadow library.java.google_http_client
   shadow library.java.bigdataoss_util
   shadow library.java.google_auth_library_oauth2_http
@@ -60,8 +61,8 @@ dependencies {
   shadow library.java.datastore_v1_protos
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
+  runtime project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
@@ -122,7 +123,7 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
-  dependsOn ":runners:google-cloud-dataflow-java:examples:preCommit"
-  dependsOn ":runners:google-cloud-dataflow-java:examples-streaming:preCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
 }
 

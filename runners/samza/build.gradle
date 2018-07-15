@@ -43,7 +43,6 @@ dependencies {
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow library.java.jackson_annotations
-  shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.commons_compress
@@ -87,6 +86,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 

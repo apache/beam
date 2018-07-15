@@ -119,8 +119,12 @@ import logging
 import re
 import time
 import uuid
+from builtins import object
+from builtins import zip
 
-from six import string_types
+from future.utils import iteritems
+from future.utils import itervalues
+from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
@@ -212,7 +216,7 @@ class TableRowJsonCoder(coders.Coder):
     od = json.loads(
         encoded_table_row, object_pairs_hook=collections.OrderedDict)
     return bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in od.itervalues()])
+        f=[bigquery.TableCell(v=to_json_value(e)) for e in itervalues(od)])
 
 
 def parse_table_schema_from_json(schema_string):
@@ -524,7 +528,7 @@ bigquery_v2_messages.TableSchema` object.
 
     self.table_reference = _parse_table_reference(table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
-    if isinstance(schema, string_types):
+    if isinstance(schema, (str, unicode)):
       # TODO(silviuc): Should add a regex-based validation of the format.
       table_schema = bigquery.TableSchema()
       schema_list = [s.strip(' ') for s in schema.split(',')]
@@ -1103,7 +1107,7 @@ class BigQueryWrapper(object):
     final_rows = []
     for row in rows:
       json_object = bigquery.JsonObject()
-      for k, v in row.iteritems():
+      for k, v in iteritems(row):
         json_object.additionalProperties.append(
             bigquery.JsonObject.AdditionalProperty(
                 key=k, value=to_json_value(v)))
@@ -1415,7 +1419,7 @@ bigquery_v2_messages.TableSchema):
       return schema
     elif schema is None:
       return schema
-    elif isinstance(schema, string_types):
+    elif isinstance(schema, (str, unicode)):
       table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
       return WriteToBigQuery.table_schema_to_dict(table_schema)
     elif isinstance(schema, bigquery.TableSchema):

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
 # cython: profile=True
 
 """Worker operations executor.
@@ -22,19 +23,30 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import sys
 import traceback
+from builtins import next
+from builtins import object
+from builtins import zip
 
-import six
+from future.utils import raise_
+from past.builtins import basestring
+from past.builtins import unicode
 
 from apache_beam.internal import util
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
 from apache_beam.transforms.core import RestrictionProvider
+from apache_beam.transforms.userstate import UserStateUtils
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterName
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -106,16 +118,6 @@ class DataflowNameContext(NameContext):
   def logging_name(self):
     """Stackdriver logging relies on user-given step names (e.g. Foo/Bar)."""
     return self.user_name
-
-
-class LoggingContext(object):
-  """For internal use only; no backwards-compatibility guarantees."""
-
-  def enter(self):
-    pass
-
-  def exit(self):
-    pass
 
 
 class Receiver(object):
@@ -207,18 +209,29 @@ class DoFnSignature(object):
     self._validate_process()
     self._validate_bundle_method(self.start_bundle_method)
     self._validate_bundle_method(self.finish_bundle_method)
+    self._validate_stateful_dofn()
 
   def _validate_process(self):
     """Validate that none of the DoFnParameters are repeated in the function
     """
-    for param in core.DoFn.DoFnParams:
-      assert self.process_method.defaults.count(param) <= 1
+    param_ids = [d.param_id for d in self.process_method.defaults
+                 if isinstance(d, core._DoFnParam)]
+    if len(param_ids) != len(set(param_ids)):
+      raise ValueError(
+          'DoFn %r has duplicate process method parameters: %s.' % (
+              self.do_fn, param_ids))
 
   def _validate_bundle_method(self, method_wrapper):
     """Validate that none of the DoFnParameters are used in the function
     """
-    for param in core.DoFn.DoFnParams:
-      assert param not in method_wrapper.defaults
+    for param in core.DoFn.DoFnProcessParams:
+      if param in method_wrapper.defaults:
+        raise ValueError(
+            'DoFn.process() method-only parameter %s cannot be used in %s.' %
+            (param, method_wrapper))
+
+  def _validate_stateful_dofn(self):
+    UserStateUtils.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
     return any([isinstance(default, RestrictionProvider) for default in
@@ -528,7 +541,8 @@ class DoFnRunner(Receiver):
                step_name=None,
                logging_context=None,
                state=None,
-               scoped_metrics_container=None):
+               scoped_metrics_container=None,
+               operation_name=None):
     """Initializes a DoFnRunner.
 
     Args:
@@ -539,27 +553,35 @@ class DoFnRunner(Receiver):
       windowing: windowing properties of the output PCollection(s)
       tagged_receivers: a dict of tag name to Receiver objects
       step_name: the name of this step
-      logging_context: a LoggingContext object
+      logging_context: DEPRECATED [BEAM-4728]
       state: handle for accessing DoFn state
-      scoped_metrics_container: Context switcher for metrics container
+      scoped_metrics_container: DEPRECATED
+      operation_name: The system name assigned by the runner for this operation.
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
 
-    from apache_beam.metrics.execution import ScopedMetricsContainer
-
-    self.scoped_metrics_container = (
-        scoped_metrics_container or ScopedMetricsContainer())
     self.step_name = step_name
-    self.logging_context = logging_context or LoggingContext()
     self.context = DoFnContext(step_name, state=state)
 
     do_fn_signature = DoFnSignature(fn)
 
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
+
+    # TODO(BEAM-3937): Remove if block after output counter released.
+    if 'outputs_per_element_counter' in RuntimeValueProvider.experiments:
+      # TODO(BEAM-3955): Make step_name and operation_name less confused.
+      output_counter_name = (CounterName('per-element-output-count',
+                                         step_name=operation_name))
+      per_element_output_counter = state._counter_factory.get_counter(
+          output_counter_name, Counter.DATAFLOW_DISTRIBUTION).accumulator
+    else:
+      per_element_output_counter = None
+
     output_processor = _OutputProcessor(
-        windowing.windowfn, main_receivers, tagged_receivers)
+        windowing.windowfn, main_receivers, tagged_receivers,
+        per_element_output_counter)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
@@ -570,26 +592,16 @@ class DoFnRunner(Receiver):
 
   def process(self, windowed_value):
     try:
-      self.logging_context.enter()
-      self.scoped_metrics_container.enter()
       self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
-    finally:
-      self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def _invoke_bundle_method(self, bundle_method):
     try:
-      self.logging_context.enter()
-      self.scoped_metrics_container.enter()
       self.context.set_element(None)
       bundle_method()
     except BaseException as exn:
       self._reraise_augmented(exn)
-    finally:
-      self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def start(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)
@@ -615,7 +627,7 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    six.reraise(type(new_exn), new_exn, original_traceback)
+    raise_(type(new_exn), new_exn, original_traceback)
 
 
 class OutputProcessor(object):
@@ -627,17 +639,24 @@ class OutputProcessor(object):
 class _OutputProcessor(OutputProcessor):
   """Processes output produced by DoFn method invocations."""
 
-  def __init__(self, window_fn, main_receivers, tagged_receivers):
+  def __init__(self,
+               window_fn,
+               main_receivers,
+               tagged_receivers,
+               per_element_output_counter):
     """Initializes ``_OutputProcessor``.
 
     Args:
       window_fn: a windowing function (WindowFn).
       main_receivers: a dict of tag name to Receiver objects.
       tagged_receivers: main receiver object.
+      per_element_output_counter: per_element_output_counter of one work_item.
+                                  could be none if experimental flag turn off
     """
     self.window_fn = window_fn
     self.main_receivers = main_receivers
     self.tagged_receivers = tagged_receivers
+    self.per_element_output_counter = per_element_output_counter
 
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of process computation to the appropriate receivers.
@@ -646,13 +665,21 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
+      # TODO(BEAM-3937): Remove if block after output counter released.
+      # Only enable per_element_output_counter when counter cythonized.
+      if (self.per_element_output_counter is not None and
+          self.per_element_output_counter.is_cythonized):
+        self.per_element_output_counter.add_input(0)
       return
 
+    output_element_count = 0
     for result in results:
+      # results here may be a generator, which cannot call len on it.
+      output_element_count += 1
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, six.string_types):
+        if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -673,6 +700,11 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
+    # TODO(BEAM-3937): Remove if block after output counter released.
+    # Only enable per_element_output_counter when counter cythonized
+    if (self.per_element_output_counter is not None and
+        self.per_element_output_counter.is_cythonized):
+      self.per_element_output_counter.add_input(output_element_count)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""
@@ -694,7 +726,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, six.string_types):
+        if not isinstance(tag, (str, unicode)):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 

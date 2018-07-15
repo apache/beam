@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,11 +41,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
@@ -154,22 +155,31 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           BeamIOSinkRel.class.getSimpleName(),
           pinput);
       PCollection<Row> upstream = pinput.get(0);
-      Type windowType =
-          upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
-      if (!windowType.equals(GlobalWindow.class)) {
-        throw new UnsupportedOperationException(
-            "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
-      }
 
-      BeamSqlRowComparator comparator =
-          new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+      // There is a need to separate ORDER BY LIMIT and LIMIT:
+      //  - GroupByKey (used in Top) is not allowed on unbounded data in global window so ORDER BY ... LIMIT
+      //    works only on bounded data.
+      //  - Just LIMIT operates on unbounded data, but across windows.
+      if (fieldIndices.size() == 0) {
+        // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
+        // Figure out which operations are per-window and which are not.
+        return upstream
+            .apply(Window.into(new GlobalWindows()))
+            .apply(new LimitTransform<>())
+            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      } else {
 
-      PCollection<Row> retStream;
+        WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
+        if (!(windowingStrategy.getWindowFn() instanceof GlobalWindows)) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "`ORDER BY` is only supported for %s, actual windowing strategy: %s",
+                  GlobalWindows.class.getSimpleName(), windowingStrategy));
+        }
 
-      // There is a need to separate ORDER BY LIMIT and LIMIT, because GroupByKey is not allowed
-      // on unbounded data in global window(Top transform uses GroupByKey internally).
-      // If it is ORDER BY LIMIT.
-      if (fieldIndices.size() > 0) {
+        BeamSqlRowComparator comparator =
+            new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+
         // first find the top (offset + count)
         PCollection<List<Row>> rawStream =
             upstream
@@ -188,17 +198,14 @@ public class BeamSortRel extends Sort implements BeamRelNode {
                   .setCoder(ListCoder.of(upstream.getCoder()));
         }
 
-        retStream = rawStream.apply("flatten", Flatten.iterables());
-      } else { // If it is LIMIT only
-        retStream = upstream.apply(new BeamSqlLimitTransforms<Row>());
+        return rawStream
+            .apply("flatten", Flatten.iterables())
+            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
       }
-
-      retStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
-      return retStream;
     }
   }
 
-  private class BeamSqlLimitTransforms<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  private class LimitTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       Coder<T> coder = input.getCoder();

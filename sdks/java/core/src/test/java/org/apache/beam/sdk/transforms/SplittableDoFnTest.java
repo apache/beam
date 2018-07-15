@@ -513,16 +513,17 @@ public class SplittableDoFnTest implements Serializable {
 
     private State state = State.BEFORE_SETUP;
 
-    @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
-      assertEquals(State.INSIDE_BUNDLE, state);
-      assertTrue(tracker.tryClaim(0L));
-      c.output(c.element());
-    }
-
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(String value) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
       return new OffsetRange(0, 1);
+    }
+
+    @SplitRestriction
+    public void splitRestriction(
+        String value, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      receiver.output(range);
     }
 
     @Setup
@@ -535,6 +536,13 @@ public class SplittableDoFnTest implements Serializable {
     public void startBundle() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       state = State.INSIDE_BUNDLE;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      assertTrue(tracker.tryClaim(0L));
+      c.output(c.element());
     }
 
     @FinishBundle
@@ -553,13 +561,51 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testLifecycleMethods() throws Exception {
-
     PCollection<String> res =
         p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));
-
     PAssert.that(res).containsInAnyOrder("a", "b", "c");
-
     p.run();
+  }
+
+  @Test
+  @Category({UsesSplittableParDo.class})
+  public void testBoundedness() {
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    {
+      PCollection<String> res =
+          foo.apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public void process(@Element String element, OffsetRangeTracker tracker) {
+                      // Doesn't matter
+                    }
+
+                    @GetInitialRestriction
+                    public OffsetRange getInitialRestriction(String element) {
+                      return new OffsetRange(0, 1);
+                    }
+                  }));
+      assertEquals(PCollection.IsBounded.BOUNDED, res.isBounded());
+    }
+    {
+      PCollection<String> res =
+          foo.apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public ProcessContinuation process(
+                        @Element String element, OffsetRangeTracker tracker) {
+                      return stop();
+                    }
+
+                    @GetInitialRestriction
+                    public OffsetRange getInitialRestriction(String element) {
+                      return new OffsetRange(0, 1);
+                    }
+                  }));
+      assertEquals(PCollection.IsBounded.UNBOUNDED, res.isBounded());
+    }
   }
 
   // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn

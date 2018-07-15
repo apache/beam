@@ -203,6 +203,8 @@ public class FileIOTest implements Serializable {
                     .continuously(
                         Duration.millis(100),
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
 
     Thread writer =
         new Thread(

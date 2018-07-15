@@ -32,8 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 /**
  * Utility methods for translating a {@link Assign} to and from {@link RunnerApi} representations.
  */
-public class FlattenTranslator
-    extends TransformPayloadTranslator.WithDefaultRehydration<Flatten.PCollections<?>> {
+public class FlattenTranslator implements TransformPayloadTranslator<Flatten.PCollections<?>> {
 
   public static TransformPayloadTranslator create() {
     return new FlattenTranslator();
@@ -59,11 +58,6 @@ public class FlattenTranslator
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(Flatten.PCollections.class, new FlattenTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

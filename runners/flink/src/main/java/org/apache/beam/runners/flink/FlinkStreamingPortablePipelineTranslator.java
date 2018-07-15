@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -67,6 +66,7 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -450,6 +450,7 @@ public class FlinkStreamingPortablePipelineTranslator
         FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
+    Map<String, TupleTag<?>> collectionIdToTupleTag = Maps.newHashMap();
     // order output names for deterministic mapping
     for (String localOutputName : new TreeMap<>(outputIndexMap).keySet()) {
       String collectionId = outputs.get(localOutputName);
@@ -461,6 +462,7 @@ public class FlinkStreamingPortablePipelineTranslator
       tagsToOutputTags.put(tupleTag, new OutputTag<>(localOutputName, typeInformation));
       tagsToCoders.put(tupleTag, windowCoder);
       tagsToIds.put(tupleTag, outputIndexMap.get(localOutputName));
+      collectionIdToTupleTag.put(collectionId, tupleTag);
     }
 
     final SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
@@ -487,7 +489,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
     // TODO: side inputs
     DoFnOperator<InputT, OutputT> doFnOperator =
-        new ExecutableStageDoFnOperator<InputT, OutputT>(
+        new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
             inputCoder,
             mainOutputTag,
@@ -498,7 +500,8 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.batchFactory());
+            FlinkExecutableStageContext.batchFactory(),
+            collectionIdToTupleTag);
 
     outputStream =
         inputDataStream.transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);

@@ -117,7 +117,7 @@ public class PTransformTranslationTest {
 
   @Test
   public void toAndFromProto() throws IOException {
-    SdkComponents components = SdkComponents.create();
+    SdkComponents components = SdkComponents.create(spec.getTransform().getPipeline().getOptions());
     RunnerApi.PTransform converted = convert(spec, components);
     Components protoComponents = components.toComponents();
 

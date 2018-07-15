@@ -50,13 +50,7 @@ dependencies {
     compile project(path: it, configuration: "shadow")
   }
   compile library.java.jackson_databind
-  compile library.java.findbugs_jsr305
   compile library.java.guava
-  compile library.java.protobuf_java
-  compile library.java.grpc_core
-  compile library.java.grpc_netty
-  compile library.java.grpc_stub
-  compile library.java.netty_transport_native_epoll
   compile library.java.joda_time
   compile library.java.slf4j_api
   provided library.java.error_prone_annotations

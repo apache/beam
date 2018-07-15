@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -42,8 +43,11 @@ import org.apache.beam.sdk.values.Row;
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // A mapping between field names an indices.
-  private BiMap<String, Integer> fieldIndices = HashBiMap.create();
-  private List<Field> fields;
+  private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private final List<Field> fields;
+  // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
+  // is correct.
+  private final int hashCode;
 
   /** Builder class for building {@link Schema} objects. */
   public static class Builder {
@@ -79,6 +83,11 @@ public class Schema implements Serializable {
 
     public Builder addByteField(String name) {
       fields.add(Field.of(name, FieldType.BYTE));
+      return this;
+    }
+
+    public Builder addByteArrayField(String name) {
+      fields.add(Field.of(name, FieldType.BYTES));
       return this;
     }
 
@@ -157,12 +166,14 @@ public class Schema implements Serializable {
     for (Field field : fields) {
       fieldIndices.put(field.getName(), index++);
     }
+    this.hashCode = Objects.hash(fieldIndices, fields);
   }
 
   public static Schema of(Field... fields) {
     return Schema.builder().addFields(fields).build();
   }
 
+  /** Returns true if two Schemas have the same fields in the same order. */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof Schema)) {
@@ -171,6 +182,34 @@ public class Schema implements Serializable {
     Schema other = (Schema) o;
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields());
+  }
+
+  /** Returns true if two Schemas have the same fields, but possibly in different orders. */
+  public boolean equivalent(Schema other) {
+    if (other.getFieldCount() != getFieldCount()) {
+      return false;
+    }
+
+    List<Field> otherFields =
+        other
+            .getFields()
+            .stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Collectors.toList());
+    List<Field> actualFields =
+        getFields()
+            .stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Collectors.toList());
+
+    for (int i = 0; i < otherFields.size(); ++i) {
+      Field otherField = otherFields.get(i);
+      Field actualField = actualFields.get(i);
+      if (!otherField.equivalent(actualField)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
@@ -186,7 +225,7 @@ public class Schema implements Serializable {
 
   @Override
   public int hashCode() {
-    return Objects.hash(fieldIndices, getFields());
+    return hashCode;
   }
 
   public List<Field> getFields() {
@@ -214,6 +253,7 @@ public class Schema implements Serializable {
     STRING, // String.
     DATETIME, // Date and time.
     BOOLEAN, // Boolean.
+    BYTES, // Byte array.
     ARRAY,
     MAP,
     ROW; // The field is itself a nested row.
@@ -320,6 +360,9 @@ public class Schema implements Serializable {
     /** The type of byte fields. */
     public static final FieldType BYTE = FieldType.of(TypeName.BYTE);
 
+    /** The type of bytes fields. */
+    public static final FieldType BYTES = FieldType.of(TypeName.BYTES);
+
     /** The type of int16 fields. */
     public static final FieldType INT16 = FieldType.of(TypeName.INT16);
 
@@ -384,6 +427,33 @@ public class Schema implements Serializable {
           && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
           && Arrays.equals(getMetadata(), other.getMetadata());
+    }
+
+    private boolean equivalent(FieldType other) {
+      if (!other.getTypeName().equals(getTypeName())) {
+        return false;
+      }
+      switch (getTypeName()) {
+        case ROW:
+          if (!other.getRowSchema().equivalent(getRowSchema())) {
+            return false;
+          }
+          break;
+        case ARRAY:
+          if (!other.getCollectionElementType().equivalent(getCollectionElementType())) {
+            return false;
+          }
+          break;
+        case MAP:
+          if (!other.getMapKeyType().equivalent(getMapKeyType())
+              || !other.getMapValueType().equivalent(getMapValueType())) {
+            return false;
+          }
+          break;
+        default:
+          return other.equals(this);
+      }
+      return true;
     }
 
     @Override
@@ -480,6 +550,12 @@ public class Schema implements Serializable {
           && Objects.equals(getDescription(), other.getDescription())
           && Objects.equals(getType(), other.getType())
           && Objects.equals(getNullable(), other.getNullable());
+    }
+
+    private boolean equivalent(Field otherField) {
+      return otherField.getName().equals(getName())
+          && otherField.getNullable().equals(getNullable())
+          && getType().equivalent(otherField.getType());
     }
 
     @Override

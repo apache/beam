@@ -46,7 +46,6 @@ class Command(object):
   def __init__(self, cmd, args):
     self.cmd = cmd
     self.args = args
-    self.process = None
 
   def run(self, timeout):
     def thread_target():
@@ -97,3 +96,8 @@ class ParseEventFn(beam.DoFn):
     event = model(*row)
     logging.debug('Parsed event: %s', event)
     yield event
+
+
+def display(elm):
+  logging.debug(elm)
+  return elm

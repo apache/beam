@@ -22,6 +22,8 @@ the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
 
+from __future__ import absolute_import
+
 import unittest
 
 import hamcrest as hc

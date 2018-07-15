@@ -64,11 +64,12 @@ func TestCounter_Inc(t *testing.T) {
 				m.Inc(ctx, test.inc)
 
 				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				q, ok := counters.Load(key)
+				countersMu.Lock()
+				c, ok := counters[key]
+				countersMu.Unlock()
 				if !ok {
 					t.Fatalf("Unable to find Counter for key %v", key)
 				}
-				c := q.(*counter)
 				if got, want := c.value, test.value; got != want {
 					t.Errorf("GetCounter(%q,%q).Inc(%s, %d) c.value got %v, want %v", test.ns, test.n, test.key, test.inc, got, want)
 				}
@@ -108,11 +109,12 @@ func TestCounter_Dec(t *testing.T) {
 				m.Dec(ctx, test.dec)
 
 				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				q, ok := counters.Load(key)
+				countersMu.Lock()
+				c, ok := counters[key]
+				countersMu.Unlock()
 				if !ok {
 					t.Fatalf("Unable to find Counter for key %v", key)
 				}
-				c := q.(*counter)
 				if got, want := c.value, test.value; got != want {
 					t.Errorf("GetCounter(%q,%q).Dec(%s, %d) c.value got %v, want %v", test.ns, test.n, test.key, test.dec, got, want)
 				}
@@ -157,11 +159,12 @@ func TestDistribution_Update(t *testing.T) {
 				m.Update(ctx, test.v)
 
 				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				q, ok := distributions.Load(key)
+				distributionsMu.Lock()
+				d, ok := distributions[key]
+				distributionsMu.Unlock()
 				if !ok {
 					t.Fatalf("Unable to find Distribution for key %v", key)
 				}
-				d := q.(*distribution)
 				if got, want := d.count, test.count; got != want {
 					t.Errorf("GetDistribution(%q,%q).Update(%s, %d) d.count got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
 				}
@@ -215,11 +218,12 @@ func TestGauge_Set(t *testing.T) {
 				m.Set(ctx, test.v)
 
 				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				q, ok := gauges.Load(key)
+				gaugesMu.Lock()
+				g, ok := gauges[key]
+				gaugesMu.Unlock()
 				if !ok {
 					t.Fatalf("Unable to find Gauge for key %v", key)
 				}
-				g := q.(*gauge)
 				if got, want := g.v, test.v; got != want {
 					t.Errorf("GetGauge(%q,%q).Set(%s, %d) g.v got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
 				}
@@ -354,5 +358,41 @@ func TestClearBundleData(t *testing.T) {
 	if got, want := len(newOP), 3; got != want {
 		dump(t)
 		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - newOP: %v", otherBundleID, pt, got, want, newOP)
+	}
+}
+
+// Run on @lostluck's desktop:
+//
+// BenchmarkMetrics/counter_inplace-12         	 5000000	       243 ns/op	     128 B/op	       2 allocs/op
+// BenchmarkMetrics/distribution_inplace-12    	 5000000	       252 ns/op	     160 B/op	       2 allocs/op
+// BenchmarkMetrics/gauge_inplace-12           	 5000000	       266 ns/op	     160 B/op	       2 allocs/op
+// BenchmarkMetrics/counter_predeclared-12     	20000000	        74.3 ns/op	      16 B/op	       1 allocs/op
+// BenchmarkMetrics/distribution_predeclared-12         	20000000	        79.6 ns/op	      48 B/op	       1 allocs/op
+// BenchmarkMetrics/gauge_predeclared-12                	20000000	        92.9 ns/op	      48 B/op	       1 allocs/op
+func BenchmarkMetrics(b *testing.B) {
+	Clear()
+	pt, c, d, g := "bench.bundle.data", "counter", "distribution", "gauge"
+	aBundleID := "benchBID"
+	ctx := ctxWith(aBundleID, pt)
+	count := NewCounter(pt, c)
+	dist := NewDistribution(pt, d)
+	gauge := NewGauge(pt, g)
+	tests := []struct {
+		name string
+		call func()
+	}{
+		{"counter_inplace", func() { NewCounter(pt, c).Inc(ctx, 1) }},
+		{"distribution_inplace", func() { NewDistribution(pt, d).Update(ctx, 1) }},
+		{"gauge_inplace", func() { NewGauge(pt, g).Set(ctx, 1) }},
+		{"counter_predeclared", func() { count.Inc(ctx, 1) }},
+		{"distribution_predeclared", func() { dist.Update(ctx, 1) }},
+		{"gauge_predeclared", func() { gauge.Set(ctx, 1) }},
+	}
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				test.call()
+			}
+		})
 	}
 }

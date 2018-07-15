@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -30,6 +33,7 @@ import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link SchemaRegistry}. */
 public class SchemaRegistryTest {
+  static final Schema EMPTY_SCHEMA = Schema.builder().build();
   static final Schema STRING_SCHEMA = Schema.builder().addStringField("string").build();
   static final Schema INTEGER_SCHEMA = Schema.builder().addInt32Field("integer").build();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -89,7 +93,7 @@ public class SchemaRegistryTest {
     tryGetters(registry);
   }
 
-  static final class Provider extends SchemaProvider {
+  static final class Provider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptors.strings())) {
@@ -117,5 +121,85 @@ public class SchemaRegistryTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     registry.registerSchemaProvider(new Provider());
     tryGetters(registry);
+  }
+
+  static class TestSchemaClass {}
+
+  static final class TestAutoProvider implements SchemaProvider {
+    @Override
+    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+      if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
+        return EMPTY_SCHEMA;
+      }
+      return null;
+    }
+
+    @Override
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+      if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
+        return v -> Row.withSchema(EMPTY_SCHEMA).build();
+      }
+      return null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+      if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
+        return r -> (T) new TestSchemaClass();
+      }
+      return null;
+    }
+  }
+
+  /** A @link SchemaProviderRegistrar} for testing. */
+  @AutoService(SchemaProviderRegistrar.class)
+  public static class TestSchemaProviderRegistrar implements SchemaProviderRegistrar {
+    @Override
+    public List<SchemaProvider> getSchemaProviders() {
+      return ImmutableList.of(new TestAutoProvider());
+    }
+  }
+
+  @Test
+  public void testAutoSchemaProvider() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    assertEquals(EMPTY_SCHEMA, registry.getSchema(TestSchemaClass.class));
+  }
+
+  @DefaultSchema(TestDefaultSchemaProvider.class)
+  static class TestDefaultSchemaClass {}
+
+  static final class TestDefaultSchemaProvider implements SchemaProvider {
+    @Override
+    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+      if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
+        return EMPTY_SCHEMA;
+      }
+      return null;
+    }
+
+    @Override
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+      if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
+        return v -> Row.withSchema(EMPTY_SCHEMA).build();
+      }
+      return null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+      if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
+        return r -> (T) new TestSchemaClass();
+      }
+      return null;
+    }
+  }
+
+  @Test
+  public void testDefaultSchemaProvider() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    assertEquals(EMPTY_SCHEMA, registry.getSchema(TestDefaultSchemaClass.class));
   }
 }

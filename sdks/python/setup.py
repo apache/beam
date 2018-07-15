@@ -97,8 +97,7 @@ else:
 REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
-    'dill==0.2.6',
-    'fastavro==0.19.7',
+    'dill>=0.2.6,<=0.2.8.2',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -106,6 +105,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
+    'pydot>=1.2.0,<1.3',
     'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
@@ -114,6 +114,14 @@ REQUIRED_PACKAGES = [
     'futures>=3.1.1,<4.0.0',
     'future>=0.16.0,<1.0.0',
     ]
+
+REQUIRED_PACKAGES_LINUX_ONLY = [
+    'fastavro==0.19.7',
+]
+
+# TODO(BEAM-4749): fastavro fails to install in MacOS.
+if 'Linux' in platform.system():
+  REQUIRED_PACKAGES.extend(REQUIRED_PACKAGES_LINUX_ONLY)
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',

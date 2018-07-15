@@ -20,8 +20,12 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
+from __future__ import absolute_import
+
 # TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
+from builtins import object
+
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
 STAGED_PIPELINE_FILENAME = "pipeline.pb"
@@ -38,7 +42,7 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20180619'
+BEAM_CONTAINER_VERSION = 'beam-master-20180709'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
 BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180619'

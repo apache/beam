@@ -15,25 +15,28 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
 # cython: profile=True
 
 """Worker operations executor."""
 
+from __future__ import absolute_import
+
 import collections
-import itertools
 import logging
+from builtins import filter
+from builtins import object
+from builtins import zip
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
@@ -122,10 +125,6 @@ class Operation(object):
     else:
       self.name_context = common.NameContext(name_context)
 
-    # TODO(BEAM-4028): Remove following two lines. Rely on name context.
-    self.operation_name = self.name_context.step_name
-    self.step_name = self.name_context.logging_name()
-
     self.spec = spec
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
@@ -138,14 +137,11 @@ class Operation(object):
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start',
-        metrics_container=self.metrics_container)
+        self.name_context, 'start', metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process',
-        metrics_container=self.metrics_container)
+        self.name_context, 'process', metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish',
-        metrics_container=self.metrics_container)
+        self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
@@ -318,22 +314,19 @@ class DoOperation(Operation):
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      for si in itertools.ifilter(
+      for si in filter(
           lambda o: o.tag == side_tag, self.spec.side_inputs):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics_v2' in RuntimeValueProvider.experiments:
-          si_counter = opcounters.SideInputReadCounter(
-              self.counter_factory,
-              self.state_sampler,
-              declaring_step=self.name_context.step_name,
-              # Inputs are 1-indexed, so we add 1 to i in the side input id
-              input_index=i + 1)
-        else:
-          si_counter = opcounters.NoOpTransformIOCounter()
+        si_counter = opcounters.SideInputReadCounter(
+            self.counter_factory,
+            self.state_sampler,
+            declaring_step=self.name_context.step_name,
+            # Inputs are 1-indexed, so we add 1 to i in the side input id
+            input_index=i + 1)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
@@ -385,10 +378,9 @@ class DoOperation(Operation):
           fn, args, kwargs, self.side_input_maps, window_fn,
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
-          logging_context=logger.PerThreadLoggingContext(
-              step_name=self.name_context.logging_name()),
           state=state,
-          scoped_metrics_container=None)
+          operation_name=self.name_context.metrics_name())
+
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
@@ -542,7 +534,7 @@ class PGBKCVOperation(Operation):
           target = self.key_count * 9 // 10
           old_wkeys = []
           # TODO(robertwb): Use an LRU cache?
-          for old_wkey, old_wvalue in self.table.iteritems():
+          for old_wkey, old_wvalue in self.table.items():
             old_wkeys.append(old_wkey)  # Can't mutate while iterating.
             self.output_key(old_wkey, old_wvalue[0])
             self.key_count -= 1
@@ -557,7 +549,7 @@ class PGBKCVOperation(Operation):
       entry[0] = self.combine_fn_add_input(entry[0], value)
 
   def finish(self):
-    for wkey, value in self.table.iteritems():
+    for wkey, value in self.table.items():
       self.output_key(wkey, value[0])
     self.table = {}
     self.key_count = 0

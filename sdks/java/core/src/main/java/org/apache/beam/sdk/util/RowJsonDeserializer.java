@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
@@ -28,6 +29,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.decimalValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.doubleValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.floatValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.intValueExtractor;
@@ -83,6 +85,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
           .put(DOUBLE, doubleValueExtractor())
           .put(BOOLEAN, booleanValueExtractor())
           .put(STRING, stringValueExtractor())
+          .put(DECIMAL, decimalValueExtractor())
           .build();
 
   private Schema schema;
