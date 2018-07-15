@@ -35,6 +35,7 @@ evaluationDependsOn(":beam-runners-core-java")
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
+  //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
@@ -82,6 +83,7 @@ dependencies {
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
+  testCompile project(":beam-sdks-java-harness")
 }
 
 class ValidatesRunnerConfig {
