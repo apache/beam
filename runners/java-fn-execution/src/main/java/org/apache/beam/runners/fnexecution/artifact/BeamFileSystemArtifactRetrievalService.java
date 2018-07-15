@@ -182,6 +182,10 @@ public class BeamFileSystemArtifactRetrievalService
     LOG.info("Loading manifest for retrieval token {}", retrievalToken);
     // look for manifest file at $retrieval_token
     ResourceId manifestResourceId = getManifestLocationFromToken(retrievalToken);
+    return loadManifest(manifestResourceId);
+  }
+
+  public static ProxyManifest loadManifest(ResourceId manifestResourceId) throws IOException {
     ProxyManifest.Builder manifestBuilder = ProxyManifest.newBuilder();
     try (InputStream stream = Channels.newInputStream(FileSystems.open(manifestResourceId))) {
       String contents = new String(ByteStreams.toByteArray(stream), StandardCharsets.UTF_8);

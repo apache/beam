@@ -27,6 +27,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService.StagingSessionToken;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.io.FileSystems;
@@ -52,6 +53,12 @@ public class FlinkJobServerDriver implements Runnable {
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
+
+    @Option(
+      name = "--clean-artifacts-per-job",
+      usage = "When true, remove each job's staged artifacts when it completes"
+    )
+    private Boolean cleanArtifactsPerJob = false;
 
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
     private String flinkMasterUrl = "[auto]";
@@ -139,6 +146,9 @@ public class FlinkJobServerDriver implements Runnable {
             throw new RuntimeException(exn);
           }
         },
+        (StagingSessionToken stagingSessionToken) ->
+            artifactStagingService.getService().removeJobArtifacts(stagingSessionToken),
+        configuration.cleanArtifactsPerJob,
         invoker);
   }
 
