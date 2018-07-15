@@ -102,7 +102,7 @@ class FastavroIT(unittest.TestCase):
   @attr('IT')
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
-    num_records = int(num_records) if num_records else 10000000
+    num_records = int(num_records) if num_records else 1000000
 
     # Seed a `PCollection` with indices that will each be FlatMap'd into
     # `batch_size` records, to avoid having a too-large list in memory at
@@ -185,6 +185,7 @@ class FastavroIT(unittest.TestCase):
     | Map(check)
 
     fastavro_read_pipeline.run().wait_until_finish()
+    assert result.state == PipelineState.DONE
 
 
 if __name__ == '__main__':
