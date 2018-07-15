@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -571,12 +572,18 @@ class FlinkBatchTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      Map<TupleTag<?>, Coder<?>> outputCoderMap =
+          context
+              .getOutputs(transform)
+              .entrySet()
+              .stream()
+              .filter(e -> e.getValue() instanceof PCollection)
+              .collect(
+                  Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+
       String fullName = getCurrentTransformName(context);
       if (usesStateOrTimers) {
-        // Based on the fact that the signature is stateful, DoFnSignatures ensures
-        // that it is also keyed
-        KvCoder<?, InputT> inputCoder = (KvCoder<?, InputT>) context.getInput(transform).getCoder();
-
+        KvCoder<?, ?> inputCoder = (KvCoder<?, ?>) context.getInput(transform).getCoder();
         FlinkStatefulDoFnFunction<?, ?, OutputT> doFnWrapper =
             new FlinkStatefulDoFnFunction<>(
                 (DoFn) doFn,
@@ -585,8 +592,12 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                (TupleTag<OutputT>) mainOutputTag);
+                (TupleTag<OutputT>) mainOutputTag,
+                inputCoder,
+                outputCoderMap);
 
+        // Based on the fact that the signature is stateful, DoFnSignatures ensures
+        // that it is also keyed.
         Grouping<WindowedValue<InputT>> grouping =
             inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
 
@@ -601,7 +612,9 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                mainOutputTag);
+                mainOutputTag,
+                context.getInput(transform).getCoder(),
+                outputCoderMap);
 
         outputDataSet =
             new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
