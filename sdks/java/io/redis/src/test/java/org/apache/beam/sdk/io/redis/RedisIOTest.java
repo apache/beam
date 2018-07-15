@@ -117,8 +117,8 @@ public class RedisIOTest {
   @Test
   public void testConfiguration() {
     RedisIO.Write writeOp = RedisIO.write().withEndpoint("test", 111);
-    Assert.assertEquals(writeOp.connectionConfiguration().port(), 111);
-    Assert.assertEquals(writeOp.connectionConfiguration().host(), "test");
+    Assert.assertEquals(111, writeOp.connectionConfiguration().port());
+    Assert.assertEquals("test", writeOp.connectionConfiguration().host());
   }
 
   @Test
