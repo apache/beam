@@ -101,26 +101,18 @@ def createValidatesRunnerTask(Map m) {
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
-    if (config.streaming) {
-      useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       }
-    } else {
-      useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      }
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
 }

@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import java.io.File;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -68,8 +69,8 @@ import org.apache.samza.system.SystemStreamPartition;
 import org.junit.Test;
 
 /** Tests for SamzaStoreStateInternals. */
-public class SamzaStoreStateInternalsTest {
-  public final TestPipeline pipeline = TestPipeline.create();
+public class SamzaStoreStateInternalsTest implements Serializable {
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testMapStateIterator() {

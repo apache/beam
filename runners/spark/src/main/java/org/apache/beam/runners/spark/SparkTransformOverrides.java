@@ -15,8 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.runners.samza.translation;
+package org.apache.beam.runners.spark;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -25,22 +24,22 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.transforms.PTransform;
 
-/** {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner. */
-public class SamzaTransformOverrides {
-  public static List<PTransformOverride> getDefaultOverrides() {
-    return ImmutableList.<PTransformOverride>builder()
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                new SamzaPublishViewTransformOverride()))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableProcessKeyedBounded(),
-                new SplittableParDoNaiveBounded.OverrideFactory()))
-        .build();
+/** {@link PTransform} overrides for Flink runner. */
+public class SparkTransformOverrides {
+  public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
+    ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
+    if (!streaming) {
+      builder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
+                  new SplittableParDoNaiveBounded.OverrideFactory()));
+    }
+    return builder.build();
   }
 }
