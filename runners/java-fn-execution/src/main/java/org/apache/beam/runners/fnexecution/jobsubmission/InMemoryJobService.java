@@ -38,7 +38,6 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService.StagingSessionToken;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
@@ -71,8 +70,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
    */
   public static InMemoryJobService create(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
-      Function<String, StagingSessionToken> stagingServiceTokenProvider,
-      ThrowingConsumer<StagingSessionToken> cleanupJobFn,
+      Function<String, String> stagingServiceTokenProvider,
+      ThrowingConsumer<String> cleanupJobFn,
       Boolean cleanArtifactsPerJob,
       JobInvoker invoker) {
     return new InMemoryJobService(
@@ -85,17 +84,17 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   private final ConcurrentMap<String, JobPreparation> preparations;
   private final ConcurrentMap<String, JobInvocation> invocations;
-  private final ConcurrentMap<String, StagingSessionToken> stagingSessionTokens;
+  private final ConcurrentMap<String, String> stagingSessionTokens;
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
-  private final Function<String, StagingSessionToken> stagingServiceTokenProvider;
-  private final ThrowingConsumer<StagingSessionToken> cleanupJobFn;
+  private final Function<String, String> stagingServiceTokenProvider;
+  private final ThrowingConsumer<String> cleanupJobFn;
   private final Boolean cleanArtifactsPerJob;
   private final JobInvoker invoker;
 
   private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
-      Function<String, StagingSessionToken> stagingServiceTokenProvider,
-      ThrowingConsumer<StagingSessionToken> cleanupJobFn,
+      Function<String, String> stagingServiceTokenProvider,
+      ThrowingConsumer<String> cleanupJobFn,
       Boolean cleanArtifactsPerJob,
       JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
@@ -106,6 +105,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
     this.preparations = new ConcurrentHashMap<>();
     this.invocations = new ConcurrentHashMap<>();
+
+    // Map "preparation ID" to staging token
     this.stagingSessionTokens = new ConcurrentHashMap<>();
   }
 
@@ -138,7 +139,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
         return;
       }
 
-      StagingSessionToken stagingSessionToken = stagingServiceTokenProvider.apply(preparationId);
+      String stagingSessionToken = stagingServiceTokenProvider.apply(preparationId);
       stagingSessionTokens.putIfAbsent(preparationId, stagingSessionToken);
 
       // send response
@@ -146,7 +147,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
-              .setStagingSessionToken(stagingSessionToken.encode())
+              .setStagingSessionToken(stagingSessionToken)
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -188,7 +189,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               if (
               // TODO: add other terminal states
               state.equals(JobState.Enum.DONE) || state.equals(JobState.Enum.FAILED)) {
-                StagingSessionToken stagingSessionToken = stagingSessionTokens.get(preparationId);
+                String stagingSessionToken = stagingSessionTokens.get(preparationId);
                 try {
                   cleanupJobFn.accept(stagingSessionToken);
                 } catch (Exception e) {

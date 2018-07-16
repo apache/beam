@@ -135,12 +135,12 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public static StagingSessionToken generateStagingSessionToken(String sessionId, String basePath)
+  public static String generateStagingSessionToken(String sessionId, String basePath)
       throws Exception {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);
-    return stagingSessionToken;
+    return stagingSessionToken.encode();
   }
 
   private String encodedFileName(ArtifactMetadata artifactMetadata) {
@@ -148,8 +148,9 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         + Hashing.sha256().hashString(artifactMetadata.getName(), CHARSET).toString();
   }
 
-  public void removeJobArtifacts(StagingSessionToken stagingSessionToken) throws IOException {
-    ResourceId dir = getJobDirResourceId(stagingSessionToken);
+  public void removeJobArtifacts(String stagingSessionToken) throws Exception {
+    StagingSessionToken parsedToken = StagingSessionToken.decode(stagingSessionToken);
+    ResourceId dir = getJobDirResourceId(parsedToken);
     ResourceId manifestResourceId = dir.resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
 
     LOG.info("Removing dir {}", dir);
@@ -310,7 +311,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * Serializable StagingSessionToken used to stage files with {@link
    * BeamFileSystemArtifactStagingService}.
    */
-  public static class StagingSessionToken implements Serializable {
+  static class StagingSessionToken implements Serializable {
 
     private String sessionId;
     private String basePath;

@@ -27,7 +27,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService.StagingSessionToken;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.io.FileSystems;
@@ -146,7 +145,7 @@ public class FlinkJobServerDriver implements Runnable {
             throw new RuntimeException(exn);
           }
         },
-        (StagingSessionToken stagingSessionToken) ->
+        (String stagingSessionToken) ->
             artifactStagingService.getService().removeJobArtifacts(stagingSessionToken),
         configuration.cleanArtifactsPerJob,
         invoker);
