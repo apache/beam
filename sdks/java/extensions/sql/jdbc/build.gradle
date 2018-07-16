@@ -56,7 +56,7 @@ test {
   }
 }
 
-task integrationTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
+task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
   group = "Verification"
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
@@ -64,7 +64,12 @@ task integrationTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc
 
   systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
 
-  include '**/*IT.class'
+  include '**/JdbcJarTest.class'
   classpath = configurations.integrationTest
   useJUnit { }
+}
+
+/* Define a common precommit task which depends on all the individual precommits. */
+task preCommit() {
+  dependsOn "shadowJarTest"
 }

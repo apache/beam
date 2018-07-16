@@ -166,6 +166,7 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
 }
 
 task javaPostCommit() {
