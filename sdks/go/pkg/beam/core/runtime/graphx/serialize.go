@@ -769,10 +769,9 @@ const (
 	cogbklistType = "kind:cogbklist" // CoGBK representation. Not a coder.
 )
 
-// WrapExtraWindowedValue adds an additional WV needed for side input, which
-// expects the coder to have exactly one component with the element.
-func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
-	return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{c, c.Components[1]}}
+// WrapIterable adds an iterable (stream) coder for Dataflow side input.
+func WrapIterable(c *CoderRef) *CoderRef {
+	return &CoderRef{Type: streamType, Components: []*CoderRef{c}, IsStreamLike: true}
 }
 
 // EncodeCoderRefs returns the encoded forms understood by the runner.

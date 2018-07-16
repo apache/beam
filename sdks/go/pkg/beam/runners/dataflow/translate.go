@@ -109,7 +109,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 						OutputInfo: []output{{
 							UserName:   "out",
 							OutputName: "out",
-							Encoding:   graphx.WrapExtraWindowedValue(c),
+							Encoding:   graphx.WrapIterable(c),
 						}},
 						UserName: buildName(edge.Scope(), "AsView"),
 					}),
