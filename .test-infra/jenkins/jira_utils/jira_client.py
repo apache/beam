@@ -34,7 +34,7 @@ class JiraClient:
     """
     try:
       issues = self.jira.search_issues("project={0} AND summary ~ '{1}'".format(self.project, summary))
-    except Exception as e:
+    except Exception:
       raise
     return issues
 
@@ -49,7 +49,7 @@ class JiraClient:
     """
     try:
       issue = self.jira.issue(key)
-    except Exception, e:
+    except Exception:
       raise
     return issue
 
@@ -83,7 +83,7 @@ class JiraClient:
       feilds['issuetype'] = {'name': 'Sub-task'}
     try:
       new_issue = self.jira.create_issue(fields = feilds)
-    except Exception as e:
+    except Exception:
       raise
     return new_issue
 
@@ -115,5 +115,5 @@ class JiraClient:
         fields['components'].append({'name': component})
     try:
       issue.update(fields=fields, notify=notify)
-    except Exception as e:
+    except Exception:
       raise
