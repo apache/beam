@@ -107,7 +107,7 @@ class FlinkBatchTransformTranslators {
         new CreatePCollectionViewTranslatorBatch());
 
     TRANSLATORS.put(
-        PTransformTranslation.COMBINE_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
+        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
     TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
