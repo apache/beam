@@ -18,6 +18,8 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
 ext.summary = "Generators of Synthetic IO for Testing."
@@ -33,4 +35,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
 }

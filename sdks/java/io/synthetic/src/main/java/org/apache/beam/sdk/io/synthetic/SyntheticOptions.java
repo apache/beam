@@ -160,7 +160,7 @@ public class SyntheticOptions implements Serializable {
    * The hash function is used to generate seeds that are fed into the random number generators and
    * the sleep time distributions.
    */
-  @JsonIgnore public transient HashFunction hashFunction;
+  @JsonIgnore public HashFunction hashFunction;
 
   /**
    * SyntheticOptions supports several delay distributions including uniform, normal, exponential,
