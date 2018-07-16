@@ -615,9 +615,6 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      Map<TupleTag<?>, Coder<?>> outputCoders =
-          ParDoTranslation.getOutputCoders(context.getCurrentTransform());
-
       ParDoTranslationHelper.translateParDo(
           getCurrentTransformName(context),
           doFn,

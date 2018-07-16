@@ -147,7 +147,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final String stepName;
 
-  private final Coder<WindowedValue<InputT>> inputWindowedCoder;
+  private final Coder<WindowedValue<InputT>> windowedInputCoder;
 
   private final Coder<InputT> inputCoder;
 
@@ -196,7 +196,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       KeySelector<WindowedValue<InputT>, ?> keySelector) {
     this.doFn = doFn;
     this.stepName = stepName;
-    this.inputWindowedCoder = inputWindowedCoder;
+    this.windowedInputCoder = inputWindowedCoder;
     this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
     this.mainOutputTag = mainOutputTag;
@@ -273,7 +273,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     ListStateDescriptor<WindowedValue<InputT>> pushedBackStateDescriptor =
         new ListStateDescriptor<>(
-            "pushed-back-elements", new CoderTypeSerializer<>(inputWindowedCoder));
+            "pushed-back-elements", new CoderTypeSerializer<>(windowedInputCoder));
 
     if (keySelector != null) {
       pushedBackElementsHandler =

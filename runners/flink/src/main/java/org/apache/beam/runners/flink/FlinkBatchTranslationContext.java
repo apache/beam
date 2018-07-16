@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -106,6 +107,15 @@ class FlinkBatchTranslationContext {
 
   public AppliedPTransform<?, ?, ?> getCurrentTransform() {
     return currentTransform;
+  }
+
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return currentTransform
+        .getOutputs()
+        .entrySet()
+        .stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
 
   @SuppressWarnings("unchecked")

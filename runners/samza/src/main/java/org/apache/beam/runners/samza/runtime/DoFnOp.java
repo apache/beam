@@ -92,8 +92,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient DoFnSignature signature;
   private transient TaskContext context;
   private transient SamzaPipelineOptions pipelineOptions;
-  private transient Coder<InT> inputCoder;
-  private transient Map<TupleTag<?>, Coder<?>> outputCoders;
+  private Coder<InT> inputCoder;
+  private Map<TupleTag<?>, Coder<?>> outputCoders;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
