@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
@@ -37,6 +38,9 @@ const (
 	URNGBK           = "beam:transform:group_by_key:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window:v1"
+
+	URNIterableSideInput = "beam:side_input:iterable:v1"
+	URNMultimapSideInput = "beam:side_input:multimap:v1"
 
 	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
 	URNFixedWindowsWindowFn   = "beam:windowfn:fixed_windows:v0.1"
@@ -63,23 +67,19 @@ type Options struct {
 // Marshal converts a graph to a model pipeline.
 func Marshal(edges []*graph.MultiEdge, opt *Options) (*pb.Pipeline, error) {
 	tree := NewScopeTree(edges)
-	EnsureUniqueNames(tree)
 
 	m := newMarshaller(opt)
-
-	var roots []string
 	for _, edge := range tree.Edges {
-		roots = append(roots, m.addMultiEdge("", edge))
+		m.addMultiEdge(edge)
 	}
 	for _, t := range tree.Children {
-		roots = append(roots, m.addScopeTree("", t))
+		m.addScopeTree(t)
 	}
 
 	p := &pb.Pipeline{
-		Components:       m.build(),
-		RootTransformIds: roots,
+		Components: m.build(),
 	}
-	return p, nil
+	return pipelinex.Fixup(p)
 }
 
 type marshaller struct {
@@ -117,38 +117,23 @@ func (m *marshaller) build() *pb.Components {
 	}
 }
 
-func (m *marshaller) addScopeTree(trunk string, s *ScopeTree) string {
+func (m *marshaller) addScopeTree(s *ScopeTree) string {
 	id := scopeID(s.Scope.Scope)
 	if _, exists := m.transforms[id]; exists {
 		return id
 	}
 
-	uniqueName := fmt.Sprintf("%v/%v", trunk, s.Scope.Name)
-
 	var subtransforms []string
 	for _, edge := range s.Edges {
-		subtransforms = append(subtransforms, m.addMultiEdge(uniqueName, edge))
+		subtransforms = append(subtransforms, m.addMultiEdge(edge))
 	}
 	for _, tree := range s.Children {
-		subtransforms = append(subtransforms, m.addScopeTree(uniqueName, tree))
-	}
-
-	// Compute the input/output for this scope:
-	//    inputs  := U(subinputs)\U(suboutputs)
-	//    outputs := U(suboutputs)\U(subinputs)
-	// where U is set union and \ is set subtraction.
-
-	in := make(map[string]bool)
-	out := make(map[string]bool)
-	for _, sid := range subtransforms {
-		inout(m.transforms[sid], in, out)
+		subtransforms = append(subtransforms, m.addScopeTree(tree))
 	}
 
 	transform := &pb.PTransform{
-		UniqueName:    uniqueName,
+		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
-		Inputs:        diff(in, out),
-		Outputs:       diff(out, in),
 	}
 
 	m.updateIfCombineComposite(s, transform)
@@ -203,28 +188,7 @@ func tryAddingCoder(c *coder.Coder) (ok bool) {
 	return true
 }
 
-// diff computes A\B and returns its keys as an identity map.
-func diff(a, b map[string]bool) map[string]string {
-	ret := make(map[string]string)
-	for key := range a {
-		if !b[key] {
-			ret[key] = key
-		}
-	}
-	return ret
-}
-
-// inout adds the input and output pcollection ids to the accumulators.
-func inout(transform *pb.PTransform, in, out map[string]bool) {
-	for _, col := range transform.GetInputs() {
-		in[col] = true
-	}
-	for _, col := range transform.GetOutputs() {
-		out[col] = true
-	}
-}
-
-func (m *marshaller) addMultiEdge(trunk string, edge NamedEdge) string {
+func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 	id := StableMultiEdgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
 		return id
@@ -246,7 +210,7 @@ func (m *marshaller) addMultiEdge(trunk string, edge NamedEdge) string {
 	}
 
 	transform := &pb.PTransform{
-		UniqueName: fmt.Sprintf("%v/%v", trunk, edge.Name),
+		UniqueName: edge.Name,
 		Spec:       m.makePayload(edge.Edge),
 		Inputs:     inputs,
 		Outputs:    outputs,
@@ -259,9 +223,6 @@ func (m *marshaller) addMultiEdge(trunk string, edge NamedEdge) string {
 func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
-
-	// TODO(herohde) 1/26/2018: we should make the expanded GBK a composite if we care
-	// about correctly computing input/output in the enclosing Scope.
 
 	id := StableMultiEdgeID(edge.Edge)
 	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
@@ -355,7 +316,37 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	case graph.Impulse:
 		return &pb.FunctionSpec{Urn: URNImpulse}
 
-	case graph.ParDo, graph.Combine:
+	case graph.ParDo:
+		si := make(map[string]*pb.SideInput)
+		for i, in := range edge.Input {
+			switch in.Kind {
+			case graph.Main:
+				// ignore: not a side input
+			case graph.Singleton, graph.Slice, graph.Iter, graph.ReIter:
+				si[fmt.Sprintf("i%v", i)] = &pb.SideInput{
+					AccessPattern: &pb.FunctionSpec{Urn: URNIterableSideInput},
+					// TODO(herohde) 7/16/2018: side input data
+				}
+			case graph.Map, graph.MultiMap:
+				panic("NYI")
+			default:
+				panic(fmt.Sprintf("unexpected input kind: %v", edge))
+			}
+		}
+
+		payload := &pb.ParDoPayload{
+			DoFn: &pb.SdkFunctionSpec{
+				Spec: &pb.FunctionSpec{
+					Urn:     URNJavaDoFn,
+					Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
+				},
+				EnvironmentId: m.addDefaultEnv(),
+			},
+			SideInputs: si,
+		}
+		return &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+
+	case graph.Combine:
 		payload := &pb.ParDoPayload{
 			DoFn: &pb.SdkFunctionSpec{
 				Spec: &pb.FunctionSpec{
@@ -535,6 +526,10 @@ func nodeID(n *graph.Node) string {
 
 func scopeID(s *graph.Scope) string {
 	return fmt.Sprintf("s%v", s.ID())
+}
+
+func index(i int) string {
+	return fmt.Sprintf("i%v", i)
 }
 
 // TODO(herohde) 4/17/2018: StableXXXID returns deterministic transform ids
