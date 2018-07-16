@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -572,14 +571,7 @@ class FlinkBatchTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      Map<TupleTag<?>, Coder<?>> outputCoderMap =
-          context
-              .getOutputs(transform)
-              .entrySet()
-              .stream()
-              .filter(e -> e.getValue() instanceof PCollection)
-              .collect(
-                  Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+      Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
 
       String fullName = getCurrentTransformName(context);
       if (usesStateOrTimers) {
