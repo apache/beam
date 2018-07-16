@@ -61,7 +61,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -476,16 +475,6 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  private static void rejectSplittable(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support splittable DoFn: %s",
-              FlinkRunner.class.getSimpleName(), doFn));
-    }
-  }
-
   private static class ParDoTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
           PTransform<PCollection<InputT>, PCollectionTuple>> {
@@ -501,7 +490,10 @@ class FlinkBatchTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      rejectSplittable(doFn);
+      checkState(
+          !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+          "Not expected to directly translate splittable DoFn, should have been overridden: %s",
+          doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 

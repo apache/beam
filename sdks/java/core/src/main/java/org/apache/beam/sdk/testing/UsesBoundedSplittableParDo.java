@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
-/** Category tag for validation tests which utilize splittable {@link ParDo}. */
-public interface UsesSplittableParDo {}
+/**
+ * Category tag for validation tests which utilize splittable {@link ParDo} with a {@link
+ * DoFn.BoundedPerElement} {@link DoFn}.
+ */
+public interface UsesBoundedSplittableParDo {}
