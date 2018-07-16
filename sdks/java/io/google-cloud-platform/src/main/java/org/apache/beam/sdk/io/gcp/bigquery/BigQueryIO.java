@@ -710,9 +710,13 @@ public class BigQueryIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      final boolean locationIsTemplated;
+
       ValueProvider<TableReference> table = getTableProvider();
 
       if (table != null) {
+        locationIsTemplated = !table.isAccessible();
+
         checkArgument(getQuery() == null, "from() and fromQuery() are exclusive");
         checkArgument(
             getQueryPriority() == null,
@@ -733,6 +737,8 @@ public class BigQueryIO {
         }
       } else {
         checkArgument(getQuery() != null, "Either from() or fromQuery() is required");
+        locationIsTemplated = !getQuery().isAccessible();
+
         checkArgument(
             getFlattenResults() != null, "flattenResults should not be null if query is set");
         checkArgument(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
@@ -744,7 +750,9 @@ public class BigQueryIO {
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
-      if (!getWithTemplateCompatibility()) {
+
+      boolean canUseSource = !locationIsTemplated && !getWithTemplateCompatibility();
+      if (canUseSource) {
         // Create a singleton job ID token at construction time.
         final String staticJobUuid = BigQueryHelpers.randomUUIDString();
         jobIdTokenView =
