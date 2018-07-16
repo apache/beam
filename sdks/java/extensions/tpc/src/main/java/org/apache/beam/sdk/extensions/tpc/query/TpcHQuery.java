@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.tpc.query;
 
 /** queries in H benchmark. */
-public class Hquery {
+public class TpcHQuery {
   public static final String QUERYTEST =
       "select\n"
           + "\tcount(*) as count_order\n"

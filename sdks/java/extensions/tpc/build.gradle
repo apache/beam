@@ -72,16 +72,6 @@ dependencies {
     gradleRun project(path: project.path, configuration: "shadow")
 }
 
-
-fatJar {
-    classifier 'fat'
-    zip64 true
-    manifest {
-        attributes 'Main-Class': 'org.apache.beam.sdk.extensions.tpc.BeamTpc'
-    }
-    exclude 'META-INF/license/*.'
-}
-
 shadowJar {
 //    dependencies {
 //        include "org.apache.calcite:calcite-core:$calcite_version"

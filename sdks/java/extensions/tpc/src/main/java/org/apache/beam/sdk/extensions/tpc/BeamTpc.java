@@ -25,7 +25,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
-import org.apache.beam.sdk.extensions.tpc.query.Hquery;
+import org.apache.beam.sdk.extensions.tpc.query.TpcHQuery;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -101,7 +101,7 @@ public class BeamTpc {
     tables
         .apply(
             "SqlTransform " + tpcOptions.getTable() + ":" + tpcOptions.getQuery(),
-            SqlTransform.query(Hquery.QUERYTEST))
+            SqlTransform.query(TpcHQuery.QUERYTEST))
         .apply(resultMonitor.getTransform())
         .apply(
             "exp_table",
@@ -120,23 +120,23 @@ public class BeamTpc {
 
     tables.apply(
             "SqlTransform " + tpcOptions.getTable() + ":" + "1",
-            SqlTransform.query(Hquery.QUERY1));
+            SqlTransform.query(TpcHQuery.QUERY1));
 
     tables.apply(
             "SqlTransform " + tpcOptions.getTable() + ":" + "3",
-            SqlTransform.query(Hquery.QUERY3));
+            SqlTransform.query(TpcHQuery.QUERY3));
 
     tables.apply(
             "SqlTransform " + tpcOptions.getTable() + ":" + "4",
-            SqlTransform.query(Hquery.QUERY4));
+            SqlTransform.query(TpcHQuery.QUERY4));
 
     tables.apply(
             "SqlTransform " + tpcOptions.getTable() + ":" + "5",
-            SqlTransform.query(Hquery.QUERY5));
+            SqlTransform.query(TpcHQuery.QUERY5));
 
     tables.apply(
             "SqlTransform " + tpcOptions.getTable() + ":" + "6",
-            SqlTransform.query(Hquery.QUERY6));
+            SqlTransform.query(TpcHQuery.QUERY6));
 
     long startTs = System.currentTimeMillis();
     PipelineResult pipelineResult = pipeline.run();
