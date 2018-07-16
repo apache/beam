@@ -106,7 +106,8 @@ build.gradle @lukecwik
 #/runners/samza
 /runners/gcp @pabloem @herohde @lukecwik @aaltay
 #/runners/apex
-/runners/core-java @lukecwik @echauchot
+/runners/core-java @lukecwik
+/runners/core-java/src/main/java/org/apache/beam/runners/core/metrics @echauchot
 /runners/local-java @lukecwik
 /runners/java-fn-execution @lukecwik
 /runners/core-construction-java @lukecwik
