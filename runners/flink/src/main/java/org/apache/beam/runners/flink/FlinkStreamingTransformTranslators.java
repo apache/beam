@@ -145,7 +145,8 @@ class FlinkStreamingTransformTranslators {
 
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorStreaming());
     TRANSLATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator());
-    TRANSLATORS.put(PTransformTranslation.COMBINE_TRANSFORM_URN, new CombinePerKeyTranslator());
+    TRANSLATORS.put(
+        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslator());
   }
 
   public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(
