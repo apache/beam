@@ -150,6 +150,7 @@ func BenchmarkDirectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = inc(n)
 	}
+	b.Log(n)
 }
 
 func BenchmarkIndirectCall(b *testing.B) {
@@ -162,6 +163,7 @@ func BenchmarkIndirectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn(n)
 	}
+	b.Log(n)
 }
 
 func BenchmarkReflectedAndBackCall(b *testing.B) {
@@ -170,6 +172,7 @@ func BenchmarkReflectedAndBackCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn(n)
 	}
+	b.Log(n)
 }
 
 func BenchmarkReflectCall(b *testing.B) {
@@ -178,6 +181,7 @@ func BenchmarkReflectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn.Call([]reflect.Value{n})[0]
 	}
+	b.Log(n)
 }
 
 func BenchmarkReflectCallNewArgs(b *testing.B) {
@@ -188,6 +192,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
+	b.Log(n)
 }
 
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
@@ -198,6 +203,7 @@ func BenchmarkReflectCallReuseArgs(b *testing.B) {
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
+	b.Log(n)
 }
 
 func BenchmarkInvokeCall(b *testing.B) {
@@ -208,6 +214,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
 		n = ret.Elm.(int)
 	}
+	b.Log(n)
 }
 
 func BenchmarkInvokeCallExtra(b *testing.B) {
@@ -218,6 +225,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
 		n = ret.Elm.(int)
 	}
+	b.Log(n)
 }
 
 // The below take the additional overhead of MakeFunc.
@@ -232,6 +240,7 @@ func BenchmarkReflectFnCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn.Call([]reflect.Value{n})[0]
 	}
+	b.Log(n)
 }
 
 func BenchmarkInvokeFnCall(b *testing.B) {
@@ -242,6 +251,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
 		n = ret.Elm.(int)
 	}
+	b.Log(n)
 }
 
 func BenchmarkInvokeFnCallExtra(b *testing.B) {
@@ -252,4 +262,5 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
 		n = ret.Elm.(int)
 	}
+	b.Log(n)
 }
