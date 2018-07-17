@@ -165,8 +165,7 @@ public class Query3 extends NexmarkQuery {
     private static final String PERSON = "person";
 
     @StateId(PERSON)
-    private static final StateSpec<ValueState<Person>> personSpec =
-        StateSpecs.value(Person.CODER);
+    private static final StateSpec<ValueState<Person>> personSpec = StateSpecs.value(Person.CODER);
 
     private static final String PERSON_STATE_EXPIRING = "personStateExpiring";
 
@@ -195,7 +194,7 @@ public class Query3 extends NexmarkQuery {
       newNewOutputCounter = Metrics.counter(name, "newNewOutput");
       newOldOutputCounter = Metrics.counter(name, "newOldOutput");
       oldNewOutputCounter = Metrics.counter(name, "oldNewOutput");
-      fatalCounter = Metrics.counter(name , "fatal");
+      fatalCounter = Metrics.counter(name, "fatal");
     }
 
     @ProcessElement
@@ -255,8 +254,8 @@ public class Query3 extends NexmarkQuery {
         // Remember this person for any future auctions.
         personState.write(newPerson);
         //set a time out to clear this state
-        Instant firingTime = new Instant(newPerson.dateTime)
-                                  .plus(Duration.standardSeconds(maxAuctionsWaitingTime));
+        Instant firingTime =
+            new Instant(newPerson.dateTime).plus(Duration.standardSeconds(maxAuctionsWaitingTime));
         timer.set(firingTime);
       }
       if (theNewPerson != null) {
@@ -278,9 +277,8 @@ public class Query3 extends NexmarkQuery {
 
     @OnTimer(PERSON_STATE_EXPIRING)
     public void onTimerCallback(
-        OnTimerContext context,
-        @StateId(PERSON) ValueState<Person> personState) {
-        personState.clear();
+        OnTimerContext context, @StateId(PERSON) ValueState<Person> personState) {
+      personState.clear();
     }
   }
 }

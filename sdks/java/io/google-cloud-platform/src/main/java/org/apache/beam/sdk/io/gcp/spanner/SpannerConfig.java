@@ -155,12 +155,13 @@ public abstract class SpannerConfig implements Serializable {
     builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
-    DatabaseClient databaseClient = spanner.getDatabaseClient(
-        DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    BatchClient batchClient = spanner.getBatchClient(
-        DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
+    DatabaseClient databaseClient =
+        spanner.getDatabaseClient(
+            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
+    BatchClient batchClient =
+        spanner.getBatchClient(
+            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
     return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
   }
-
 }

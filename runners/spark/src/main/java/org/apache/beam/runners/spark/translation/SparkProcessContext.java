@@ -35,9 +35,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}.
- */
+/** Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}. */
 class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
   private final DoFn<FnInputT, FnOutputT> doFn;
@@ -57,16 +55,13 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     this.timerDataIterator = timerDataIterator;
   }
 
-  Iterable<OutputT> processPartition(
-      Iterator<WindowedValue<FnInputT>> partition) throws Exception {
+  Iterable<OutputT> processPartition(Iterator<WindowedValue<FnInputT>> partition) throws Exception {
 
     // skip if partition is empty.
     if (!partition.hasNext()) {
       return new ArrayList<>();
     }
 
-    // setup DoFn.
-    DoFnInvokers.invokerFor(doFn).invokeSetup();
     // process the partition; finishBundle() is called from within the output iterator.
     return this.getOutputIterable(partition, doFnRunner);
   }
@@ -88,7 +83,6 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   interface SparkOutputManager<T> extends OutputManager, Iterable<T> {
 
     void clear();
-
   }
 
   static class NoOpStepContext implements StepContext {
@@ -113,8 +107,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     private boolean isBundleFinished;
 
     ProcCtxtIterator(
-        Iterator<WindowedValue<FnInputT>> iterator,
-        DoFnRunner<FnInputT, FnOutputT> doFnRunner) {
+        Iterator<WindowedValue<FnInputT>> iterator, DoFnRunner<FnInputT, FnOutputT> doFnRunner) {
       this.inputIterator = iterator;
       this.doFnRunner = doFnRunner;
       this.outputIterator = getOutputIterator();
@@ -165,13 +158,11 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
       }
     }
 
-    private void fireTimer(
-        TimerInternals.TimerData timer) {
+    private void fireTimer(TimerInternals.TimerData timer) {
       StateNamespace namespace = timer.getNamespace();
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
       doFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
     }
-
   }
 }

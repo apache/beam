@@ -33,13 +33,9 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * A direct implementation of {@link Query5}.
- */
+/** A direct implementation of {@link Query5}. */
 public class Query5Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 5.
-   */
+  /** Simulator for query 5. */
   private class Simulator extends AbstractSimulator<Event, AuctionCount> {
     /** Time of bids still contributing to open windows, indexed by their auction id. */
     private final Map<Long, List<Instant>> bids;
@@ -54,8 +50,8 @@ public class Query5Model extends NexmarkQueryModel implements Serializable {
     }
 
     /**
-     * Count bids per auction id for bids strictly before {@code end}. Add the auction ids with
-     * the maximum number of bids to results.
+     * Count bids per auction id for bids strictly before {@code end}. Add the auction ids with the
+     * maximum number of bids to results.
      */
     private void countBids(Instant end) {
       Map<Long, Long> counts = new TreeMap<>();
@@ -105,9 +101,7 @@ public class Query5Model extends NexmarkQueryModel implements Serializable {
       return anyRemain;
     }
 
-    /**
-     * Retire active windows until we've reached {@code newWindowStart}.
-     */
+    /** Retire active windows until we've reached {@code newWindowStart}. */
     private void retireWindows(Instant newWindowStart) {
       while (!newWindowStart.equals(windowStart)) {
         NexmarkUtils.info("retiring window %s, aiming for %s", windowStart, newWindowStart);
@@ -123,9 +117,7 @@ public class Query5Model extends NexmarkQueryModel implements Serializable {
       }
     }
 
-    /**
-     * Add bid to state.
-     */
+    /** Add bid to state. */
     private void captureBid(Bid bid, Instant timestamp) {
       List<Instant> existing = bids.computeIfAbsent(bid.auction, k -> new ArrayList<>());
       existing.add(timestamp);
@@ -147,8 +139,11 @@ public class Query5Model extends NexmarkQueryModel implements Serializable {
         return;
       }
       Instant timestamp = timestampedEvent.getTimestamp();
-      Instant newWindowStart = windowStart(Duration.standardSeconds(configuration.windowSizeSec),
-          Duration.standardSeconds(configuration.windowPeriodSec), timestamp);
+      Instant newWindowStart =
+          windowStart(
+              Duration.standardSeconds(configuration.windowSizeSec),
+              Duration.standardSeconds(configuration.windowPeriodSec),
+              timestamp);
       // Capture results from any windows we can now retire.
       retireWindows(newWindowStart);
       // Capture current bid.

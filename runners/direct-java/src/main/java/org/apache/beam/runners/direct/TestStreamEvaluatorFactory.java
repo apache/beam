@@ -246,6 +246,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     abstract TestStream<T> getTestStream();
+
     abstract int getIndex();
 
     TestStreamIndex<T> next() {

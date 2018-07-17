@@ -36,14 +36,12 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link FlatMapFunction}.
- */
+/** Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link FlatMapFunction}. */
 public class OpAdapter<InT, OutT, K>
     implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
-               WatermarkFunction<OpMessage<OutT>>,
-               TimerFunction<TimerKey<K>, OpMessage<OutT>>,
-               Serializable {
+        WatermarkFunction<OpMessage<OutT>>,
+        TimerFunction<TimerKey<K>, OpMessage<OutT>>,
+        Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
   private final Op<InT, OutT, K> op;
@@ -53,9 +51,8 @@ public class OpAdapter<InT, OutT, K>
   private transient Config config;
   private transient TaskContext taskContext;
 
-
-  public static <InT, OutT, K> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>
-  adapt(Op<InT, OutT, K> op) {
+  public static <InT, OutT, K> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
+      Op<InT, OutT, K> op) {
     return new OpAdapter<>(op);
   }
 
@@ -98,16 +95,13 @@ public class OpAdapter<InT, OutT, K>
               String.format("Unexpected input type: %s", message.getType()));
       }
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing",
-          this.getClass().getName(),
-          e);
+      LOG.error("Op {} threw an exception during processing", this.getClass().getName(), e);
       throw UserCodeException.wrap(e);
     }
 
     final List<OpMessage<OutT>> results = new ArrayList<>(outputList);
     outputList.clear();
     return results;
-
   }
 
   @Override
@@ -117,9 +111,8 @@ public class OpAdapter<InT, OutT, K>
     try {
       op.processWatermark(new Instant(time), emitter);
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing watermark",
-          this.getClass().getName(),
-          e);
+      LOG.error(
+          "Op {} threw an exception during processing watermark", this.getClass().getName(), e);
       throw UserCodeException.wrap(e);
     }
 
@@ -130,9 +123,7 @@ public class OpAdapter<InT, OutT, K>
 
   @Override
   public Long getOutputWatermark() {
-    return outputWatermark != null
-      ? outputWatermark.getMillis()
-      : null;
+    return outputWatermark != null ? outputWatermark.getMillis() : null;
   }
 
   @Override
@@ -140,21 +131,18 @@ public class OpAdapter<InT, OutT, K>
     assert outputList.isEmpty();
 
     try {
-      final TimerData timerData = TimerData.of(
-          timerKey.getTimerId(),
-          timerKey.getStateNamespace(),
-          new Instant(time),
-          TimeDomain.PROCESSING_TIME);
-      final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(
-          timerKey.getKeyBytes(),
-          timerKey.getKey(),
-          timerData);
+      final TimerData timerData =
+          TimerData.of(
+              timerKey.getTimerId(),
+              timerKey.getStateNamespace(),
+              new Instant(time),
+              TimeDomain.PROCESSING_TIME);
+      final KeyedTimerData<K> keyedTimerData =
+          new KeyedTimerData<>(timerKey.getKeyBytes(), timerKey.getKey(), timerData);
 
       op.processTimer(keyedTimerData);
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing timer",
-          this.getClass().getName(),
-          e);
+      LOG.error("Op {} threw an exception during processing timer", this.getClass().getName(), e);
       throw UserCodeException.wrap(e);
     }
 

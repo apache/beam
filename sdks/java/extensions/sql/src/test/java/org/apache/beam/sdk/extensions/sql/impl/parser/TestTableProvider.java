@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -91,6 +93,7 @@ public class TestTableProvider implements TableProvider {
   }
 
   public void addRows(String tableName, Row... rows) {
+    checkArgument(tables().containsKey(tableName), "Table not found: " + tableName);
     tables().get(tableName).rows.addAll(Arrays.asList(rows));
   }
 

@@ -38,19 +38,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test UnboundedEventSource.
- */
+/** Test UnboundedEventSource. */
 @RunWith(JUnit4.class)
 public class UnboundedEventSourceTest {
   private GeneratorConfig makeConfig(long n) {
-    return new GeneratorConfig(
-        NexmarkConfiguration.DEFAULT, System.currentTimeMillis(), 0, n, 0);
+    return new GeneratorConfig(NexmarkConfiguration.DEFAULT, System.currentTimeMillis(), 0, n, 0);
   }
 
   /**
-   * Helper for tracking which ids we've seen (so we can detect dups) and
-   * confirming reading events match the model events.
+   * Helper for tracking which ids we've seen (so we can detect dups) and confirming reading events
+   * match the model events.
    */
   private static class EventIdChecker {
     private final Set<Long> seenPersonIds = new HashSet<>();
@@ -78,8 +75,8 @@ public class UnboundedEventSourceTest {
   }
 
   /**
-   * Check aggressively checkpointing and resuming a reader gives us exactly the
-   * same event stream as reading directly.
+   * Check aggressively checkpointing and resuming a reader gives us exactly the same event stream
+   * as reading directly.
    */
   @Test
   public void resumeFromCheckpoint() throws IOException {

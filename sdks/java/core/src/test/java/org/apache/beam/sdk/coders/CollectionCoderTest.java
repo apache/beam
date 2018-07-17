@@ -36,9 +36,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link CollectionCoder}.
- */
+/** Test case for {@link CollectionCoder}. */
 @RunWith(JUnit4.class)
 public class CollectionCoderTest {
 
@@ -61,24 +59,18 @@ public class CollectionCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAAA",
-      "AAAAAQ0",
-      "AAAABAECAwQ",
-      "AAAAAwcGBQ",
-      "AAAAA_v___8PH1M");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AAAAAA", "AAAAAA", "AAAAAQ0", "AAAABAECAwQ", "AAAAAwcGBQ", "AAAAA_v___8PH1M");
 
   @Test
   public void testWireFormat() throws Exception {
     CoderProperties.coderDecodesBase64ContentsEqual(TEST_CODER, TEST_ENCODINGS, TEST_VALUES);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

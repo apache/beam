@@ -51,9 +51,7 @@ import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/**
- * Tests for {@link UnboundedSourceSystem}.
- */
+/** Tests for {@link UnboundedSourceSystem}. */
 public class UnboundedSourceSystemTest {
 
   // A reasonable time to wait to get all messages from the source assuming no blocking.
@@ -63,13 +61,12 @@ public class UnboundedSourceSystemTest {
   private static final SystemStreamPartition DEFAULT_SSP =
       new SystemStreamPartition("default-system", "default-system", new Partition(0));
 
-  private static final Coder<TestCheckpointMark> CHECKPOINT_MARK_CODER = TestUnboundedSource.
-      createBuilder().build().getCheckpointMarkCoder();
+  private static final Coder<TestCheckpointMark> CHECKPOINT_MARK_CODER =
+      TestUnboundedSource.createBuilder().build().getCheckpointMarkCoder();
 
   @Test
   public void testConsumerStartStop() throws IOException, InterruptedException {
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .build();
+    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder().build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -84,9 +81,8 @@ public class UnboundedSourceSystemTest {
 
   @Test
   public void testConsumeOneMessage() throws IOException, InterruptedException {
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .addElements("test")
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder().addElements("test").build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -95,8 +91,8 @@ public class UnboundedSourceSystemTest {
     consumer.start();
     assertEquals(
         Arrays.asList(
-            createElementMessage(DEFAULT_SSP, offset(0), "test",
-                BoundedWindow.TIMESTAMP_MIN_VALUE)),
+            createElementMessage(
+                DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE)),
         consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
     consumer.stop();
   }
@@ -105,11 +101,12 @@ public class UnboundedSourceSystemTest {
   public void testAdvanceTimestamp() throws IOException, InterruptedException {
     final Instant timestamp = Instant.now();
 
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .addElements("before")
-        .setTimestamp(timestamp)
-        .addElements("after")
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .addElements("before")
+            .setTimestamp(timestamp)
+            .addElements("after")
+            .build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -118,8 +115,8 @@ public class UnboundedSourceSystemTest {
     consumer.start();
     assertEquals(
         Arrays.asList(
-            createElementMessage(DEFAULT_SSP, offset(0), "before",
-                BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createElementMessage(
+                DEFAULT_SSP, offset(0), "before", BoundedWindow.TIMESTAMP_MIN_VALUE),
             createElementMessage(DEFAULT_SSP, offset(1), "after", timestamp)),
         consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
     consumer.stop();
@@ -128,10 +125,11 @@ public class UnboundedSourceSystemTest {
   @Test
   public void testConsumeMultipleMessages() throws IOException, InterruptedException {
     final Instant timestamp = Instant.now();
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .setTimestamp(timestamp)
-        .addElements("test", "a", "few", "messages")
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .setTimestamp(timestamp)
+            .addElements("test", "a", "few", "messages")
+            .build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -152,13 +150,14 @@ public class UnboundedSourceSystemTest {
   public void testAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
     final Instant nowPlusOne = now.plus(1L);
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .setTimestamp(now)
-        .addElements("first")
-        .setTimestamp(nowPlusOne)
-        .addElements("second")
-        .advanceWatermarkTo(now)
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .setTimestamp(now)
+            .addElements("first")
+            .setTimestamp(nowPlusOne)
+            .addElements("second")
+            .advanceWatermarkTo(now)
+            .build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -170,8 +169,7 @@ public class UnboundedSourceSystemTest {
             createElementMessage(DEFAULT_SSP, offset(0), "first", now),
             createElementMessage(DEFAULT_SSP, offset(1), "second", nowPlusOne),
             createWatermarkMessage(DEFAULT_SSP, now)),
-        consumeUntilTimeoutOrWatermark(
-            consumer, DEFAULT_SSP, DEFAULT_WATERMARK_TIMEOUT_MILLIS));
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_WATERMARK_TIMEOUT_MILLIS));
     consumer.stop();
   }
 
@@ -180,17 +178,18 @@ public class UnboundedSourceSystemTest {
     final Instant now = Instant.now();
     final Instant nowPlusOne = now.plus(1L);
     final Instant nowPlusTwo = now.plus(2L);
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .setTimestamp(now)
-        .addElements("first")
-        .advanceWatermarkTo(now)
-        .noElements() // will output the first watermark
-        .setTimestamp(nowPlusOne)
-        .addElements("second")
-        .setTimestamp(nowPlusTwo)
-        .addElements("third")
-        .advanceWatermarkTo(nowPlusOne)
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .setTimestamp(now)
+            .addElements("first")
+            .advanceWatermarkTo(now)
+            .noElements() // will output the first watermark
+            .setTimestamp(nowPlusOne)
+            .addElements("second")
+            .setTimestamp(nowPlusTwo)
+            .addElements("third")
+            .advanceWatermarkTo(nowPlusOne)
+            .build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -202,8 +201,7 @@ public class UnboundedSourceSystemTest {
         Arrays.asList(
             createElementMessage(DEFAULT_SSP, offset(0), "first", now),
             createWatermarkMessage(DEFAULT_SSP, now)),
-        consumeUntilTimeoutOrWatermark(
-            consumer, DEFAULT_SSP, DEFAULT_WATERMARK_TIMEOUT_MILLIS));
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_WATERMARK_TIMEOUT_MILLIS));
 
     // consume to the second watermark
     assertEquals(
@@ -211,8 +209,7 @@ public class UnboundedSourceSystemTest {
             createElementMessage(DEFAULT_SSP, offset(1), "second", nowPlusOne),
             createElementMessage(DEFAULT_SSP, offset(2), "third", nowPlusTwo),
             createWatermarkMessage(DEFAULT_SSP, nowPlusOne)),
-        consumeUntilTimeoutOrWatermark(
-            consumer, DEFAULT_SSP, DEFAULT_WATERMARK_TIMEOUT_MILLIS));
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_WATERMARK_TIMEOUT_MILLIS));
 
     consumer.stop();
   }
@@ -221,16 +218,16 @@ public class UnboundedSourceSystemTest {
   public void testReaderThrowsAtStart() throws Exception {
     final IOException exception = new IOException("Expected exception");
 
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .addException(exception)
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder().addException(exception).build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
     consumer.register(DEFAULT_SSP, null);
     consumer.start();
-    expectWrappedException(exception,
+    expectWrappedException(
+        exception,
         () -> consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
     consumer.stop();
   }
@@ -239,17 +236,19 @@ public class UnboundedSourceSystemTest {
   public void testReaderThrowsAtAdvance() throws Exception {
     final IOException exception = new IOException("Expected exception");
 
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .addElements("test", "a", "few", "good", "messages", "then", "...")
-        .addException(exception)
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .addElements("test", "a", "few", "good", "messages", "then", "...")
+            .addException(exception)
+            .build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
     consumer.register(DEFAULT_SSP, offset(0));
     consumer.start();
-    expectWrappedException(exception,
+    expectWrappedException(
+        exception,
         () -> consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
     consumer.stop();
   }
@@ -260,14 +259,15 @@ public class UnboundedSourceSystemTest {
     final Instant now = Instant.now();
     final Instant nowPlusOne = now.plus(1);
 
-    final TestUnboundedSource<String> source = TestUnboundedSource.<String>createBuilder()
-        .setTimestamp(now)
-        .addElements("before")
-        .addLatch(advanceLatch)
-        .setTimestamp(nowPlusOne)
-        .addElements("after")
-        .advanceWatermarkTo(nowPlusOne)
-        .build();
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .setTimestamp(now)
+            .addElements("before")
+            .addLatch(advanceLatch)
+            .setTimestamp(nowPlusOne)
+            .addElements("after")
+            .advanceWatermarkTo(nowPlusOne)
+            .build();
 
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
@@ -275,8 +275,7 @@ public class UnboundedSourceSystemTest {
     consumer.register(DEFAULT_SSP, null);
     consumer.start();
     assertEquals(
-        Collections.singletonList(
-            createElementMessage(DEFAULT_SSP, offset(0), "before", now)),
+        Collections.singletonList(createElementMessage(DEFAULT_SSP, offset(0), "before", now)),
         consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
 
     advanceLatch.countDown();
@@ -329,14 +328,12 @@ public class UnboundedSourceSystemTest {
     SamzaPipelineOptions pipelineOptions = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
     pipelineOptions.setWatermarkInterval(0L); // emit immediately
     pipelineOptions.setMaxSourceParallelism(splitNum);
-    return new UnboundedSourceSystem.Consumer<>(source, pipelineOptions,
-        new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
+    return new UnboundedSourceSystem.Consumer<>(
+        source, pipelineOptions, new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
   }
 
   private static List<IncomingMessageEnvelope> consumeUntilTimeoutOrWatermark(
-      SystemConsumer consumer,
-      SystemStreamPartition ssp,
-      long timeoutMillis)
+      SystemConsumer consumer, SystemStreamPartition ssp, long timeoutMillis)
       throws InterruptedException {
     assertTrue("Expected timeoutMillis (" + timeoutMillis + ") >= 0", timeoutMillis >= 0);
 
@@ -347,7 +344,7 @@ public class UnboundedSourceSystemTest {
       accumulator.addAll(pollOnce(consumer, ssp, now - start - timeoutMillis));
       if (!accumulator.isEmpty()
           && MessageType.of(accumulator.get(accumulator.size() - 1).getMessage())
-          == MessageType.WATERMARK) {
+              == MessageType.WATERMARK) {
         break;
       }
       now = System.currentTimeMillis();
@@ -359,9 +356,8 @@ public class UnboundedSourceSystemTest {
     return ((OpMessage) envelope.getMessage()).getType();
   }
 
-  private static List<IncomingMessageEnvelope> pollOnce(SystemConsumer consumer,
-      SystemStreamPartition ssp,
-      long timeoutMillis)
+  private static List<IncomingMessageEnvelope> pollOnce(
+      SystemConsumer consumer, SystemStreamPartition ssp, long timeoutMillis)
       throws InterruptedException {
     final Set<SystemStreamPartition> sspSet = Collections.singleton(ssp);
     final Map<SystemStreamPartition, List<IncomingMessageEnvelope>> pollResult =

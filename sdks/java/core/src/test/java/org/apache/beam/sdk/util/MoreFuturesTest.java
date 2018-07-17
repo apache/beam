@@ -45,9 +45,11 @@ public class MoreFuturesTest {
   @Test
   public void supplyAsyncFailure() throws Exception {
     final String testMessage = "this is just a test";
-    CompletionStage<Long> future = MoreFutures.supplyAsync(() -> {
-      throw new IllegalStateException(testMessage);
-    });
+    CompletionStage<Long> future =
+        MoreFutures.supplyAsync(
+            () -> {
+              throw new IllegalStateException(testMessage);
+            });
 
     thrown.expect(ExecutionException.class);
     thrown.expectCause(isA(IllegalStateException.class));
@@ -58,9 +60,11 @@ public class MoreFuturesTest {
   @Test
   public void runAsyncSuccess() throws Exception {
     AtomicInteger result = new AtomicInteger(0);
-    CompletionStage<Void> sideEffectFuture = MoreFutures.runAsync(() -> {
-      result.set(42);
-    });
+    CompletionStage<Void> sideEffectFuture =
+        MoreFutures.runAsync(
+            () -> {
+              result.set(42);
+            });
 
     MoreFutures.get(sideEffectFuture);
     assertThat(result.get(), equalTo(42));
@@ -69,9 +73,11 @@ public class MoreFuturesTest {
   @Test
   public void runAsyncFailure() throws Exception {
     final String testMessage = "this is just a test";
-    CompletionStage<Void> sideEffectFuture = MoreFutures.runAsync(() -> {
-      throw new IllegalStateException(testMessage);
-    });
+    CompletionStage<Void> sideEffectFuture =
+        MoreFutures.runAsync(
+            () -> {
+              throw new IllegalStateException(testMessage);
+            });
 
     thrown.expect(ExecutionException.class);
     thrown.expectCause(isA(IllegalStateException.class));

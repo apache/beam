@@ -41,9 +41,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link HadoopFileSystemOptions}.
- */
+/** Tests for {@link HadoopFileSystemOptions}. */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemOptionsTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -51,33 +49,37 @@ public class HadoopFileSystemOptionsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testParsingHdfsConfiguration() {
-    HadoopFileSystemOptions options = PipelineOptionsFactory.fromArgs(
-        "--hdfsConfiguration=["
-            + "{\"propertyA\": \"A\"},"
-            + "{\"propertyB\": \"B\"}]").as(HadoopFileSystemOptions.class);
+    HadoopFileSystemOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--hdfsConfiguration=[" + "{\"propertyA\": \"A\"}," + "{\"propertyB\": \"B\"}]")
+            .as(HadoopFileSystemOptions.class);
     assertEquals(2, options.getHdfsConfiguration().size());
-    assertThat(options.getHdfsConfiguration().get(0), Matchers.<Map.Entry<String, String>>contains(
-        new AbstractMap.SimpleEntry("propertyA", "A")));
-    assertThat(options.getHdfsConfiguration().get(1), Matchers.<Map.Entry<String, String>>contains(
-        new AbstractMap.SimpleEntry("propertyB", "B")));
+    assertThat(
+        options.getHdfsConfiguration().get(0),
+        Matchers.<Map.Entry<String, String>>contains(
+            new AbstractMap.SimpleEntry("propertyA", "A")));
+    assertThat(
+        options.getHdfsConfiguration().get(1),
+        Matchers.<Map.Entry<String, String>>contains(
+            new AbstractMap.SimpleEntry("propertyB", "B")));
   }
 
   @Test
   public void testDefaultUnsetEnvHdfsConfiguration() {
     HadoopFileSystemOptions.ConfigurationLocator projectFactory =
-            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
     when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.of());
     assertNull(projectFactory.create(PipelineOptionsFactory.create()));
   }
 
   @Test
   public void testDefaultJustSetHadoopConfDirConfiguration() throws IOException {
-    Files.write(createPropertyData("A"),
-        tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(createPropertyData("B"),
-        tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
-            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
     environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
     when(configurationLocator.getEnvironment()).thenReturn(environment);
@@ -91,12 +93,12 @@ public class HadoopFileSystemOptionsTest {
 
   @Test
   public void testDefaultJustSetYarnConfDirConfiguration() throws IOException {
-    Files.write(createPropertyData("A"),
-        tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(createPropertyData("B"),
-        tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
-            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
     environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
     when(configurationLocator.getEnvironment()).thenReturn(environment);
@@ -110,12 +112,12 @@ public class HadoopFileSystemOptionsTest {
 
   @Test
   public void testDefaultSetYarnConfDirAndHadoopConfDirAndSameConfiguration() throws IOException {
-    Files.write(createPropertyData("A"),
-        tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(createPropertyData("B"),
-        tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
-            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
     environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
     environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
@@ -132,16 +134,16 @@ public class HadoopFileSystemOptionsTest {
   public void testDefaultSetYarnConfDirAndHadoopConfDirNotSameConfiguration() throws IOException {
     File hadoopConfDir = tmpFolder.newFolder("hadoop");
     File yarnConfDir = tmpFolder.newFolder("yarn");
-    Files.write(createPropertyData("A"),
-        new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(createPropertyData("B"),
-        new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
-    Files.write(createPropertyData("C"),
-        new File(yarnConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(createPropertyData("D"),
-        new File(yarnConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("C"), new File(yarnConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("D"), new File(yarnConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
-              spy(new HadoopFileSystemOptions.ConfigurationLocator());
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
     environment.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath());
     environment.put("HADOOP_CONF_DIR", yarnConfDir.getAbsolutePath());
@@ -151,14 +153,10 @@ public class HadoopFileSystemOptionsTest {
         configurationLocator.create(PipelineOptionsFactory.create());
     assertEquals(2, configurationList.size());
     int hadoopConfIndex = configurationList.get(0).get("propertyA") != null ? 0 : 1;
-    assertThat(
-        configurationList.get(hadoopConfIndex).get("propertyA"), Matchers.equalTo("A"));
-    assertThat(
-        configurationList.get(hadoopConfIndex).get("propertyB"), Matchers.equalTo("B"));
-    assertThat(
-        configurationList.get(1 - hadoopConfIndex).get("propertyC"), Matchers.equalTo("C"));
-    assertThat(
-        configurationList.get(1 - hadoopConfIndex).get("propertyD"), Matchers.equalTo("D"));
+    assertThat(configurationList.get(hadoopConfIndex).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(hadoopConfIndex).get("propertyB"), Matchers.equalTo("B"));
+    assertThat(configurationList.get(1 - hadoopConfIndex).get("propertyC"), Matchers.equalTo("C"));
+    assertThat(configurationList.get(1 - hadoopConfIndex).get("propertyD"), Matchers.equalTo("D"));
   }
 
   private static String createPropertyData(String property) {
@@ -166,8 +164,12 @@ public class HadoopFileSystemOptionsTest {
         + "<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>\n"
         + "<configuration>\n"
         + "    <property>\n"
-        + "        <name>property" + property + "</name>\n"
-        + "        <value>" + property + "</value>\n"
+        + "        <name>property"
+        + property
+        + "</name>\n"
+        + "        <value>"
+        + property
+        + "</value>\n"
         + "    </property>\n"
         + "</configuration>";
   }

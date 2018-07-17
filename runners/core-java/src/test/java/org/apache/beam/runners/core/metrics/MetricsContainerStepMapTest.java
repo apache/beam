@@ -44,9 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Tests for {@link MetricsContainerStepMap}.
- */
+/** Tests for {@link MetricsContainerStepMap}. */
 public class MetricsContainerStepMapTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 
@@ -63,8 +61,7 @@ public class MetricsContainerStepMapTest {
       Metrics.counter(MetricsContainerStepMapTest.class, COUNTER_NAME);
   private static final Distribution distribution =
       Metrics.distribution(MetricsContainerStepMapTest.class, DISTRIBUTION_NAME);
-  private static final Gauge gauge =
-      Metrics.gauge(MetricsContainerStepMapTest.class, GAUGE_NAME);
+  private static final Gauge gauge = Metrics.gauge(MetricsContainerStepMapTest.class, GAUGE_NAME);
 
   private static final MetricsContainerImpl metricsContainer;
 
@@ -80,8 +77,7 @@ public class MetricsContainerStepMapTest {
     }
   }
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testAttemptedAccumulatedMetricResults() {
@@ -90,8 +86,7 @@ public class MetricsContainerStepMapTest {
     attemptedMetrics.update(STEP2, metricsContainer);
     attemptedMetrics.update(STEP2, metricsContainer);
 
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(attemptedMetrics);
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -101,8 +96,11 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(step1res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, false);
-    assertDistribution(DISTRIBUTION_NAME,
-        step1res, STEP1, DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        step1res,
+        STEP1,
+        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
@@ -115,13 +113,14 @@ public class MetricsContainerStepMapTest {
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, false);
     assertDistribution(
-        DISTRIBUTION_NAME, step2res, STEP2,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2), false);
-    assertGauge(
-        GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
+        DISTRIBUTION_NAME,
+        step2res,
+        STEP2,
+        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        false);
+    assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
-    MetricQueryResults allres =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
@@ -132,8 +131,7 @@ public class MetricsContainerStepMapTest {
   public void testCounterCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
     attemptedMetrics.update(STEP1, metricsContainer);
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(attemptedMetrics);
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -148,8 +146,7 @@ public class MetricsContainerStepMapTest {
   public void testDistributionCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
     attemptedMetrics.update(STEP1, metricsContainer);
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(attemptedMetrics);
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -165,8 +162,7 @@ public class MetricsContainerStepMapTest {
   public void testGaugeCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
     attemptedMetrics.update(STEP1, metricsContainer);
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(attemptedMetrics);
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -191,8 +187,7 @@ public class MetricsContainerStepMapTest {
     committedMetrics.update(STEP2, metricsContainer);
     committedMetrics.update(STEP2, metricsContainer);
 
-    MetricResults metricResults =
-        asMetricResults(attemptedMetrics, committedMetrics);
+    MetricResults metricResults = asMetricResults(attemptedMetrics, committedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -203,13 +198,20 @@ public class MetricsContainerStepMapTest {
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE * 2, false);
     assertDistribution(
-        DISTRIBUTION_NAME, step1res, STEP1,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2), false);
+        DISTRIBUTION_NAME,
+        step1res,
+        STEP1,
+        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, true);
-    assertDistribution(DISTRIBUTION_NAME, step1res, STEP1,
-        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2), true);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        step1res,
+        STEP1,
+        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+        true);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), true);
 
     MetricQueryResults step2res =
@@ -220,17 +222,24 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(step2res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 3, false);
-    assertDistribution(DISTRIBUTION_NAME, step2res, STEP2,
-        DistributionResult.create(VALUE * 9, 6, VALUE, VALUE * 2), false);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        step2res,
+        STEP2,
+        DistributionResult.create(VALUE * 9, 6, VALUE, VALUE * 2),
+        false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, true);
-    assertDistribution(DISTRIBUTION_NAME, step2res, STEP2,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2), true);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        step2res,
+        STEP2,
+        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        true);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), true);
 
-    MetricQueryResults allres =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);

@@ -23,12 +23,13 @@ import java.util.Arrays;
  * Repeat a trigger, either until some condition is met or forever.
  *
  * <p>For example, to fire after the end of the window, and every time late data arrives:
- * <pre> {@code
- *     Repeatedly.forever(AfterWatermark.isPastEndOfWindow());
- * } </pre>
  *
- * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite
- * {@code AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
+ * <pre>{@code
+ * Repeatedly.forever(AfterWatermark.isPastEndOfWindow());
+ * }</pre>
+ *
+ * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite {@code
+ * AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
  */
 public class RepeatedlyStateMachine extends TriggerStateMachine {
 
@@ -50,7 +51,6 @@ public class RepeatedlyStateMachine extends TriggerStateMachine {
   private RepeatedlyStateMachine(TriggerStateMachine repeated) {
     super(Arrays.asList(repeated));
   }
-
 
   @Override
   public void onElement(OnElementContext c) throws Exception {

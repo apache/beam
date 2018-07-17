@@ -36,17 +36,15 @@ public interface BackOff {
    * Gets the number of milliseconds to wait before retrying the operation or {@link #STOP} to
    * indicate that no retries should be made.
    *
-   * <p>
-   * Example usage:
-   * </p>
+   * <p>Example usage:
    *
    * <pre>
-   long backOffMillis = backoff.nextBackOffMillis();
-   if (backOffMillis == Backoff.STOP) {
-   // do not retry operation
-   } else {
-   // sleep for backOffMillis milliseconds and retry operation
-   }
+   * long backOffMillis = backoff.nextBackOffMillis();
+   * if (backOffMillis == Backoff.STOP) {
+   * // do not retry operation
+   * } else {
+   * // sleep for backOffMillis milliseconds and retry operation
+   * }
    * </pre>
    */
   long nextBackOffMillis() throws IOException;
@@ -55,31 +53,31 @@ public interface BackOff {
    * Fixed back-off policy whose back-off time is always zero, meaning that the operation is retried
    * immediately without waiting.
    */
-  BackOff ZERO_BACKOFF = new BackOff() {
+  BackOff ZERO_BACKOFF =
+      new BackOff() {
 
-    @Override
-    public void reset() throws IOException {
-    }
+        @Override
+        public void reset() throws IOException {}
 
-    @Override
-    public long nextBackOffMillis() throws IOException {
-      return 0;
-    }
-  };
+        @Override
+        public long nextBackOffMillis() throws IOException {
+          return 0;
+        }
+      };
 
   /**
    * Fixed back-off policy that always returns {@code #STOP} for {@link #nextBackOffMillis()},
    * meaning that the operation should not be retried.
    */
-  BackOff STOP_BACKOFF = new BackOff() {
+  BackOff STOP_BACKOFF =
+      new BackOff() {
 
-    @Override
-    public void reset() throws IOException {
-    }
+        @Override
+        public void reset() throws IOException {}
 
-    @Override
-    public long nextBackOffMillis() throws IOException {
-      return STOP;
-    }
-  };
+        @Override
+        public long nextBackOffMillis() throws IOException {
+          return STOP;
+        }
+      };
 }

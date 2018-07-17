@@ -165,7 +165,11 @@ ignore_identifiers = [
   'WindowedTypeConstraint',  # apache_beam.typehints.typehints
 
   # stdlib classes without documentation
-  'unittest.case.TestCase'
+  'unittest.case.TestCase',
+
+  # DoFn param inner classes, due to a Sphinx misparsing of inner classes
+  '_StateDoFnParam',
+  '_TimerDoFnParam',
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function
@@ -174,6 +178,7 @@ nitpicky = True
 nitpick_ignore = []
 nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
+nitpick_ignore += [('py:exc', 'ValueError')]
 EOF
 
 #=== index.rst ===#

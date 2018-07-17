@@ -31,18 +31,20 @@ class CreateTransactionFn extends DoFn<Object, Transaction> {
 
   private transient SpannerAccessor spannerAccessor;
 
-  @DoFn.Setup public void setup() throws Exception {
+  @DoFn.Setup
+  public void setup() throws Exception {
     spannerAccessor = config.getSpannerConfig().connectToSpanner();
   }
 
-  @Teardown public void teardown() throws Exception {
+  @Teardown
+  public void teardown() throws Exception {
     spannerAccessor.close();
   }
 
-  @ProcessElement public void processElement(ProcessContext c) throws Exception {
-    BatchReadOnlyTransaction tx = spannerAccessor.getBatchClient()
-        .batchReadOnlyTransaction(config.getTimestampBound());
+  @ProcessElement
+  public void processElement(ProcessContext c) throws Exception {
+    BatchReadOnlyTransaction tx =
+        spannerAccessor.getBatchClient().batchReadOnlyTransaction(config.getTimestampBound());
     c.output(Transaction.create(tx.getBatchTransactionId()));
   }
-
 }

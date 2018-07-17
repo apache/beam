@@ -26,12 +26,9 @@ import com.google.common.collect.Iterables;
 
 final class MutationCellCounter {
   // Prevent construction.
-  private MutationCellCounter() {
-  }
+  private MutationCellCounter() {}
 
-  /**
-   * Count the number of cells modified by {@link MutationGroup}.
-   */
+  /** Count the number of cells modified by {@link MutationGroup}. */
   public static long countOf(SpannerSchema spannerSchema, MutationGroup mutationGroup) {
     long mutatedCells = 0L;
     for (Mutation mutation : mutationGroup) {

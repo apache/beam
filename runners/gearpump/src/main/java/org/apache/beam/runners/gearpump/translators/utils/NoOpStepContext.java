@@ -23,9 +23,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 
-/**
- * serializable {@link StepContext} that basically does nothing.
- */
+/** serializable {@link StepContext} that basically does nothing. */
 public class NoOpStepContext implements StepContext, Serializable {
 
   @Override

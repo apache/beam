@@ -84,7 +84,7 @@ public class DoFnInvokersTest {
   @Mock private OutputReceiver<String> mockOutputReceiver;
   @Mock private MultiOutputReceiver mockMultiOutputReceiver;
   @Mock private IntervalWindow mockWindow;
- // @Mock private PaneInfo mockPaneInfo;
+  // @Mock private PaneInfo mockPaneInfo;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
@@ -93,14 +93,11 @@ public class DoFnInvokersTest {
     mockTimestamp = new Instant(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
-   // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
-   //     .thenReturn(mockPaneInfo);
-    when(mockArgumentProvider.element(Matchers.<DoFn>any()))
-       .thenReturn(mockElement);
-    when(mockArgumentProvider.timestamp(Matchers.<DoFn>any()))
-        .thenReturn(mockTimestamp);
-    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any()))
-        .thenReturn(mockOutputReceiver);
+    // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
+    //     .thenReturn(mockPaneInfo);
+    when(mockArgumentProvider.element(Matchers.<DoFn>any())).thenReturn(mockElement);
+    when(mockArgumentProvider.timestamp(Matchers.<DoFn>any())).thenReturn(mockTimestamp);
+    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any())).thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
@@ -212,25 +209,30 @@ public class DoFnInvokersTest {
   public void testDoFnWithAllParameters() throws Exception {
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
-      public void processElement(ProcessContext c,
-                                 @Element String element,
-                                 @Timestamp Instant timestamp,
-                                 IntervalWindow w,
-                         //        PaneInfo p,
-                                 OutputReceiver<String> receiver,
-                                 MultiOutputReceiver multiReceiver) throws Exception {}
+      public void processElement(
+          ProcessContext c,
+          @Element String element,
+          @Timestamp Instant timestamp,
+          IntervalWindow w,
+          //        PaneInfo p,
+          OutputReceiver<String> receiver,
+          MultiOutputReceiver multiReceiver)
+          throws Exception {}
     }
 
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
-    verify(fn).processElement(mockProcessContext, mockElement, mockTimestamp, mockWindow,
-        mockOutputReceiver, mockMultiOutputReceiver);
+    verify(fn)
+        .processElement(
+            mockProcessContext,
+            mockElement,
+            mockTimestamp,
+            mockWindow,
+            mockOutputReceiver,
+            mockMultiOutputReceiver);
   }
 
-  /**
-   * Tests that the generated {@link DoFnInvoker} passes the state parameter that it
-   * should.
-   */
+  /** Tests that the generated {@link DoFnInvoker} passes the state parameter that it should. */
   @Test
   public void testDoFnWithState() throws Exception {
     ValueState<Integer> mockState = mock(ValueState.class);
@@ -239,8 +241,7 @@ public class DoFnInvokersTest {
 
     class MockFn extends DoFn<String, String> {
       @StateId(stateId)
-      private final StateSpec<ValueState<Integer>> spec =
-          StateSpecs.value(VarIntCoder.of());
+      private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
       public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
@@ -252,10 +253,7 @@ public class DoFnInvokersTest {
     verify(fn).processElement(mockProcessContext, mockState);
   }
 
-  /**
-   * Tests that the generated {@link DoFnInvoker} passes the timer parameter that it
-   * should.
-   */
+  /** Tests that the generated {@link DoFnInvoker} passes the timer parameter that it should. */
   @Test
   public void testDoFnWithTimer() throws Exception {
     Timer mockTimer = mock(Timer.class);
@@ -418,7 +416,9 @@ public class DoFnInvokersTest {
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     final List<SomeRestriction> outputs = new ArrayList<>();
-    invoker.invokeSplitRestriction("blah", restriction,
+    invoker.invokeSplitRestriction(
+        "blah",
+        restriction,
         new OutputReceiver<SomeRestriction>() {
           @Override
           public void output(SomeRestriction output) {
@@ -483,8 +483,7 @@ public class DoFnInvokersTest {
     }
 
     @Override
-    public void encode(
-        RestrictionWithDefaultTracker value, OutputStream outStream) {}
+    public void encode(RestrictionWithDefaultTracker value, OutputStream outStream) {}
 
     @Override
     public RestrictionWithDefaultTracker decode(InputStream inStream) {
@@ -508,8 +507,9 @@ public class DoFnInvokersTest {
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
     CoderRegistry coderRegistry = CoderRegistry.createDefault();
-    coderRegistry.registerCoderProvider(CoderProviders.fromStaticMethods(
-        RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class));
+    coderRegistry.registerCoderProvider(
+        CoderProviders.fromStaticMethods(
+            RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class));
     assertThat(
         invoker.<RestrictionWithDefaultTracker>invokeGetRestrictionCoder(coderRegistry),
         instanceOf(CoderForDefaultTracker.class));
@@ -687,12 +687,13 @@ public class DoFnInvokersTest {
             });
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    invoker.invokeProcessElement(new FakeArgumentProvider<Integer, Integer>() {
-      @Override
-      public DoFn<Integer, Integer>.ProcessContext processContext(DoFn<Integer, Integer> fn) {
-        return null;
-      }
-    });
+    invoker.invokeProcessElement(
+        new FakeArgumentProvider<Integer, Integer>() {
+          @Override
+          public DoFn<Integer, Integer>.ProcessContext processContext(DoFn<Integer, Integer> fn) {
+            return null;
+          }
+        });
   }
 
   @Test
@@ -717,17 +718,18 @@ public class DoFnInvokersTest {
                 return null;
               }
             })
-        .invokeProcessElement(new FakeArgumentProvider<Integer, Integer>() {
-          @Override
-          public DoFn.ProcessContext processContext(DoFn<Integer, Integer> doFn) {
-            return null; // will not be touched
-          }
+        .invokeProcessElement(
+            new FakeArgumentProvider<Integer, Integer>() {
+              @Override
+              public DoFn.ProcessContext processContext(DoFn<Integer, Integer> doFn) {
+                return null; // will not be touched
+              }
 
-          @Override
-          public RestrictionTracker<?, ?> restrictionTracker() {
-            return null; // will not be touched
-          }
-        });
+              @Override
+              public RestrictionTracker<?, ?> restrictionTracker() {
+                return null; // will not be touched
+              }
+            });
   }
 
   @Test
@@ -827,9 +829,7 @@ public class DoFnInvokersTest {
     public void process() {}
   }
 
-  /**
-   * This is a change-detector test that the generated name is stable across runs.
-   */
+  /** This is a change-detector test that the generated name is stable across runs. */
   @Test
   public void testStableName() {
     DoFnInvoker<Void, Void> invoker = DoFnInvokers.invokerFor(new StableNameTestDoFn());
@@ -839,5 +839,4 @@ public class DoFnInvokersTest {
             String.format(
                 "%s$%s", StableNameTestDoFn.class.getName(), DoFnInvoker.class.getSimpleName())));
   }
-
 }

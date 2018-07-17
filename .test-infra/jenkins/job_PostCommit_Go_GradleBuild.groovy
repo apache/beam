@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 
@@ -30,16 +30,16 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go Pos
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
+  commonJobProperties.setTopLevelMainJobProperties(
     delegate,
     'master',
     150)
 
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':goPostCommit')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
     }
   }
 }

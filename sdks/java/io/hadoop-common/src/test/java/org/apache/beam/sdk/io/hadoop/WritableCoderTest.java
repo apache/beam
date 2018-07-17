@@ -26,9 +26,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.junit.Test;
 
-/**
- * Tests for WritableCoder.
- */
+/** Tests for WritableCoder. */
 public class WritableCoderTest {
 
   @Test
@@ -49,7 +47,8 @@ public class WritableCoderTest {
 
   @Test
   public void testAutomaticRegistrationOfCoderProvider() throws Exception {
-    assertThat(CoderRegistry.createDefault().getCoder(NullWritable.class),
+    assertThat(
+        CoderRegistry.createDefault().getCoder(NullWritable.class),
         instanceOf(WritableCoder.class));
   }
 }

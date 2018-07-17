@@ -20,9 +20,7 @@ package org.apache.beam.sdk.nexmark.sources.generator.model;
 
 import java.util.Random;
 
-/**
- * Generates a random price.
- */
+/** Generates a random price. */
 public class PriceGenerator {
 
   /** Return a random price. */

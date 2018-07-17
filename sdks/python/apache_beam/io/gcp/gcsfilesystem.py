@@ -18,6 +18,10 @@
 
 from __future__ import absolute_import
 
+from builtins import zip
+
+from future.utils import iteritems
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
@@ -117,7 +121,7 @@ class GCSFileSystem(FileSystem):
       ``BeamIOError`` if listing fails, but not if no files were found.
     """
     try:
-      for path, size in gcsio.GcsIO().list_prefix(dir_or_prefix).iteritems():
+      for path, size in iteritems(gcsio.GcsIO().list_prefix(dir_or_prefix)):
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})

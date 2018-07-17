@@ -34,9 +34,7 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 public class SamzaRunnerRegistrar {
   private SamzaRunnerRegistrar() {}
 
-  /**
-   * Pipeline runner registrar.
-   */
+  /** Pipeline runner registrar. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -45,9 +43,7 @@ public class SamzaRunnerRegistrar {
     }
   }
 
-  /**
-   * Pipeline options registrar.
-   */
+  /** Pipeline options registrar. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override
@@ -55,5 +51,4 @@ public class SamzaRunnerRegistrar {
       return ImmutableList.of(SamzaPipelineOptions.class);
     }
   }
-
 }

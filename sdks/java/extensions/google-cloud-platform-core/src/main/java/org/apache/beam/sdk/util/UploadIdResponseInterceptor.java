@@ -25,9 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implements a response intercepter that logs the upload id if the upload
- * id header exists and it is the first request (does not have upload_id parameter in the request).
- * Only logs if debug level is enabled.
+ * Implements a response intercepter that logs the upload id if the upload id header exists and it
+ * is the first request (does not have upload_id parameter in the request). Only logs if debug level
+ * is enabled.
  */
 public class UploadIdResponseInterceptor implements HttpResponseInterceptor {
 

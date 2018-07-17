@@ -54,9 +54,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CombineRunners}.
- */
+/** Tests for {@link CombineRunners}. */
 @RunWith(JUnit4.class)
 public class CombineRunnersTest {
   // CombineFn that converts strings to ints and sums them up to an accumulator, and negates the
@@ -95,6 +93,7 @@ public class CombineRunnersTest {
   private RunnerApi.PTransform pTransform;
   private String inputPCollectionId;
   private String outputPCollectionId;
+  private RunnerApi.Pipeline pProto;
 
   @Before
   public void createPipeline() throws Exception {
@@ -105,13 +104,13 @@ public class CombineRunnersTest {
     Pipeline p = Pipeline.create();
     PCollection<KV<String, String>> inputPCollection = p.apply(Create.of(KV.of("unused", "0")));
     inputPCollection.setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-    PCollection<KV<String, Integer>> outputPCollection = inputPCollection
-        .apply(TEST_COMBINE_ID, combine);
+    PCollection<KV<String, Integer>> outputPCollection =
+        inputPCollection.apply(TEST_COMBINE_ID, combine);
     outputPCollection.setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     // Create FnApi protos needed for the runner.
-    SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
+    pProto = PipelineTranslation.toProto(p, sdkComponents);
     inputPCollectionId = sdkComponents.registerPCollection(inputPCollection);
     outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
     pTransform = pProto.getComponents().getTransformsOrThrow(TEST_COMBINE_ID);
@@ -126,16 +125,16 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>)
-            mainOutputValues::add);
+    consumers.put(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     // Create runner.
-    MapFnRunners
-        .forValueMapFnFactory(CombineRunners::createPrecombineMapFunction)
+    new CombineRunners.PrecombineFactory<>()
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null,
@@ -143,16 +142,15 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pProto.getComponents().getPcollectionsMap(),
+            pProto.getComponents().getCodersMap(),
+            pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
             startFunctions::add,
             finishFunctions::add,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    Iterables.getOnlyElement(startFunctions).run();
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
@@ -166,20 +164,23 @@ public class CombineRunnersTest {
     input.accept(valueInGlobalWindow(KV.of("B", "2")));
     input.accept(valueInGlobalWindow(KV.of("C", "3")));
 
+    Iterables.getOnlyElement(finishFunctions).run();
+
     // Check that all values for "A" were converted to accumulators regardless of how they were
     // combined by the Precombine optimization.
     Integer sum = 0;
-    while ("A".equals(mainOutputValues.getFirst().getValue().getKey())) {
-      sum += mainOutputValues.getFirst().getValue().getValue();
-      mainOutputValues.removeFirst();
+    for (WindowedValue<KV<String, Integer>> outputValue : mainOutputValues) {
+      if ("A".equals(outputValue.getValue().getKey())) {
+        sum += outputValue.getValue().getValue();
+      }
     }
     assertThat(sum, equalTo(9));
 
+    // Check that elements for "B" and "C" are present as well.
+    mainOutputValues.removeIf(elem -> "A".equals(elem.getValue().getKey()));
     assertThat(
         mainOutputValues,
-        contains(
-            valueInGlobalWindow(KV.of("B", 2)),
-            valueInGlobalWindow(KV.of("C", 3))));
+        containsInAnyOrder(valueInGlobalWindow(KV.of("B", 2)), valueInGlobalWindow(KV.of("C", 3))));
   }
 
   /**
@@ -191,16 +192,16 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>)
-            mainOutputValues::add);
+    consumers.put(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     // Create runner.
-    MapFnRunners
-        .forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
+    MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null,
@@ -246,16 +247,16 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>)
-            mainOutputValues::add);
+    consumers.put(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     // Create runner.
-    MapFnRunners
-        .forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
+    MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null,
@@ -301,16 +302,16 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>)
-            mainOutputValues::add);
+    consumers.put(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     // Create runner.
-    MapFnRunners
-        .forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
+    MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null,

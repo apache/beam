@@ -32,13 +32,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for helper classes and methods in PubsubClient.
- */
+/** Tests for helper classes and methods in PubsubClient. */
 @RunWith(JUnit4.class)
 public class PubsubClientTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   //
   // Timestamp handling

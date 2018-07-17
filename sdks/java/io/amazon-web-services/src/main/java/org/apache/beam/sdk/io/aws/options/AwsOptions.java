@@ -31,48 +31,43 @@ import org.apache.beam.sdk.options.Validation;
  */
 public interface AwsOptions extends PipelineOptions {
 
-  /**
-   * AWS region used by the AWS client.
-   */
+  /** AWS region used by the AWS client. */
   @Description("AWS region used by the AWS client")
   @Validation.Required
   String getAwsRegion();
+
   void setAwsRegion(String value);
 
-  /**
-   * The AWS service endpoint used by the AWS client.
-   */
+  /** The AWS service endpoint used by the AWS client. */
   @Description("AWS service endpoint used by the AWS client")
   String getAwsServiceEndpoint();
+
   void setAwsServiceEndpoint(String value);
 
   /**
-   * The credential instance that should be used to authenticate against AWS services.
-   * The option value must contain a "@type" field and an AWS Credentials Provider class
-   * as the field value. Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for
-   * usage help.
-   * <p>
-   * For example, to specify the AWS key ID and secret, specify the following:
-   * <code>
+   * The credential instance that should be used to authenticate against AWS services. The option
+   * value must contain a "@type" field and an AWS Credentials Provider class as the field value.
+   * Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help.
+   *
+   * <p>For example, to specify the AWS key ID and secret, specify the following: <code>
    * {"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value",
    * "awsSecretKey" : "secret_value"}
    * </code>
-   * </p>
    */
-   @Description("The credential instance that should be used to authenticate "
-           + "against AWS services. The option value must contain \"@type\" field "
-           + "and an AWS Credentials Provider class name as the field value. "
-           + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
-           + "For example, to specify the AWS key ID and secret, specify the following: "
-           + "{\"@type\": \"AWSStaticCredentialsProvider\", "
-           + "\"awsAccessKeyId\":\"<key_id>\", \"awsSecretKey\":\"<secret_key>\"}")
-   @Default.InstanceFactory(AwsUserCredentialsFactory.class)
-   AWSCredentialsProvider getAwsCredentialsProvider();
-   void setAwsCredentialsProvider(AWSCredentialsProvider value);
+  @Description(
+      "The credential instance that should be used to authenticate "
+          + "against AWS services. The option value must contain \"@type\" field "
+          + "and an AWS Credentials Provider class name as the field value. "
+          + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
+          + "For example, to specify the AWS key ID and secret, specify the following: "
+          + "{\"@type\": \"AWSStaticCredentialsProvider\", "
+          + "\"awsAccessKeyId\":\"<key_id>\", \"awsSecretKey\":\"<secret_key>\"}")
+  @Default.InstanceFactory(AwsUserCredentialsFactory.class)
+  AWSCredentialsProvider getAwsCredentialsProvider();
 
-  /**
-   * Attempts to load AWS credentials.
-   */
+  void setAwsCredentialsProvider(AWSCredentialsProvider value);
+
+  /** Attempts to load AWS credentials. */
   class AwsUserCredentialsFactory implements DefaultValueFactory<AWSCredentialsProvider> {
 
     @Override

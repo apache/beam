@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -36,7 +35,6 @@ import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -58,8 +56,8 @@ import org.joda.time.Duration;
  * {@link Pipeline}.
  *
  * <p>The {@link DirectRunner} is suitable for running a {@link Pipeline} on small scale, example,
- * and test data, and should be used for ensuring that processing logic is correct. It also
- * is appropriate for executing unit tests and performs additional work to ensure that behavior
+ * and test data, and should be used for ensuring that processing logic is correct. It also is
+ * appropriate for executing unit tests and performs additional work to ensure that behavior
  * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
  * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
@@ -102,8 +100,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return Collections.unmodifiableSet(enabled);
     }
 
-    static BundleFactory bundleFactoryFor(
-        Set<Enforcement> enforcements, DirectGraph graph) {
+    static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements, DirectGraph graph) {
       BundleFactory bundleFactory =
           enforcements.contains(Enforcement.ENCODABILITY)
               ? CloningBundleFactory.create()
@@ -114,8 +111,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return bundleFactory;
     }
 
-    private static Map<String, Collection<ModelEnforcementFactory>>
-        defaultModelEnforcements(Set<Enforcement> enabledEnforcements) {
+    private static Map<String, Collection<ModelEnforcementFactory>> defaultModelEnforcements(
+        Set<Enforcement> enabledEnforcements) {
       ImmutableMap.Builder<String, Collection<ModelEnforcementFactory>> enforcements =
           ImmutableMap.builder();
       ImmutableList.Builder<ModelEnforcementFactory> enabledParDoEnforcements =
@@ -134,9 +131,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
-  /**
-   * Construct a {@link DirectRunner} from the provided options.
-   */
+  /** Construct a {@link DirectRunner} from the provided options. */
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
   }
@@ -155,18 +150,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   @Override
-  public DirectPipelineResult run(Pipeline originalPipeline) {
-    Pipeline pipeline;
-    if (options.isProtoTranslation()) {
-      try {
-        pipeline = PipelineTranslation.fromProto(
-            PipelineTranslation.toProto(originalPipeline));
-      } catch (IOException exception) {
-        throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
-      }
-    } else {
-      pipeline = originalPipeline;
-    }
+  public DirectPipelineResult run(Pipeline pipeline) {
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
     try {
@@ -177,32 +161,35 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
       pipeline.traverseTopologically(keyedPValueVisitor);
 
-    DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(options);
+      DisplayDataValidator.validatePipeline(pipeline);
+      DisplayDataValidator.validateOptions(options);
 
-      ExecutorService metricsPool = Executors.newCachedThreadPool(
-          new ThreadFactoryBuilder()
-            .setThreadFactory(MoreExecutors.platformThreadFactory())
-            .setDaemon(false) // otherwise you say you want to leak, please don't!
-            .setNameFormat("direct-metrics-counter-committer")
-            .build());
+      ExecutorService metricsPool =
+          Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder()
+                  .setThreadFactory(MoreExecutors.platformThreadFactory())
+                  .setDaemon(false) // otherwise you say you want to leak, please don't!
+                  .setNameFormat("direct-metrics-counter-committer")
+                  .build());
       DirectGraph graph = graphVisitor.getGraph();
       EvaluationContext context =
           EvaluationContext.create(
               clockSupplier.get(),
               Enforcement.bundleFactoryFor(enabledEnforcements, graph),
               graph,
-              keyedPValueVisitor.getKeyedPValues(), metricsPool);
+              keyedPValueVisitor.getKeyedPValues(),
+              metricsPool);
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry
-        .javaSdkNativeRegistry(context, options);
-    PipelineExecutor executor =
-        ExecutorServiceParallelExecutor.create(
-            options.getTargetParallelism(),
-            registry,
-            Enforcement.defaultModelEnforcements(enabledEnforcements),
-            context, metricsPool);
-    executor.start(graph, RootProviderRegistry.javaNativeRegistry(context, options));
+      TransformEvaluatorRegistry registry =
+          TransformEvaluatorRegistry.javaSdkNativeRegistry(context, options);
+      PipelineExecutor executor =
+          ExecutorServiceParallelExecutor.create(
+              options.getTargetParallelism(),
+              registry,
+              Enforcement.defaultModelEnforcements(enabledEnforcements),
+              context,
+              metricsPool);
+      executor.start(graph, RootProviderRegistry.javaNativeRegistry(context, options));
 
       DirectPipelineResult result = new DirectPipelineResult(executor, context);
       if (options.isBlockOnRun()) {
@@ -280,17 +267,13 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     return builder.build();
   }
 
-  /**
-   * The result of running a {@link Pipeline} with the {@link DirectRunner}.
-   */
+  /** The result of running a {@link Pipeline} with the {@link DirectRunner}. */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
     private final EvaluationContext evaluationContext;
     private State state;
 
-    private DirectPipelineResult(
-        PipelineExecutor executor,
-        EvaluationContext evaluationContext) {
+    private DirectPipelineResult(PipelineExecutor executor, EvaluationContext evaluationContext) {
       this.executor = executor;
       this.evaluationContext = evaluationContext;
       // Only ever constructed after the executor has started.
@@ -361,9 +344,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
   }
 
-  /**
-   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
-   */
+  /** A {@link Supplier} that creates a {@link NanosOffsetClock}. */
   private static class NanosOffsetClockSupplier implements Supplier<Clock> {
     @Override
     public Clock get() {

@@ -24,9 +24,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * {@link Window} is translated to {@link ApexProcessFnOperator#assignWindows}.
- */
+/** {@link Window} is translated to {@link ApexProcessFnOperator#assignWindows}. */
 class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {
   private static final long serialVersionUID = 1L;
 
@@ -35,18 +33,16 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
     PCollection<T> output = context.getOutput();
     PCollection<T> input = context.getInput();
 
-   if (transform.getWindowFn() == null) {
-     // no work to do
-     context.addAlias(output, input);
-   } else {
+    if (transform.getWindowFn() == null) {
+      // no work to do
+      context.addAlias(output, input);
+    } else {
       @SuppressWarnings("unchecked")
       WindowFn<T, BoundedWindow> windowFn = (WindowFn<T, BoundedWindow>) transform.getWindowFn();
-      ApexProcessFnOperator<T> operator = ApexProcessFnOperator.assignWindows(windowFn,
-          context.getPipelineOptions());
+      ApexProcessFnOperator<T> operator =
+          ApexProcessFnOperator.assignWindows(windowFn, context.getPipelineOptions());
       context.addOperator(operator, operator.outputPort);
       context.addStream(context.getInput(), operator.inputPort);
-   }
-
+    }
   }
-
 }

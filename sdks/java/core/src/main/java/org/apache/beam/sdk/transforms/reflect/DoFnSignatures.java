@@ -41,9 +41,11 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -54,6 +56,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -67,13 +70,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.joda.time.Instant;
 
-/**
- * Utilities for working with {@link DoFnSignature}. See {@link #getSignature}.
- */
+/** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
 public class DoFnSignatures {
 
   private DoFnSignatures() {}
@@ -82,41 +84,42 @@ public class DoFnSignatures {
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
-      ImmutableList.of(
-          Parameter.ProcessContextParameter.class,
-          Parameter.ElementParameter.class,
-          Parameter.TimestampParameter.class,
-          Parameter.OutputReceiverParameter.class,
-          Parameter.TaggedOutputReceiverParameter.class,
-          Parameter.WindowParameter.class,
-          Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class,
-          Parameter.TimerParameter.class,
-          Parameter.StateParameter.class);
+          ImmutableList.of(
+              Parameter.ProcessContextParameter.class,
+              Parameter.ElementParameter.class,
+              Parameter.RowParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.PaneInfoParameter.class,
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.TimerParameter.class,
+              Parameter.StateParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
+              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.ProcessContextParameter.class,
               Parameter.RestrictionTrackerParameter.class);
 
-  private static final ImmutableList<Class<? extends Parameter>>
-      ALLOWED_ON_TIMER_PARAMETERS =
-          ImmutableList.of(
-              Parameter.OnTimerContextParameter.class,
-              Parameter.TimestampParameter.class,
-              Parameter.TimeDomainParameter.class,
-              Parameter.WindowParameter.class,
-              Parameter.PipelineOptionsParameter.class,
-              Parameter.OutputReceiverParameter.class,
-              Parameter.TaggedOutputReceiverParameter.class,
-              Parameter.TimerParameter.class,
-              Parameter.StateParameter.class);
+  private static final ImmutableList<Class<? extends Parameter>> ALLOWED_ON_TIMER_PARAMETERS =
+      ImmutableList.of(
+          Parameter.OnTimerContextParameter.class,
+          Parameter.TimestampParameter.class,
+          Parameter.TimeDomainParameter.class,
+          Parameter.WindowParameter.class,
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.OutputReceiverParameter.class,
+          Parameter.TaggedOutputReceiverParameter.class,
+          Parameter.TimerParameter.class,
+          Parameter.StateParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -139,6 +142,7 @@ public class DoFnSignatures {
 
     private final Map<String, StateDeclaration> stateDeclarations = new HashMap<>();
     private final Map<String, TimerDeclaration> timerDeclarations = new HashMap<>();
+    private final Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
 
     private FnAnalysisContext() {}
 
@@ -155,6 +159,12 @@ public class DoFnSignatures {
     /** Timer parameters declared in this context, keyed by {@link TimerId}. Unmodifiable. */
     public Map<String, TimerDeclaration> getTimerDeclarations() {
       return Collections.unmodifiableMap(timerDeclarations);
+    }
+
+    /** Field access declaration declared in this context. */
+    @Nullable
+    public Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
+      return fieldAccessDeclarations;
     }
 
     public void addStateDeclaration(StateDeclaration decl) {
@@ -176,6 +186,16 @@ public class DoFnSignatures {
         addTimerDeclaration(decl);
       }
     }
+
+    public void addFieldAccessDeclaration(FieldAccessDeclaration decl) {
+      fieldAccessDeclarations.put(decl.id(), decl);
+    }
+
+    public void addFieldAccessDeclarations(Iterable<FieldAccessDeclaration> decls) {
+      for (FieldAccessDeclaration decl : decls) {
+        addFieldAccessDeclaration(decl);
+      }
+    }
   }
 
   /**
@@ -190,8 +210,7 @@ public class DoFnSignatures {
     private final Map<String, TimerParameter> timerParameters = new HashMap<>();
     private final List<Parameter> extraParameters = new ArrayList<>();
 
-    @Nullable
-    private TypeDescriptor<? extends BoundedWindow> windowT;
+    @Nullable private TypeDescriptor<? extends BoundedWindow> windowT;
 
     private MethodAnalysisContext() {}
 
@@ -207,10 +226,7 @@ public class DoFnSignatures {
       return extraParameters.stream().anyMatch(Predicates.instanceOf(WindowParameter.class)::apply);
     }
 
-    /**
-     * Indicates whether a {@link Parameter.PipelineOptionsParameter} is
-     * known in this context.
-     */
+    /** Indicates whether a {@link Parameter.PipelineOptionsParameter} is known in this context. */
     public boolean hasPipelineOptionsParamter() {
       return extraParameters
           .stream()
@@ -264,8 +280,11 @@ public class DoFnSignatures {
   @AutoValue
   abstract static class ParameterDescription {
     public abstract Method getMethod();
+
     public abstract int getIndex();
+
     public abstract TypeDescriptor<?> getType();
+
     public abstract List<Annotation> getAnnotations();
 
     public static ParameterDescription of(
@@ -308,6 +327,7 @@ public class DoFnSignatures {
     FnAnalysisContext fnContext = FnAnalysisContext.create();
     fnContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
     fnContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
+    fnContext.addFieldAccessDeclarations(analyzeFieldAccessDeclaration(errors, fnClass).values());
 
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
@@ -328,7 +348,7 @@ public class DoFnSignatures {
     Collection<Method> onTimerMethods =
         declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
     HashMap<String, DoFnSignature.OnTimerMethod> onTimerMethodMap =
-            Maps.newHashMapWithExpectedSize(onTimerMethods.size());
+        Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
       errors.checkArgument(
@@ -365,12 +385,7 @@ public class DoFnSignatures {
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
         analyzeProcessElementMethod(
-            processElementErrors,
-            fnT,
-            processElementMethod,
-            inputT,
-            outputT,
-            fnContext);
+            processElementErrors, fnT, processElementMethod, inputT, outputT, fnContext);
     signatureBuilder.setProcessElement(processElement);
 
     if (startBundleMethod != null) {
@@ -402,24 +417,24 @@ public class DoFnSignatures {
       getInitialRestrictionErrors =
           errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestrictionMethod);
       signatureBuilder.setGetInitialRestriction(
-              analyzeGetInitialRestrictionMethod(
-                  getInitialRestrictionErrors, fnT, getInitialRestrictionMethod, inputT));
+          analyzeGetInitialRestrictionMethod(
+              getInitialRestrictionErrors, fnT, getInitialRestrictionMethod, inputT));
     }
 
     if (splitRestrictionMethod != null) {
       ErrorReporter splitRestrictionErrors =
           errors.forMethod(DoFn.SplitRestriction.class, splitRestrictionMethod);
       signatureBuilder.setSplitRestriction(
-              analyzeSplitRestrictionMethod(
-                  splitRestrictionErrors, fnT, splitRestrictionMethod, inputT));
+          analyzeSplitRestrictionMethod(
+              splitRestrictionErrors, fnT, splitRestrictionMethod, inputT));
     }
 
     if (getRestrictionCoderMethod != null) {
       ErrorReporter getRestrictionCoderErrors =
           errors.forMethod(DoFn.GetRestrictionCoder.class, getRestrictionCoderMethod);
       signatureBuilder.setGetRestrictionCoder(
-              analyzeGetRestrictionCoderMethod(
-                  getRestrictionCoderErrors, fnT, getRestrictionCoderMethod));
+          analyzeGetRestrictionCoderMethod(
+              getRestrictionCoderErrors, fnT, getRestrictionCoderMethod));
     }
 
     if (newTrackerMethod != null) {
@@ -432,6 +447,7 @@ public class DoFnSignatures {
 
     signatureBuilder.setStateDeclarations(fnContext.getStateDeclarations());
     signatureBuilder.setTimerDeclarations(fnContext.getTimerDeclarations());
+    signatureBuilder.setFieldAccessDeclarations(fnContext.getFieldAccessDeclarations());
 
     DoFnSignature signature = signatureBuilder.build();
 
@@ -450,16 +466,16 @@ public class DoFnSignatures {
    * bounded amount of work per element) using the following criteria:
    *
    * <ol>
-   * <li>If the {@link DoFn} is not splittable, then it is bounded, it must not be annotated as
-   *     {@link DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, and {@link
-   *     DoFn.ProcessElement} must return {@code void}.
-   * <li>If the {@link DoFn} (or any of its supertypes) is annotated as {@link
-   *     DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, use that. Only one of
-   *     these must be specified.
-   * <li>If {@link DoFn.ProcessElement} returns {@link DoFn.ProcessContinuation}, assume it is
-   *     unbounded. Otherwise (if it returns {@code void}), assume it is bounded.
-   * <li>If {@link DoFn.ProcessElement} returns {@code void}, but the {@link DoFn} is annotated
-   *     {@link DoFn.UnboundedPerElement}, this is an error.
+   *   <li>If the {@link DoFn} is not splittable, then it is bounded, it must not be annotated as
+   *       {@link DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, and {@link
+   *       DoFn.ProcessElement} must return {@code void}.
+   *   <li>If the {@link DoFn} (or any of its supertypes) is annotated as {@link
+   *       DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, use that. Only one of these
+   *       must be specified.
+   *   <li>If {@link DoFn.ProcessElement} returns {@link DoFn.ProcessContinuation}, assume it is
+   *       unbounded. Otherwise (if it returns {@code void}), assume it is bounded.
+   *   <li>If {@link DoFn.ProcessElement} returns {@code void}, but the {@link DoFn} is annotated
+   *       {@link DoFn.UnboundedPerElement}, this is an error.
    * </ol>
    */
   private static PCollection.IsBounded inferBoundedness(
@@ -505,11 +521,11 @@ public class DoFnSignatures {
    * Verifies properties related to methods of splittable {@link DoFn}:
    *
    * <ul>
-   * <li>Must declare the required {@link DoFn.GetInitialRestriction} and {@link DoFn.NewTracker}
-   *     methods.
-   * <li>Types of restrictions and trackers must match exactly between {@link DoFn.ProcessElement},
-   *     {@link DoFn.GetInitialRestriction}, {@link DoFn.NewTracker}, {@link
-   *     DoFn.GetRestrictionCoder}, {@link DoFn.SplitRestriction}.
+   *   <li>Must declare the required {@link DoFn.GetInitialRestriction} and {@link DoFn.NewTracker}
+   *       methods.
+   *   <li>Types of restrictions and trackers must match exactly between {@link
+   *       DoFn.ProcessElement}, {@link DoFn.GetInitialRestriction}, {@link DoFn.NewTracker}, {@link
+   *       DoFn.GetRestrictionCoder}, {@link DoFn.SplitRestriction}.
    * </ul>
    */
   private static void verifySplittableMethods(DoFnSignature signature, ErrorReporter errors) {
@@ -714,10 +730,7 @@ public class DoFnSignatures {
               inputT,
               outputT);
 
-      checkParameterOneOf(
-          errors,
-          parameter,
-          ALLOWED_ON_TIMER_PARAMETERS);
+      checkParameterOneOf(errors, parameter, ALLOWED_ON_TIMER_PARAMETERS);
 
       extraParameters.add(parameter);
     }
@@ -820,11 +833,19 @@ public class DoFnSignatures {
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
     if (hasElementAnnotation(param.getAnnotations())) {
-      methodErrors.checkArgument(paramT.equals(inputT),
-          "@Element argument must have type %s", inputT);
-      return Parameter.elementParameter(paramT);
-    }  else if (hasTimestampAnnotation(param.getAnnotations())) {
-      methodErrors.checkArgument(rawType.equals(Instant.class),
+      if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
+        // a null id means that there is no registered FieldAccessDescriptor, so we should default
+        // to all fields. If the input type of the DoFn is already Row, then no need to do
+        // anything special.
+        return Parameter.rowParameter(null);
+      } else {
+        methodErrors.checkArgument(
+            paramT.equals(inputT), "@Element argument must have type %s", inputT);
+        return Parameter.elementParameter(paramT);
+      }
+    } else if (hasTimestampAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
     } else if (rawType.equals(TimeDomain.class)) {
@@ -832,9 +853,10 @@ public class DoFnSignatures {
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {
-      paramErrors.checkArgument(paramT.equals(expectedProcessContextT),
-        "ProcessContext argument must have type %s",
-        formatType(expectedProcessContextT));
+      paramErrors.checkArgument(
+          paramT.equals(expectedProcessContextT),
+          "ProcessContext argument must have type %s",
+          formatType(expectedProcessContextT));
       return Parameter.processContext();
     } else if (rawType.equals(DoFn.OnTimerContext.class)) {
       paramErrors.checkArgument(
@@ -849,13 +871,20 @@ public class DoFnSignatures {
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
     } else if (rawType.equals(OutputReceiver.class)) {
-      TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
-      paramErrors.checkArgument(
-          paramT.equals(expectedReceiverT),
-      "OutputReceiver should be parameterized by %s",
-          outputT);
-      return Parameter.outputReceiverParameter();
-    }  else if (rawType.equals(MultiOutputReceiver.class)) {
+      // It's a schema row receiver if it's an OutputReceiver<Row> _and_ the output type is not
+      // already Row.
+      boolean schemaRowReceiver =
+          paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
+              && !outputT.equals(TypeDescriptor.of(Row.class));
+      if (!schemaRowReceiver) {
+        TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
+        paramErrors.checkArgument(
+            paramT.equals(expectedReceiverT),
+            "OutputReceiver should be parameterized by %s",
+            outputT);
+      }
+      return Parameter.outputReceiverParameter(schemaRowReceiver);
+    } else if (rawType.equals(MultiOutputReceiver.class)) {
       return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {
       methodErrors.checkArgument(
@@ -907,9 +936,7 @@ public class DoFnSignatures {
       // m.getParameters() is not available until Java 8
       String id = getStateId(param.getAnnotations());
       paramErrors.checkArgument(
-          id != null,
-          "missing %s annotation",
-          DoFn.StateId.class.getSimpleName());
+          id != null, "missing %s annotation", DoFn.StateId.class.getSimpleName());
 
       paramErrors.checkArgument(
           !methodContext.getStateParameters().containsKey(id),
@@ -943,6 +970,15 @@ public class DoFnSignatures {
           stateDecl.field().getDeclaringClass().getName());
 
       return Parameter.stateParameter(stateDecl);
+    } else if (rawType.equals(Row.class)) {
+      String id = getFieldAccessId(param.getAnnotations());
+      paramErrors.checkArgument(
+          id != null, "missing %s annotation", DoFn.FieldAccess.class.getSimpleName());
+      FieldAccessDeclaration fieldAccessDeclaration =
+          fnContext.getFieldAccessDeclarations().get(id);
+      paramErrors.checkArgument(
+          fieldAccessDeclaration != null, "No FieldAccessDescriptor defined.");
+      return Parameter.rowParameter(id);
     } else {
       List<String> allowedParamTypes =
           Arrays.asList(
@@ -958,22 +994,27 @@ public class DoFnSignatures {
 
   @Nullable
   private static String getTimerId(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.TimerId.class)) {
-        return ((DoFn.TimerId) anno).value();
-      }
-    }
-    return null;
+    DoFn.TimerId stateId = findFirstOfType(annotations, DoFn.TimerId.class);
+    return stateId != null ? stateId.value() : null;
   }
 
   @Nullable
   private static String getStateId(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.StateId.class)) {
-        return ((DoFn.StateId) anno).value();
-      }
-    }
-    return null;
+    DoFn.StateId stateId = findFirstOfType(annotations, DoFn.StateId.class);
+    return stateId != null ? stateId.value() : null;
+  }
+
+  @Nullable
+  private static String getFieldAccessId(List<Annotation> annotations) {
+    DoFn.FieldAccess access = findFirstOfType(annotations, DoFn.FieldAccess.class);
+    return access != null ? access.value() : null;
+  }
+
+  @Nullable
+  static <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
+    Optional<Annotation> annotation =
+        annotations.stream().filter(a -> a.annotationType().equals(clazz)).findFirst();
+    return annotation.isPresent() ? (T) annotation.get() : null;
   }
 
   private static boolean hasElementAnnotation(List<Annotation> annotations) {
@@ -1135,9 +1176,8 @@ public class DoFnSignatures {
   }
 
   /**
-   * Returns successfully if the field is valid, otherwise throws an exception via
-   * its {@link ErrorReporter} parameter describing validation failures for the
-   * timer declaration.
+   * Returns successfully if the field is valid, otherwise throws an exception via its {@link
+   * ErrorReporter} parameter describing validation failures for the timer declaration.
    */
   private static void validateTimerField(
       ErrorReporter errors, Map<String, TimerDeclaration> declarations, String id, Field field) {
@@ -1154,9 +1194,7 @@ public class DoFnSignatures {
     if (!(timerSpecRawType.equals(TimerSpec.class))) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
-          DoFn.TimerId.class.getSimpleName(),
-          TimerSpec.class.getSimpleName(),
-          field.toString());
+          DoFn.TimerId.class.getSimpleName(), TimerSpec.class.getSimpleName(), field.toString());
     }
 
     if (!Modifier.isFinal(field.getModifiers())) {
@@ -1270,9 +1308,35 @@ public class DoFnSignatures {
     return matches;
   }
 
+  private static Map<String, DoFnSignature.FieldAccessDeclaration> analyzeFieldAccessDeclaration(
+      ErrorReporter errors, Class<?> fnClazz) {
+    Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
+    for (Field field : declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
+      field.setAccessible(true);
+      DoFn.FieldAccess fieldAccessAnnotation = field.getAnnotation(DoFn.FieldAccess.class);
+      if (!Modifier.isFinal(field.getModifiers())) {
+        errors.throwIllegalArgument(
+            "Non-final field %s annotated with %s. Field access declarations must be final.",
+            field.toString(), DoFn.FieldAccess.class.getSimpleName());
+        continue;
+      }
+      Class<?> fieldAccessRawType = field.getType();
+      if (!fieldAccessRawType.equals(FieldAccessDescriptor.class)) {
+        errors.throwIllegalArgument(
+            "Field %s annotated with %s, but the value was not of type %s",
+            field.toString(),
+            DoFn.FieldAccess.class.getSimpleName(),
+            FieldAccessDescriptor.class.getSimpleName());
+      }
+      fieldAccessDeclarations.put(
+          fieldAccessAnnotation.value(),
+          FieldAccessDeclaration.create(fieldAccessAnnotation.value(), field));
+    }
+    return fieldAccessDeclarations;
+  }
+
   private static Map<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(
-      ErrorReporter errors,
-      Class<?> fnClazz) {
+      ErrorReporter errors, Class<?> fnClazz) {
 
     Map<String, DoFnSignature.StateDeclaration> declarations = new HashMap<>();
 
@@ -1292,10 +1356,9 @@ public class DoFnSignatures {
       }
 
       Class<?> stateSpecRawType = field.getType();
-      if (!(TypeDescriptor.of(stateSpecRawType)
-          .isSubtypeOf(TypeDescriptor.of(StateSpec.class)))) {
+      if (!(TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class)))) {
         errors.throwIllegalArgument(
-                "%s annotation on non-%s field [%s] that has class %s",
+            "%s annotation on non-%s field [%s] that has class %s",
             DoFn.StateId.class.getSimpleName(),
             StateSpec.class.getSimpleName(),
             field.toString(),
@@ -1306,8 +1369,7 @@ public class DoFnSignatures {
       if (!Modifier.isFinal(field.getModifiers())) {
         errors.throwIllegalArgument(
             "Non-final field %s annotated with %s. State declarations must be final.",
-            field.toString(),
-            DoFn.StateId.class.getSimpleName());
+            field.toString(), DoFn.StateId.class.getSimpleName());
         continue;
       }
 
@@ -1321,8 +1383,7 @@ public class DoFnSignatures {
       // A type descriptor for StateSpec, with the generic type parameters filled
       // in according to the specialization of the subclass (or just straight params)
       TypeDescriptor<StateSpec<?>> stateSpecTypeDescriptor =
-          (TypeDescriptor)
-      stateSpecSubclassTypeDescriptor.getSupertype(StateSpec.class);
+          (TypeDescriptor) stateSpecSubclassTypeDescriptor.getSupertype(StateSpec.class);
 
       // The type of the state, which may still have free type variables from the
       // context
@@ -1400,8 +1461,7 @@ public class DoFnSignatures {
       return new ErrorReporter(
           this,
           String.format(
-              "parameter of type %s at index %s",
-              formatType(param.getType()), param.getIndex()));
+              "parameter of type %s at index %s", formatType(param.getType()), param.getIndex()));
     }
 
     void throwIllegalArgument(String message, Object... args) {
@@ -1466,5 +1526,4 @@ public class DoFnSignatures {
               timerDeclaration.field().getName()));
     }
   }
-
 }

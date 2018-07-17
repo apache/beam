@@ -27,18 +27,14 @@ import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 
-/**
- * Generates people.
- */
+/** Generates people. */
 public class PersonGenerator {
-  /**
-   * Number of yet-to-be-created people and auction ids allowed.
-   */
+  /** Number of yet-to-be-created people and auction ids allowed. */
   private static final int PERSON_ID_LEAD = 10;
 
   /**
-   * Keep the number of states small so that the example queries will find results even with
-   * a small batch of events.
+   * Keep the number of states small so that the example queries will find results even with a small
+   * batch of events.
    */
   private static final List<String> US_STATES = Arrays.asList(("AZ,CA,ID,OR,WA,WY").split(","));
 
@@ -53,10 +49,7 @@ public class PersonGenerator {
   private static final List<String> LAST_NAMES =
       Arrays.asList(("Shultz,Abrams,Spencer,White,Bartels,Walton,Smith,Jones,Noris").split(","));
 
-
-  /**
-   * Generate and return a random person with next available id.
-   */
+  /** Generate and return a random person with next available id. */
   public static Person nextPerson(
       long nextEventId, Random random, long timestamp, GeneratorConfig config) {
 
@@ -72,9 +65,7 @@ public class PersonGenerator {
     return new Person(id, name, email, creditCard, city, state, timestamp, extra);
   }
 
-  /**
-   * Return a random person id (base 0).
-   */
+  /** Return a random person id (base 0). */
   public static long nextBase0PersonId(long eventId, Random random, GeneratorConfig config) {
     // Choose a random person from any of the 'active' people, plus a few 'leads'.
     // By limiting to 'active' we ensure the density of bids or auctions per person
@@ -103,7 +94,6 @@ public class PersonGenerator {
     return epoch * GeneratorConfig.PERSON_PROPORTION + offset;
   }
 
-
   /** return a random US state. */
   private static String nextUSState(Random random) {
     return US_STATES.get(random.nextInt(US_STATES.size()));
@@ -116,7 +106,8 @@ public class PersonGenerator {
 
   /** Return a random person name. */
   private static String nextPersonName(Random random) {
-    return FIRST_NAMES.get(random.nextInt(FIRST_NAMES.size())) + " "
+    return FIRST_NAMES.get(random.nextInt(FIRST_NAMES.size()))
+        + " "
         + LAST_NAMES.get(random.nextInt(LAST_NAMES.size()));
   }
 

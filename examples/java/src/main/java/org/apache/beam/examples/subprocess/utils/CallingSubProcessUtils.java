@@ -26,9 +26,7 @@ import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Utility class for dealing with concurrency and binary file copies to the worker.
- */
+/** Utility class for dealing with concurrency and binary file copies to the worker. */
 public class CallingSubProcessUtils {
 
   // Prevent Instantiation
@@ -66,13 +64,13 @@ public class CallingSubProcessUtils {
 
   public static synchronized void initSemaphore(Integer permits, String binaryName) {
     if (!semaphores.containsKey(binaryName)) {
-      LOG.info(String.format(String.format("Initialized Semaphore for binary %s ",  binaryName)));
+      LOG.info(String.format(String.format("Initialized Semaphore for binary %s ", binaryName)));
       semaphores.put(binaryName, new Semaphore(permits));
     }
   }
 
   private static void aquireSemaphore(String binaryName) throws IllegalStateException {
-    if  (!semaphores.containsKey(binaryName)) {
+    if (!semaphores.containsKey(binaryName)) {
       throw new IllegalStateException("Semaphore is NULL, check init logic in @Setup.");
     }
     try {
@@ -83,20 +81,18 @@ public class CallingSubProcessUtils {
   }
 
   private static void releaseSemaphore(String binaryName) throws IllegalStateException {
-    if  (!semaphores.containsKey(binaryName)) {
+    if (!semaphores.containsKey(binaryName)) {
       throw new IllegalStateException("Semaphore is NULL, check init logic in @Setup.");
     }
     semaphores.get(binaryName).release();
   }
 
-  /**
-   * Permit class for access to worker cpu resources.
-   */
+  /** Permit class for access to worker cpu resources. */
   public static class Permit implements AutoCloseable {
 
     private String binaryName;
 
-    public Permit(String binaryName){
+    public Permit(String binaryName) {
       this.binaryName = binaryName;
       CallingSubProcessUtils.aquireSemaphore(binaryName);
     }
@@ -105,6 +101,5 @@ public class CallingSubProcessUtils {
     public void close() {
       CallingSubProcessUtils.releaseSemaphore(binaryName);
     }
-
   }
 }

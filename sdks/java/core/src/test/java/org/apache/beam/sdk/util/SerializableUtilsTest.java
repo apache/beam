@@ -60,13 +60,13 @@ public class SerializableUtilsTest {
     // define a classloader with test-classes in it
     final ClassLoader testLoader = Thread.currentThread().getContextClassLoader();
     final ClassLoader loader = new InterceptingUrlClassLoader(testLoader, MySource.class.getName());
-    final Class<?> source = loader.loadClass(
-            "org.apache.beam.sdk.util.SerializableUtilsTest$MySource");
+    final Class<?> source =
+        loader.loadClass("org.apache.beam.sdk.util.SerializableUtilsTest$MySource");
     assertNotSame(source.getClassLoader(), MySource.class.getClassLoader());
 
     // validate if the caller set the classloader that it works well
-    final Serializable customLoaderSourceInstance = Serializable.class.cast(
-            source.getConstructor().newInstance());
+    final Serializable customLoaderSourceInstance =
+        Serializable.class.cast(source.getConstructor().newInstance());
     final Thread thread = Thread.currentThread();
     thread.setContextClassLoader(loader);
     try {
@@ -96,8 +96,7 @@ public class SerializableUtilsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("unable to deserialize a bogus string");
     SerializableUtils.deserializeFromByteArray(
-        "this isn't legal".getBytes(Charsets.UTF_8),
-        "a bogus string");
+        "this isn't legal".getBytes(Charsets.UTF_8), "a bogus string");
   }
 
   /** A class that is not serializable by Java. */
@@ -118,13 +117,10 @@ public class SerializableUtilsTest {
     private final Object unserializableField = new Object();
 
     @Override
-    public void encode(Object value, OutputStream outStream)
-        throws CoderException, IOException {
-    }
+    public void encode(Object value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
-    public Object decode(InputStream inStream)
-        throws CoderException, IOException {
+    public Object decode(InputStream inStream) throws CoderException, IOException {
       return unserializableField;
     }
 
@@ -145,22 +141,20 @@ public class SerializableUtilsTest {
   }
 
   private void assertSerializationClassLoader(
-          final ClassLoader loader, final Serializable customLoaderSourceInstance) {
+      final ClassLoader loader, final Serializable customLoaderSourceInstance) {
     final Serializable copy = SerializableUtils.ensureSerializable(customLoaderSourceInstance);
     assertEquals(loader, copy.getClass().getClassLoader());
     assertEquals(
-            copy.getClass().getClassLoader(),
-            customLoaderSourceInstance.getClass().getClassLoader());
+        copy.getClass().getClassLoader(), customLoaderSourceInstance.getClass().getClassLoader());
   }
 
   /**
-   * a sample class to test framework serialization,
-   * {@see SerializableUtilsTest#customClassLoader}.
+   * a sample class to test framework serialization, {@see SerializableUtilsTest#customClassLoader}.
    */
   public static class MySource extends BoundedSource<String> {
     @Override
     public List<? extends BoundedSource<String>> split(
-            final long desiredBundleSizeBytes, final PipelineOptions options) throws Exception {
+        final long desiredBundleSizeBytes, final PipelineOptions options) throws Exception {
       return null;
     }
 

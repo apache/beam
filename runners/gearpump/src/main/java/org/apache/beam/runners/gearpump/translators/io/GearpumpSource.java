@@ -33,9 +33,7 @@ import org.apache.gearpump.streaming.source.DataSource;
 import org.apache.gearpump.streaming.source.Watermark;
 import org.apache.gearpump.streaming.task.TaskContext;
 
-/**
- * common methods for {@link BoundedSourceWrapper} and {@link UnboundedSourceWrapper}.
- */
+/** common methods for {@link BoundedSourceWrapper} and {@link UnboundedSourceWrapper}. */
 public abstract class GearpumpSource<T> implements DataSource {
 
   private final SerializablePipelineOptions serializedOptions;
@@ -68,9 +66,10 @@ public abstract class GearpumpSource<T> implements DataSource {
       if (available) {
         T data = reader.getCurrent();
         org.joda.time.Instant timestamp = reader.getCurrentTimestamp();
-        message = new DefaultMessage(
-            WindowedValue.timestampedValueInGlobalWindow(data, timestamp),
-            timestamp.getMillis());
+        message =
+            new DefaultMessage(
+                WindowedValue.timestampedValueInGlobalWindow(data, timestamp),
+                timestamp.getMillis());
       }
       available = reader.advance();
     } catch (Exception e) {
@@ -94,8 +93,7 @@ public abstract class GearpumpSource<T> implements DataSource {
   @Override
   public Instant getWatermark() {
     if (reader instanceof UnboundedSource.UnboundedReader) {
-      org.joda.time.Instant watermark =
-          ((UnboundedSource.UnboundedReader) reader).getWatermark();
+      org.joda.time.Instant watermark = ((UnboundedSource.UnboundedReader) reader).getWatermark();
       if (watermark.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         return Watermark.MAX();
       } else {

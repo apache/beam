@@ -32,9 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
-/**
- * A custom, bounded source of event records.
- */
+/** A custom, bounded source of event records. */
 public class BoundedEventSource extends BoundedSource<Event> {
   /** Configuration we generate events against. */
   private final GeneratorConfig config;
@@ -50,9 +48,8 @@ public class BoundedEventSource extends BoundedSource<Event> {
   /** A reader to pull events from the generator. */
   private static class EventReader extends BoundedReader<Event> {
     /**
-     * Event source we purporting to be reading from.
-     * (We can't use Java's capture-outer-class pointer since we must update
-     * this field on calls to splitAtFraction.)
+     * Event source we purporting to be reading from. (We can't use Java's capture-outer-class
+     * pointer since we must update this field on calls to splitAtFraction.)
      */
     private BoundedEventSource source;
 
@@ -61,8 +58,7 @@ public class BoundedEventSource extends BoundedSource<Event> {
 
     private boolean reportedStop;
 
-    @Nullable
-    private TimestampedValue<Event> currentEvent;
+    @Nullable private TimestampedValue<Event> currentEvent;
 
     public EventReader(BoundedEventSource source, GeneratorConfig config) {
       this.source = source;
@@ -158,8 +154,7 @@ public class BoundedEventSource extends BoundedSource<Event> {
   }
 
   @Override
-  public List<BoundedEventSource> split(
-      long desiredBundleSizeBytes, PipelineOptions options) {
+  public List<BoundedEventSource> split(long desiredBundleSizeBytes, PipelineOptions options) {
     NexmarkUtils.info("slitting bounded source %s into %d sub-sources", config, numEventGenerators);
     List<BoundedEventSource> results = new ArrayList<>();
     // Ignore desiredBundleSizeBytes and use numEventGenerators instead.

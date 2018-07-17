@@ -62,17 +62,16 @@ public class UnboundedDataset<T> implements Dataset {
   public void cache(String storageLevel, Coder<?> coder) {
     // we "force" MEMORY storage level in streaming
     if (!StorageLevel.fromString(storageLevel).equals(StorageLevel.MEMORY_ONLY_SER())) {
-      LOG.warn("Provided StorageLevel: {} is ignored for streams, using the default level: {}",
+      LOG.warn(
+          "Provided StorageLevel: {} is ignored for streams, using the default level: {}",
           storageLevel,
           StorageLevel.MEMORY_ONLY_SER());
     }
     // Caching can cause Serialization, we need to code to bytes
     // more details in https://issues.apache.org/jira/browse/BEAM-2669
     Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
-    this.dStream = dStream.map(CoderHelpers.toByteFunction(wc))
-        .cache()
-        .map(CoderHelpers.fromByteFunction(wc));
-
+    this.dStream =
+        dStream.map(CoderHelpers.toByteFunction(wc)).cache().map(CoderHelpers.fromByteFunction(wc));
   }
 
   @Override
@@ -85,5 +84,4 @@ public class UnboundedDataset<T> implements Dataset {
   public void setName(String name) {
     // ignore
   }
-
 }

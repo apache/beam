@@ -67,13 +67,10 @@ from __future__ import absolute_import
 
 from builtins import object
 
+from past.builtins import unicode
+
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 __all__ = ['registry']
 

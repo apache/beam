@@ -31,36 +31,37 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
-   * This option enables tracing of API calls to Google services used within the Apache
-   * Beam SDK. Values are expected in JSON format <code>{"ApiName":"TraceDestination",...}
-   * </code> where the {@code ApiName} represents the request classes canonical name. The
-   * {@code TraceDestination} is a logical trace consumer to whom the trace will be reported.
-   * Typically, "producer" is the right destination to use: this makes API traces available to the
-   * team offering the API. Note that by enabling this option, the contents of the requests to and
-   * from Google Cloud services will be made available to Google. For example, by specifying
-   * <code>{"Dataflow":"producer"}</code>, all calls to the Dataflow service will be made available
-   * to Google, specifically to the Google Cloud Dataflow team.
+   * This option enables tracing of API calls to Google services used within the Apache Beam SDK.
+   * Values are expected in JSON format <code>{"ApiName":"TraceDestination",...}
+   * </code> where the {@code ApiName} represents the request classes canonical name. The {@code
+   * TraceDestination} is a logical trace consumer to whom the trace will be reported. Typically,
+   * "producer" is the right destination to use: this makes API traces available to the team
+   * offering the API. Note that by enabling this option, the contents of the requests to and from
+   * Google Cloud services will be made available to Google. For example, by specifying <code>
+   * {"Dataflow":"producer"}</code>, all calls to the Dataflow service will be made available to
+   * Google, specifically to the Google Cloud Dataflow team.
    */
-  @Description("This option enables tracing of API calls to Google services used within the Apache "
-      + "Beam SDK. Values are expected in JSON format {\"ApiName\":\"TraceDestination\",...} "
-      + "where the ApiName represents the request classes canonical name. The TraceDestination is "
-      + "a logical trace consumer to whom the trace will be reported. Typically, \"producer\" is "
-      + "the right destination to use: this makes API traces available to the team offering the "
-      + "API. Note that by enabling this option, the contents of the requests to and from "
-      + "Google Cloud services will be made available to Google. For example, by specifying "
-      + "{\"Dataflow\":\"producer\"}, all calls to the Dataflow service will be made available to "
-      + "Google, specifically to the Google Cloud Dataflow team.")
+  @Description(
+      "This option enables tracing of API calls to Google services used within the Apache "
+          + "Beam SDK. Values are expected in JSON format {\"ApiName\":\"TraceDestination\",...} "
+          + "where the ApiName represents the request classes canonical name. The TraceDestination is "
+          + "a logical trace consumer to whom the trace will be reported. Typically, \"producer\" is "
+          + "the right destination to use: this makes API traces available to the team offering the "
+          + "API. Note that by enabling this option, the contents of the requests to and from "
+          + "Google Cloud services will be made available to Google. For example, by specifying "
+          + "{\"Dataflow\":\"producer\"}, all calls to the Dataflow service will be made available to "
+          + "Google, specifically to the Google Cloud Dataflow team.")
   GoogleApiTracer getGoogleApiTrace();
+
   void setGoogleApiTrace(GoogleApiTracer commands);
 
   /**
    * A {@link GoogleClientRequestInitializer} that adds the trace destination to Google API calls.
    */
-  class GoogleApiTracer extends HashMap<String, String>
-      implements GoogleClientRequestInitializer {
+  class GoogleApiTracer extends HashMap<String, String> implements GoogleClientRequestInitializer {
     /**
-     * Creates a {@link GoogleApiTracer} that sets the trace destination on all
-     * calls that match the given client type.
+     * Creates a {@link GoogleApiTracer} that sets the trace destination on all calls that match the
+     * given client type.
      */
     public GoogleApiTracer addTraceFor(AbstractGoogleClient client, String traceDestination) {
       put(client.getClass().getCanonicalName(), traceDestination);
@@ -68,8 +69,8 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
     }
 
     /**
-     * Creates a {@link GoogleApiTracer} that sets the trace {@code traceDestination} on all
-     * calls that match for the given request type.
+     * Creates a {@link GoogleApiTracer} that sets the trace {@code traceDestination} on all calls
+     * that match for the given request type.
      */
     public GoogleApiTracer addTraceFor(
         AbstractGoogleClientRequest<?> request, String traceDestination) {

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Common utilities related to windowing during execution of a pipeline.
- */
+/** Common utilities related to windowing during execution of a pipeline. */
 package org.apache.beam.sdk.fn.windowing;

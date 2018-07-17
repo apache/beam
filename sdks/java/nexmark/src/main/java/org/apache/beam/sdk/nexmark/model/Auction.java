@@ -31,93 +31,86 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * An auction submitted by a person.
- */
+/** An auction submitted by a person. */
 public class Auction implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  public static final Coder<Auction> CODER = new CustomCoder<Auction>() {
-    @Override
-    public void encode(Auction value, OutputStream outStream)
-        throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream);
-      STRING_CODER.encode(value.itemName, outStream);
-      STRING_CODER.encode(value.description, outStream);
-      LONG_CODER.encode(value.initialBid, outStream);
-      LONG_CODER.encode(value.reserve, outStream);
-      LONG_CODER.encode(value.dateTime, outStream);
-      LONG_CODER.encode(value.expires, outStream);
-      LONG_CODER.encode(value.seller, outStream);
-      LONG_CODER.encode(value.category, outStream);
-      STRING_CODER.encode(value.extra, outStream);
-    }
+  public static final Coder<Auction> CODER =
+      new CustomCoder<Auction>() {
+        @Override
+        public void encode(Auction value, OutputStream outStream)
+            throws CoderException, IOException {
+          LONG_CODER.encode(value.id, outStream);
+          STRING_CODER.encode(value.itemName, outStream);
+          STRING_CODER.encode(value.description, outStream);
+          LONG_CODER.encode(value.initialBid, outStream);
+          LONG_CODER.encode(value.reserve, outStream);
+          LONG_CODER.encode(value.dateTime, outStream);
+          LONG_CODER.encode(value.expires, outStream);
+          LONG_CODER.encode(value.seller, outStream);
+          LONG_CODER.encode(value.category, outStream);
+          STRING_CODER.encode(value.extra, outStream);
+        }
 
-    @Override
-    public Auction decode(
-        InputStream inStream)
-        throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream);
-      String itemName = STRING_CODER.decode(inStream);
-      String description = STRING_CODER.decode(inStream);
-      long initialBid = LONG_CODER.decode(inStream);
-      long reserve = LONG_CODER.decode(inStream);
-      long dateTime = LONG_CODER.decode(inStream);
-      long expires = LONG_CODER.decode(inStream);
-      long seller = LONG_CODER.decode(inStream);
-      long category = LONG_CODER.decode(inStream);
-      String extra = STRING_CODER.decode(inStream);
-      return new Auction(
-          id, itemName, description, initialBid, reserve, dateTime, expires, seller, category,
-          extra);
-    }
+        @Override
+        public Auction decode(InputStream inStream) throws CoderException, IOException {
+          long id = LONG_CODER.decode(inStream);
+          String itemName = STRING_CODER.decode(inStream);
+          String description = STRING_CODER.decode(inStream);
+          long initialBid = LONG_CODER.decode(inStream);
+          long reserve = LONG_CODER.decode(inStream);
+          long dateTime = LONG_CODER.decode(inStream);
+          long expires = LONG_CODER.decode(inStream);
+          long seller = LONG_CODER.decode(inStream);
+          long category = LONG_CODER.decode(inStream);
+          String extra = STRING_CODER.decode(inStream);
+          return new Auction(
+              id,
+              itemName,
+              description,
+              initialBid,
+              reserve,
+              dateTime,
+              expires,
+              seller,
+              category,
+              extra);
+        }
 
-    @Override
-    public Object structuralValue(Auction v) {
-      return v;
-    }
-  };
-
+        @Override
+        public Object structuralValue(Auction v) {
+          return v;
+        }
+      };
 
   /** Id of auction. */
-  @JsonProperty
-  public final long id; // primary key
+  @JsonProperty public final long id; // primary key
 
   /** Extra auction properties. */
-  @JsonProperty
-  public final String itemName;
+  @JsonProperty public final String itemName;
 
-  @JsonProperty
-  public final String description;
+  @JsonProperty public final String description;
 
   /** Initial bid price, in cents. */
-  @JsonProperty
-  public final long initialBid;
+  @JsonProperty public final long initialBid;
 
   /** Reserve price, in cents. */
-  @JsonProperty
-  public final long reserve;
+  @JsonProperty public final long reserve;
 
-  @JsonProperty
-  public final long dateTime;
+  @JsonProperty public final long dateTime;
 
   /** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
-  @JsonProperty
-  public final long expires;
+  @JsonProperty public final long expires;
 
   /** Id of person who instigated auction. */
-  @JsonProperty
-  public final long seller; // foreign key: Person.id
+  @JsonProperty public final long seller; // foreign key: Person.id
 
   /** Id of category auction is listed under. */
-  @JsonProperty
-  public final long category; // foreign key: Category.id
+  @JsonProperty public final long category; // foreign key: Category.id
 
   /** Additional arbitrary payload for performance testing. */
-  @JsonProperty
-  public final String extra;
-
+  @JsonProperty public final String extra;
 
   // For Avro only.
   @SuppressWarnings("unused")
@@ -134,8 +127,17 @@ public class Auction implements KnownSize, Serializable {
     extra = null;
   }
 
-  public Auction(long id, String itemName, String description, long initialBid, long reserve,
-      long dateTime, long expires, long seller, long category, String extra) {
+  public Auction(
+      long id,
+      String itemName,
+      String description,
+      long initialBid,
+      long reserve,
+      long dateTime,
+      long expires,
+      long seller,
+      long category,
+      String extra) {
     this.id = id;
     this.itemName = itemName;
     this.description = description;
@@ -148,29 +150,40 @@ public class Auction implements KnownSize, Serializable {
     this.extra = extra;
   }
 
-  /**
-   * Return a copy of auction which capture the given annotation.
-   * (Used for debugging).
-   */
+  /** Return a copy of auction which capture the given annotation. (Used for debugging). */
   public Auction withAnnotation(String annotation) {
-    return new Auction(id, itemName, description, initialBid, reserve, dateTime, expires, seller,
-        category, annotation + ": " + extra);
+    return new Auction(
+        id,
+        itemName,
+        description,
+        initialBid,
+        reserve,
+        dateTime,
+        expires,
+        seller,
+        category,
+        annotation + ": " + extra);
   }
 
-  /**
-   * Does auction have {@code annotation}? (Used for debugging.)
-   */
+  /** Does auction have {@code annotation}? (Used for debugging.) */
   public boolean hasAnnotation(String annotation) {
     return extra.startsWith(annotation + ": ");
   }
 
-  /**
-   * Remove {@code annotation} from auction. (Used for debugging.)
-   */
+  /** Remove {@code annotation} from auction. (Used for debugging.) */
   public Auction withoutAnnotation(String annotation) {
     if (hasAnnotation(annotation)) {
-      return new Auction(id, itemName, description, initialBid, reserve, dateTime, expires, seller,
-          category, extra.substring(annotation.length() + 2));
+      return new Auction(
+          id,
+          itemName,
+          description,
+          initialBid,
+          reserve,
+          dateTime,
+          expires,
+          seller,
+          category,
+          extra.substring(annotation.length() + 2));
     } else {
       return this;
     }
@@ -178,8 +191,19 @@ public class Auction implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8L + itemName.length() + 1L + description.length() + 1L + 8L + 8L + 8L + 8L + 8L + 8L
-        + extra.length() + 1L;
+    return 8L
+        + itemName.length()
+        + 1L
+        + description.length()
+        + 1L
+        + 8L
+        + 8L
+        + 8L
+        + 8L
+        + 8L
+        + 8L
+        + extra.length()
+        + 1L;
   }
 
   @Override

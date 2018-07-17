@@ -41,6 +41,7 @@ import org.joda.time.Instant;
 
 /**
  * A unbounded source that can be used for test purposes.
+ *
  * @param <T> element type
  */
 public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
@@ -60,16 +61,17 @@ public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMar
   }
 
   @Override
-  public List<? extends UnboundedSource<T, TestCheckpointMark>> split(int desiredNumSplits,
-      PipelineOptions options) throws Exception {
-    return events.stream()
+  public List<? extends UnboundedSource<T, TestCheckpointMark>> split(
+      int desiredNumSplits, PipelineOptions options) throws Exception {
+    return events
+        .stream()
         .map(ev -> new TestUnboundedSource<>(Collections.singletonList(ev)))
         .collect(Collectors.toList());
   }
 
   @Override
-  public UnboundedReader<T> createReader(PipelineOptions options,
-      @Nullable TestCheckpointMark checkpointMark) throws IOException {
+  public UnboundedReader<T> createReader(
+      PipelineOptions options, @Nullable TestCheckpointMark checkpointMark) throws IOException {
     assert events.size() == 1;
 
     return new Reader(events.get(0), checkpointMark);
@@ -83,24 +85,22 @@ public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMar
   @Override
   public void validate() {}
 
-  /**
-   * A builder used to populate the events emitted by {@link TestUnboundedSource}.
-   */
+  /** A builder used to populate the events emitted by {@link TestUnboundedSource}. */
   public static class Builder<T> extends SourceBuilder<T, TestUnboundedSource<T>> {
 
     @Override
     public TestUnboundedSource<T> build() {
-      return new TestUnboundedSource<>(
-          Collections.singletonList(getEvents()));
+      return new TestUnboundedSource<>(Collections.singletonList(getEvents()));
     }
   }
 
   /**
-   * A SplittableBuilder supports multiple splits and each split {@link TestUnboundedSource}
-   * can be built separately from the above Builder.
+   * A SplittableBuilder supports multiple splits and each split {@link TestUnboundedSource} can be
+   * built separately from the above Builder.
    */
   public static class SplittableBuilder<T> extends SourceBuilder<T, TestUnboundedSource<T>> {
     private final List<Builder<T>> builders = new ArrayList<>();
+
     private SplittableBuilder(int splits) {
       while (splits != 0) {
         builders.add(new Builder<T>());
@@ -119,7 +119,6 @@ public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMar
       return builders.get(split);
     }
   }
-
 
   private class Reader extends UnboundedReader<T> {
     private final List<Event<T>> events;
@@ -190,7 +189,6 @@ public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMar
       return curTime;
     }
 
-
     @Override
     public Instant getWatermark() {
       return watermark;
@@ -202,8 +200,7 @@ public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMar
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 
     @Override
     public UnboundedSource<T, ?> getCurrentSource() {

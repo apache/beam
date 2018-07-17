@@ -39,9 +39,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ImmutableExecutableStage}.
- */
+/** Tests for {@link ImmutableExecutableStage}. */
 @RunWith(JUnit4.class)
 public class ImmutableExecutableStageTest {
   @Test
@@ -59,6 +57,7 @@ public class ImmutableExecutableStageTest {
                         ParDoPayload.newBuilder()
                             .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
+                            .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
@@ -80,12 +79,16 @@ public class ImmutableExecutableStageTest {
     SideInputReference sideInputRef =
         SideInputReference.of(
             transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+    UserStateReference userStateRef =
+        UserStateReference.of(
+            transformNode, "user_state", PipelineNode.pCollection("input.out", input));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.ofFullComponents(
             components,
             env,
             PipelineNode.pCollection("input.out", input),
             Collections.singleton(sideInputRef),
+            Collections.singleton(userStateRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)));
 
@@ -99,8 +102,8 @@ public class ImmutableExecutableStageTest {
         stagePTransform.getInputsMap(), allOf(hasValue("input.out"), hasValue("sideInput.in")));
     assertThat(stagePTransform.getInputsCount(), equalTo(2));
 
-    ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
-        stagePTransform.getSpec().getPayload());
+    ExecutableStagePayload payload =
+        ExecutableStagePayload.parseFrom(stagePTransform.getSpec().getPayload());
     assertThat(payload.getTransformsList(), contains("pt"));
     assertThat(ExecutableStage.fromPayload(payload), equalTo(stage));
   }

@@ -38,9 +38,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link HadoopFileSystemRegistrar}.
- */
+/** Tests for {@link HadoopFileSystemRegistrar}. */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemRegistrarTest {
 
@@ -67,11 +65,12 @@ public class HadoopFileSystemRegistrarTest {
   public void testServiceLoader() {
     HadoopFileSystemOptions options = PipelineOptionsFactory.as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(configuration));
-    for (FileSystemRegistrar registrar
-        : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
+    for (FileSystemRegistrar registrar :
+        Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
         Iterable<FileSystem> fileSystems = registrar.fromOptions(options);
-        assertEquals(hdfsClusterBaseUri.getScheme(),
+        assertEquals(
+            hdfsClusterBaseUri.getScheme(),
             ((HadoopFileSystem) Iterables.getOnlyElement(fileSystems)).getScheme());
         return;
       }

@@ -53,8 +53,10 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
   public PCollection<T> expand(PCollection<T> input) {
     TupleTag<T> mainOutput = new TupleTag<>();
     TupleTag<Void> cleanupSignal = new TupleTag<>();
-    PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn<T>())
-        .withOutputTags(mainOutput, TupleTagList.of(cleanupSignal)));
+    PCollectionTuple outputs =
+        input.apply(
+            ParDo.of(new IdentityFn<T>())
+                .withOutputTags(mainOutput, TupleTagList.of(cleanupSignal)));
 
     PCollectionView<Iterable<Void>> cleanupSignalView =
         outputs.get(cleanupSignal).setCoder(VoidCoder.of()).apply(View.asIterable());

@@ -106,9 +106,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link DatastoreV1}.
- */
+/** Tests for {@link DatastoreV1}. */
 @RunWith(JUnit4.class)
 public class DatastoreV1Test {
   private static final String PROJECT_ID = "testProject";
@@ -126,35 +124,29 @@ public class DatastoreV1Test {
     V_1_OPTIONS = V1Options.from(PROJECT_ID, NAMESPACE, null);
   }
 
-  @Mock
-  private
-  Datastore mockDatastore;
-  @Mock
-  QuerySplitter mockQuerySplitter;
-  @Mock
-  V1DatastoreFactory mockDatastoreFactory;
+  @Mock private Datastore mockDatastore;
+  @Mock QuerySplitter mockQuerySplitter;
+  @Mock V1DatastoreFactory mockDatastoreFactory;
 
-  @Rule
-  public final ExpectedException thrown = ExpectedException.none();
+  @Rule public final ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    DatastoreV1.Read initialRead = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
+    DatastoreV1.Read initialRead =
+        DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
-    when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class),
-        any(String.class)))
+    when(mockDatastoreFactory.getDatastore(
+            any(PipelineOptions.class), any(String.class), any(String.class)))
         .thenReturn(mockDatastore);
-    when(mockDatastoreFactory.getQuerySplitter())
-        .thenReturn(mockQuerySplitter);
+    when(mockDatastoreFactory.getQuerySplitter()).thenReturn(mockQuerySplitter);
   }
 
   @Test
   public void testBuildRead() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
+    DatastoreV1.Read read =
+        DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId().get());
     assertEquals(NAMESPACE, read.getNamespace().get());
@@ -162,21 +154,27 @@ public class DatastoreV1Test {
 
   @Test
   public void testBuildReadWithGqlQuery() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withLiteralGqlQuery(GQL_QUERY).withNamespace(NAMESPACE);
+    DatastoreV1.Read read =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(PROJECT_ID)
+            .withLiteralGqlQuery(GQL_QUERY)
+            .withNamespace(NAMESPACE);
     assertEquals(GQL_QUERY, read.getLiteralGqlQuery().get());
     assertEquals(PROJECT_ID, read.getProjectId().get());
     assertEquals(NAMESPACE, read.getNamespace().get());
   }
 
-  /**
-   * {@link #testBuildRead} but constructed in a different order.
-   */
+  /** {@link #testBuildRead} but constructed in a different order. */
   @Test
   public void testBuildReadAlt() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withQuery(QUERY).withNamespace(NAMESPACE).withProjectId(PROJECT_ID)
-        .withLocalhost(LOCALHOST);
+    DatastoreV1.Read read =
+        DatastoreIO.v1()
+            .read()
+            .withQuery(QUERY)
+            .withNamespace(NAMESPACE)
+            .withProjectId(PROJECT_ID)
+            .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId().get());
     assertEquals(NAMESPACE, read.getNamespace().get());
@@ -185,14 +183,15 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadValidationFailsQueryAndGqlQuery() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID)
-        .withLiteralGqlQuery(GQL_QUERY)
-        .withQuery(QUERY);
+    DatastoreV1.Read read =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(PROJECT_ID)
+            .withLiteralGqlQuery(GQL_QUERY)
+            .withQuery(QUERY);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "withQuery() and withLiteralGqlQuery() are exclusive");
+    thrown.expectMessage("withQuery() and withLiteralGqlQuery() are exclusive");
     read.expand(null);
   }
 
@@ -216,10 +215,8 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadDisplayData() {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID)
-        .withQuery(QUERY)
-        .withNamespace(NAMESPACE);
+    DatastoreV1.Read read =
+        DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -230,10 +227,12 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadDisplayDataWithGqlQuery() {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID)
-        .withLiteralGqlQuery(GQL_QUERY)
-        .withNamespace(NAMESPACE);
+    DatastoreV1.Read read =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(PROJECT_ID)
+            .withLiteralGqlQuery(GQL_QUERY)
+            .withNamespace(NAMESPACE);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -247,17 +246,22 @@ public class DatastoreV1Test {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     int numSplits = 98;
     PTransform<PBegin, PCollection<Entity>> read =
-        DatastoreIO.v1().read()
+        DatastoreIO.v1()
+            .read()
             .withProjectId(PROJECT_ID)
             .withQuery(Query.newBuilder().build())
             .withNumQuerySplits(numSplits);
 
     String assertMessage = "DatastoreIO read should include the '%s' in its primitive display data";
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat(String.format(assertMessage, "project id"),
-        displayData, hasItem(hasDisplayItem("projectId", PROJECT_ID)));
-    assertThat(String.format(assertMessage, "number of query splits"),
-        displayData, hasItem(hasDisplayItem("numQuerySplits", numSplits)));
+    assertThat(
+        String.format(assertMessage, "project id"),
+        displayData,
+        hasItem(hasDisplayItem("projectId", PROJECT_ID)));
+    assertThat(
+        String.format(assertMessage, "number of query splits"),
+        displayData,
+        hasItem(hasDisplayItem("numQuerySplits", numSplits)));
   }
 
   @Test
@@ -290,14 +294,17 @@ public class DatastoreV1Test {
   @Test
   public void testWritePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write =
-        DatastoreIO.v1().write().withProjectId("myProject");
+    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("DatastoreIO write should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
-    assertThat("DatastoreIO write should include the upsertFn in its primitive display data",
-        displayData, hasItem(hasDisplayItem("upsertFn")));
+    assertThat(
+        "DatastoreIO write should include the project in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("projectId")));
+    assertThat(
+        "DatastoreIO write should include the upsertFn in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("upsertFn")));
   }
 
   @Test
@@ -307,37 +314,40 @@ public class DatastoreV1Test {
         DatastoreIO.v1().deleteEntity().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("DatastoreIO write should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
-    assertThat("DatastoreIO write should include the deleteEntityFn in its primitive display data",
-        displayData, hasItem(hasDisplayItem("deleteEntityFn")));
+    assertThat(
+        "DatastoreIO write should include the project in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("projectId")));
+    assertThat(
+        "DatastoreIO write should include the deleteEntityFn in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("deleteEntityFn")));
   }
 
   @Test
   public void testDeleteKeyPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Key>, ?> write =
-        DatastoreIO.v1().deleteKey().withProjectId("myProject");
+    PTransform<PCollection<Key>, ?> write = DatastoreIO.v1().deleteKey().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("DatastoreIO write should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
-    assertThat("DatastoreIO write should include the deleteKeyFn in its primitive display data",
-        displayData, hasItem(hasDisplayItem("deleteKeyFn")));
+    assertThat(
+        "DatastoreIO write should include the project in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("projectId")));
+    assertThat(
+        "DatastoreIO write should include the deleteKeyFn in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("deleteKeyFn")));
   }
 
-  /**
-   * Test building a Write using builder methods.
-   */
+  /** Test building a Write using builder methods. */
   @Test
   public void testBuildWrite() throws Exception {
     DatastoreV1.Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
   }
 
-  /**
-   * Test the detection of complete and incomplete keys.
-   */
+  /** Test the detection of complete and incomplete keys. */
   @Test
   public void testHasNameOrId() {
     Key key;
@@ -372,9 +382,7 @@ public class DatastoreV1Test {
     assertFalse(isValidKey(key));
   }
 
-  /**
-   * Test that entities with incomplete keys cannot be updated.
-   */
+  /** Test that entities with incomplete keys cannot be updated. */
   @Test
   public void testAddEntitiesWithIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
@@ -388,9 +396,7 @@ public class DatastoreV1Test {
   }
 
   @Test
-  /**
-   * Test that entities with valid keys are transformed to upsert mutations.
-   */
+  /** Test that entities with valid keys are transformed to upsert mutations. */
   public void testAddEntities() throws Exception {
     Key key = makeKey("bird", "finch").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
@@ -400,9 +406,7 @@ public class DatastoreV1Test {
     assertEquals(upsertFn.apply(entity), exceptedMutation);
   }
 
-  /**
-   * Test that entities with incomplete keys cannot be deleted.
-   */
+  /** Test that entities with incomplete keys cannot be deleted. */
   @Test
   public void testDeleteEntitiesWithIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
@@ -415,9 +419,7 @@ public class DatastoreV1Test {
     deleteEntityFn.apply(entity);
   }
 
-  /**
-   * Test that entities with valid keys are transformed to delete mutations.
-   */
+  /** Test that entities with valid keys are transformed to delete mutations. */
   @Test
   public void testDeleteEntities() throws Exception {
     Key key = makeKey("bird", "finch").build();
@@ -428,9 +430,7 @@ public class DatastoreV1Test {
     assertEquals(deleteEntityFn.apply(entity), exceptedMutation);
   }
 
-  /**
-   * Test that incomplete keys cannot be deleted.
-   */
+  /** Test that incomplete keys cannot be deleted. */
   @Test
   public void testDeleteIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
@@ -442,9 +442,7 @@ public class DatastoreV1Test {
     deleteKeyFn.apply(key);
   }
 
-  /**
-   * Test that valid keys are transformed to delete mutations.
-   */
+  /** Test that valid keys are transformed to delete mutations. */
   @Test
   public void testDeleteKeys() {
     Key key = makeKey("bird", "finch").build();
@@ -491,8 +489,9 @@ public class DatastoreV1Test {
           makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
     }
 
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
-        null, mockDatastoreFactory, new FakeWriteBatcher());
+    DatastoreWriterFn datastoreWriter =
+        new DatastoreWriterFn(
+            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -517,16 +516,20 @@ public class DatastoreV1Test {
     List<Mutation> mutations = new ArrayList<>();
     int entitySize = 0;
     for (int i = 0; i < 12; ++i) {
-      Entity entity = Entity.newBuilder().setKey(makeKey("key" + i, i + 1))
-        .putProperties("long", makeValue(new String(new char[900_000])
-              ).setExcludeFromIndexes(true).build())
-        .build();
+      Entity entity =
+          Entity.newBuilder()
+              .setKey(makeKey("key" + i, i + 1))
+              .putProperties(
+                  "long",
+                  makeValue(new String(new char[900_000])).setExcludeFromIndexes(true).build())
+              .build();
       entitySize = entity.getSerializedSize(); // Take the size of any one entity.
       mutations.add(makeUpsert(entity).build());
     }
 
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
-        null, mockDatastoreFactory, new FakeWriteBatcher());
+    DatastoreWriterFn datastoreWriter =
+        new DatastoreWriterFn(
+            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -557,13 +560,14 @@ public class DatastoreV1Test {
     }
 
     CommitResponse successfulCommit = CommitResponse.getDefaultInstance();
-    when(mockDatastore.commit(any(CommitRequest.class))).thenReturn(successfulCommit)
-      .thenThrow(
-          new DatastoreException("commit", Code.DEADLINE_EXCEEDED, "", null))
-      .thenReturn(successfulCommit);
+    when(mockDatastore.commit(any(CommitRequest.class)))
+        .thenReturn(successfulCommit)
+        .thenThrow(new DatastoreException("commit", Code.DEADLINE_EXCEEDED, "", null))
+        .thenReturn(successfulCommit);
 
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
-        null, mockDatastoreFactory, new FakeWriteBatcher());
+    DatastoreWriterFn datastoreWriter =
+        new DatastoreWriterFn(
+            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -579,40 +583,36 @@ public class DatastoreV1Test {
     // In seconds
     long timestamp = 1234L;
 
-    RunQueryRequest latestTimestampRequest = makeRequest(makeLatestTimestampQuery(NAMESPACE),
-        NAMESPACE);
+    RunQueryRequest latestTimestampRequest =
+        makeRequest(makeLatestTimestampQuery(NAMESPACE), NAMESPACE);
     RunQueryResponse latestTimestampResponse = makeLatestTimestampResponse(timestamp);
     // Per Kind statistics request and response
     RunQueryRequest statRequest = makeRequest(makeStatKindQuery(NAMESPACE, timestamp), NAMESPACE);
     RunQueryResponse statResponse = makeStatKindResponse(entityBytes);
 
-    when(mockDatastore.runQuery(latestTimestampRequest))
-        .thenReturn(latestTimestampResponse);
-    when(mockDatastore.runQuery(statRequest))
-        .thenReturn(statResponse);
+    when(mockDatastore.runQuery(latestTimestampRequest)).thenReturn(latestTimestampResponse);
+    when(mockDatastore.runQuery(statRequest)).thenReturn(statResponse);
 
     assertEquals(entityBytes, getEstimatedSizeBytes(mockDatastore, QUERY, NAMESPACE));
     verify(mockDatastore, times(1)).runQuery(latestTimestampRequest);
     verify(mockDatastore, times(1)).runQuery(statRequest);
   }
 
-  /**
-   * Tests {@link SplitQueryFn} when number of query splits is specified.
-   */
+  /** Tests {@link SplitQueryFn} when number of query splits is specified. */
   @Test
   public void testSplitQueryFnWithNumSplits() throws Exception {
     int numSplits = 100;
     when(mockQuerySplitter.getSplits(
-        eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
+            eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, numSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
-     * mock factory using a when clause for unit testing purposes, it is not serializable
-     * because it doesn't have a no-arg constructor. Thus disabling the cloning to prevent the
-     * doFn from being serialized.
+     * mock factory using a when clause for unit testing purposes, it is not serializable because it
+     * doesn't have a no-arg constructor. Thus disabling the cloning to prevent the doFn from being
+     * serialized.
      */
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Query> queries = doFnTester.processBundle(QUERY);
@@ -624,14 +624,12 @@ public class DatastoreV1Test {
       assertNotEquals(subQuery, QUERY);
     }
 
-    verify(mockQuerySplitter, times(1)).getSplits(
-        eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
+    verify(mockQuerySplitter, times(1))
+        .getSplits(eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
     verifyZeroInteractions(mockDatastore);
   }
 
-  /**
-   * Tests {@link SplitQueryFn} when no query splits is specified.
-   */
+  /** Tests {@link SplitQueryFn} when no query splits is specified. */
   @Test
   public void testSplitQueryFnWithoutNumSplits() throws Exception {
     // Force SplitQueryFn to compute the number of query splits
@@ -641,20 +639,18 @@ public class DatastoreV1Test {
     // In seconds
     long timestamp = 1234L;
 
-    RunQueryRequest latestTimestampRequest = makeRequest(makeLatestTimestampQuery(NAMESPACE),
-        NAMESPACE);
+    RunQueryRequest latestTimestampRequest =
+        makeRequest(makeLatestTimestampQuery(NAMESPACE), NAMESPACE);
     RunQueryResponse latestTimestampResponse = makeLatestTimestampResponse(timestamp);
 
     // Per Kind statistics request and response
     RunQueryRequest statRequest = makeRequest(makeStatKindQuery(NAMESPACE, timestamp), NAMESPACE);
     RunQueryResponse statResponse = makeStatKindResponse(entityBytes);
 
-    when(mockDatastore.runQuery(latestTimestampRequest))
-        .thenReturn(latestTimestampResponse);
-    when(mockDatastore.runQuery(statRequest))
-        .thenReturn(statResponse);
+    when(mockDatastore.runQuery(latestTimestampRequest)).thenReturn(latestTimestampResponse);
+    when(mockDatastore.runQuery(statRequest)).thenReturn(statResponse);
     when(mockQuerySplitter.getSplits(
-        eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
+            eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
@@ -663,20 +659,16 @@ public class DatastoreV1Test {
     List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(expectedNumSplits, queries.size());
-    verify(mockQuerySplitter, times(1)).getSplits(
-        eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
+    verify(mockQuerySplitter, times(1))
+        .getSplits(eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
     verify(mockDatastore, times(1)).runQuery(latestTimestampRequest);
     verify(mockDatastore, times(1)).runQuery(statRequest);
   }
 
-  /**
-   * Tests {@link DatastoreV1.Read.SplitQueryFn} when the query has a user specified limit.
-   */
+  /** Tests {@link DatastoreV1.Read.SplitQueryFn} when the query has a user specified limit. */
   @Test
   public void testSplitQueryFnWithQueryLimit() throws Exception {
-    Query queryWithLimit = QUERY.toBuilder()
-        .setLimit(Int32Value.newBuilder().setValue(1))
-        .build();
+    Query queryWithLimit = QUERY.toBuilder().setLimit(Int32Value.newBuilder().setValue(1)).build();
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
@@ -710,8 +702,7 @@ public class DatastoreV1Test {
   @Test
   public void testReadFnRetriesErrors() throws Exception {
     // An empty query to read entities.
-    Query query = Query.newBuilder().setLimit(
-        Int32Value.newBuilder().setValue(1)).build();
+    Query query = Query.newBuilder().setLimit(Int32Value.newBuilder().setValue(1)).build();
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
@@ -733,19 +724,23 @@ public class DatastoreV1Test {
     String gql = "SELECT * from DummyKind LIMIT 10";
     String gqlWithZeroLimit = gql + " LIMIT 0";
     GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql).setAllowLiterals(true).build();
-    GqlQuery gqlQueryWithZeroLimit = GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit)
-        .setAllowLiterals(true).build();
+    GqlQuery gqlQueryWithZeroLimit =
+        GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit).setAllowLiterals(true).build();
     RunQueryRequest gqlRequest = makeRequest(gqlQuery, V_1_OPTIONS.getNamespace());
-    RunQueryRequest gqlRequestWithZeroLimit = makeRequest(gqlQueryWithZeroLimit,
-        V_1_OPTIONS.getNamespace());
+    RunQueryRequest gqlRequestWithZeroLimit =
+        makeRequest(gqlQueryWithZeroLimit, V_1_OPTIONS.getNamespace());
     when(mockDatastore.runQuery(gqlRequestWithZeroLimit))
-        .thenThrow(new DatastoreException("runQuery", Code.INVALID_ARGUMENT, "invalid query",
-            // dummy
-            new RuntimeException()));
+        .thenThrow(
+            new DatastoreException(
+                "runQuery",
+                Code.INVALID_ARGUMENT,
+                "invalid query",
+                // dummy
+                new RuntimeException()));
     when(mockDatastore.runQuery(gqlRequest))
         .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
-    assertEquals(translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace()),
-        QUERY);
+    assertEquals(
+        translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace()), QUERY);
     verify(mockDatastore, times(1)).runQuery(gqlRequest);
     verify(mockDatastore, times(1)).runQuery(gqlRequestWithZeroLimit);
   }
@@ -754,26 +749,29 @@ public class DatastoreV1Test {
   public void testTranslateGqlQueryWithNoLimit() throws Exception {
     String gql = "SELECT * from DummyKind";
     String gqlWithZeroLimit = gql + " LIMIT 0";
-    GqlQuery gqlQueryWithZeroLimit = GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit)
-        .setAllowLiterals(true).build();
-    RunQueryRequest gqlRequestWithZeroLimit = makeRequest(gqlQueryWithZeroLimit,
-        V_1_OPTIONS.getNamespace());
+    GqlQuery gqlQueryWithZeroLimit =
+        GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit).setAllowLiterals(true).build();
+    RunQueryRequest gqlRequestWithZeroLimit =
+        makeRequest(gqlQueryWithZeroLimit, V_1_OPTIONS.getNamespace());
     when(mockDatastore.runQuery(gqlRequestWithZeroLimit))
         .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
-    assertEquals(translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace()),
-        QUERY);
+    assertEquals(
+        translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace()), QUERY);
     verify(mockDatastore, times(1)).runQuery(gqlRequestWithZeroLimit);
   }
 
-  /** Test options. **/
+  /** Test options. * */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getDatastoreProject();
+
     void setDatastoreProject(ValueProvider<String> value);
 
     ValueProvider<String> getGqlQuery();
+
     void setGqlQuery(ValueProvider<String> value);
 
     ValueProvider<String> getNamespace();
+
     void setNamespace(ValueProvider<String> value);
   }
 
@@ -786,10 +784,12 @@ public class DatastoreV1Test {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
     pipeline
-        .apply(DatastoreIO.v1().read()
-            .withProjectId(options.getDatastoreProject())
-            .withQuery(QUERY)
-            .withNamespace(options.getNamespace()))
+        .apply(
+            DatastoreIO.v1()
+                .read()
+                .withProjectId(options.getDatastoreProject())
+                .withQuery(QUERY)
+                .withNamespace(options.getNamespace()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
@@ -802,9 +802,11 @@ public class DatastoreV1Test {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
     pipeline
-        .apply(DatastoreIO.v1().read()
-            .withProjectId(options.getDatastoreProject())
-            .withLiteralGqlQuery(options.getGqlQuery()))
+        .apply(
+            DatastoreIO.v1()
+                .read()
+                .withProjectId(options.getDatastoreProject())
+                .withLiteralGqlQuery(options.getGqlQuery()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
@@ -865,8 +867,8 @@ public class DatastoreV1Test {
 
   /**
    * A helper function that creates mock {@link Entity} results in response to a query. Always
-   * indicates that more results are available, unless the batch is limited to fewer than
-   * {@link DatastoreV1.Read#QUERY_BATCH_LIMIT} results.
+   * indicates that more results are available, unless the batch is limited to fewer than {@link
+   * DatastoreV1.Read#QUERY_BATCH_LIMIT} results.
    */
   private static RunQueryResponse mockResponseForQuery(Query q) {
     // Every query DatastoreV1 sends should have a limit.
@@ -902,8 +904,8 @@ public class DatastoreV1Test {
   /** Helper function to run a test reading from a {@link ReadFn}. */
   private void readFnTest(int numEntities) throws Exception {
     // An empty query to read entities.
-    Query query = Query.newBuilder().setLimit(
-        Int32Value.newBuilder().setValue(numEntities)).build();
+    Query query =
+        Query.newBuilder().setLimit(Int32Value.newBuilder().setValue(numEntities)).build();
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
@@ -916,10 +918,10 @@ public class DatastoreV1Test {
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
     /**
-     * Although Datastore client is marked transient in {@link ReadFn}, when injected through
-     * mock factory using a when clause for unit testing purposes, it is not serializable
-     * because it doesn't have a no-arg constructor. Thus disabling the cloning to prevent the
-     * test object from being serialized.
+     * Although Datastore client is marked transient in {@link ReadFn}, when injected through mock
+     * factory using a when clause for unit testing purposes, it is not serializable because it
+     * doesn't have a no-arg constructor. Thus disabling the cloning to prevent the test object from
+     * being serialized.
      */
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Entity> entities = doFnTester.processBundle(query);
@@ -966,9 +968,10 @@ public class DatastoreV1Test {
     } else {
       statQuery.addKindBuilder().setName("__Stat_Ns_Kind__");
     }
-    statQuery.setFilter(makeAndFilter(
-        makeFilter("kind_name", EQUAL, makeValue(KIND).build()).build(),
-        makeFilter("timestamp", EQUAL, makeValue(timestamp * 1000000L).build()).build()));
+    statQuery.setFilter(
+        makeAndFilter(
+            makeFilter("kind_name", EQUAL, makeValue(KIND).build()).build(),
+            makeFilter("timestamp", EQUAL, makeValue(timestamp * 1000000L).build()).build()));
     return statQuery.build();
   }
 
@@ -1007,9 +1010,11 @@ public class DatastoreV1Test {
   static class FakeWriteBatcher implements DatastoreV1.WriteBatcher {
     @Override
     public void start() {}
+
     @Override
-    public void addRequestLatency(long timeSinceEpochMillis, long latencyMillis, int numMutations) {
-    }
+    public void addRequestLatency(
+        long timeSinceEpochMillis, long latencyMillis, int numMutations) {}
+
     @Override
     public int nextBatchSize(long timeSinceEpochMillis) {
       return DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START;

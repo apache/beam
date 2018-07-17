@@ -24,15 +24,12 @@ import org.apache.beam.runners.spark.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
-
-/**
- * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
- * to Graphite.
- */
+/** A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to Graphite. */
 public class GraphiteSink extends org.apache.spark.metrics.sink.GraphiteSink {
-  public GraphiteSink(final Properties properties,
-                      final MetricRegistry metricRegistry,
-                      final org.apache.spark.SecurityManager securityMgr) {
+  public GraphiteSink(
+      final Properties properties,
+      final MetricRegistry metricRegistry,
+      final org.apache.spark.SecurityManager securityMgr) {
     super(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
   }
 }

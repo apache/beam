@@ -20,10 +20,8 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import static org.apache.flink.util.Preconditions.checkState;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -47,24 +45,23 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ExecutableStageDoFnOperator basic functional implementation without side inputs and user state.
- * SDK harness interaction code adopted from
- * {@link org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}.
- * TODO: Evaluate reuse
- * All operators in the non-portable streaming translation are based on {@link DoFnOperator}.
- * This implies dependency on {@link DoFnRunner}, which is not required for portable pipeline.
- * TODO: Multiple element bundle execution
- * The operator (like old non-portable runner) executes every element as separate bundle,
- * which will be even more expensive with SDK harness container.
- * Refactor for above should be looked into once streaming side inputs (and push back) take
- * shape.
+ * SDK harness interaction code adopted from {@link
+ * org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}. TODO: Evaluate
+ * reuse All operators in the non-portable streaming translation are based on {@link DoFnOperator}.
+ * This implies dependency on {@link DoFnRunner}, which is not required for portable pipeline. TODO:
+ * Multiple element bundle execution The operator (like old non-portable runner) executes every
+ * element as separate bundle, which will be even more expensive with SDK harness container.
+ * Refactor for above should be looked into once streaming side inputs (and push back) take shape.
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
   private static final Logger logger =
-          Logger.getLogger(ExecutableStageDoFnOperator.class.getName());
+      LoggerFactory.getLogger(ExecutableStageDoFnOperator.class.getName());
 
   private final RunnerApi.ExecutableStagePayload payload;
   private final JobInfo jobInfo;
@@ -76,38 +73,36 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
 
-  public ExecutableStageDoFnOperator(String stepName,
-                                     Coder<WindowedValue<InputT>> inputCoder,
-                                     TupleTag<OutputT> mainOutputTag,
-                                     List<TupleTag<?>> additionalOutputTags,
-                                     OutputManagerFactory<OutputT> outputManagerFactory,
-                                     Map<Integer, PCollectionView<?>> sideInputTagMapping,
-                                     Collection<PCollectionView<?>> sideInputs,
-                                     PipelineOptions options,
-                                     RunnerApi.ExecutableStagePayload payload,
-                                     JobInfo jobInfo,
-                                     FlinkExecutableStageContext.Factory contextFactory
-                                     ) {
-    super(new NoOpDoFn(),
-            stepName, inputCoder, mainOutputTag, additionalOutputTags,
-            outputManagerFactory, WindowingStrategy.globalDefault() /* unused */,
-            sideInputTagMapping, sideInputs, options, null /*keyCoder*/, null /* key selector */);
-      this.payload = payload;
-      this.jobInfo = jobInfo;
-      this.contextFactory = contextFactory;
-      this.outputMap = createOutputMap(mainOutputTag, additionalOutputTags);
-  }
-
-  private static Map<String, TupleTag<?>> createOutputMap(TupleTag mainOutput,
-                                                          List<TupleTag<?>> additionalOutputs) {
-      Map<String, TupleTag<?>> outputMap = new HashMap<>(additionalOutputs.size() + 1);
-      if (mainOutput != null) {
-        outputMap.put(mainOutput.getId(), mainOutput);
-      }
-      for (TupleTag<?> additionalTag : additionalOutputs) {
-        outputMap.put(additionalTag.getId(), additionalTag);
-      }
-      return outputMap;
+  public ExecutableStageDoFnOperator(
+      String stepName,
+      Coder<WindowedValue<InputT>> inputCoder,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
+      OutputManagerFactory<OutputT> outputManagerFactory,
+      Map<Integer, PCollectionView<?>> sideInputTagMapping,
+      Collection<PCollectionView<?>> sideInputs,
+      PipelineOptions options,
+      RunnerApi.ExecutableStagePayload payload,
+      JobInfo jobInfo,
+      FlinkExecutableStageContext.Factory contextFactory,
+      Map<String, TupleTag<?>> outputMap) {
+    super(
+        new NoOpDoFn(),
+        stepName,
+        inputCoder,
+        mainOutputTag,
+        additionalOutputTags,
+        outputManagerFactory,
+        WindowingStrategy.globalDefault() /* unused */,
+        sideInputTagMapping,
+        sideInputs,
+        options,
+        null /*keyCoder*/,
+        null /* key selector */);
+    this.payload = payload;
+    this.jobInfo = jobInfo;
+    this.contextFactory = contextFactory;
+    this.outputMap = outputMap;
   }
 
   @Override
@@ -132,15 +127,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   // TODO: currently assumes that every element is a separate bundle,
   // but this can be changed by pushing some of this logic into the "DoFnRunner"
   private void processElementWithSdkHarness(WindowedValue<InputT> element) throws Exception {
-    checkState(stageBundleFactory != null, "%s not yet prepared",
-            StageBundleFactory.class.getName());
-    checkState(stateRequestHandler != null, "%s not yet prepared",
-            StateRequestHandler.class.getName());
+    checkState(
+        stageBundleFactory != null, "%s not yet prepared", StageBundleFactory.class.getName());
+    checkState(
+        stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
     try (RemoteBundle<InputT> bundle =
         stageBundleFactory.getBundle(
             new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
-      logger.finer(String.format("Sending value: %s", element));
+      logger.debug(String.format("Sending value: %s", element));
       bundle.getInputReceiver().accept(element);
     }
   }
@@ -156,7 +151,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   // TODO: remove single element bundle assumption
   @Override
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
-          DoFnRunner<InputT, OutputT> wrappedRunner) {
+      DoFnRunner<InputT, OutputT> wrappedRunner) {
     return new SdkHarnessDoFnRunner();
   }
 
@@ -174,9 +169,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-                        TimeDomain timeDomain) {
-    }
+    public void onTimer(
+        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
 
     @Override
     public void finishBundle() {}
@@ -219,5 +213,4 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       };
     }
   }
-
 }

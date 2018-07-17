@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal implementation of the Beam runner for Apache Samza.
- */
+/** Internal implementation of the Beam runner for Apache Samza. */
 package org.apache.beam.runners.samza;

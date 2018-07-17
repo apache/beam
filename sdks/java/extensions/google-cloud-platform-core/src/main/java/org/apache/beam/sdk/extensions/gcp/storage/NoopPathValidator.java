@@ -29,11 +29,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @Internal
 public class NoopPathValidator implements PathValidator {
 
-  private NoopPathValidator() {
-  }
+  private NoopPathValidator() {}
 
-  public static PathValidator fromOptions(
-      @SuppressWarnings("unused") PipelineOptions options) {
+  public static PathValidator fromOptions(@SuppressWarnings("unused") PipelineOptions options) {
     return new NoopPathValidator();
   }
 

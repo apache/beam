@@ -24,25 +24,20 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
-/**
- * Tests the proper registration of the Flink runner.
- */
+/** Tests the proper registration of the Flink runner. */
 public class FlinkRunnerRegistrarTest {
 
   @Test
   public void testFullName() {
-    String[] args =
-        new String[] {String.format("--runner=%s", FlinkRunner.class.getName())};
+    String[] args = new String[] {String.format("--runner=%s", FlinkRunner.class.getName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), FlinkRunner.class);
   }
 
   @Test
   public void testClassName() {
-    String[] args =
-        new String[] {String.format("--runner=%s", FlinkRunner.class.getSimpleName())};
+    String[] args = new String[] {String.format("--runner=%s", FlinkRunner.class.getSimpleName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), FlinkRunner.class);
   }
-
 }

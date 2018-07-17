@@ -58,7 +58,7 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   @Override
   public boolean accept() {
     return operands.size() == 2
-        && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
+        && SqlTypeName.DATETIME_TYPES.contains(operands.get(0).getOutputType())
         && SUPPORTED_INTERVAL_TYPES.contains(operands.get(1).getOutputType());
   }
 
@@ -103,12 +103,13 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   private DateTime getTimestampOperand(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     BeamSqlPrimitive timestampOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.TIMESTAMP).get().evaluate(inputRow, window, env);
+        findExpressionOfType(operands, SqlTypeName.DATETIME_TYPES)
+            .get()
+            .evaluate(inputRow, window, env);
     return new DateTime(timestampOperandPrimitive.getDate());
   }
 
   private DateTime addInterval(DateTime dateTime, SqlTypeName intervalType, int numberOfIntervals) {
-
     switch (intervalType) {
       case INTERVAL_SECOND:
         return dateTime.plusSeconds(numberOfIntervals);

@@ -35,9 +35,8 @@ import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
 
 /**
- * A {@link PipelineRunner} that executes the operations in the
- * pipeline by first translating them to Gearpump Stream DSL
- * and then executing them on a Gearpump cluster.
+ * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
+ * to Gearpump Stream DSL and then executing them on a Gearpump cluster.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
@@ -63,13 +62,11 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     if (null == appName) {
       appName = DEFAULT_APPNAME;
     }
-    Config config = registerSerializers(ClusterConfig.defaultConfig(),
-        options.getSerializers());
+    Config config = registerSerializers(ClusterConfig.defaultConfig(), options.getSerializers());
     ClientContext clientContext = getClientContext(options, config);
     options.setClientContext(clientContext);
     UserConfig userConfig = UserConfig.empty();
-    JavaStreamApp streamApp = new JavaStreamApp(
-        appName, clientContext, userConfig);
+    JavaStreamApp streamApp = new JavaStreamApp(appName, clientContext, userConfig);
     TranslationContext translationContext = new TranslationContext(streamApp, options);
     GearpumpPipelineTranslator translator = new GearpumpPipelineTranslator(translationContext);
     translator.translate(pipeline);
@@ -87,9 +84,7 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     }
   }
 
-  /**
-   * register class with default kryo serializers.
-   */
+  /** register class with default kryo serializers. */
   private Config registerSerializers(Config config, Map<String, String> userSerializers) {
     Map<String, String> serializers = new HashMap<>();
     serializers.put("org.apache.beam.sdk.util.WindowedValue$ValueInGlobalWindow", "");
@@ -111,5 +106,4 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
     return config.withValue(GEARPUMP_SERIALIZERS, ConfigValueFactory.fromMap(serializers));
   }
-
 }

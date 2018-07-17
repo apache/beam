@@ -25,14 +25,10 @@ import java.util.List;
 import java.util.Set;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link GeneratedGetterFactory}.
- */
+/** Unit tests for {@link GeneratedGetterFactory}. */
 public class GeneratedGetterFactoryTest {
 
-  /**
-   * Test pojo.
-   */
+  /** Test pojo. */
   private static class Pojo {
     private String privateStringField = "privateStringValue";
     private Integer privateIntegerField = 15;
@@ -52,27 +48,21 @@ public class GeneratedGetterFactoryTest {
   public void testGettersHaveCorrectNames() throws Exception {
     List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
-    assertEquals(
-        ImmutableSet.of("privateStringField", "privateIntegerField"),
-        getNames(getters));
+    assertEquals(ImmutableSet.of("privateStringField", "privateIntegerField"), getNames(getters));
   }
 
   @Test
   public void testGettersHaveCorrectTypes() throws Exception {
     List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
-    assertEquals(
-        ImmutableSet.of(String.class, Integer.class),
-        getTypes(getters));
+    assertEquals(ImmutableSet.of(String.class, Integer.class), getTypes(getters));
   }
 
   @Test
   public void testGettersReturnCorrectValues() throws Exception {
     List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
-    assertEquals(
-        ImmutableSet.<Object>of("privateStringValue", 15),
-        getValues(getters, new Pojo()));
+    assertEquals(ImmutableSet.<Object>of("privateStringValue", 15), getValues(getters, new Pojo()));
   }
 
   private Set<String> getNames(List<FieldValueGetter> getters) {

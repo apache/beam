@@ -31,13 +31,9 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * A direct implementation of {@link Query7}.
- */
+/** A direct implementation of {@link Query7}. */
 public class Query7Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 7.
-   */
+  /** Simulator for query 7. */
   private class Simulator extends AbstractSimulator<Event, Bid> {
     /** Bids with highest bid price seen in the current window. */
     private final List<Bid> highestBids;
@@ -54,9 +50,7 @@ public class Query7Model extends NexmarkQueryModel implements Serializable {
       lastTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
 
-    /**
-     * Transfer the currently winning bids into results and retire them.
-     */
+    /** Transfer the currently winning bids into results and retire them. */
     private void retireWindow(Instant timestamp) {
       for (Bid bid : highestBids) {
         addResult(TimestampedValue.of(bid, timestamp));
@@ -64,9 +58,7 @@ public class Query7Model extends NexmarkQueryModel implements Serializable {
       highestBids.clear();
     }
 
-    /**
-     * Keep just the highest price bid.
-     */
+    /** Keep just the highest price bid. */
     private void captureBid(Bid bid) {
       Iterator<Bid> itr = highestBids.iterator();
       boolean isWinning = true;
@@ -101,8 +93,11 @@ public class Query7Model extends NexmarkQueryModel implements Serializable {
         return;
       }
       lastTimestamp = timestampedEvent.getTimestamp();
-      Instant newWindowStart = windowStart(Duration.standardSeconds(configuration.windowSizeSec),
-          Duration.standardSeconds(configuration.windowSizeSec), lastTimestamp);
+      Instant newWindowStart =
+          windowStart(
+              Duration.standardSeconds(configuration.windowSizeSec),
+              Duration.standardSeconds(configuration.windowSizeSec),
+              lastTimestamp);
       if (!newWindowStart.equals(windowStart)) {
         // Capture highest priced bids in current window and retire it.
         retireWindow(lastTimestamp);

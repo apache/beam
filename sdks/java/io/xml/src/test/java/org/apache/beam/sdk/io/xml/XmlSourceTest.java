@@ -55,109 +55,106 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link XmlSource} in particular - the rest of {@link XmlIO} is tested
- * in {@link XmlIOTest}.
+ * Tests for {@link XmlSource} in particular - the rest of {@link XmlIO} is tested in {@link
+ * XmlIOTest}.
  */
 @RunWith(JUnit4.class)
 public class XmlSourceTest {
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
+  @Rule public ExpectedException exception = ExpectedException.none();
 
   private String tinyXML =
       "<trains><train><name>Thomas</name></train><train><name>Henry</name></train>"
-      + "<train><name>James</name></train></trains>";
+          + "<train><name>James</name></train></trains>";
 
   private String xmlWithMultiByteElementName =
       "<දුම්රියන්><දුම්රිය><name>Thomas</name></දුම්රිය><දුම්රිය><name>Henry</name></දුම්රිය>"
-      + "<දුම්රිය><name>James</name></දුම්රිය></දුම්රියන්>";
+          + "<දුම්රිය><name>James</name></දුම්රිය></දුම්රියන්>";
 
   private String xmlWithMultiByteChars =
       "<trains><train><name>Thomas¥</name></train><train><name>Hen¶ry</name></train>"
-      + "<train><name>Jamßes</name></train></trains>";
+          + "<train><name>Jamßes</name></train></trains>";
 
   private String trainXML =
       "<trains>"
-      + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
-      + "<train><name>Henry</name><number>3</number><color>green</color></train>"
-      + "<train><name>Toby</name><number>7</number><color>brown</color></train>"
-      + "<train><name>Gordon</name><number>4</number><color>blue</color></train>"
-      + "<train><name>Emily</name><number>-1</number><color>red</color></train>"
-      + "<train><name>Percy</name><number>6</number><color>green</color></train>"
-      + "</trains>";
+          + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
+          + "<train><name>Henry</name><number>3</number><color>green</color></train>"
+          + "<train><name>Toby</name><number>7</number><color>brown</color></train>"
+          + "<train><name>Gordon</name><number>4</number><color>blue</color></train>"
+          + "<train><name>Emily</name><number>-1</number><color>red</color></train>"
+          + "<train><name>Percy</name><number>6</number><color>green</color></train>"
+          + "</trains>";
 
   private String trainXMLWithEmptyTags =
       "<trains>"
-      + "<train/>"
-      + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
-      + "<train><name>Henry</name><number>3</number><color>green</color></train>"
-      + "<train/>"
-      + "<train><name>Toby</name><number>7</number><color>brown</color></train>"
-      + "<train><name>Gordon</name><number>4</number><color>blue</color></train>"
-      + "<train><name>Emily</name><number>-1</number><color>red</color></train>"
-      + "<train><name>Percy</name><number>6</number><color>green</color></train>"
-      + "</trains>";
+          + "<train/>"
+          + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
+          + "<train><name>Henry</name><number>3</number><color>green</color></train>"
+          + "<train/>"
+          + "<train><name>Toby</name><number>7</number><color>brown</color></train>"
+          + "<train><name>Gordon</name><number>4</number><color>blue</color></train>"
+          + "<train><name>Emily</name><number>-1</number><color>red</color></train>"
+          + "<train><name>Percy</name><number>6</number><color>green</color></train>"
+          + "</trains>";
 
   private String trainXMLWithAttributes =
       "<trains>"
-      + "<train size=\"small\"><name>Thomas</name><number>1</number><color>blue</color></train>"
-      + "<train size=\"big\"><name>Henry</name><number>3</number><color>green</color></train>"
-      + "<train size=\"small\"><name>Toby</name><number>7</number><color>brown</color></train>"
-      + "<train size=\"big\"><name>Gordon</name><number>4</number><color>blue</color></train>"
-      + "<train size=\"small\"><name>Emily</name><number>-1</number><color>red</color></train>"
-      + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color></train>"
-      + "</trains>";
+          + "<train size=\"small\"><name>Thomas</name><number>1</number><color>blue</color></train>"
+          + "<train size=\"big\"><name>Henry</name><number>3</number><color>green</color></train>"
+          + "<train size=\"small\"><name>Toby</name><number>7</number><color>brown</color></train>"
+          + "<train size=\"big\"><name>Gordon</name><number>4</number><color>blue</color></train>"
+          + "<train size=\"small\"><name>Emily</name><number>-1</number><color>red</color></train>"
+          + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color></train>"
+          + "</trains>";
 
   private String trainXMLWithSpaces =
       "<trains>"
-      + "<train><name>Thomas   </name>   <number>1</number><color>blue</color></train>"
-      + "<train><name>Henry</name><number>3</number><color>green</color></train>\n"
-      + "<train><name>Toby</name><number>7</number><color>  brown  </color></train>  "
-      + "<train><name>Gordon</name>   <number>4</number><color>blue</color>\n</train>\t"
-      + "<train><name>Emily</name><number>-1</number>\t<color>red</color></train>"
-      + "<train>\n<name>Percy</name>   <number>6  </number>   <color>green</color></train>"
-      + "</trains>";
+          + "<train><name>Thomas   </name>   <number>1</number><color>blue</color></train>"
+          + "<train><name>Henry</name><number>3</number><color>green</color></train>\n"
+          + "<train><name>Toby</name><number>7</number><color>  brown  </color></train>  "
+          + "<train><name>Gordon</name>   <number>4</number><color>blue</color>\n</train>\t"
+          + "<train><name>Emily</name><number>-1</number>\t<color>red</color></train>"
+          + "<train>\n<name>Percy</name>   <number>6  </number>   <color>green</color></train>"
+          + "</trains>";
 
   private String trainXMLWithAllFeaturesMultiByte =
       "<දුම්රියන්>"
-      + "<දුම්රිය/>"
-      + "<දුම්රිය size=\"small\"><name> Thomas¥</name><number>1</number><color>blue</color>"
-      + "</දුම්රිය>"
-      + "<දුම්රිය size=\"big\"><name>He nry</name><number>3</number><color>green</color></දුම්රිය>"
-      + "<දුම්රිය size=\"small\"><name>Toby  </name><number>7</number><color>br¶own</color>"
-      + "</දුම්රිය>"
-      + "<දුම්රිය/>"
-      + "<දුම්රිය size=\"big\"><name>Gordon</name><number>4</number><color> blue</color></දුම්රිය>"
-      + "<දුම්රිය size=\"small\"><name>Emily</name><number>-1</number><color>red</color></දුම්රිය>"
-      + "<දුම්රිය size=\"small\"><name>Percy</name><number>6</number><color>green</color>"
-      + "</දුම්රිය>"
-      + "</දුම්රියන්>";
+          + "<දුම්රිය/>"
+          + "<දුම්රිය size=\"small\"><name> Thomas¥</name><number>1</number><color>blue</color>"
+          + "</දුම්රිය>"
+          + "<දුම්රිය size=\"big\"><name>He nry</name><number>3</number><color>green</color></දුම්රිය>"
+          + "<දුම්රිය size=\"small\"><name>Toby  </name><number>7</number><color>br¶own</color>"
+          + "</දුම්රිය>"
+          + "<දුම්රිය/>"
+          + "<දුම්රිය size=\"big\"><name>Gordon</name><number>4</number><color> blue</color></දුම්රිය>"
+          + "<දුම්රිය size=\"small\"><name>Emily</name><number>-1</number><color>red</color></දුම්රිය>"
+          + "<දුම්රිය size=\"small\"><name>Percy</name><number>6</number><color>green</color>"
+          + "</දුම්රිය>"
+          + "</දුම්රියන්>";
 
   private String trainXMLWithAllFeaturesSingleByte =
       "<trains>"
-      + "<train/>"
-      + "<train size=\"small\"><name> Thomas</name><number>1</number><color>blue</color>"
-      + "</train>"
-      + "<train size=\"big\"><name>He nry</name><number>3</number><color>green</color></train>"
-      + "<train size=\"small\"><name>Toby  </name><number>7</number><color>brown</color>"
-      + "</train>"
-      + "<train/>"
-      + "<train size=\"big\"><name>Gordon</name><number>4</number><color> blue</color></train>"
-      + "<train size=\"small\"><name>Emily</name><number>-1</number><color>red</color></train>"
-      + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color>"
-      + "</train>"
-      + "</trains>";
+          + "<train/>"
+          + "<train size=\"small\"><name> Thomas</name><number>1</number><color>blue</color>"
+          + "</train>"
+          + "<train size=\"big\"><name>He nry</name><number>3</number><color>green</color></train>"
+          + "<train size=\"small\"><name>Toby  </name><number>7</number><color>brown</color>"
+          + "</train>"
+          + "<train/>"
+          + "<train size=\"big\"><name>Gordon</name><number>4</number><color> blue</color></train>"
+          + "<train size=\"small\"><name>Emily</name><number>-1</number><color>red</color></train>"
+          + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color>"
+          + "</train>"
+          + "</trains>";
 
   private String trainXMLWithISO88591 =
       "<trains>"
-      + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
-      + "</trains>";
+          + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
+          + "</trains>";
 
   @XmlRootElement
   static class TinyTrain {
@@ -165,8 +162,7 @@ public class XmlSourceTest {
       this.name = name;
     }
 
-    public TinyTrain() {
-    }
+    public TinyTrain() {}
 
     public String name = null;
 
@@ -180,7 +176,6 @@ public class XmlSourceTest {
       return str;
     }
   }
-
 
   @XmlRootElement
   static class Train {
@@ -218,7 +213,8 @@ public class XmlSourceTest {
       }
 
       Train other = (Train) obj;
-      return (name == null || name.equals(other.name)) && (number == other.number)
+      return (name == null || name.equals(other.name))
+          && (number == other.number)
           && (color == null || color.equals(other.color))
           && (size == null || size.equals(other.size));
     }
@@ -257,8 +253,10 @@ public class XmlSourceTest {
   }
 
   private List<Train> generateRandomTrainList(int size) {
-    String[] names = {"Thomas", "Henry", "Gordon", "Emily", "Toby", "Percy", "Mavis", "Edward",
-        "Bertie", "Harold", "Hiro", "Terence", "Salty", "Trevor"};
+    String[] names = {
+      "Thomas", "Henry", "Gordon", "Emily", "Toby", "Percy", "Mavis", "Edward", "Bertie", "Harold",
+      "Hiro", "Terence", "Salty", "Trevor"
+    };
     int[] numbers = {-1, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     String[] colors = {"red", "blue", "green", "orange", "brown", "black", "white"};
     String[] sizes = {"small", "medium", "big"};
@@ -267,17 +265,27 @@ public class XmlSourceTest {
 
     List<Train> trains = new ArrayList<>();
     for (int i = 0; i < size; i++) {
-      trains.add(new Train(names[random.nextInt(names.length - 1)],
-          numbers[random.nextInt(numbers.length - 1)], colors[random.nextInt(colors.length - 1)],
-          sizes[random.nextInt(sizes.length - 1)]));
+      trains.add(
+          new Train(
+              names[random.nextInt(names.length - 1)],
+              numbers[random.nextInt(numbers.length - 1)],
+              colors[random.nextInt(colors.length - 1)],
+              sizes[random.nextInt(sizes.length - 1)]));
     }
 
     return trains;
   }
 
   private String trainToXMLElement(Train train) {
-    return "<train size=\"" + train.size + "\"><name>" + train.name + "</name><number>"
-        + train.number + "</number><color>" + train.color + "</color></train>";
+    return "<train size=\""
+        + train.size
+        + "\"><name>"
+        + train.name
+        + "</name><number>"
+        + train.number
+        + "</number><color>"
+        + train.color
+        + "</color></train>";
   }
 
   private File createRandomTrainXML(String fileName, List<Train> trains) throws IOException {
@@ -296,7 +304,7 @@ public class XmlSourceTest {
     return file;
   }
 
-  private  <T> List<T> readEverythingFromReader(Reader<T> reader) throws IOException {
+  private <T> List<T> readEverythingFromReader(Reader<T> reader) throws IOException {
     List<T> results = new ArrayList<>();
     for (boolean available = reader.start(); available; available = reader.advance()) {
       T train = reader.getCurrent();
@@ -319,10 +327,11 @@ public class XmlSourceTest {
             .withMinBundleSize(1024)
             .createSource();
 
-    List<Train> expectedResults = ImmutableList.of(
-        new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("Henry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("James", Train.TRAIN_NUMBER_UNDEFINED, null, null));
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("Henry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("James", Train.TRAIN_NUMBER_UNDEFINED, null, null));
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -344,10 +353,11 @@ public class XmlSourceTest {
             .withMinBundleSize(1024)
             .createSource();
 
-    List<Train> expectedResults = ImmutableList.of(
-        new Train("Thomas¥", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("Hen¶ry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("Jamßes", Train.TRAIN_NUMBER_UNDEFINED, null, null));
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas¥", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("Hen¶ry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("Jamßes", Train.TRAIN_NUMBER_UNDEFINED, null, null));
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -372,10 +382,11 @@ public class XmlSourceTest {
             .withMinBundleSize(1024)
             .createSource();
 
-    List<Train> expectedResults = ImmutableList.of(
-        new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("Henry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("James", Train.TRAIN_NUMBER_UNDEFINED, null, null));
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("Henry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("James", Train.TRAIN_NUMBER_UNDEFINED, null, null));
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -405,10 +416,11 @@ public class XmlSourceTest {
       results.addAll(readEverythingFromReader(split.createReader(null)));
     }
 
-    List<Train> expectedResults = ImmutableList.of(
-        new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("Henry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
-        new Train("James", Train.TRAIN_NUMBER_UNDEFINED, null, null));
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("Henry", Train.TRAIN_NUMBER_UNDEFINED, null, null),
+            new Train("James", Train.TRAIN_NUMBER_UNDEFINED, null, null));
 
     assertThat(
         trainsToStrings(expectedResults), containsInAnyOrder(trainsToStrings(results).toArray()));
@@ -445,9 +457,13 @@ public class XmlSourceTest {
             .createSource();
 
     List<Train> expectedResults =
-        ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
-            new Train("Toby", 7, "brown", null), new Train("Gordon", 4, "blue", null),
-            new Train("Emily", -1, "red", null), new Train("Percy", 6, "green", null));
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", null),
+            new Train("Henry", 3, "green", null),
+            new Train("Toby", 7, "brown", null),
+            new Train("Gordon", 4, "blue", null),
+            new Train("Emily", -1, "red", null),
+            new Train("Percy", 6, "green", null));
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -528,7 +544,7 @@ public class XmlSourceTest {
   }
 
   @Test
-  public void testReadXmlWithAdditionalFieldsShouldNotThrowException() throws  IOException{
+  public void testReadXmlWithAdditionalFieldsShouldNotThrowException() throws IOException {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
@@ -547,8 +563,7 @@ public class XmlSourceTest {
             new TinyTrain("Toby"),
             new TinyTrain("Gordon"),
             new TinyTrain("Emily"),
-            new TinyTrain("Percy")
-        );
+            new TinyTrain("Percy"));
 
     assertThat(
         tinyTrainsToStrings(expectedResults),
@@ -570,16 +585,19 @@ public class XmlSourceTest {
             .createSource();
 
     List<Train> expectedResults =
-        ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
-            new Train("Toby", 7, "brown", null), new Train("Gordon", 4, "blue", null),
-            new Train("Emily", -1, "red", null), new Train("Percy", 6, "green", null));
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", null),
+            new Train("Henry", 3, "green", null),
+            new Train("Toby", 7, "brown", null),
+            new Train("Gordon", 4, "blue", null),
+            new Train("Emily", -1, "red", null),
+            new Train("Percy", 6, "green", null));
 
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
             trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
-
 
   @Test
   public void testReadXMLWithEmptyTags() throws IOException {
@@ -595,10 +613,16 @@ public class XmlSourceTest {
             .withMinBundleSize(1024)
             .createSource();
 
-    List<Train> expectedResults = ImmutableList.of(new Train("Thomas", 1, "blue", null),
-        new Train("Henry", 3, "green", null), new Train("Toby", 7, "brown", null),
-        new Train("Gordon", 4, "blue", null), new Train("Emily", -1, "red", null),
-        new Train("Percy", 6, "green", null), new Train(), new Train());
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", null),
+            new Train("Henry", 3, "green", null),
+            new Train("Toby", 7, "brown", null),
+            new Train("Gordon", 4, "blue", null),
+            new Train("Emily", -1, "red", null),
+            new Train("Percy", 6, "green", null),
+            new Train(),
+            new Train());
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -612,7 +636,8 @@ public class XmlSourceTest {
     Files.write(file.toPath(), trainXMLWithISO88591.getBytes(StandardCharsets.ISO_8859_1));
 
     PCollection<Train> output =
-        p.apply("ReadFileData",
+        p.apply(
+            "ReadFileData",
             XmlIO.<Train>read()
                 .from(file.toPath().toString())
                 .withRootElement("trains")
@@ -621,8 +646,7 @@ public class XmlSourceTest {
                 .withMinBundleSize(1024)
                 .withCharset(StandardCharsets.ISO_8859_1));
 
-    List<Train> expectedResults =
-        ImmutableList.of(new Train("Cédric", 7, "blue", "small"));
+    List<Train> expectedResults = ImmutableList.of(new Train("Cédric", 7, "blue", "small"));
 
     PAssert.that(output).containsInAnyOrder(expectedResults);
     p.run();
@@ -645,9 +669,13 @@ public class XmlSourceTest {
                 .withMinBundleSize(1024));
 
     List<Train> expectedResults =
-        ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
-            new Train("Toby", 7, "brown", null), new Train("Gordon", 4, "blue", null),
-            new Train("Emily", -1, "red", null), new Train("Percy", 6, "green", null));
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", null),
+            new Train("Henry", 3, "green", null),
+            new Train("Toby", 7, "brown", null),
+            new Train("Gordon", 4, "blue", null),
+            new Train("Emily", -1, "red", null),
+            new Train("Percy", 6, "green", null));
 
     PAssert.that(output).containsInAnyOrder(expectedResults);
     p.run();
@@ -667,10 +695,14 @@ public class XmlSourceTest {
             .withMinBundleSize(1024)
             .createSource();
 
-    List<Train> expectedResults = ImmutableList.of(new Train("Thomas", 1, "blue", "small"),
-        new Train("Henry", 3, "green", "big"), new Train("Toby", 7, "brown", "small"),
-        new Train("Gordon", 4, "blue", "big"), new Train("Emily", -1, "red", "small"),
-        new Train("Percy", 6, "green", "small"));
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", "small"),
+            new Train("Henry", 3, "green", "big"),
+            new Train("Toby", 7, "brown", "small"),
+            new Train("Gordon", 4, "blue", "big"),
+            new Train("Emily", -1, "red", "small"),
+            new Train("Percy", 6, "green", "small"));
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -692,10 +724,14 @@ public class XmlSourceTest {
             .withMinBundleSize(1024)
             .createSource();
 
-    List<Train> expectedResults = ImmutableList.of(new Train("Thomas   ", 1, "blue", null),
-        new Train("Henry", 3, "green", null), new Train("Toby", 7, "  brown  ", null),
-        new Train("Gordon", 4, "blue", null), new Train("Emily", -1, "red", null),
-        new Train("Percy", 6, "green", null));
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas   ", 1, "blue", null),
+            new Train("Henry", 3, "green", null),
+            new Train("Toby", 7, "  brown  ", null),
+            new Train("Gordon", 4, "blue", null),
+            new Train("Emily", -1, "red", null),
+            new Train("Percy", 6, "green", null));
 
     assertThat(
         trainsToStrings(expectedResults),
@@ -792,8 +828,7 @@ public class XmlSourceTest {
             .withMinBundleSize(10)
             .createSource();
 
-    List<? extends BoundedSource<Train>> splits =
-        fileSource.split(file.length() / 3, null);
+    List<? extends BoundedSource<Train>> splits = fileSource.split(file.length() / 3, null);
     for (BoundedSource<Train> splitSource : splits) {
       int numItems = readEverythingFromReader(splitSource.createReader(null)).size();
       // Should not split while unstarted.
@@ -840,7 +875,7 @@ public class XmlSourceTest {
   @Test
   @Ignore(
       "Multi-byte characters in XML are not supported because the parser "
-      + "currently does not correctly report byte offsets")
+          + "currently does not correctly report byte offsets")
   public void testSplitAtFractionExhaustiveMultiByte() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     File file = tempFolder.newFile("trainXMLSmall");

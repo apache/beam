@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 /**
- * Metrics allow exporting information about the execution of a pipeline.
- * They are intended to be used for monitoring and understanding the
- * execution.
+ * Metrics allow exporting information about the execution of a pipeline. They are intended to be
+ * used for monitoring and understanding the execution.
  *
  * <p>Metrics may also be queried from the {@link org.apache.beam.sdk.PipelineResult} object.
  *
- * <p>Runners should look at {@link org.apache.beam.sdk.metrics.MetricsContainer} for details on
- * how to support metrics.
+ * <p>Runners should look at {@link org.apache.beam.sdk.metrics.MetricsContainer} for details on how
+ * to support metrics.
  */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.metrics;

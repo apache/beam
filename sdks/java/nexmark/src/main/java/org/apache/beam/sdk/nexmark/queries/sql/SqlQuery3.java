@@ -52,22 +52,20 @@ import org.joda.time.Duration;
  * = 10;
  * </pre>
  *
- * <p>This implementation runs as written, but results may not be what is expected
- * from a correct join, and behavior doesn't match the java version.
+ * <p>This implementation runs as written, but results may not be what is expected from a correct
+ * join, and behavior doesn't match the java version.
  *
- * <p>At the moment join is implemented as a CoGBK, it joins the trigger outputs. It means that
- * in discarding mode it will join only new elements arrived since last trigger firing.
- * And in accumulating mode it will output the results which were already emitted in last
- * trigger firing.
+ * <p>At the moment join is implemented as a CoGBK, it joins the trigger outputs. It means that in
+ * discarding mode it will join only new elements arrived since last trigger firing. And in
+ * accumulating mode it will output the results which were already emitted in last trigger firing.
  *
  * <p>Additionally, it is currently not possible to match the elements across windows.
  *
  * <p>All of the above makes it not intuitive, inflexible, and produces results which may not be
  * what users are expecting.
  *
- * <p>Java version of the query ({@link Query3}) solves this by caching the auctions
- * in the state cell if there was no matching seller yet. And then flushes them when sellers
- * become available.
+ * <p>Java version of the query ({@link Query3}) solves this by caching the auctions in the state
+ * cell if there was no matching seller yet. And then flushes them when sellers become available.
  *
  * <p>Correct join semantics implementation is tracked in BEAM-3190, BEAM-3191
  */
@@ -75,14 +73,15 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
 
   private static final String QUERY_NAME = SqlQuery3.class.getSimpleName();
 
-  private static final String QUERY_STRING = ""
-      + " SELECT "
-      + "    P.name, P.city, P.state, A.id "
-      + " FROM "
-      + "    Auction A INNER JOIN Person P on A.seller = P.id "
-      + " WHERE "
-      + "    A.category = 10 "
-      + "    AND (P.state = 'OR' OR P.state = 'ID' OR P.state = 'CA')";
+  private static final String QUERY_STRING =
+      ""
+          + " SELECT "
+          + "    P.name, P.city, P.state, A.id "
+          + " FROM "
+          + "    Auction A INNER JOIN Person P on A.seller = P.id "
+          + " WHERE "
+          + "    A.category = 10 "
+          + "    AND (P.state = 'OR' OR P.state = 'ID' OR P.state = 'CA')";
 
   private static final RowCoder RECORD_CODER = createRecordCoder();
   private NexmarkConfiguration configuration;
@@ -102,35 +101,24 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
     PCollectionTuple inputStreams = createStreamsTuple(auctions, people);
 
     PCollection<Row> queryResultsRows =
-        inputStreams
-            .apply(SqlTransform.query(QUERY_STRING))
-            .setCoder(RECORD_CODER);
+        inputStreams.apply(SqlTransform.query(QUERY_STRING)).setCoder(RECORD_CODER);
 
-    return queryResultsRows
-        .apply(nameCityStateIdParDo())
-        .setCoder(NameCityStateId.CODER);
+    return queryResultsRows.apply(nameCityStateIdParDo()).setCoder(NameCityStateId.CODER);
   }
 
   private PCollection<Event> fixedWindows(PCollection<Event> events) {
     return events.apply(
-        Window.into(
-            FixedWindows.of(
-                Duration.standardSeconds(configuration.windowSizeSec))));
+        Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
   }
 
-  private PCollectionTuple createStreamsTuple(
-      PCollection<Row> auctions,
-      PCollection<Row> people) {
+  private PCollectionTuple createStreamsTuple(PCollection<Row> auctions, PCollection<Row> people) {
 
-    return PCollectionTuple
-        .of(new TupleTag<>("Auction"), auctions)
+    return PCollectionTuple.of(new TupleTag<>("Auction"), auctions)
         .and(new TupleTag<>("Person"), people);
   }
 
   private PCollection<Row> filter(
-      PCollection<Event> allEvents,
-      SerializableFunction<Event, Boolean> filter,
-      Class clazz) {
+      PCollection<Event> allEvents, SerializableFunction<Event, Boolean> filter, Class clazz) {
 
     String modelName = clazz.getSimpleName();
 
@@ -145,15 +133,13 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
   }
 
   private static RowCoder createRecordCoder() {
-    return
-        Schema
-            .builder()
-            .addStringField("name")
-            .addStringField("city")
-            .addStringField("state")
-            .addInt64Field("id")
-            .build()
-            .getRowCoder();
+    return Schema.builder()
+        .addStringField("name")
+        .addStringField("city")
+        .addStringField("state")
+        .addInt64Field("id")
+        .build()
+        .getRowCoder();
   }
 
   private ParDo.SingleOutput<Row, NameCityStateId> nameCityStateIdParDo() {

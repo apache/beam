@@ -26,16 +26,14 @@ import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * Executor for Nexmark queries. Allows to decouple from NexmarkQuery
- * and test independently.
- */
+/** Executor for Nexmark queries. Allows to decouple from NexmarkQuery and test independently. */
 public class NexmarkSqlQuery<T extends KnownSize> extends NexmarkQuery {
 
   private PTransform<PCollection<Event>, PCollection<T>> queryTransform;
 
-  public NexmarkSqlQuery(NexmarkConfiguration configuration,
-                         PTransform<PCollection<Event>, PCollection<T>> queryTransform) {
+  public NexmarkSqlQuery(
+      NexmarkConfiguration configuration,
+      PTransform<PCollection<Event>, PCollection<T>> queryTransform) {
     super(configuration, queryTransform.getName());
     this.queryTransform = queryTransform;
   }

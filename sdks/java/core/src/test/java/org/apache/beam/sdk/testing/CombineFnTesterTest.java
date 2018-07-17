@@ -38,9 +38,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CombineFnTester}.
- */
+/** Tests for {@link CombineFnTester}. */
 @RunWith(JUnit4.class)
 public class CombineFnTesterTest {
   @Test
@@ -178,7 +176,7 @@ public class CombineFnTesterTest {
 
           @Override
           public KV<Integer, Integer> mergeAccumulators(
-            Iterable<KV<Integer, Integer>> accumulators) {
+              Iterable<KV<Integer, Integer>> accumulators) {
             int result = 0;
             int numMerges = 0;
             for (KV<Integer, Integer> accum : accumulators) {

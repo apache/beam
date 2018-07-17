@@ -37,32 +37,30 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link RowSize}.
- */
+/** Unit tests for {@link RowSize}. */
 public class RowSizeTest {
 
-  private static final Schema ROW_TYPE = Schema.builder()
-      .addByteField("f_tinyint")
-      .addInt16Field("f_smallint")
-      .addInt32Field("f_int")
-      .addInt64Field("f_bigint")
-      .addFloatField("f_float")
-      .addDoubleField("f_double")
-      .addDecimalField("f_decimal")
-      .addBooleanField("f_boolean")
-      .addField("f_time", CalciteUtils.TIME)
-      .addField("f_date", CalciteUtils.DATE)
-      .addDateTimeField("f_timestamp")
-      .addField("f_char", CalciteUtils.CHAR)
-      .addField("f_varchar", CalciteUtils.VARCHAR)
-      .build();
+  private static final Schema ROW_TYPE =
+      Schema.builder()
+          .addByteField("f_tinyint")
+          .addInt16Field("f_smallint")
+          .addInt32Field("f_int")
+          .addInt64Field("f_bigint")
+          .addFloatField("f_float")
+          .addDoubleField("f_double")
+          .addDecimalField("f_decimal")
+          .addBooleanField("f_boolean")
+          .addField("f_time", CalciteUtils.TIME)
+          .addField("f_date", CalciteUtils.DATE)
+          .addDateTimeField("f_timestamp")
+          .addField("f_char", CalciteUtils.CHAR)
+          .addField("f_varchar", CalciteUtils.VARCHAR)
+          .build();
 
   private static final long ROW_SIZE = 96L;
 
   private static final Row ROW =
-      Row
-          .withSchema(ROW_TYPE)
+      Row.withSchema(ROW_TYPE)
           .addValues(
               (byte) 1,
               (short) 2,
@@ -89,15 +87,13 @@ public class RowSizeTest {
 
   @Test
   public void testParDoConvertsToRecordSize() throws Exception {
-    PCollection<Row> rows = testPipeline.apply(
-        TestStream
-            .create(ROW_TYPE.getRowCoder())
-            .addElements(ROW)
-            .advanceWatermarkToInfinity());
+    PCollection<Row> rows =
+        testPipeline.apply(
+            TestStream.create(ROW_TYPE.getRowCoder())
+                .addElements(ROW)
+                .advanceWatermarkToInfinity());
 
-    PAssert
-        .that(rows)
-        .satisfies(new CorrectSize());
+    PAssert.that(rows).satisfies(new CorrectSize());
 
     testPipeline.run();
   }

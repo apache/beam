@@ -26,8 +26,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for Beam values that have
- * been encoded to byte data by a {@link Coder}.
+ * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for Beam values that have been
+ * encoded to byte data by a {@link Coder}.
  */
 public class EncodedValueComparator extends TypeComparator<byte[]> {
 
@@ -71,9 +71,9 @@ public class EncodedValueComparator extends TypeComparator<byte[]> {
 
     EncodedValueComparator otherEncodedValueComparator = (EncodedValueComparator) other;
 
-    int len = Math.min(
-        encodedReferenceKey.length,
-        otherEncodedValueComparator.encodedReferenceKey.length);
+    int len =
+        Math.min(
+            encodedReferenceKey.length, otherEncodedValueComparator.encodedReferenceKey.length);
 
     for (int i = 0; i < len; i++) {
       byte b1 = encodedReferenceKey[i];
@@ -87,7 +87,6 @@ public class EncodedValueComparator extends TypeComparator<byte[]> {
         encodedReferenceKey.length - otherEncodedValueComparator.encodedReferenceKey.length;
     return ascending ? -result : result;
   }
-
 
   @Override
   public int compare(byte[] first, byte[] second) {
@@ -105,9 +104,8 @@ public class EncodedValueComparator extends TypeComparator<byte[]> {
   }
 
   @Override
-  public int compareSerialized(
-      DataInputView firstSource,
-      DataInputView secondSource) throws IOException {
+  public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+      throws IOException {
     int lengthFirst = firstSource.readInt();
     int lengthSecond = secondSource.readInt();
 
@@ -124,8 +122,6 @@ public class EncodedValueComparator extends TypeComparator<byte[]> {
     int result = lengthFirst - lengthSecond;
     return ascending ? result : -result;
   }
-
-
 
   @Override
   public boolean supportsNormalizedKey() {
@@ -190,6 +186,6 @@ public class EncodedValueComparator extends TypeComparator<byte[]> {
 
   @Override
   public TypeComparator[] getFlatComparators() {
-    return new TypeComparator[] { this.duplicate() };
+    return new TypeComparator[] {this.duplicate()};
   }
 }

@@ -27,8 +27,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
 /**
- * Checkpoint for an unbounded JmsIO.Read. Consists of
- * JMS destination name, and the latest message ID consumed so far.
+ * Checkpoint for an unbounded JmsIO.Read. Consists of JMS destination name, and the latest message
+ * ID consumed so far.
  */
 @DefaultCoder(AvroCoder.class)
 public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
@@ -36,8 +36,7 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
   private final List<Message> messages = new ArrayList<>();
   private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  public JmsCheckpointMark() {
-  }
+  public JmsCheckpointMark() {}
 
   protected List<Message> getMessages() {
     return this.messages;
@@ -75,5 +74,4 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
     }
     messages.clear();
   }
-
 }

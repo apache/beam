@@ -22,9 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
 
-/**
- * Coder for {@link BitSet}.
- */
+/** Coder for {@link BitSet}. */
 public class BitSetCoder extends AtomicCoder<BitSet> {
   private static final BitSetCoder INSTANCE = new BitSetCoder();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
@@ -36,8 +34,7 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
   }
 
   @Override
-  public void encode(BitSet value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(BitSet value, OutputStream outStream) throws CoderException, IOException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -56,8 +53,7 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
   }
 
   @Override
-  public BitSet decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+  public BitSet decode(InputStream inStream, Context context) throws CoderException, IOException {
     return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
   }
 

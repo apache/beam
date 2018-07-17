@@ -17,18 +17,27 @@
 #
 
 """Unit tests for filesystem module."""
+from __future__ import absolute_import
+from __future__ import division
+
 import bz2
 import gzip
 import logging
 import os
 import tempfile
 import unittest
-from StringIO import StringIO
+from builtins import range
+from io import BytesIO
+
+from future import standard_library
+from future.utils import iteritems
 
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
+
+standard_library.install_aliases()
 
 
 class TestingFileSystem(FileSystem):
@@ -59,7 +68,7 @@ class TestingFileSystem(FileSystem):
     self._files[path] = size
 
   def _list(self, dir_or_prefix):
-    for path, size in self._files.iteritems():
+    for path, size in iteritems(self._files):
       if path.startswith(dir_or_prefix):
         yield FileMetadata(path, size)
 
@@ -254,14 +263,15 @@ atomized in instants hammered around the
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
                                        read_size=self.read_block_size)
-        reference_fd = StringIO(self.content)
+        reference_fd = BytesIO(self.content)
 
-        # Note: content (readline) check must come before position (tell) check
-        # because cStringIO's tell() reports out of bound positions (if we seek
-        # beyond the file) up until a real read occurs.
+        # Note: BytesIO's tell() reports out of bound positions (if we seek
+        # beyond the file), therefore we need to cap it to max_position
         # _CompressedFile.tell() always stays within the bounds of the
         # uncompressed content.
-        for seek_position in (-1, 0, 1,
+        # Negative seek position argument is not supported for BytesIO with
+        # whence set to SEEK_SET.
+        for seek_position in (0, 1,
                               len(self.content)-1, len(self.content),
                               len(self.content) + 1):
           compressed_fd.seek(seek_position, os.SEEK_SET)
@@ -273,6 +283,8 @@ atomized in instants hammered around the
 
           uncompressed_position = compressed_fd.tell()
           reference_position = reference_fd.tell()
+          max_position = len(self.content)
+          reference_position = min(reference_position, max_position)
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_seek_cur(self):
@@ -281,13 +293,16 @@ atomized in instants hammered around the
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
                                        read_size=self.read_block_size)
-        reference_fd = StringIO(self.content)
+        reference_fd = BytesIO(self.content)
 
         # Test out of bound, inbound seeking in both directions
+        # Note: BytesIO's seek() reports out of bound positions (if we seek
+        # beyond the file), therefore we need to cap it to max_position (to
+        # make it consistent with the old StringIO behavior
         for seek_position in (-1, 0, 1,
-                              len(self.content) / 2,
-                              len(self.content) / 2,
-                              -1 * len(self.content) / 2):
+                              len(self.content) // 2,
+                              len(self.content) // 2,
+                              -1 * len(self.content) // 2):
           compressed_fd.seek(seek_position, os.SEEK_CUR)
           reference_fd.seek(seek_position, os.SEEK_CUR)
 
@@ -297,6 +312,9 @@ atomized in instants hammered around the
 
           reference_position = reference_fd.tell()
           uncompressed_position = compressed_fd.tell()
+          max_position = len(self.content)
+          reference_position = min(reference_position, max_position)
+          reference_fd.seek(reference_position, os.SEEK_SET)
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_read_from_end_returns_no_data(self):

@@ -20,9 +20,7 @@ package org.apache.beam.runners.samza.runtime;
 
 import org.apache.beam.runners.core.StateNamespace;
 
-/**
- * Timer key which is used to register and delete timers.
- */
+/** Timer key which is used to register and delete timers. */
 class TimerKey<K> {
   private final K key;
   private final byte[] keyBytes;
@@ -84,9 +82,13 @@ class TimerKey<K> {
   @Override
   public String toString() {
     return "TimerKey{"
-        + "key=" + key
-        + ", stateNamespace=" + stateNamespace
-        + ", timerId='" + timerId + '\''
+        + "key="
+        + key
+        + ", stateNamespace="
+        + stateNamespace
+        + ", timerId='"
+        + timerId
+        + '\''
         + '}';
   }
 }

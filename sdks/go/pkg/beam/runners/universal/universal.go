@@ -54,7 +54,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Name:               jobopts.GetJobName(),
 		Experiments:        jobopts.GetExperiments(),
 		Worker:             *jobopts.WorkerBinary,
-		InternalJavaRunner: *jobopts.InternalJavaRunner,
 	}
 	_, err = runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 	return err

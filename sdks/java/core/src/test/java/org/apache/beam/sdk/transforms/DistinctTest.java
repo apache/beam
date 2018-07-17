@@ -67,7 +67,6 @@ public class DistinctTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-
   @Test
   @Category(NeedsRunner.class)
   public void testDistinct() {
@@ -315,21 +314,23 @@ public class DistinctTest {
             Distinct.withRepresentativeValueFn(String::length)
                 .withRepresentativeType(TypeDescriptor.of(Integer.class)));
 
-    PAssert.that(deduped).satisfies((Iterable<String> strs) -> {
-      Multimap<Integer, String> predupedContents = HashMultimap.create();
-      predupedContents.put(3, "foo");
-      predupedContents.put(4, "foos");
-      predupedContents.put(6, "barbaz");
-      predupedContents.put(6, "bazbar");
+    PAssert.that(deduped)
+        .satisfies(
+            (Iterable<String> strs) -> {
+              Multimap<Integer, String> predupedContents = HashMultimap.create();
+              predupedContents.put(3, "foo");
+              predupedContents.put(4, "foos");
+              predupedContents.put(6, "barbaz");
+              predupedContents.put(6, "bazbar");
 
-      Set<Integer> seenLengths = new HashSet<>();
-      for (String s : strs) {
-        assertThat(predupedContents.values(), hasItem(s));
-        assertThat(seenLengths, not(contains(s.length())));
-        seenLengths.add(s.length());
-      }
-      return null;
-    });
+              Set<Integer> seenLengths = new HashSet<>();
+              for (String s : strs) {
+                assertThat(predupedContents.values(), hasItem(s));
+                assertThat(seenLengths, not(contains(s.length())));
+                seenLengths.add(s.length());
+              }
+              return null;
+            });
 
     p.run();
   }

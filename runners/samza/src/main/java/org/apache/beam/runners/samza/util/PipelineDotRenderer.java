@@ -24,9 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 
-/**
- * A DOT renderer for BEAM {@link Pipeline} DAG.
- */
+/** A DOT renderer for BEAM {@link Pipeline} DAG. */
 public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   public static String toDotString(Pipeline pipeline) {
     final PipelineDotRenderer visitor = new PipelineDotRenderer();
@@ -46,14 +44,10 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   private PipelineDotRenderer() {}
 
   @Override
-  public void enterPipeline(Pipeline p) {
-
-  }
+  public void enterPipeline(Pipeline p) {}
 
   @Override
-  public void leavePipeline(Pipeline pipeline) {
-
-  }
+  public void leavePipeline(Pipeline pipeline) {}
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
@@ -74,31 +68,28 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     final int nodeId = nextNodeId++;
     node.getOutputs()
         .values()
-        .forEach(x -> {
-          valueToProducerNodeId.put(x, nodeId);
-          writeLine("%d [label=\"%s\"]", nodeId, escapeString(node.getTransform().getName()));
-        });
+        .forEach(
+            x -> {
+              valueToProducerNodeId.put(x, nodeId);
+              writeLine("%d [label=\"%s\"]", nodeId, escapeString(node.getTransform().getName()));
+            });
 
     node.getInputs()
-        .forEach((key, value) -> {
-          final int producerId = valueToProducerNodeId.get(value);
-          String style = "solid";
-          if (node.getTransform().getAdditionalInputs().containsKey(key)) {
-            style = "dashed";
-          }
-          writeLine(
-              "%d -> %d [style=%s label=\"%s\"]",
-              producerId,
-              nodeId,
-              style,
-              escapeString(shortenTag(key.getId())));
-        });
+        .forEach(
+            (key, value) -> {
+              final int producerId = valueToProducerNodeId.get(value);
+              String style = "solid";
+              if (node.getTransform().getAdditionalInputs().containsKey(key)) {
+                style = "dashed";
+              }
+              writeLine(
+                  "%d -> %d [style=%s label=\"%s\"]",
+                  producerId, nodeId, style, escapeString(shortenTag(key.getId())));
+            });
   }
 
   @Override
-  public void visitValue(PValue value, TransformHierarchy.Node producer) {
-
-  }
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 
   private void begin() {
     writeLine("digraph {");
@@ -119,7 +110,7 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     indent -= 4;
   }
 
-  private void writeLine(String format, Object ...args) {
+  private void writeLine(String format, Object... args) {
     if (indent != 0) {
       dotBuilder.append(String.format("%-" + indent + "s", ""));
     }

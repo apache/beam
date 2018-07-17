@@ -27,10 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.ListCoder;
 
-
-/**
- * A fake implementation of BigQuery's query service..
- */
+/** A fake implementation of BigQuery's query service.. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
@@ -72,7 +69,6 @@ public class FakeBigQueryServices implements BigQueryServices {
     listCoder.encode(rows, output, Context.OUTER);
     return Base64.encodeBase64String(output.toByteArray());
   }
-
 
   // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
   static TableRow convertNumbers(TableRow tableRow) {

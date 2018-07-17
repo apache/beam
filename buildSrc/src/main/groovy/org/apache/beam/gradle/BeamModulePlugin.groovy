@@ -19,8 +19,10 @@
 package org.apache.beam.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.plugins.quality.FindBugs
 import org.gradle.api.publish.maven.MavenPublication
@@ -62,10 +64,6 @@ class BeamModulePlugin implements Plugin<Project> {
      * will be applied to all projects.
      */
     List<String> disableLintWarnings = []
-
-    /** Controls whether spotless plugin enforces autoformat. */
-    //TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this default to true?
-    boolean enableSpotless = false
 
     /** Controls whether tests are run with shadowJar. */
     boolean testShadowJar = false
@@ -343,10 +341,10 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
         commons_io_2x                               : "commons-io:commons-io:2.5",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
+        commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.4.0",
         datastore_v1_protos                         : "com.google.cloud.datastore:datastore-v1-protos:1.3.0",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
-        findbugs_jsr305                             : "com.google.code.findbugs:jsr305:3.0.1",
         gax_grpc                                    : "com.google.api:gax-grpc:0.20.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
@@ -624,10 +622,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
-      if (configuration.enableSpotless) {
-        project.apply plugin: "com.diffplug.gradle.spotless"
-        project.spotless { java { googleJavaFormat() } }
-      }
+      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.spotless { java { googleJavaFormat() } }
 
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
@@ -647,7 +643,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
-      project.tasks.withType(JavaCompile) { options.compilerArgs += "-XepDisableWarningsInGeneratedCode" }
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
@@ -668,10 +663,16 @@ class BeamModulePlugin implements Plugin<Project> {
         testCompile.extendsFrom shadowTest
       }
 
+      project.jar {
+        classifier = "unshaded"
+        zip64 true
+      }
+
       // Always configure the shadowJar classifier and merge service files.
       project.shadowJar({
-        classifier = "shaded"
+        classifier = null
         mergeServiceFiles()
+        zip64 true
         into("META-INF/") {
           from "${project.rootProject.projectDir}/LICENSE"
           from "${project.rootProject.projectDir}/NOTICE"
@@ -682,12 +683,12 @@ class BeamModulePlugin implements Plugin<Project> {
       project.task('shadowTestJar', type: ShadowJar, {
         group = "Shadow"
         description = "Create a combined JAR of project and test dependencies"
-        classifier = "shaded-tests"
+        classifier = "tests"
         from project.sourceSets.test.output
         configurations = [
           project.configurations.testRuntime
         ]
-
+        zip64 true
         exclude "META-INF/INDEX.LIST"
         exclude "META-INF/*.SF"
         exclude "META-INF/*.DSA"
@@ -758,40 +759,12 @@ artifactId=${project.name}
         }
         project.artifacts.archives project.javadocJar
 
-        // Only sign artifacts if we are performing a release
-        if (isRelease(project)) {
-          project.apply plugin: "signing"
-          project.signing {
-            useGpgCmd()
-            // Drop the unshaded jar because we don't want to publish it.
-            // Otherwise the unshaded one is the only one published since they
-            // both have no classifier and the names conflict.
-            def unshaded = project.configurations.archives.getArtifacts().matching({ artifact ->
-              artifact.classifier == ""
-            }).toList()
-            project.configurations.archives.getArtifacts().removeAll(unshaded)
-            sign project.configurations.archives
-          }
-
-          project.model {
-            tasks.generatePomFileForMavenJavaPublication {
-              destination = project.file("${project.buildDir}/publications/mavenJava/pom.xml")
-            }
-            tasks.publishMavenJavaPublicationToMavenLocal { dependsOn project.tasks.signArchives }
-            tasks.publishMavenJavaPublicationToMavenRepository { dependsOn project.tasks.signArchives }
-          }
-        }
-
-        project.uploadArchives {
-          repositories {
-            mavenDeployer {
-              beforeDeployment { deployment -> isRelease() && signing.signPom(deployment) }
-            }
-          }
-        }
-
         project.publishing {
           repositories {
+            maven {
+              name "testPublicationLocal"
+              url "file://${project.rootProject.projectDir}/testPublication/"
+            }
             maven {
               url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease()
                       ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
@@ -829,12 +802,11 @@ artifactId=${project.name}
 
           publications {
             mavenJava(MavenPublication) {
-              artifact project.shadowJar { // Strip the "shaded" classifier.
-                classifier null }
-              artifact project.shadowTestJar, { classifier "tests" }
-              artifact project.sourcesJar, { classifier "sources" }
-              artifact project.testSourcesJar, { classifier "testSources" }
-              artifact project.javadocJar, { classifier "javadoc" }
+              artifact project.shadowJar
+              artifact project.shadowTestJar
+              artifact project.sourcesJar
+              artifact project.testSourcesJar
+              artifact project.javadocJar
 
               pom {
                 name = project.description
@@ -949,34 +921,16 @@ artifactId=${project.name}
   limitations under the License.
 ''')
                 elem.insertBefore(hdr, elem.getFirstChild())
-
-                // create the sign pom artifact
-                def pomFile = project.file("${project.buildDir}/publications/mavenJava/pom.xml")
-                writeTo(pomFile)
-                if (isRelease()) {
-                  def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                  artifact(pomAscFile) {
-                    classifier = null
-                    extension = 'pom.asc'
-                  }
-                }
-              }
-
-              // create the signed artifacts
-              if (isRelease(project)) {
-                project.tasks.signArchives.signatureFiles.each {
-                  artifact(it) {
-                    def matcher = it.file =~ /-(tests|sources|test-sources|javadoc)\.jar\.asc$/
-                    if (matcher.find()) {
-                      classifier = matcher.group(1)
-                    } else {
-                      classifier = null
-                    }
-                    extension = 'jar.asc'
-                  }
-                }
               }
             }
+          }
+        }
+        // Only sign artifacts if we are performing a release
+        if (isRelease(project)) {
+          project.apply plugin: "signing"
+          project.signing {
+            useGpgCmd()
+            sign project.publishing.publications
           }
         }
       }
@@ -1259,6 +1213,139 @@ artifactId=${project.name}
           generatedSourceDirs += project.file(generatedGrpcTestJavaDir)
         }
       }
+    }
+
+    /** ***********************************************************************************************/
+
+    project.ext.applyPortabilityNature = {
+      println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
+      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: {
+        // The relocation paths below specifically use the major version number of the dependency
+        // since we assume that packages following semantic versioning rules. For packages
+        // with a major version number that is 0 (implying that the dependency is unstable),
+        // we use the full version identifier in the relocated path (e.g. v0_minor_patch).
+        // For stable dependencies, if two or more packages use the same major version number,
+        // we should bias to vendoring the highest version to minimize jar files instead of
+        // vendoring using their minor or patch version numbers. Some packages may be incompatible
+        // across minor or patch versions and in those instances we should either attempt to update our
+        // usage of the dependency so we don't need to vendor both or choose to vendor
+        // both specifying the minor version in the relocation path.
+
+        // To produce the list of necessary relocations, one needs to start with a set of target
+        // packages that one wants to vendor, find all necessary transitive dependencies of that
+        // set and provide relocations for each such that all necessary packages and their
+        // dependencies are relocated. Any optional dependency that doesn't need relocation
+        // must be excluded via an 'exclude' rule. There is additional complexity of libraries that use
+        // JNI or reflection and have to be handled on case by case basis by learning whether
+        // they support relocation and how would one go about doing it by reading any documentation
+        // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
+        // ensures that there are no classes outside of the 'org.apache.beam' namespace.
+
+        // guava uses the com.google.common and com.google.thirdparty package namespaces
+        relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
+        relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
+
+        relocate "com.google.protobuf", "org.apache.beam.vendor.protobuf.v3.com.google.protobuf"
+        relocate "com.google.gson", "org.apache.beam.vendor.gson.v2.com.google.gson"
+        relocate "io.grpc", "org.apache.beam.vendor.grpc.v1.io.grpc"
+        relocate "com.google.auth", "org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth"
+        relocate "com.google.api", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.api"
+        relocate "com.google.cloud", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.cloud"
+        relocate "com.google.logging", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.logging"
+        relocate "com.google.longrunning", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.longrunning"
+        relocate "com.google.rpc", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.rpc"
+        relocate "com.google.type", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.type"
+        relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_11_0.io.opencensus"
+
+        // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
+        relocate "io.netty", "org.apache.beam.vendor.netty.v4.io.netty"
+        // We have to be careful with these replacements as they must not match any
+        // string in NativeLibraryLoader, else they cause corruption. Note that
+        // this includes concatenation of string literals and constants.
+        relocate 'META-INF/native/libnetty', 'META-INF/native/liborg_apache_beam_vendor_netty_v4_netty'
+        relocate 'META-INF/native/netty', 'META-INF/native/org_apache_beam_vendor_netty_v4_netty'
+
+        // Don't include errorprone, JDK8 annotations, objenesis, junit, and mockito in the bundled jar
+        exclude "com/google/errorprone/**"
+        exclude "com/google/instrumentation/**"
+        exclude "javax/annotation/**"
+        exclude "junit/**"
+        exclude "org/hamcrest/**"
+        exclude "org/junit/**"
+        exclude "org/mockito/**"
+        exclude "org/objenesis/**"
+      })
+
+      // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
+      // because we would like to have the freedom to choose which versions of dependencies we
+      // are using for the portability APIs separate from what is being used inside other modules such as GCP.
+      project.configurations.all { config ->
+        config.resolutionStrategy { forcedModules = []}
+      }
+
+      project.apply plugin: "com.google.protobuf"
+      project.protobuf {
+        protoc { // The artifact spec for the Protobuf Compiler
+          artifact = "com.google.protobuf:protoc:3.5.1" }
+
+        // Configure the codegen plugins
+        plugins {
+          // An artifact spec for a protoc plugin, with "grpc" as
+          // the identifier, which can be referred to in the "plugins"
+          // container of the "generateProtoTasks" closure.
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.12.0" }
+        }
+
+        generateProtoTasks {
+          ofSourceSet("main")*.plugins {
+            // Apply the "grpc" plugin whose spec is defined above, without
+            // options.  Note the braces cannot be omitted, otherwise the
+            // plugin will not be added. This is because of the implicit way
+            // NamedDomainObjectContainer binds the methods.
+            grpc { }
+          }
+        }
+      }
+
+      project.dependencies {
+        compile 'com.google.guava:guava:20.0'
+        compile 'com.google.protobuf:protobuf-java:3.5.1'
+        compile 'com.google.protobuf:protobuf-java-util:3.5.1'
+        compile 'com.google.code.gson:gson:2.7'
+        compile 'io.grpc:grpc-auth:1.12.0'
+        compile 'io.grpc:grpc-core:1.12.0'
+        compile 'io.grpc:grpc-context:1.12.0'
+        compile 'io.grpc:grpc-netty:1.12.0'
+        compile 'io.grpc:grpc-protobuf:1.12.0'
+        compile 'io.grpc:grpc-stub:1.12.0'
+        compile 'io.netty:netty-transport-native-epoll:4.1.22.Final'
+        compile 'io.netty:netty-tcnative-boringssl-static:2.0.7.Final'
+        compile 'com.google.auth:google-auth-library-credentials:0.9.1'
+        compile 'io.grpc:grpc-testing:1.12.0'
+        compile 'com.google.api.grpc:proto-google-common-protos:1.0.0'
+        compile 'io.opencensus:opencensus-api:0.11.0'
+        compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.11.0'
+        shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
+      }
+
+      project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: ['shadowJar', 'shadowTestJar']) {
+        inputs.files project.configurations.shadow.artifacts.files
+        inputs.files project.configurations.shadowTest.artifacts.files
+        doLast {
+          (project.configurations.shadow.artifacts.files + project.configurations.shadowTest.artifacts.files).each {
+            FileTree exposedClasses = project.zipTree(it).matching {
+              include "**/*.class"
+              exclude "org/apache/beam/**"
+            }
+            if (exposedClasses.files) {
+              throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+            }
+          }
+        }
+      }
+      project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
+
+      // TODO(BEAM-4544): Integrate intellij support into this.
     }
 
     /** ***********************************************************************************************/

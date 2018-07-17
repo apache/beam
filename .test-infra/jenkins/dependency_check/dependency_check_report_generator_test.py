@@ -19,6 +19,7 @@
 #   This script performs testing of scenarios from verify_performance_test_results.py
 #
 
+from __future__ import print_function
 import unittest, mock
 from mock import patch
 from datetime import datetime
@@ -39,7 +40,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
   """Tests for `dependency_check_report_generator.py`."""
 
   def setUp(self):
-    print "Test name:", self._testMethodName
+    print("Test name:", self._testMethodName)
 
 
   @patch('google.cloud.bigquery.Client')

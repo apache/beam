@@ -76,8 +76,7 @@ abstract class CustomOptional<T> {
 
     private static final Absent<Object> INSTANCE = new Absent<>();
 
-    private Absent() {
-    }
+    private Absent() {}
 
     @Override
     public boolean isPresent() {

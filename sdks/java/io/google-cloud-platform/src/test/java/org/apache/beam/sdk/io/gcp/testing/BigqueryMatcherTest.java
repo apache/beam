@@ -47,9 +47,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link BigqueryMatcher}.
- */
+/** Tests for {@link BigqueryMatcher}. */
 @RunWith(JUnit4.class)
 public class BigqueryMatcherTest {
   private final String appName = "test-app";
@@ -72,9 +70,10 @@ public class BigqueryMatcherTest {
 
   @Test
   public void testBigqueryMatcherThatSucceeds() throws Exception {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(
-            appName, projectId, query, "9bb47f5c90d2a99cad526453dff5ed5ec74650dc"));
+    BigqueryMatcher matcher =
+        spy(
+            new BigqueryMatcher(
+                appName, projectId, query, "9bb47f5c90d2a99cad526453dff5ed5ec74650dc"));
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
@@ -85,8 +84,8 @@ public class BigqueryMatcherTest {
 
   @Test
   public void testBigqueryMatcherFailsForChecksumMismatch() throws IOException {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "incorrect-checksum"));
+    BigqueryMatcher matcher =
+        spy(new BigqueryMatcher(appName, projectId, query, "incorrect-checksum"));
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
@@ -103,8 +102,7 @@ public class BigqueryMatcherTest {
 
   @Test
   public void testBigqueryMatcherFailsWhenQueryJobNotComplete() throws Exception {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    BigqueryMatcher matcher = spy(new BigqueryMatcher(appName, projectId, query, "some-checksum"));
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(new QueryResponse().setJobComplete(false));
 
@@ -121,8 +119,7 @@ public class BigqueryMatcherTest {
 
   @Test
   public void testQueryWithRetriesWhenServiceFails() throws Exception {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    BigqueryMatcher matcher = spy(new BigqueryMatcher(appName, projectId, query, "some-checksum"));
     when(mockQuery.execute()).thenThrow(new IOException());
 
     thrown.expect(RuntimeException.class);
@@ -141,8 +138,7 @@ public class BigqueryMatcherTest {
 
   @Test
   public void testQueryWithRetriesWhenQueryResponseNull() throws Exception {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    BigqueryMatcher matcher = spy(new BigqueryMatcher(appName, projectId, query, "some-checksum"));
     when(mockQuery.execute()).thenReturn(null);
 
     thrown.expect(RuntimeException.class);

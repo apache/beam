@@ -120,7 +120,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     @SuppressWarnings("Finally") // Cannot use try-with-resources in order to ensure we don't
-                                 // double-close the reader.
+    // double-close the reader.
     public void processElement(
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
       UncommittedBundle<OutputT> output =
@@ -155,8 +155,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             reader = null;
             toClose.close();
           }
-          UnboundedSourceShard<OutputT, CheckpointMarkT> residual = UnboundedSourceShard.of(
-                shard.getSource(), shard.getDeduplicator(), reader, finishedCheckpoint);
+          UnboundedSourceShard<OutputT, CheckpointMarkT> residual =
+              UnboundedSourceShard.of(
+                  shard.getSource(), shard.getDeduplicator(), reader, finishedCheckpoint);
 
           resultBuilder
               .addOutput(output)
@@ -316,21 +317,18 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
 
-    InputProvider(
-        EvaluationContext evaluationContext, PipelineOptions options) {
+    InputProvider(EvaluationContext evaluationContext, PipelineOptions options) {
       this.evaluationContext = evaluationContext;
       this.options = options;
     }
 
     @Override
     public Collection<CommittedBundle<UnboundedSourceShard<T, ?>>> getInitialInputs(
-        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>
-            transform,
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform,
         int targetParallelism)
         throws Exception {
       UnboundedSource<T, ?> source = ReadTranslation.unboundedSourceFromTransform(transform);
-      List<? extends UnboundedSource<T, ?>> splits =
-          source.split(targetParallelism, options);
+      List<? extends UnboundedSource<T, ?>> splits = source.split(targetParallelism, options);
       UnboundedReadDeduplicator deduplicator =
           source.requiresDeduping()
               ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()
@@ -339,8 +337,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       ImmutableList.Builder<CommittedBundle<UnboundedSourceShard<T, ?>>> initialShards =
           ImmutableList.builder();
       for (UnboundedSource<T, ?> split : splits) {
-        UnboundedSourceShard<T, ?> shard =
-            UnboundedSourceShard.unstarted(split, deduplicator);
+        UnboundedSourceShard<T, ?> shard = UnboundedSourceShard.unstarted(split, deduplicator);
         initialShards.add(
             evaluationContext
                 .<UnboundedSourceShard<T, ?>>createRootBundle()

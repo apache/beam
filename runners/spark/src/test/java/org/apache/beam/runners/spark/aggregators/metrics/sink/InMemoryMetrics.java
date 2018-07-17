@@ -25,18 +25,17 @@ import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
-/**
- * An in-memory {@link Sink} implementation for tests.
- */
+/** An in-memory {@link Sink} implementation for tests. */
 public class InMemoryMetrics implements Sink {
 
   private static WithMetricsSupport extendedMetricsRegistry;
   private static MetricRegistry internalMetricRegistry;
 
   @SuppressWarnings("UnusedParameters")
-  public InMemoryMetrics(final Properties properties,
-                         final MetricRegistry metricRegistry,
-                         final org.apache.spark.SecurityManager securityMgr) {
+  public InMemoryMetrics(
+      final Properties properties,
+      final MetricRegistry metricRegistry,
+      final org.apache.spark.SecurityManager securityMgr) {
     extendedMetricsRegistry = WithMetricsSupport.forRegistry(metricRegistry);
     internalMetricRegistry = metricRegistry;
   }
@@ -77,18 +76,11 @@ public class InMemoryMetrics implements Sink {
   }
 
   @Override
-  public void start() {
-
-  }
+  public void start() {}
 
   @Override
-  public void stop() {
-
-  }
+  public void stop() {}
 
   @Override
-  public void report() {
-
-  }
-
+  public void report() {}
 }

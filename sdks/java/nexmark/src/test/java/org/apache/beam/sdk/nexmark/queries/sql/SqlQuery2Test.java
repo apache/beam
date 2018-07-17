@@ -34,56 +34,51 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link SqlQuery2}.
- */
+/** Unit tests for {@link SqlQuery2}. */
 public class SqlQuery2Test {
 
   private static final ModelFieldsAdapter<Bid> BID_ADAPTER = ADAPTERS.get(Bid.class);
 
-  private static final List<Bid> BIDS = ImmutableList.of(
-      newBid(1L),
-      newBid(2L),
-      newBid(3L),
-      newBid(4L),
-      newBid(5L),
-      newBid(6L),
-      newBid(7L),
-      newBid(8L));
+  private static final List<Bid> BIDS =
+      ImmutableList.of(
+          newBid(1L),
+          newBid(2L),
+          newBid(3L),
+          newBid(4L),
+          newBid(5L),
+          newBid(6L),
+          newBid(7L),
+          newBid(8L));
 
-  private static final List<Event> BIDS_EVENTS = ImmutableList.of(
-      new Event(BIDS.get(0)),
-      new Event(BIDS.get(1)),
-      new Event(BIDS.get(2)),
-      new Event(BIDS.get(3)),
-      new Event(BIDS.get(4)),
-      new Event(BIDS.get(5)),
-      new Event(BIDS.get(6)),
-      new Event(BIDS.get(7)));
+  private static final List<Event> BIDS_EVENTS =
+      ImmutableList.of(
+          new Event(BIDS.get(0)),
+          new Event(BIDS.get(1)),
+          new Event(BIDS.get(2)),
+          new Event(BIDS.get(3)),
+          new Event(BIDS.get(4)),
+          new Event(BIDS.get(5)),
+          new Event(BIDS.get(6)),
+          new Event(BIDS.get(7)));
 
-  private static final List<AuctionPrice> BIDS_EVEN = ImmutableList.of(
-      newAuctionPrice(BIDS.get(1)),
-      newAuctionPrice(BIDS.get(3)),
-      newAuctionPrice(BIDS.get(5)),
-      newAuctionPrice(BIDS.get(7)));
+  private static final List<AuctionPrice> BIDS_EVEN =
+      ImmutableList.of(
+          newAuctionPrice(BIDS.get(1)),
+          newAuctionPrice(BIDS.get(3)),
+          newAuctionPrice(BIDS.get(5)),
+          newAuctionPrice(BIDS.get(7)));
 
-  private static final List<AuctionPrice> BIDS_EVERY_THIRD = ImmutableList.of(
-      newAuctionPrice(BIDS.get(2)),
-      newAuctionPrice(BIDS.get(5)));
-
+  private static final List<AuctionPrice> BIDS_EVERY_THIRD =
+      ImmutableList.of(newAuctionPrice(BIDS.get(2)), newAuctionPrice(BIDS.get(5)));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   @Test
   public void testSkipsEverySecondElement() throws Exception {
     PCollection<Event> bids =
-        PBegin
-            .in(testPipeline)
-            .apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
 
-    PAssert
-        .that(bids.apply(new SqlQuery2(2)))
-        .containsInAnyOrder(BIDS_EVEN);
+    PAssert.that(bids.apply(new SqlQuery2(2))).containsInAnyOrder(BIDS_EVEN);
 
     testPipeline.run();
   }
@@ -91,13 +86,9 @@ public class SqlQuery2Test {
   @Test
   public void testSkipsEveryThirdElement() throws Exception {
     PCollection<Event> bids =
-        PBegin
-            .in(testPipeline)
-            .apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
 
-    PAssert
-        .that(bids.apply(new SqlQuery2(3)))
-        .containsInAnyOrder(BIDS_EVERY_THIRD);
+    PAssert.that(bids.apply(new SqlQuery2(3))).containsInAnyOrder(BIDS_EVERY_THIRD);
 
     testPipeline.run();
   }

@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 /**
- * Defines a {@link org.apache.beam.sdk.coders.Coder}
- * for Protocol Buffers messages, {@code ProtoCoder}.
+ * Defines a {@link org.apache.beam.sdk.coders.Coder} for Protocol Buffers messages, {@code
+ * ProtoCoder}.
  *
  * @see org.apache.beam.sdk.extensions.protobuf.ProtoCoder
  */

@@ -33,18 +33,12 @@ import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * Hamcrest matcher for making assertions on {@link DisplayData} instances.
- */
+/** Hamcrest matcher for making assertions on {@link DisplayData} instances. */
 public class DisplayDataMatchers {
-  /**
-   * Do not instantiate.
-   */
+  /** Do not instantiate. */
   private DisplayDataMatchers() {}
 
-  /**
-   * Creates a matcher that matches if the examined {@link DisplayData} contains any items.
-   */
+  /** Creates a matcher that matches if the examined {@link DisplayData} contains any items. */
   public static Matcher<DisplayData> hasDisplayItem() {
     return new FeatureMatcher<DisplayData, Collection<DisplayData.Item>>(
         Matchers.not(Matchers.empty()), "DisplayData", "DisplayData") {
@@ -122,15 +116,13 @@ public class DisplayDataMatchers {
   private static Matcher<DisplayData> hasDisplayItem(
       String key, DisplayData.Type type, Object value) {
     DisplayData.FormattedItemValue formattedValue = type.format(value);
-    return hasDisplayItem(allOf(
-        hasKey(key),
-        hasType(type),
-        hasValue(formattedValue.getLongValue())));
+    return hasDisplayItem(
+        allOf(hasKey(key), hasType(type), hasValue(formattedValue.getLongValue())));
   }
 
   /**
-   * Creates a matcher that matches if the examined {@link DisplayData} contains any item
-   * matching the specified {@code itemMatcher}.
+   * Creates a matcher that matches if the examined {@link DisplayData} contains any item matching
+   * the specified {@code itemMatcher}.
    */
   public static Matcher<DisplayData> hasDisplayItem(Matcher<DisplayData.Item> itemMatcher) {
     return new HasDisplayDataItemMatcher(itemMatcher);
@@ -240,16 +232,16 @@ public class DisplayDataMatchers {
   }
 
   /**
-   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a key
-   * with the specified value.
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a key with the
+   * specified value.
    */
   public static Matcher<DisplayData.Item> hasKey(String key) {
     return hasKey(is(key));
   }
 
   /**
-   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a key
-   * matching the specified key matcher.
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a key matching
+   * the specified key matcher.
    */
   public static Matcher<DisplayData.Item> hasKey(Matcher<String> keyMatcher) {
     return new FeatureMatcher<DisplayData.Item, String>(keyMatcher, "with key", "key") {
@@ -260,15 +252,15 @@ public class DisplayDataMatchers {
     };
   }
 
-
   /**
    * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a path
    * matching the specified namespace.
    */
   public static Matcher<DisplayData.Item> hasPath(String... paths) {
-    DisplayData.Path path = (paths.length == 0)
-        ? DisplayData.Path.root()
-        : DisplayData.Path.absolute(paths[0], Arrays.copyOfRange(paths, 1, paths.length));
+    DisplayData.Path path =
+        (paths.length == 0)
+            ? DisplayData.Path.root()
+            : DisplayData.Path.absolute(paths[0], Arrays.copyOfRange(paths, 1, paths.length));
     return new FeatureMatcher<DisplayData.Item, DisplayData.Path>(
         is(path), " with namespace", "namespace") {
       @Override
@@ -279,8 +271,8 @@ public class DisplayDataMatchers {
   }
 
   /**
-   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains the
-   * specified namespace.
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains the specified
+   * namespace.
    */
   public static Matcher<DisplayData.Item> hasNamespace(Class<?> namespace) {
     return hasNamespace(Matchers.<Class<?>>is(namespace));
@@ -301,20 +293,20 @@ public class DisplayDataMatchers {
   }
 
   /**
-   * Creates a matcher that matches if the examined {@link DisplayData.Item} matches the
-   * specified type.
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} matches the specified
+   * type.
    */
   public static Matcher<DisplayData.Item> hasType(DisplayData.Type type) {
     return hasType(is(type));
   }
 
   /**
-   * Creates a matcher that matches if the examined {@link DisplayData.Item} has a type
-   * matching the specified type matcher.
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has a type matching the
+   * specified type matcher.
    */
   public static Matcher<DisplayData.Item> hasType(Matcher<DisplayData.Type> typeMatcher) {
     return new FeatureMatcher<DisplayData.Item, DisplayData.Type>(
-            typeMatcher, "with type", "type") {
+        typeMatcher, "with type", "type") {
       @Override
       protected DisplayData.Type featureValueOf(DisplayData.Item actual) {
         return actual.getType();
@@ -326,7 +318,6 @@ public class DisplayDataMatchers {
    * Creates a matcher that matches if the examined {@link DisplayData.Item} has the specified
    * value.
    */
-
   public static Matcher<DisplayData.Item> hasValue(Object value) {
     return hasValue(is(value));
   }
@@ -336,8 +327,7 @@ public class DisplayDataMatchers {
    * matching the specified value matcher.
    */
   public static <T> Matcher<DisplayData.Item> hasValue(Matcher<T> valueMatcher) {
-    return new FeatureMatcher<DisplayData.Item, T>(
-            valueMatcher, "with value", "value") {
+    return new FeatureMatcher<DisplayData.Item, T>(valueMatcher, "with value", "value") {
       @Override
       protected T featureValueOf(DisplayData.Item actual) {
         @SuppressWarnings("unchecked")

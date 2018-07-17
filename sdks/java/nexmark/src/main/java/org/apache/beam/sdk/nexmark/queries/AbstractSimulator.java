@@ -44,19 +44,13 @@ public abstract class AbstractSimulator<InputT, OutputT> {
   /** Set to true when no more results. */
   private boolean isDone;
 
-  /**
-   * Results which have not yet been returned by the {@link #results} iterator.
-   */
+  /** Results which have not yet been returned by the {@link #results} iterator. */
   private final List<TimestampedValue<OutputT>> pendingResults;
 
-  /**
-   * Current window timestamp (ms since epoch).
-   */
+  /** Current window timestamp (ms since epoch). */
   private long currentWindow;
 
-  /**
-   * Number of (possibly intermediate) results for the current window.
-   */
+  /** Number of (possibly intermediate) results for the current window. */
   private long currentCount;
 
   /**
@@ -86,7 +80,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
   }
 
   /**
-   * Called by implementors of {@link #run}:  Capture an intermediate result, for the purpose of
+   * Called by implementors of {@link #run}: Capture an intermediate result, for the purpose of
    * recording the expected activity of the query over time.
    */
   void addIntermediateResult(TimestampedValue<OutputT> result) {
@@ -104,9 +98,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
     updateCounts(result.getTimestamp());
   }
 
-  /**
-   * Update window and counts.
-   */
+  /** Update window and counts. */
   private void updateCounts(Instant timestamp) {
     long window = timestamp.getMillis() - timestamp.getMillis() % WINDOW_SIZE.getMillis();
     if (window > currentWindow) {
@@ -125,12 +117,11 @@ public abstract class AbstractSimulator<InputT, OutputT> {
   }
 
   /**
-   * Overridden by derived classes to do the next increment of work. Each call should
-   * call one or more of {@link #nextInput}, {@link #addIntermediateResult}, {@link #addResult}
-   * or {@link #allDone}. It is ok for a single call to emit more than one result via
-   * {@link #addResult}. It is ok for a single call to run the entire simulation, though
-   * this will prevent the {@link #results} and {@link #resultsPerWindow} iterators to
-   * stall.
+   * Overridden by derived classes to do the next increment of work. Each call should call one or
+   * more of {@link #nextInput}, {@link #addIntermediateResult}, {@link #addResult} or {@link
+   * #allDone}. It is ok for a single call to emit more than one result via {@link #addResult}. It
+   * is ok for a single call to run the entire simulation, though this will prevent the {@link
+   * #results} and {@link #resultsPerWindow} iterators to stall.
    */
   protected abstract void run();
 
@@ -169,7 +160,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
 
   /**
    * Return an iterator over the number of results per {@link #WINDOW_SIZE} period. The underlying
-   * simulator state is changed.  Only one of {@link #results} or {@link #resultsPerWindow} can be
+   * simulator state is changed. Only one of {@link #results} or {@link #resultsPerWindow} can be
    * called.
    */
   public Iterator<Long> resultsPerWindow() {

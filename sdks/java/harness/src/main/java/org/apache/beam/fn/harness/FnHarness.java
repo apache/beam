@@ -19,7 +19,6 @@
 package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.TextFormat;
 import java.util.EnumMap;
 import java.util.List;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,7 +131,8 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
-      OutboundObserverFactory outboundObserverFactory) throws Exception {
+      OutboundObserverFactory outboundObserverFactory)
+      throws Exception {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
@@ -149,8 +150,7 @@ public class FnHarness {
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
-          new BeamFnDataGrpcClient(
-              options, channelFactory::forDescriptor, outboundObserverFactory);
+          new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(

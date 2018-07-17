@@ -24,15 +24,14 @@ import org.apache.beam.runners.spark.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
-
 /**
- * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
- * to a CSV file.
+ * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to a CSV file.
  */
 public class CsvSink extends org.apache.spark.metrics.sink.CsvSink {
-  public CsvSink(final Properties properties,
-                 final MetricRegistry metricRegistry,
-                 final org.apache.spark.SecurityManager securityMgr) {
+  public CsvSink(
+      final Properties properties,
+      final MetricRegistry metricRegistry,
+      final org.apache.spark.SecurityManager securityMgr) {
     super(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
   }
 }

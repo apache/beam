@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import struct
+from builtins import object
 from functools import partial
 
 import crcmod
@@ -42,7 +43,7 @@ def _default_crc32c_fn(value):
   if not _default_crc32c_fn.fn:
     try:
       import snappy  # pylint: disable=import-error
-      _default_crc32c_fn.fn = snappy._crc32c  # pylint: disable=protected-access
+      _default_crc32c_fn.fn = snappy._snappy._crc32c  # pylint: disable=protected-access
     except ImportError:
       logging.warning('Couldn\'t find python-snappy so the implementation of '
                       '_TFRecordUtil._masked_crc32c is not as fast as it could '

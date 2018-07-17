@@ -34,19 +34,15 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Count.
- */
+/** Tests for Count. */
 @RunWith(JUnit4.class)
 public class CountTest {
-  static final String[] WORDS_ARRAY = new String[] {
-    "hi", "there", "hi", "hi", "sue", "bob",
-    "hi", "sue", "", "", "ZOW", "bob", "" };
+  static final String[] WORDS_ARRAY =
+      new String[] {"hi", "there", "hi", "hi", "sue", "bob", "hi", "sue", "", "", "ZOW", "bob", ""};
 
   static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
@@ -86,8 +82,7 @@ public class CountTest {
 
     PCollection<Long> output = input.apply(Count.globally());
 
-    PAssert.that(output)
-        .containsInAnyOrder(13L);
+    PAssert.that(output).containsInAnyOrder(13L);
     p.run();
   }
 
@@ -98,8 +93,7 @@ public class CountTest {
 
     PCollection<Long> output = input.apply(Count.globally());
 
-    PAssert.that(output)
-        .containsInAnyOrder(0L);
+    PAssert.that(output).containsInAnyOrder(0L);
     p.run();
   }
 

@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import collections
 import threading
+from builtins import object
 
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.runners.direct.executor import TransformExecutor
@@ -299,7 +300,7 @@ class EvaluationContext(object):
 
       # Commit partial GBK states
       existing_keyed_state = self._transform_keyed_states[result.transform]
-      for k, v in result.partial_keyed_state.iteritems():
+      for k, v in result.partial_keyed_state.items():
         existing_keyed_state[k] = v
       return committed_bundles
 

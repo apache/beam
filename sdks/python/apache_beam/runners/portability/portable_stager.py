@@ -20,6 +20,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import base64
+import hashlib
 import os
 
 from apache_beam.portability.api import beam_artifact_api_pb2
@@ -69,7 +71,8 @@ class PortableStager(Stager):
 
     def artifact_request_generator():
       artifact_metadata = beam_artifact_api_pb2.ArtifactMetadata(
-          name=artifact_name)
+          name=artifact_name,
+          md5=_get_file_hash(local_path_to_artifact))
       metadata = beam_artifact_api_pb2.PutArtifactMetadata(
           staging_session_token=self._staging_session_token,
           metadata=artifact_metadata)
@@ -90,7 +93,18 @@ class PortableStager(Stager):
   def commit_manifest(self):
     manifest = beam_artifact_api_pb2.Manifest(artifact=self._artifacts)
     self._artifacts = []
-    self._artifact_staging_stub.CommitManifest(
+    return self._artifact_staging_stub.CommitManifest(
         beam_artifact_api_pb2.CommitManifestRequest(
             manifest=manifest,
-            staging_session_token=self._staging_session_token))
+            staging_session_token=self._staging_session_token)).retrieval_token
+
+
+def _get_file_hash(path):
+  hasher = hashlib.md5()
+  with open(path) as f:
+    while True:
+      chunk = f.read(1 << 21)
+      if chunk:
+        hasher.update(chunk)
+      else:
+        return base64.b64encode(hasher.digest())

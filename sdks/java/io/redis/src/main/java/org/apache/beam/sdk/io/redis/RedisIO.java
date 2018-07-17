@@ -53,14 +53,13 @@ import redis.clients.jedis.ScanResult;
  * key/value pairs as {@code KV<String, String>}.
  *
  * <p>To configure a Redis source, you have to provide Redis server hostname and port number.
- * Optionally, you can provide a key pattern (to filter the keys). The following example
- * illustrates how to configure a source:
+ * Optionally, you can provide a key pattern (to filter the keys). The following example illustrates
+ * how to configure a source:
  *
  * <pre>{@code
- *
- *  pipeline.apply(RedisIO.read()
- *    .withEndpoint("::1", 6379)
- *    .withKeyPattern("foo*"))
+ * pipeline.apply(RedisIO.read()
+ *   .withEndpoint("::1", 6379)
+ *   .withKeyPattern("foo*"))
  *
  * }</pre>
  *
@@ -68,12 +67,11 @@ import redis.clients.jedis.ScanResult;
  * corresponding methods:
  *
  * <pre>{@code
- *
- *  pipeline.apply(RedisIO.read()
- *    .withEndpoint("::1", 6379)
- *    .withAuth("authPassword")
- *    .withTimeout(60000)
- *    .withKeyPattern("foo*"))
+ * pipeline.apply(RedisIO.read()
+ *   .withEndpoint("::1", 6379)
+ *   .withAuth("authPassword")
+ *   .withTimeout(60000)
+ *   .withKeyPattern("foo*"))
  *
  * }</pre>
  *
@@ -81,40 +79,37 @@ import redis.clients.jedis.ScanResult;
  * pattern (as String).
  *
  * <pre>{@code
- *
- *  pipeline.apply(...)
- *     // here we have a PCollection<String> with the key patterns
- *     .apply(RedisIO.readAll().withEndpoint("::1", 6379))
- *    // here we have a PCollection<KV<String,String>>
+ * pipeline.apply(...)
+ *    // here we have a PCollection<String> with the key patterns
+ *    .apply(RedisIO.readAll().withEndpoint("::1", 6379))
+ *   // here we have a PCollection<KV<String,String>>
  *
  * }</pre>
  *
  * <h3>Writing Redis key/value pairs</h3>
  *
- * <p>{@link #write()} provides a sink to write key/value pairs represented as
- * {@link KV} from an incoming {@link PCollection}.
+ * <p>{@link #write()} provides a sink to write key/value pairs represented as {@link KV} from an
+ * incoming {@link PCollection}.
  *
  * <p>To configure the target Redis server, you have to provide Redis server hostname and port
  * number. The following example illustrates how to configure a sink:
  *
  * <pre>{@code
- *
- *  pipeline.apply(...)
- *    // here we a have a PCollection<String, String> with key/value pairs
- *    .apply(RedisIO.write().withEndpoint("::1", 6379))
+ * pipeline.apply(...)
+ *   // here we a have a PCollection<String, String> with key/value pairs
+ *   .apply(RedisIO.write().withEndpoint("::1", 6379))
  *
  * }</pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class RedisIO {
 
-  /**
-   * Read data from a Redis server.
-   */
+  /** Read data from a Redis server. */
   public static Read read() {
     return new AutoValue_RedisIO_Read.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
-        .setKeyPattern("*").build();
+        .setKeyPattern("*")
+        .build();
   }
 
   /**
@@ -127,34 +122,35 @@ public class RedisIO {
         .build();
   }
 
-  /**
-   * Write data to a Redis server.
-   */
+  /** Write data to a Redis server. */
   public static Write write() {
     return new AutoValue_RedisIO_Write.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
         .build();
   }
 
-  private RedisIO() {
-  }
+  private RedisIO() {}
 
-  /**
-   * Implementation of {@link #read()}.
-   */
+  /** Implementation of {@link #read()}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<KV<String, String>>> {
 
-    @Nullable abstract RedisConnectionConfiguration connectionConfiguration();
-    @Nullable abstract String keyPattern();
+    @Nullable
+    abstract RedisConnectionConfiguration connectionConfiguration();
+
+    @Nullable
+    abstract String keyPattern();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable abstract Builder setConnectionConfiguration(
-          RedisConnectionConfiguration connection);
-      @Nullable abstract Builder setKeyPattern(String keyPattern);
+      @Nullable
+      abstract Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      @Nullable
+      abstract Builder setKeyPattern(String keyPattern);
+
       abstract Read build();
     }
 
@@ -173,7 +169,8 @@ public class RedisIO {
 
     public Read withTimeout(int timeout) {
       checkArgument(timeout >= 0, "timeout can not be negative");
-      return builder().setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
           .build();
     }
 
@@ -194,31 +191,29 @@ public class RedisIO {
 
     @Override
     public PCollection<KV<String, String>> expand(PBegin input) {
-      checkArgument(connectionConfiguration() != null,
-          "withConnectionConfiguration() is required");
+      checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
 
       return input
           .apply(Create.of(keyPattern()))
           .apply(RedisIO.readAll().withConnectionConfiguration(connectionConfiguration()));
     }
-
   }
 
-  /**
-   * Implementation of {@link #readAll()}.
-   */
+  /** Implementation of {@link #readAll()}. */
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
 
-    @Nullable abstract RedisConnectionConfiguration connectionConfiguration();
+    @Nullable
+    abstract RedisConnectionConfiguration connectionConfiguration();
 
     abstract ReadAll.Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable abstract ReadAll.Builder setConnectionConfiguration(
-          RedisConnectionConfiguration connection);
+      @Nullable
+      abstract ReadAll.Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
       abstract ReadAll build();
     }
 
@@ -238,7 +233,8 @@ public class RedisIO {
     public ReadAll withTimeout(int timeout) {
       checkArgument(timeout >= 0, "timeout can not be negative");
       return builder()
-          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout)).build();
+          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
+          .build();
     }
 
     public ReadAll withConnectionConfiguration(RedisConnectionConfiguration connection) {
@@ -248,19 +244,16 @@ public class RedisIO {
 
     @Override
     public PCollection<KV<String, String>> expand(PCollection<String> input) {
-      checkArgument(connectionConfiguration() != null,
-          "withConnectionConfiguration() is required");
+      checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
 
-      return input.apply(ParDo.of(new ReadFn(connectionConfiguration())))
+      return input
+          .apply(ParDo.of(new ReadFn(connectionConfiguration())))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
           .apply(new Reparallelize());
     }
-
   }
 
-  /**
-   * A {@link DoFn} requesting Redis server to get key/value pairs.
-   */
+  /** A {@link DoFn} requesting Redis server to get key/value pairs. */
   private static class ReadFn extends DoFn<String, KV<String, String>> {
 
     private final RedisConnectionConfiguration connectionConfiguration;
@@ -309,37 +302,40 @@ public class RedisIO {
     public void teardown() {
       jedis.close();
     }
-
   }
 
   private static class Reparallelize
       extends PTransform<PCollection<KV<String, String>>, PCollection<KV<String, String>>> {
 
-    @Override public PCollection<KV<String, String>> expand(PCollection<KV<String, String>> input) {
+    @Override
+    public PCollection<KV<String, String>> expand(PCollection<KV<String, String>> input) {
       // reparallelize mimics the same behavior as in JdbcIO
       // breaking fusion
       PCollectionView<Iterable<KV<String, String>>> empty =
           input
               .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
               .apply(View.asIterable());
-      PCollection<KV<String, String>> materialized = input
-          .apply("Identity", ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
-            @ProcessElement
-            public void processElement(ProcessContext context) {
-              context.output(context.element());
-            }
-      }).withSideInputs(empty));
+      PCollection<KV<String, String>> materialized =
+          input.apply(
+              "Identity",
+              ParDo.of(
+                      new DoFn<KV<String, String>, KV<String, String>>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext context) {
+                          context.output(context.element());
+                        }
+                      })
+                  .withSideInputs(empty));
       return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 
-  /**
-   * A {@link PTransform} to write to a Redis server.
-   */
+  /** A {@link PTransform} to write to a Redis server. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<KV<String, String>>, PDone> {
 
-    @Nullable abstract RedisConnectionConfiguration connectionConfiguration();
+    @Nullable
+    abstract RedisConnectionConfiguration connectionConfiguration();
 
     abstract Builder builder();
 
@@ -350,7 +346,6 @@ public class RedisIO {
           RedisConnectionConfiguration connectionConfiguration);
 
       abstract Write build();
-
     }
 
     public Write withEndpoint(String host, int port) {
@@ -363,9 +358,7 @@ public class RedisIO {
 
     public Write withAuth(String auth) {
       checkArgument(auth != null, "auth can not be null");
-      return builder()
-          .setConnectionConfiguration(connectionConfiguration().withAuth(auth))
-          .build();
+      return builder().setConnectionConfiguration(connectionConfiguration().withAuth(auth)).build();
     }
 
     public Write withTimeout(int timeout) {
@@ -439,7 +432,5 @@ public class RedisIO {
         jedis.close();
       }
     }
-
   }
-
 }

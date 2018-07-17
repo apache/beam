@@ -31,6 +31,7 @@ public interface S3Options extends AwsOptions {
   @Description("AWS S3 storage class used for creating S3 objects")
   @Default.String("STANDARD")
   String getS3StorageClass();
+
   void setS3StorageClass(String value);
 
   @Description(
@@ -44,11 +45,13 @@ public interface S3Options extends AwsOptions {
   @Description("Thread pool size, limiting max concurrent S3 operations")
   @Default.Integer(50)
   int getS3ThreadPoolSize();
+
   void setS3ThreadPoolSize(int value);
 
   @Description("Algorithm for SSE-S3 encryption, e.g. AES256.")
   @Nullable
   String getSSEAlgorithm();
+
   void setSSEAlgorithm(String value);
 
   @Description(
@@ -57,6 +60,7 @@ public interface S3Options extends AwsOptions {
           + " --SSECustomerKey={\"key\": \"86glyTlCN...\", \"algorithm\": \"AES256\"}")
   @Nullable
   SSECustomerKey getSSECustomerKey();
+
   void setSSECustomerKey(SSECustomerKey value);
 
   @Description(
@@ -65,6 +69,7 @@ public interface S3Options extends AwsOptions {
           + " --SSEAwsKeyManagementParams={\"awsKmsKeyId\": \"arn:aws:kms:...\"}")
   @Nullable
   SSEAwsKeyManagementParams getSSEAwsKeyManagementParams();
+
   void setSSEAwsKeyManagementParams(SSEAwsKeyManagementParams value);
 
   /**

@@ -40,9 +40,8 @@ public class InstanceBuilder<T> {
   /**
    * Create an InstanceBuilder for the given type.
    *
-   * <p>The specified type is the type returned by {@link #build}, which is
-   * typically the common base type or interface of the instance being
-   * constructed.
+   * <p>The specified type is the type returned by {@link #build}, which is typically the common
+   * base type or interface of the instance being constructed.
    */
   public static <T> InstanceBuilder<T> ofType(Class<T> type) {
     return new InstanceBuilder<>(type);
@@ -51,13 +50,12 @@ public class InstanceBuilder<T> {
   /**
    * Create an InstanceBuilder for the given type.
    *
-   * <p>The specified type is the type returned by {@link #build}, which is
-   * typically the common base type or interface for the instance to be
-   * constructed.
+   * <p>The specified type is the type returned by {@link #build}, which is typically the common
+   * base type or interface for the instance to be constructed.
    *
-   * <p>The TypeDescriptor argument allows specification of generic types.  For example,
-   * a {@code List<String>} return type can be specified as
-   * {@code ofType(new TypeDescriptor<List<String>>(){})}.
+   * <p>The TypeDescriptor argument allows specification of generic types. For example, a {@code
+   * List<String>} return type can be specified as {@code ofType(new
+   * TypeDescriptor<List<String>>(){})}.
    */
   public static <T> InstanceBuilder<T> ofType(TypeDescriptor<T> token) {
     @SuppressWarnings("unchecked")
@@ -68,8 +66,8 @@ public class InstanceBuilder<T> {
   /**
    * Sets the class name to be constructed.
    *
-   * <p>If the name is a simple name (ie {@link Class#getSimpleName()}), then
-   * the package of the return type is added as a prefix.
+   * <p>If the name is a simple name (ie {@link Class#getSimpleName()}), then the package of the
+   * return type is added as a prefix.
    *
    * <p>The default class is the return type, specified in {@link #ofType}.
    *
@@ -77,8 +75,7 @@ public class InstanceBuilder<T> {
    *
    * @throws ClassNotFoundException if no class can be found by the given name
    */
-  public InstanceBuilder<T> fromClassName(String name)
-      throws ClassNotFoundException {
+  public InstanceBuilder<T> fromClassName(String name) throws ClassNotFoundException {
     checkArgument(factoryClass == null, "Class name may only be specified once");
     if (name.indexOf('.') == -1) {
       name = type.getPackage().getName() + "." + name;
@@ -87,8 +84,7 @@ public class InstanceBuilder<T> {
     try {
       factoryClass = Class.forName(name);
     } catch (ClassNotFoundException e) {
-      throw new ClassNotFoundException(
-          String.format("Could not find class: %s", name), e);
+      throw new ClassNotFoundException(String.format("Could not find class: %s", name), e);
     }
     return this;
   }
@@ -106,14 +102,12 @@ public class InstanceBuilder<T> {
   /**
    * Sets the name of the factory method used to construct the instance.
    *
-   * <p>The default, if no factory method was specified, is to look for a class
-   * constructor.
+   * <p>The default, if no factory method was specified, is to look for a class constructor.
    *
    * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    */
   public InstanceBuilder<T> fromFactoryMethod(String methodName) {
-    checkArgument(this.methodName == null,
-        "Factory method name may only be specified once");
+    checkArgument(this.methodName == null, "Factory method name may only be specified once");
     this.methodName = methodName;
     return this;
   }
@@ -121,8 +115,8 @@ public class InstanceBuilder<T> {
   /**
    * Adds an argument to be passed to the factory method.
    *
-   * <p>The argument type is used to lookup the factory method. This type may be
-   * a supertype of the argument value's class.
+   * <p>The argument type is used to lookup the factory method. This type may be a supertype of the
+   * argument value's class.
    *
    * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    *
@@ -135,27 +129,26 @@ public class InstanceBuilder<T> {
   }
 
   /**
-   * Creates the instance by calling the factory method with the given
-   * arguments.
+   * Creates the instance by calling the factory method with the given arguments.
    *
    * <h3>Defaults</h3>
+   *
    * <ul>
-   *   <li>factory class: defaults to the output type class, overridden
-   *   via {@link #fromClassName(String)}.
-   *   <li>factory method: defaults to using a constructor on the factory
-   *   class, overridden via {@link #fromFactoryMethod(String)}.
+   *   <li>factory class: defaults to the output type class, overridden via {@link
+   *       #fromClassName(String)}.
+   *   <li>factory method: defaults to using a constructor on the factory class, overridden via
+   *       {@link #fromFactoryMethod(String)}.
    * </ul>
    *
-   * @throws RuntimeException if the method does not exist, on type mismatch,
-   * or if the method cannot be made accessible.
+   * @throws RuntimeException if the method does not exist, on type mismatch, or if the method
+   *     cannot be made accessible.
    */
   public T build() {
     if (factoryClass == null) {
       factoryClass = type;
     }
 
-    Class<?>[] types = parameterTypes
-        .toArray(new Class<?>[parameterTypes.size()]);
+    Class<?>[] types = parameterTypes.toArray(new Class<?>[parameterTypes.size()]);
 
     // TODO: cache results, to speed repeated type lookups?
     if (methodName != null) {
@@ -167,9 +160,7 @@ public class InstanceBuilder<T> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * Type of object to construct.
-   */
+  /** Type of object to construct. */
   private final Class<T> type;
 
   /**
@@ -179,19 +170,13 @@ public class InstanceBuilder<T> {
    */
   private final List<Class<?>> parameterTypes = new ArrayList<>();
 
-  /**
-   * Arguments to factory method {@link Method#invoke(Object, Object...)}.
-   */
+  /** Arguments to factory method {@link Method#invoke(Object, Object...)}. */
   private final List<Object> arguments = new ArrayList<>();
 
-  /**
-   * Name of factory method, or null to invoke the constructor.
-   */
+  /** Name of factory method, or null to invoke the constructor. */
   @Nullable private String methodName;
 
-  /**
-   * Factory class, or null to instantiate {@code type}.
-   */
+  /** Factory class, or null to instantiate {@code type}. */
   @Nullable private Class<?> factoryClass;
 
   private InstanceBuilder(Class<T> type) {
@@ -205,14 +190,21 @@ public class InstanceBuilder<T> {
     try {
       Method method = factoryClass.getDeclaredMethod(methodName, types);
 
-      checkState(Modifier.isStatic(method.getModifiers()),
+      checkState(
+          Modifier.isStatic(method.getModifiers()),
           "Factory method must be a static method for "
-              + factoryClass.getName() + "#" + method.getName()
-      );
+              + factoryClass.getName()
+              + "#"
+              + method.getName());
 
-      checkState(type.isAssignableFrom(method.getReturnType()),
-          "Return type for " + factoryClass.getName() + "#" + method.getName()
-              + " must be assignable to " + type.getSimpleName());
+      checkState(
+          type.isAssignableFrom(method.getReturnType()),
+          "Return type for "
+              + factoryClass.getName()
+              + "#"
+              + method.getName()
+              + " must be assignable to "
+              + type.getSimpleName());
 
       if (!method.isAccessible()) {
         method.setAccessible(true);
@@ -223,17 +215,15 @@ public class InstanceBuilder<T> {
 
     } catch (NoSuchMethodException e) {
       throw new RuntimeException(
-          String.format("Unable to find factory method %s#%s(%s)",
-              factoryClass.getSimpleName(),
-              methodName,
-              Joiner.on(", ").join(types)));
+          String.format(
+              "Unable to find factory method %s#%s(%s)",
+              factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)));
 
     } catch (IllegalAccessException | InvocationTargetException e) {
       throw new RuntimeException(
-          String.format("Failed to construct instance from factory method %s#%s(%s)",
-              factoryClass.getSimpleName(),
-              methodName,
-              Joiner.on(", ").join(types)),
+          String.format(
+              "Failed to construct instance from factory method %s#%s(%s)",
+              factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
           e);
     }
   }
@@ -244,9 +234,12 @@ public class InstanceBuilder<T> {
     try {
       Constructor<?> constructor = factoryClass.getDeclaredConstructor(types);
 
-      checkState(type.isAssignableFrom(factoryClass),
-          "Instance type " + factoryClass.getName()
-              + " must be assignable to " + type.getSimpleName());
+      checkState(
+          type.isAssignableFrom(factoryClass),
+          "Instance type "
+              + factoryClass.getName()
+              + " must be assignable to "
+              + type.getSimpleName());
 
       if (!constructor.isAccessible()) {
         constructor.setAccessible(true);
@@ -256,14 +249,11 @@ public class InstanceBuilder<T> {
       return type.cast(constructor.newInstance(args));
 
     } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Unable to find constructor for "
-          + factoryClass.getName());
+      throw new RuntimeException("Unable to find constructor for " + factoryClass.getName());
 
-    } catch (InvocationTargetException
-        | InstantiationException
-        | IllegalAccessException e) {
-      throw new RuntimeException("Failed to construct instance from "
-          + "constructor " + factoryClass.getName(), e);
+    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException(
+          "Failed to construct instance from " + "constructor " + factoryClass.getName(), e);
     }
   }
 }

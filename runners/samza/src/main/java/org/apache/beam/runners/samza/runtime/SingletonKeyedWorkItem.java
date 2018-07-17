@@ -23,9 +23,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * Implementation of {@link KeyedWorkItem} which contains only a single value.
- */
+/** Implementation of {@link KeyedWorkItem} which contains only a single value. */
 class SingletonKeyedWorkItem<K, V> implements KeyedWorkItem<K, V> {
   private final K key;
   private final WindowedValue<V> value;

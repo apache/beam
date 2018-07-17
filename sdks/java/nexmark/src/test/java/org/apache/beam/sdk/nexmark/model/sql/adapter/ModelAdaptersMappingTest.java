@@ -30,51 +30,51 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link ModelAdaptersMapping}.
- */
+/** Unit tests for {@link ModelAdaptersMapping}. */
 public class ModelAdaptersMappingTest {
 
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
 
-  private static final Schema PERSON_ROW_TYPE = Schema.builder()
-      .addInt64Field("id")
-      .addStringField("name")
-      .addStringField("emailAddress")
-      .addStringField("creditCard")
-      .addStringField("city")
-      .addStringField("state")
-      .addDateTimeField("dateTime")
-      .addStringField("extra")
-      .build();
+  private static final Schema PERSON_ROW_TYPE =
+      Schema.builder()
+          .addInt64Field("id")
+          .addStringField("name")
+          .addStringField("emailAddress")
+          .addStringField("creditCard")
+          .addStringField("city")
+          .addStringField("state")
+          .addDateTimeField("dateTime")
+          .addStringField("extra")
+          .build();
 
-  private static final Bid BID =
-      new Bid(5L, 3L, 123123L, 43234234L, "extra2");
+  private static final Bid BID = new Bid(5L, 3L, 123123L, 43234234L, "extra2");
 
-  private static final Schema BID_ROW_TYPE = Schema.builder()
-      .addInt64Field("auction")
-      .addInt64Field("bidder")
-      .addInt64Field("price")
-      .addDateTimeField("dateTime")
-      .addStringField("extra")
-      .build();
+  private static final Schema BID_ROW_TYPE =
+      Schema.builder()
+          .addInt64Field("auction")
+          .addInt64Field("bidder")
+          .addInt64Field("price")
+          .addDateTimeField("dateTime")
+          .addStringField("extra")
+          .build();
 
   private static final Auction AUCTION =
       new Auction(5L, "item", "desc", 342L, 321L, 3423342L, 2349234L, 3L, 1L, "extra3");
 
-  private static final Schema AUCTION_ROW_TYPE = Schema.builder()
-      .addInt64Field("id")
-      .addStringField("itemName")
-      .addStringField("description")
-      .addInt64Field("initialBid")
-      .addInt64Field("reserve")
-      .addDateTimeField("dateTime")
-      .addDateTimeField("expires")
-      .addInt64Field("seller")
-      .addInt64Field("category")
-      .addStringField("extra")
-      .build();
+  private static final Schema AUCTION_ROW_TYPE =
+      Schema.builder()
+          .addInt64Field("id")
+          .addStringField("itemName")
+          .addStringField("description")
+          .addInt64Field("initialBid")
+          .addInt64Field("reserve")
+          .addDateTimeField("dateTime")
+          .addDateTimeField("expires")
+          .addInt64Field("seller")
+          .addInt64Field("category")
+          .addStringField("extra")
+          .build();
 
   @Test
   public void hasAdaptersForSupportedModels() throws Exception {

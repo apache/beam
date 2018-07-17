@@ -65,9 +65,7 @@ public abstract class MetricsTranslation {
         case GAUGE_DATA:
           gaugeUpdates.add(
               MetricUpdates.MetricUpdate.create(
-                  metricKey,
-                  GaugeData.create(
-                      userMetricUpdate.getGaugeData().getValue())));
+                  metricKey, GaugeData.create(userMetricUpdate.getGaugeData().getValue())));
           break;
         case DATA_NOT_SET:
           continue;

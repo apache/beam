@@ -33,9 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link TimerInternals}.
- */
+/** Unit tests for {@link TimerInternals}. */
 @RunWith(JUnit4.class)
 public class TimerInternalsTest {
 
@@ -53,7 +51,8 @@ public class TimerInternalsTest {
             "another-id",
             StateNamespaces.window(
                 windowCoder, new IntervalWindow(new Instant(0), new Instant(100))),
-            new Instant(99), TimeDomain.PROCESSING_TIME));
+            new Instant(99),
+            TimeDomain.PROCESSING_TIME));
   }
 
   @Test
@@ -67,8 +66,8 @@ public class TimerInternalsTest {
     StateNamespace namespace = StateNamespaces.global();
     TimerData timer = TimerData.of("id", namespace, timestamp, TimeDomain.EVENT_TIME);
 
-    assertThat(timer,
-        comparesEqualTo(TimerData.of("id", namespace, timestamp, TimeDomain.EVENT_TIME)));
+    assertThat(
+        timer, comparesEqualTo(TimerData.of("id", namespace, timestamp, TimeDomain.EVENT_TIME)));
   }
 
   @Test

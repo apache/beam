@@ -79,7 +79,6 @@ public class CoderTest {
 
   @Test
   public void testTypeIsPreserved() throws Exception {
-    assertThat(VoidCoder.of().getEncodedTypeDescriptor(),
-        equalTo(TypeDescriptor.of(Void.class)));
+    assertThat(VoidCoder.of().getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Void.class)));
   }
 }

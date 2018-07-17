@@ -26,15 +26,13 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
-/**
- * Utilities to reflect over {@link PipelineOptions}.
- */
+/** Utilities to reflect over {@link PipelineOptions}. */
 class PipelineOptionsReflector {
   private PipelineOptionsReflector() {}
 
   /**
-   * Retrieve metadata for the full set of pipeline options visible within the type hierarchy
-   * of a single {@link PipelineOptions} interface.
+   * Retrieve metadata for the full set of pipeline options visible within the type hierarchy of a
+   * single {@link PipelineOptions} interface.
    *
    * @see PipelineOptionsReflector#getOptionSpecs(Iterable)
    */
@@ -70,9 +68,9 @@ class PipelineOptionsReflector {
    * closure of the set of input interfaces. An option is "visible" if:
    *
    * <ul>
-   *   <li>The option is defined within the interface hierarchy closure of the input
-   *   {@link PipelineOptions}.</li>
-   *   <li>The defining interface is not marked {@link Hidden}.</li>
+   *   <li>The option is defined within the interface hierarchy closure of the input {@link
+   *       PipelineOptions}.
+   *   <li>The defining interface is not marked {@link Hidden}.
    * </ul>
    */
   static Set<PipelineOptionSpec> getOptionSpecs(
@@ -86,8 +84,8 @@ class PipelineOptionsReflector {
   }
 
   /**
-   * Extract pipeline options and their respective getter methods from a series of
-   * {@link Method methods}. A single pipeline option may appear in many methods.
+   * Extract pipeline options and their respective getter methods from a series of {@link Method
+   * methods}. A single pipeline option may appear in many methods.
    *
    * @return A mapping of option name to the input methods which declare it.
    */
@@ -95,17 +93,16 @@ class PipelineOptionsReflector {
     Multimap<String, Method> propertyNamesToGetters = HashMultimap.create();
     for (Method method : methods) {
       String methodName = method.getName();
-      if ((!methodName.startsWith("get")
-          && !methodName.startsWith("is"))
+      if ((!methodName.startsWith("get") && !methodName.startsWith("is"))
           || method.getParameterTypes().length != 0
           || method.getReturnType() == void.class) {
         continue;
       }
-      String propertyName = Introspector.decapitalize(
-          methodName.startsWith("is") ? methodName.substring(2) : methodName.substring(3));
+      String propertyName =
+          Introspector.decapitalize(
+              methodName.startsWith("is") ? methodName.substring(2) : methodName.substring(3));
       propertyNamesToGetters.put(propertyName, method);
     }
     return propertyNamesToGetters;
   }
-
 }

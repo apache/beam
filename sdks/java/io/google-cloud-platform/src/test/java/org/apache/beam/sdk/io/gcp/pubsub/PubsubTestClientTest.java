@@ -37,9 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PubsubTestClient.
- */
+/** Tests for PubsubTestClient. */
 @RunWith(JUnit4.class)
 public class PubsubTestClientTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
@@ -65,8 +63,8 @@ public class PubsubTestClientTest {
             ACK_ID,
             MESSAGE_ID);
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S,
-                                                   Lists.newArrayList(expectedIncomingMessage))) {
+        PubsubTestClient.createFactoryForPull(
+            clock, SUBSCRIPTION, ACK_TIMEOUT_S, Lists.newArrayList(expectedIncomingMessage))) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         now.set(REQ_TIME);
         client.advance();

@@ -27,16 +27,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Query 1, 'Currency Conversion'. Convert each bid value from dollars to euros.
- * In CQL syntax:
+ * Query 1, 'Currency Conversion'. Convert each bid value from dollars to euros. In CQL syntax:
  *
  * <pre>
  * SELECT Istream(auction, DOLTOEUR(price), bidder, datetime)
  * FROM bid [ROWS UNBOUNDED];
  * </pre>
  *
- * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily
- * slowed down.
+ * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily slowed
+ * down.
  */
 public class Query1 extends NexmarkQuery {
   public Query1(NexmarkConfiguration configuration) {
@@ -49,13 +48,20 @@ public class Query1 extends NexmarkQuery {
         .apply(JUST_BIDS)
 
         // Map the conversion function over all bids.
-        .apply(name + ".ToEuros",
-            ParDo.of(new DoFn<Bid, Bid>() {
+        .apply(
+            name + ".ToEuros",
+            ParDo.of(
+                new DoFn<Bid, Bid>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     Bid bid = c.element();
-                    c.output(new Bid(
-                        bid.auction, bid.bidder, (bid.price * 89) / 100, bid.dateTime, bid.extra));
+                    c.output(
+                        new Bid(
+                            bid.auction,
+                            bid.bidder,
+                            (bid.price * 89) / 100,
+                            bid.dateTime,
+                            bid.extra));
                   }
                 }));
   }

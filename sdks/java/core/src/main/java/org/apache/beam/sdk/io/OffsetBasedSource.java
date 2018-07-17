@@ -37,17 +37,17 @@ import org.slf4j.LoggerFactory;
  * <p>{@link OffsetBasedSource} is a common base class for all bounded sources where the input can
  * be represented as a single range, and an input can be efficiently processed in parallel by
  * splitting the range into a set of disjoint ranges whose union is the original range. This class
- * should be used for sources that can be cheaply read starting at any given offset.
- * {@link OffsetBasedSource} stores the range and implements splitting into bundles.
+ * should be used for sources that can be cheaply read starting at any given offset. {@link
+ * OffsetBasedSource} stores the range and implements splitting into bundles.
  *
- * <p>Extend {@link OffsetBasedSource} to implement your own offset-based custom source.
- * {@link FileBasedSource}, which is a subclass of this, adds additional functionality useful for
- * custom sources that are based on files. If possible implementors should start from
- * {@link FileBasedSource} instead of {@link OffsetBasedSource}.
+ * <p>Extend {@link OffsetBasedSource} to implement your own offset-based custom source. {@link
+ * FileBasedSource}, which is a subclass of this, adds additional functionality useful for custom
+ * sources that are based on files. If possible implementors should start from {@link
+ * FileBasedSource} instead of {@link OffsetBasedSource}.
  *
  * <p>Consult {@link RangeTracker} for important semantics common to all sources defined by a range
- * of positions of a certain type, including the semantics of split points
- * ({@link OffsetBasedReader#isAtSplitPoint}).
+ * of positions of a certain type, including the semantics of split points ({@link
+ * OffsetBasedReader#isAtSplitPoint}).
  *
  * @param <T> Type of records represented by the source.
  * @see BoundedSource
@@ -61,15 +61,12 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
   /**
    * @param startOffset starting offset (inclusive) of the source. Must be non-negative.
-   *
    * @param endOffset ending offset (exclusive) of the source. Use {@link Long#MAX_VALUE} to
-   *        indicate that the entire source after {@code startOffset} should be read. Must be
-   *        {@code > startOffset}.
-   *
+   *     indicate that the entire source after {@code startOffset} should be read. Must be {@code >
+   *     startOffset}.
    * @param minBundleSize minimum bundle size in offset units that should be used when splitting the
-   *                      source into sub-sources. This value may not be respected if the total
-   *                      range of the source is smaller than the specified {@code minBundleSize}.
-   *                      Must be non-negative.
+   *     source into sub-sources. This value may not be respected if the total range of the source
+   *     is smaller than the specified {@code minBundleSize}. Must be non-negative.
    */
   public OffsetBasedSource(long startOffset, long endOffset, long minBundleSize) {
     this.startOffset = startOffset;
@@ -77,17 +74,15 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     this.minBundleSize = minBundleSize;
   }
 
-  /**
-   * Returns the starting offset of the source.
-   */
+  /** Returns the starting offset of the source. */
   public long getStartOffset() {
     return startOffset;
   }
 
   /**
    * Returns the specified ending offset of the source. Any returned value greater than or equal to
-   * {@link #getMaxEndOffset(PipelineOptions)} should be treated as
-   * {@link #getMaxEndOffset(PipelineOptions)}.
+   * {@link #getMaxEndOffset(PipelineOptions)} should be treated as {@link
+   * #getMaxEndOffset(PipelineOptions)}.
    */
   public long getEndOffset() {
     return endOffset;
@@ -114,9 +109,8 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     // Split the range into bundles based on the desiredBundleSizeBytes. If the desired bundle
     // size is smaller than the minBundleSize of the source then minBundleSize will be used instead.
 
-    long desiredBundleSizeOffsetUnits = Math.max(
-        Math.max(1, desiredBundleSizeBytes / getBytesPerOffset()),
-        minBundleSize);
+    long desiredBundleSizeOffsetUnits =
+        Math.max(Math.max(1, desiredBundleSizeBytes / getBytesPerOffset()), minBundleSize);
 
     List<OffsetBasedSource<T>> subSources = new ArrayList<>();
     for (OffsetRange range :
@@ -130,15 +124,14 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   @Override
   public void validate() {
     checkArgument(
-        this.startOffset >= 0,
-        "Start offset has value %s, must be non-negative", this.startOffset);
+        this.startOffset >= 0, "Start offset has value %s, must be non-negative", this.startOffset);
     checkArgument(
-        this.endOffset >= 0,
-        "End offset has value %s, must be non-negative", this.endOffset);
+        this.endOffset >= 0, "End offset has value %s, must be non-negative", this.endOffset);
     checkArgument(
         this.startOffset <= this.endOffset,
         "Start offset %s may not be larger than end offset %s",
-        this.startOffset, this.endOffset);
+        this.startOffset,
+        this.endOffset);
     checkArgument(
         this.minBundleSize >= 0,
         "minBundleSize has value %s, must be non-negative",
@@ -151,9 +144,9 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   }
 
   /**
-   * Returns approximately how many bytes of data correspond to a single offset in this source.
-   * Used for translation between this source's range and methods defined in terms of bytes, such
-   * as {@link #getEstimatedSizeBytes} and {@link #split}.
+   * Returns approximately how many bytes of data correspond to a single offset in this source. Used
+   * for translation between this source's range and methods defined in terms of bytes, such as
+   * {@link #getEstimatedSizeBytes} and {@link #split}.
    *
    * <p>Defaults to {@code 1} byte, which is the common case for, e.g., file sources.
    */
@@ -163,20 +156,20 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
   /**
    * Returns the actual ending offset of the current source. The value returned by this function
-   * will be used to clip the end of the range {@code [startOffset, endOffset)} such that the
-   * range used is {@code [startOffset, min(endOffset, maxEndOffset))}.
+   * will be used to clip the end of the range {@code [startOffset, endOffset)} such that the range
+   * used is {@code [startOffset, min(endOffset, maxEndOffset))}.
    *
    * <p>As an example in which {@link OffsetBasedSource} is used to implement a file source, suppose
    * that this source was constructed with an {@code endOffset} of {@link Long#MAX_VALUE} to
-   * indicate that a file should be read to the end. Then this function should determine
-   * the actual, exact size of the file in bytes and return it.
+   * indicate that a file should be read to the end. Then this function should determine the actual,
+   * exact size of the file in bytes and return it.
    */
   public abstract long getMaxEndOffset(PipelineOptions options) throws Exception;
 
   /**
-   * Returns an {@link OffsetBasedSource} for a subrange of the current source. The
-   * subrange {@code [start, end)} must be within the range {@code [startOffset, endOffset)} of
-   * the current source, i.e. {@code startOffset <= start < end <= endOffset}.
+   * Returns an {@link OffsetBasedSource} for a subrange of the current source. The subrange {@code
+   * [start, end)} must be within the range {@code [startOffset, endOffset)} of the current source,
+   * i.e. {@code startOffset <= start < end <= endOffset}.
    */
   public abstract OffsetBasedSource<T> createSourceForSubrange(long start, long end);
 
@@ -184,41 +177,38 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .addIfNotDefault(DisplayData.item("minBundleSize", minBundleSize)
-            .withLabel("Minimum Bundle Size"), 1L)
-        .addIfNotDefault(DisplayData.item("startOffset", startOffset)
-            .withLabel("Start Read Offset"), 0L)
-        .addIfNotDefault(DisplayData.item("endOffset", endOffset)
-            .withLabel("End Read Offset"), Long.MAX_VALUE);
+        .addIfNotDefault(
+            DisplayData.item("minBundleSize", minBundleSize).withLabel("Minimum Bundle Size"), 1L)
+        .addIfNotDefault(
+            DisplayData.item("startOffset", startOffset).withLabel("Start Read Offset"), 0L)
+        .addIfNotDefault(
+            DisplayData.item("endOffset", endOffset).withLabel("End Read Offset"), Long.MAX_VALUE);
   }
 
   /**
-   * A {@link Source.Reader} that implements code common to readers of all
-   * {@link OffsetBasedSource}s.
+   * A {@link Source.Reader} that implements code common to readers of all {@link
+   * OffsetBasedSource}s.
    *
    * <p>Subclasses have to implement:
+   *
    * <ul>
-   *   <li>The methods {@link #startImpl} and {@link #advanceImpl} for reading the
-   *   first or subsequent records.
-   *   <li>The methods {@link #getCurrent}, {@link #getCurrentOffset}, and optionally
-   *   {@link #isAtSplitPoint} and {@link #getCurrentTimestamp} to access properties of
-   *   the last record successfully read by {@link #startImpl} or {@link #advanceImpl}.
+   *   <li>The methods {@link #startImpl} and {@link #advanceImpl} for reading the first or
+   *       subsequent records.
+   *   <li>The methods {@link #getCurrent}, {@link #getCurrentOffset}, and optionally {@link
+   *       #isAtSplitPoint} and {@link #getCurrentTimestamp} to access properties of the last record
+   *       successfully read by {@link #startImpl} or {@link #advanceImpl}.
    * </ul>
    */
   public abstract static class OffsetBasedReader<T> extends BoundedReader<T> {
     private static final Logger LOG = LoggerFactory.getLogger(OffsetBasedReader.class);
     private OffsetBasedSource<T> source;
 
-    /**
-     * Returns true if the last call to {@link #start} or {@link #advance} returned false.
-     */
+    /** Returns true if the last call to {@link #start} or {@link #advance} returned false. */
     public final boolean isDone() {
       return rangeTracker.isDone();
     }
 
-    /**
-     * Returns true if there has been a call to {@link #start}.
-     */
+    /** Returns true if there has been a call to {@link #start}. */
     public final boolean isStarted() {
       return rangeTracker.isStarted();
     }
@@ -226,9 +216,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     /** The {@link OffsetRangeTracker} managing the range and current position of the source. */
     private final OffsetRangeTracker rangeTracker;
 
-    /**
-     * @param source the {@link OffsetBasedSource} to be read by the current reader.
-     */
+    /** @param source the {@link OffsetBasedSource} to be read by the current reader. */
     public OffsetBasedReader(OffsetBasedSource<T> source) {
       this.source = source;
       this.rangeTracker = new OffsetRangeTracker(source.getStartOffset(), source.getEndOffset());
@@ -236,8 +224,8 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
     /**
      * Returns the <i>starting</i> offset of the {@link Source.Reader#getCurrent current record},
-     * which has been read by the last successful {@link Source.Reader#start} or
-     * {@link Source.Reader#advance} call.
+     * which has been read by the last successful {@link Source.Reader#start} or {@link
+     * Source.Reader#advance} call.
      *
      * <p>If no such call has been made yet, the return value is unspecified.
      *
@@ -247,8 +235,8 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
     /**
      * Returns whether the current record is at a split point (i.e., whether the current record
-     * would be the first record to be read by a source with a specified start offset of
-     * {@link #getCurrentOffset}).
+     * would be the first record to be read by a source with a specified start offset of {@link
+     * #getCurrentOffset}).
      *
      * <p>See detailed documentation about split points in {@link RangeTracker}.
      */
@@ -270,15 +258,15 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
     /**
      * Initializes the {@link OffsetBasedSource.OffsetBasedReader} and advances to the first record,
-     * returning {@code true} if there is a record available to be read. This method will be
-     * invoked exactly once and may perform expensive setup operations that are needed to
-     * initialize the reader.
+     * returning {@code true} if there is a record available to be read. This method will be invoked
+     * exactly once and may perform expensive setup operations that are needed to initialize the
+     * reader.
      *
-     * <p>This function is the {@code OffsetBasedReader} implementation of
-     * {@link BoundedReader#start}. The key difference is that the implementor can ignore the
-     * possibility that it should no longer produce the first record, either because it has exceeded
-     * the original {@code endOffset} assigned to the reader, or because a concurrent call to
-     * {@link #splitAtFraction} has changed the source to shrink the offset range being read.
+     * <p>This function is the {@code OffsetBasedReader} implementation of {@link
+     * BoundedReader#start}. The key difference is that the implementor can ignore the possibility
+     * that it should no longer produce the first record, either because it has exceeded the
+     * original {@code endOffset} assigned to the reader, or because a concurrent call to {@link
+     * #splitAtFraction} has changed the source to shrink the offset range being read.
      *
      * @see BoundedReader#start
      */
@@ -288,11 +276,11 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
      * Advances to the next record and returns {@code true}, or returns false if there is no next
      * record.
      *
-     * <p>This function is the {@code OffsetBasedReader} implementation of
-     * {@link BoundedReader#advance}. The key difference is that the implementor can ignore the
-     * possibility that it should no longer produce the next record, either because it has exceeded
-     * the original {@code endOffset} assigned to the reader, or because a concurrent call to
-     * {@link #splitAtFraction} has changed the source to shrink the offset range being read.
+     * <p>This function is the {@code OffsetBasedReader} implementation of {@link
+     * BoundedReader#advance}. The key difference is that the implementor can ignore the possibility
+     * that it should no longer produce the next record, either because it has exceeded the original
+     * {@code endOffset} assigned to the reader, or because a concurrent call to {@link
+     * #splitAtFraction} has changed the source to shrink the offset range being read.
      *
      * @see BoundedReader#advance
      */
@@ -337,9 +325,9 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     /**
      * Whether this reader should allow dynamic splitting of the offset ranges.
      *
-     * <p>True by default. Override this to return false if the reader cannot
-     * support dynamic splitting correctly. If this returns false,
-     * {@link OffsetBasedReader#splitAtFraction} will refuse all split requests.
+     * <p>True by default. Override this to return false if the reader cannot support dynamic
+     * splitting correctly. If this returns false, {@link OffsetBasedReader#splitAtFraction} will
+     * refuse all split requests.
      */
     public boolean allowsDynamicSplitting() {
       return true;
@@ -353,13 +341,16 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
       if (rangeTracker.getStopPosition() == Long.MAX_VALUE) {
         LOG.debug(
             "Refusing to split unbounded OffsetBasedReader {} at fraction {}",
-            rangeTracker, fraction);
+            rangeTracker,
+            fraction);
         return null;
       }
       long splitOffset = rangeTracker.getPositionForFractionConsumed(fraction);
       LOG.debug(
           "Proposing to split OffsetBasedReader {} at fraction {} (offset {})",
-          rangeTracker, fraction, splitOffset);
+          rangeTracker,
+          fraction,
+          splitOffset);
       long start = source.getStartOffset();
       long end = source.getEndOffset();
       OffsetBasedSource<T> primary = source.createSourceForSubrange(start, splitOffset);

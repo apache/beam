@@ -30,28 +30,22 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
-/**
- * Static utility methods that create combine function instances.
- */
+/** Static utility methods that create combine function instances. */
 public class CombineFnUtil {
 
   /**
-   * Returns the partial application of the {@link CombineFnWithContext} to a specific context
-   * to produce a {@link CombineFn}.
+   * Returns the partial application of the {@link CombineFnWithContext} to a specific context to
+   * produce a {@link CombineFn}.
    *
    * <p>The returned {@link CombineFn} cannot be serialized.
    */
   public static <K, InputT, AccumT, OutputT> CombineFn<InputT, AccumT, OutputT> bindContext(
-      CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
-      StateContext<?> stateContext) {
+      CombineFnWithContext<InputT, AccumT, OutputT> combineFn, StateContext<?> stateContext) {
     Context context = CombineContextFactory.createFromStateContext(stateContext);
     return new NonSerializableBoundedCombineFn<>(combineFn, context);
   }
 
-
-  /**
-   * Return a {@link CombineFnWithContext} from the given {@link GlobalCombineFn}.
-   */
+  /** Return a {@link CombineFnWithContext} from the given {@link GlobalCombineFn}. */
   public static <InputT, AccumT, OutputT>
       CombineFnWithContext<InputT, AccumT, OutputT> toFnWithContext(
           GlobalCombineFn<InputT, AccumT, OutputT> globalCombineFn) {
@@ -69,36 +63,44 @@ public class CombineFnUtil {
         public AccumT createAccumulator(Context c) {
           return combineFn.createAccumulator();
         }
+
         @Override
         public AccumT addInput(AccumT accumulator, InputT input, Context c) {
           return combineFn.addInput(accumulator, input);
         }
+
         @Override
         public AccumT mergeAccumulators(Iterable<AccumT> accumulators, Context c) {
           return combineFn.mergeAccumulators(accumulators);
         }
+
         @Override
         public OutputT extractOutput(AccumT accumulator, Context c) {
           return combineFn.extractOutput(accumulator);
         }
+
         @Override
         public AccumT compact(AccumT accumulator, Context c) {
           return combineFn.compact(accumulator);
         }
+
         @Override
         public OutputT defaultValue() {
           return combineFn.defaultValue();
         }
+
         @Override
         public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
             throws CannotProvideCoderException {
           return combineFn.getAccumulatorCoder(registry, inputCoder);
         }
+
         @Override
         public Coder<OutputT> getDefaultOutputCoder(
             CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
           return combineFn.getDefaultOutputCoder(registry, inputCoder);
         }
+
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
           super.populateDisplayData(builder);
@@ -151,8 +153,7 @@ public class CombineFnUtil {
     }
 
     @Override
-    public Coder<OutputT> getDefaultOutputCoder(
-        CoderRegistry registry, Coder<InputT> inputCoder)
+    public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
       return combineFn.getDefaultOutputCoder(registry, inputCoder);
     }

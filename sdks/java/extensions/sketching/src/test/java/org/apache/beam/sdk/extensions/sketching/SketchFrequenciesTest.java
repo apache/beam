@@ -46,23 +46,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Tests for {@link SketchFrequencies}.
- */
+/** Tests for {@link SketchFrequencies}. */
 public class SketchFrequenciesTest implements Serializable {
 
   @Rule public final transient TestPipeline tp = TestPipeline.create();
 
-  private final List<Long> smallStream = Arrays.asList(
-          1L,
-          2L, 2L,
-          3L, 3L, 3L,
-          4L, 4L, 4L, 4L,
-          5L, 5L, 5L, 5L, 5L,
-          6L, 6L, 6L, 6L, 6L, 6L,
-          7L, 7L, 7L, 7L, 7L, 7L, 7L,
-          8L, 8L, 8L, 8L, 8L, 8L, 8L, 8L,
-          9L, 9L, 9L, 9L, 9L, 9L, 9L, 9L, 9L);
+  private final List<Long> smallStream =
+      Arrays.asList(
+          1L, 2L, 2L, 3L, 3L, 3L, 4L, 4L, 4L, 4L, 5L, 5L, 5L, 5L, 5L, 6L, 6L, 6L, 6L, 6L, 6L, 7L,
+          7L, 7L, 7L, 7L, 7L, 7L, 8L, 8L, 8L, 8L, 8L, 8L, 8L, 8L, 9L, 9L, 9L, 9L, 9L, 9L, 9L, 9L,
+          9L);
 
   private final Long[] distinctElems = {1L, 2L, 3L, 4L, 5L, 6L, 8L, 9L};
   private final Long[] frequencies = distinctElems.clone();
@@ -70,15 +63,13 @@ public class SketchFrequenciesTest implements Serializable {
   @Test
   public void perKeyDefault() {
     PCollection<Long> stream = tp.apply(Create.of(smallStream));
-    PCollection<Sketch<Long>> sketch = stream
-            .apply(WithKeys.of(1))
-            .apply(SketchFrequencies.perKey())
-            .apply(Values.create());
+    PCollection<Sketch<Long>> sketch =
+        stream.apply(WithKeys.of(1)).apply(SketchFrequencies.perKey()).apply(Values.create());
 
     Coder<Long> coder = stream.getCoder();
 
     PAssert.thatSingleton("Verify number of hits", sketch)
-            .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
+        .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
 
     tp.run();
   }
@@ -88,16 +79,14 @@ public class SketchFrequenciesTest implements Serializable {
     double eps = 0.01;
     double conf = 0.8;
     PCollection<Long> stream = tp.apply(Create.of(smallStream));
-    PCollection<Sketch<Long>> sketch = stream
-            .apply(SketchFrequencies
-                    .<Long>globally()
-                    .withRelativeError(eps)
-                    .withConfidence(conf));
+    PCollection<Sketch<Long>> sketch =
+        stream.apply(
+            SketchFrequencies.<Long>globally().withRelativeError(eps).withConfidence(conf));
 
     Coder<Long> coder = stream.getCoder();
 
     PAssert.thatSingleton("Verify number of hits", sketch)
-            .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
+        .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
 
     tp.run();
   }
@@ -136,11 +125,11 @@ public class SketchFrequenciesTest implements Serializable {
     double conf = 0.8;
     Sketch<GenericRecord> sketch = Sketch.create(eps, conf);
     Schema schema =
-            SchemaBuilder.record("User")
-                    .fields()
-                    .requiredString("Pseudo")
-                    .requiredInt("Age")
-                    .endRecord();
+        SchemaBuilder.record("User")
+            .fields()
+            .requiredString("Pseudo")
+            .requiredInt("Age")
+            .endRecord();
     Coder<GenericRecord> coder = AvroCoder.of(schema);
 
     for (int i = 1; i <= nUsers; i++) {
@@ -171,7 +160,7 @@ public class SketchFrequenciesTest implements Serializable {
     int depth = (int) Math.ceil(-Math.log(1 - conf) / Math.log(2));
 
     final CountMinSketchFn<Integer> fn =
-            CountMinSketchFn.create(VarIntCoder.of()).withAccuracy(eps, conf);
+        CountMinSketchFn.create(VarIntCoder.of()).withAccuracy(eps, conf);
 
     assertThat(DisplayData.from(fn), hasDisplayItem("width", width));
     assertThat(DisplayData.from(fn), hasDisplayItem("depth", depth));

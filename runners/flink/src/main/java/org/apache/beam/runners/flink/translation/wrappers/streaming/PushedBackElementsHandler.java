@@ -28,23 +28,15 @@ import java.util.stream.Stream;
  */
 interface PushedBackElementsHandler<T> {
 
-  /**
-   * Returns all pushed back elements.
-   */
+  /** Returns all pushed back elements. */
   Stream<T> getElements() throws Exception;
 
-  /**
-   * Clears the pushed back elements.
-   */
+  /** Clears the pushed back elements. */
   void clear() throws Exception;
 
-  /**
-   * Adds the given element to the pushed back elements.
-   */
+  /** Adds the given element to the pushed back elements. */
   void pushBack(T element) throws Exception;
 
-  /**
-   * Adds all the given element to the pushed back elements.
-   */
+  /** Adds all the given element to the pushed back elements. */
   void pushBackAll(Iterable<T> elements) throws Exception;
 }

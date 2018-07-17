@@ -36,9 +36,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
-/**
- * {@link Coder} for {@link KafkaRecord}.
- */
+/** {@link Coder} for {@link KafkaRecord}. */
 public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
 
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
@@ -92,7 +90,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   private Iterable<KV<String, byte[]>> toIterable(KafkaRecord record) {
-    if (!ConsumerSpEL.hasHeaders){
+    if (!ConsumerSpEL.hasHeaders) {
       return Collections.emptyList();
     }
 

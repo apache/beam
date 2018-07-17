@@ -16,6 +16,10 @@
 #
 
 """Implements a Cloud Datastore query splitter."""
+from __future__ import absolute_import
+from __future__ import division
+
+from builtins import range
 
 from apache_beam.io.gcp.datastore.v1 import helper
 

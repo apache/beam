@@ -23,9 +23,7 @@ import java.io.IOException;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
-/**
- * Saves and restores the current system properties for tests.
- */
+/** Saves and restores the current system properties for tests. */
 public class RestoreSystemProperties extends ExternalResource implements TestRule {
   private byte[] originalProperties;
 

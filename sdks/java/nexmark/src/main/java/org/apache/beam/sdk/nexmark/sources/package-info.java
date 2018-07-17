@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Nexmark Synthetic Sources.
- */
+/** Nexmark Synthetic Sources. */
 package org.apache.beam.sdk.nexmark.sources;

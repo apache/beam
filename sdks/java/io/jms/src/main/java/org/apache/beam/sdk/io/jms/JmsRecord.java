@@ -24,8 +24,8 @@ import javax.annotation.Nullable;
 import javax.jms.Destination;
 
 /**
- * JmsRecord contains message payload of the record
- * as well as metadata (JMS headers and properties).
+ * JmsRecord contains message payload of the record as well as metadata (JMS headers and
+ * properties).
  */
 public class JmsRecord implements Serializable {
 
@@ -119,7 +119,8 @@ public class JmsRecord implements Serializable {
 
   @Override
   public int hashCode() {
-    return Objects.hash(jmsMessageID,
+    return Objects.hash(
+        jmsMessageID,
         jmsTimestamp,
         jmsCorrelationID,
         jmsReplyTo,
@@ -148,5 +149,4 @@ public class JmsRecord implements Serializable {
       return false;
     }
   }
-
 }

@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -128,6 +129,7 @@ abstract class DoFnPTransformRunnerFactory<
     final Coder<? extends BoundedWindow> windowCoder;
     final WindowingStrategy<InputT, ?> windowingStrategy;
     final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
+    Map<TupleTag<?>, Coder<?>> outputCoders;
     final ParDoPayload parDoPayload;
     final ListMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToConsumer;
     final BundleSplitListener splitListener;
@@ -182,6 +184,14 @@ abstract class DoFnPTransformRunnerFactory<
             (WindowingStrategy)
                 rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
         windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+        outputCoders = Maps.newHashMap();
+        for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
+          TupleTag<?> outputTag = new TupleTag<>(entry.getKey());
+          RunnerApi.PCollection outputPCollection = pCollections.get(entry.getValue());
+          Coder<?> outputCoder = rehydratedComponents.getCoder(outputPCollection.getCoderId());
+          outputCoders.put(outputTag, outputCoder);
+        }
 
         // Build the map from tag id to side input specification
         for (Map.Entry<String, RunnerApi.SideInput> entry :

@@ -18,9 +18,9 @@
 
 package org.apache.beam.sdk.fn.stream;
 
-import io.grpc.stub.CallStreamObserver;
-import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ExecutorService;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 
 /**
  * Creates factories which determine an underlying {@link StreamObserver} implementation to use in
@@ -81,8 +81,7 @@ public abstract class OutboundObserverFactory {
    * @param inboundObserver The inbound observer.
    */
   public abstract <ReqT, RespT> StreamObserver<RespT> outboundObserverFor(
-      BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
-      StreamObserver<ReqT> inboundObserver);
+      BasicFactory<ReqT, RespT> baseOutboundObserverFactory, StreamObserver<ReqT> inboundObserver);
 
   private static class DirectClient extends OutboundObserverFactory {
     @Override

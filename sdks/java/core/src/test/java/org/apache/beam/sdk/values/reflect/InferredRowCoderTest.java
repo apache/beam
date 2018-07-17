@@ -27,31 +27,25 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link InferredRowCoder}.
- */
+/** Unit tests for {@link InferredRowCoder}. */
 public class InferredRowCoderTest {
   private static final Schema PERSON_ROW_TYPE =
-      Schema
-          .builder()
-          .addInt32Field("ageYears")
-          .addStringField("name")
-          .build();
+      Schema.builder().addInt32Field("ageYears").addStringField("name").build();
 
   private static final PersonPojo PERSON_FOO = new PersonPojo("Foo", 13);
   private static final PersonPojo PERSON_BAR = new PersonPojo("Bar", 1);
 
-  private static final Row ROW_FOO = Row.withSchema(PERSON_ROW_TYPE)
-                                        .addValues(PERSON_FOO.getAgeYears(), PERSON_BAR.getName())
-                                        .build();
+  private static final Row ROW_FOO =
+      Row.withSchema(PERSON_ROW_TYPE)
+          .addValues(PERSON_FOO.getAgeYears(), PERSON_BAR.getName())
+          .build();
 
-  private static final Row ROW_BAR = Row.withSchema(PERSON_ROW_TYPE)
-                                        .addValues(PERSON_BAR.getAgeYears(), PERSON_BAR.getName())
-                                        .build();
+  private static final Row ROW_BAR =
+      Row.withSchema(PERSON_ROW_TYPE)
+          .addValues(PERSON_BAR.getAgeYears(), PERSON_BAR.getName())
+          .build();
 
-  /**
-   * Person POJO.
-   */
+  /** Person POJO. */
   public static class PersonPojo implements Serializable {
     private Integer ageYears;
     private String name;

@@ -22,20 +22,17 @@ package org.apache.beam.runners.direct;
  * appropriate for the {@link StepAndKey} the executor exists for.
  */
 interface TransformExecutorService {
-  /**
-   * Schedule the provided work to be eventually executed.
-   */
+  /** Schedule the provided work to be eventually executed. */
   void schedule(TransformExecutor work);
 
   /**
-   * Finish executing the provided work. This may cause additional
-   * {@link DirectTransformExecutor TransformExecutors} to be evaluated.
+   * Finish executing the provided work. This may cause additional {@link DirectTransformExecutor
+   * TransformExecutors} to be evaluated.
    */
   void complete(TransformExecutor completed);
 
   /**
-   * Cancel any outstanding work, if possible. Any future calls to schedule should ignore any
-   * work.
+   * Cancel any outstanding work, if possible. Any future calls to schedule should ignore any work.
    */
   void shutdown();
 }

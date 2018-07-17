@@ -66,9 +66,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 
-/**
- * Unit tests for {@link SpannerIO}.
- */
+/** Unit tests for {@link SpannerIO}. */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
   private static final long CELLS_PER_KEY = 7;
@@ -78,7 +76,9 @@ public class SpannerIOWriteTest implements Serializable {
 
   private FakeServiceFactory serviceFactory;
 
-  @Before @SuppressWarnings("unchecked") public void setUp() throws Exception {
+  @Before
+  @SuppressWarnings("unchecked")
+  public void setUp() throws Exception {
     serviceFactory = new FakeServiceFactory();
 
     ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
@@ -91,7 +91,8 @@ public class SpannerIOWriteTest implements Serializable {
 
   private static Struct columnMetadata(
       String tableName, String columnName, String type, long cellsMutated) {
-    return Struct.newBuilder().add("table_name", Value.string(tableName))
+    return Struct.newBuilder()
+        .add("table_name", Value.string(tableName))
         .add("column_name", Value.string(columnName))
         .add("spanner_type", Value.string(type))
         .add("cells_mutated", Value.int64(cellsMutated))
@@ -99,44 +100,57 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   private static Struct pkMetadata(String tableName, String columnName, String ordering) {
-    return Struct.newBuilder().add("table_name", Value.string(tableName))
-        .add("column_name", Value.string(columnName)).add("column_ordering", Value.string(ordering))
+    return Struct.newBuilder()
+        .add("table_name", Value.string(tableName))
+        .add("column_name", Value.string(columnName))
+        .add("column_ordering", Value.string(ordering))
         .build();
   }
 
   private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
-    Type type = Type.struct(Type.StructField.of("table_name", Type.string()),
-        Type.StructField.of("column_name", Type.string()),
-        Type.StructField.of("spanner_type", Type.string()),
-        Type.StructField.of("cells_mutated", Type.int64()));
-    when(tx.executeQuery(argThat(new ArgumentMatcher<Statement>() {
+    Type type =
+        Type.struct(
+            Type.StructField.of("table_name", Type.string()),
+            Type.StructField.of("column_name", Type.string()),
+            Type.StructField.of("spanner_type", Type.string()),
+            Type.StructField.of("cells_mutated", Type.int64()));
+    when(tx.executeQuery(
+            argThat(
+                new ArgumentMatcher<Statement>() {
 
-      @Override public boolean matches(Object argument) {
-        if (!(argument instanceof Statement)) {
-          return false;
-        }
-        Statement st = (Statement) argument;
-        return st.getSql().contains("information_schema.columns");
-      }
-    }))).thenReturn(ResultSets.forRows(type, rows));
+                  @Override
+                  public boolean matches(Object argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.columns");
+                  }
+                })))
+        .thenReturn(ResultSets.forRows(type, rows));
   }
 
   private void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
-    Type type = Type.struct(Type.StructField.of("table_name", Type.string()),
-        Type.StructField.of("column_name", Type.string()),
-        Type.StructField.of("column_ordering", Type.string()));
-    when(tx.executeQuery(argThat(new ArgumentMatcher<Statement>() {
+    Type type =
+        Type.struct(
+            Type.StructField.of("table_name", Type.string()),
+            Type.StructField.of("column_name", Type.string()),
+            Type.StructField.of("column_ordering", Type.string()));
+    when(tx.executeQuery(
+            argThat(
+                new ArgumentMatcher<Statement>() {
 
-      @Override public boolean matches(Object argument) {
-        if (!(argument instanceof Statement)) {
-          return false;
-        }
-        Statement st = (Statement) argument;
-        return st.getSql().contains("information_schema.index_columns");
-      }
-    }))).thenReturn(ResultSets.forRows(type, rows));
+                  @Override
+                  public boolean matches(Object argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.index_columns");
+                  }
+                })))
+        .thenReturn(ResultSets.forRows(type, rows));
   }
-
 
   @Test
   public void emptyTransform() throws Exception {
@@ -176,16 +190,14 @@ public class SpannerIOWriteTest implements Serializable {
             .withServiceFactory(serviceFactory));
     pipeline.run();
 
-    verifyBatches(
-        batch(m(2L))
-    );
+    verifyBatches(batch(m(2L)));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void singleMutationGroupPipeline() throws Exception {
-    PCollection<MutationGroup> mutations = pipeline
-        .apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
     mutations.apply(
         SpannerIO.write()
             .withProjectId("test-project")
@@ -195,9 +207,7 @@ public class SpannerIOWriteTest implements Serializable {
             .grouped());
     pipeline.run();
 
-    verifyBatches(
-        batch(m(1L), m(2L), m(3L))
-    );
+    verifyBatches(batch(m(1L), m(2L), m(3L)));
   }
 
   @Test
@@ -206,39 +216,37 @@ public class SpannerIOWriteTest implements Serializable {
     MutationGroup one = g(m(1L));
     MutationGroup two = g(m(2L));
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(one, two));
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1000000000)
-        .withSampler(fakeSampler(m(1000L)))
-        .grouped());
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(1000000000)
+            .withSampler(fakeSampler(m(1000L)))
+            .grouped());
     pipeline.run();
 
-    verifyBatches(
-        batch(m(1L), m(2L))
-    );
+    verifyBatches(batch(m(1L), m(2L)));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void batchingWithDeletes() throws Exception {
-    PCollection<MutationGroup> mutations = pipeline
-        .apply(Create.of(g(m(1L)), g(m(2L)), g(del(3L)), g(del(4L))));
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1000000000)
-        .withSampler(fakeSampler(m(1000L)))
-        .grouped());
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(del(3L)), g(del(4L))));
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(1000000000)
+            .withSampler(fakeSampler(m(1000L)))
+            .grouped());
     pipeline.run();
 
-    verifyBatches(
-        batch(m(1L), m(2L), del(3L), del(4L))
-    );
+    verifyBatches(batch(m(1L), m(2L), del(3L), del(4L)));
   }
 
   @Test
@@ -246,28 +254,30 @@ public class SpannerIOWriteTest implements Serializable {
   public void noBatchingRangeDelete() throws Exception {
     Mutation all = Mutation.delete("test", KeySet.all());
     Mutation prefix = Mutation.delete("test", KeySet.prefixRange(Key.of(1L)));
-    Mutation range = Mutation.delete("test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key
-        .newBuilder().build())));
+    Mutation range =
+        Mutation.delete(
+            "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
 
-    PCollection<MutationGroup> mutations = pipeline.apply(Create
-        .of(
-            g(m(1L)),
-            g(m(2L)),
-            g(del(5L, 6L)),
-            g(delRange(50L, 55L)),
-            g(delRange(11L, 20L)),
-            g(all),
-            g(prefix), g(range)
-        )
-    );
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1000000000)
-        .withSampler(fakeSampler(m(1000L)))
-        .grouped());
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(
+            Create.of(
+                g(m(1L)),
+                g(m(2L)),
+                g(del(5L, 6L)),
+                g(delRange(50L, 55L)),
+                g(delRange(11L, 20L)),
+                g(all),
+                g(prefix),
+                g(range)));
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(1000000000)
+            .withSampler(fakeSampler(m(1000L)))
+            .grouped());
     pipeline.run();
 
     verifyBatches(
@@ -277,15 +287,13 @@ public class SpannerIOWriteTest implements Serializable {
         batch(delRange(50L, 55L)),
         batch(all),
         batch(prefix),
-        batch(range)
-    );
+        batch(range));
   }
 
   private void verifyBatches(Iterable<Mutation>... batches) {
     for (Iterable<Mutation> b : batches) {
       verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(mutationsInNoOrder(b));
     }
-
   }
 
   @Test
@@ -295,22 +303,21 @@ public class SpannerIOWriteTest implements Serializable {
     long batchSize = MutationSizeEstimator.sizeOf(g(m(1L))) * 2;
 
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L))));
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(batchSize)
-        .withSampler(fakeSampler(m(1000L)))
-        .grouped());
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(batchSize)
+            .withSampler(fakeSampler(m(1000L)))
+            .grouped());
 
     pipeline.run();
 
     // The content of batches is not deterministic. Just verify that the size is correct.
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(iterableOfSize(2));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(iterableOfSize(1));
+    verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(iterableOfSize(2));
+    verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(iterableOfSize(1));
   }
 
   @Test
@@ -320,98 +327,98 @@ public class SpannerIOWriteTest implements Serializable {
     long maxNumMutations = CELLS_PER_KEY * 2;
 
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L))));
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withMaxNumMutations(maxNumMutations)
-        .withBatchSizeBytes(Integer.MAX_VALUE)
-        .withSampler(fakeSampler(m(1000L)))
-        .grouped());
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withMaxNumMutations(maxNumMutations)
+            .withBatchSizeBytes(Integer.MAX_VALUE)
+            .withSampler(fakeSampler(m(1000L)))
+            .grouped());
 
     pipeline.run();
 
     // The content of batches is not deterministic. Just verify that the size is correct.
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(iterableOfSize(2));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(iterableOfSize(1));
+    verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(iterableOfSize(2));
+    verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(iterableOfSize(1));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void noBatching() throws Exception {
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1)
-        .withSampler(fakeSampler(m(1000L)))
-        .grouped());
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(1)
+            .withSampler(fakeSampler(m(1000L)))
+            .grouped());
     pipeline.run();
 
-    verifyBatches(
-        batch(m(1L)),
-        batch(m(2L))
-    );
+    verifyBatches(batch(m(1L)), batch(m(2L)));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void batchingPlusSampling() throws Exception {
-    PCollection<MutationGroup> mutations = pipeline
-        .apply(Create.of(
-            g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)),  g(m(5L)),
-            g(m(6L)), g(m(7L)), g(m(8L)), g(m(9L)),  g(m(10L)))
-        );
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(
+            Create.of(
+                g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L)), g(m(6L)), g(m(7L)), g(m(8L)),
+                g(m(9L)), g(m(10L))));
 
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1000000000)
-        .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
-        .grouped());
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(1000000000)
+            .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
+            .grouped());
     pipeline.run();
 
     verifyBatches(
-        batch(m(1L), m(2L)),
-        batch(m(3L), m(4L), m(5L)),
-        batch(m(6L), m(7L), m(8L), m(9L), m(10L))
-    );
+        batch(m(1L), m(2L)), batch(m(3L), m(4L), m(5L)), batch(m(6L), m(7L), m(8L), m(9L), m(10L)));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void reportFailures() throws Exception {
-    PCollection<MutationGroup> mutations = pipeline
-        .apply(Create.of(
-            g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)),  g(m(5L)),
-            g(m(6L)), g(m(7L)), g(m(8L)), g(m(9L)),  g(m(10L)))
-        );
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(
+            Create.of(
+                g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L)), g(m(6L)), g(m(7L)), g(m(8L)),
+                g(m(9L)), g(m(10L))));
 
     when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
-        .thenAnswer(invocationOnMock -> {
-          throw SpannerExceptionFactory.newSpannerException(ErrorCode.ALREADY_EXISTS, "oops");
-        });
+        .thenAnswer(
+            invocationOnMock -> {
+              throw SpannerExceptionFactory.newSpannerException(ErrorCode.ALREADY_EXISTS, "oops");
+            });
 
-    SpannerWriteResult result = mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1000000000)
-        .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
-        .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
-        .grouped());
-    PAssert.that(result.getFailedMutations()).satisfies(m -> {
-      assertEquals(10, Iterables.size(m));
-      return null;
-    });
+    SpannerWriteResult result =
+        mutations.apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withBatchSizeBytes(1000000000)
+                .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
+                .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
+                .grouped());
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(10, Iterables.size(m));
+              return null;
+            });
     pipeline.run();
 
     verifyBatches(
@@ -419,34 +426,36 @@ public class SpannerIOWriteTest implements Serializable {
         batch(m(3L), m(4L), m(5L)),
         batch(m(6L), m(7L), m(8L), m(9L), m(10L)),
         // Mutations were also retried individually.
-        batch(m(1L)), batch(m(2L)), batch(m(3L)), batch(m(4L)),
-        batch(m(5L)), batch(m(6L)), batch(m(7L)), batch(m(8L)),
-        batch(m(9L)), batch(m(10L)));
+        batch(m(1L)),
+        batch(m(2L)),
+        batch(m(3L)),
+        batch(m(4L)),
+        batch(m(5L)),
+        batch(m(6L)),
+        batch(m(7L)),
+        batch(m(8L)),
+        batch(m(9L)),
+        batch(m(10L)));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void noBatchingPlusSampling() throws Exception {
-    PCollection<MutationGroup> mutations = pipeline
-        .apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L))));
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory)
-        .withBatchSizeBytes(1)
-        .withSampler(fakeSampler(m(2L)))
-        .grouped());
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L))));
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withBatchSizeBytes(1)
+            .withSampler(fakeSampler(m(2L)))
+            .grouped());
 
     pipeline.run();
 
-    verifyBatches(
-        batch(m(1L)),
-        batch(m(2L)),
-        batch(m(3L)),
-        batch(m(4L)),
-        batch(m(5L))
-    );
+    verifyBatches(batch(m(1L)), batch(m(2L)), batch(m(3L)), batch(m(4L)), batch(m(5L)));
   }
 
   @Test
@@ -493,38 +502,39 @@ public class SpannerIOWriteTest implements Serializable {
 
   private static Iterable<Mutation> mutationsInNoOrder(Iterable<Mutation> expected) {
     final ImmutableSet<Mutation> mutations = ImmutableSet.copyOf(expected);
-    return argThat(new ArgumentMatcher<Iterable<Mutation>>() {
+    return argThat(
+        new ArgumentMatcher<Iterable<Mutation>>() {
 
-      @Override
-      public boolean matches(Object argument) {
-        if (!(argument instanceof Iterable)) {
-          return false;
-        }
-        ImmutableSet<Mutation> actual = ImmutableSet.copyOf((Iterable) argument);
-        return actual.equals(mutations);
-      }
+          @Override
+          public boolean matches(Object argument) {
+            if (!(argument instanceof Iterable)) {
+              return false;
+            }
+            ImmutableSet<Mutation> actual = ImmutableSet.copyOf((Iterable) argument);
+            return actual.equals(mutations);
+          }
 
-      @Override
-      public void describeTo(Description description) {
-        description.appendText("Iterable must match ").appendValue(mutations);
-      }
-
-    });
+          @Override
+          public void describeTo(Description description) {
+            description.appendText("Iterable must match ").appendValue(mutations);
+          }
+        });
   }
 
   private Iterable<Mutation> iterableOfSize(final int size) {
-    return argThat(new ArgumentMatcher<Iterable<Mutation>>() {
+    return argThat(
+        new ArgumentMatcher<Iterable<Mutation>>() {
 
-      @Override
-      public boolean matches(Object argument) {
-        return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
-      }
+          @Override
+          public boolean matches(Object argument) {
+            return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
+          }
 
-      @Override
-      public void describeTo(Description description) {
-        description.appendText("The size of the iterable must equal ").appendValue(size);
-      }
-    });
+          @Override
+          public void describeTo(Description description) {
+            description.appendText("The size of the iterable must equal ").appendValue(size);
+          }
+        });
   }
 
   private static FakeSampler fakeSampler(Mutation... mutations) {
@@ -546,8 +556,7 @@ public class SpannerIOWriteTest implements Serializable {
     }
 
     @Override
-    public PCollection<KV<String, List<byte[]>>> expand(
-        PCollection<KV<String, byte[]>> input) {
+    public PCollection<KV<String, List<byte[]>>> expand(PCollection<KV<String, byte[]>> input) {
       MutationGroupEncoder coder = new MutationGroupEncoder(schema);
       Map<String, List<byte[]>> map = new HashMap<>();
       for (Mutation m : mutations) {

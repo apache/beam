@@ -34,13 +34,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link MultiplexingFnDataReceiver}.
- */
+/** Tests for {@link MultiplexingFnDataReceiver}. */
 @RunWith(JUnit4.class)
 public class MultiplexingFnDataReceiverTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void singleConsumer() throws Exception {

@@ -133,8 +133,7 @@ public class DirectStreamObserverTest {
    * incoming StreamObserver's onNext(), onError(), and onComplete() handlers. Blocking the
    * onReadyHandler will prevent additional messages from being processed by the incoming
    * StreamObserver. The onReadyHandler must return in a timely manor or else message processing
-   * throughput will suffer.
-   * </i>
+   * throughput will suffer. </i>
    */
   @Test
   public void testIsReadyCheckDoesntBlockIfPhaserCallbackNeverHappens() throws Exception {

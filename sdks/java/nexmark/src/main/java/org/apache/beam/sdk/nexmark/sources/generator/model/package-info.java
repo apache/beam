@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Model Generators.
- */
+/** Model Generators. */
 package org.apache.beam.sdk.nexmark.sources.generator.model;

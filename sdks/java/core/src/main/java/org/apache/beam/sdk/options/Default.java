@@ -24,9 +24,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@link Default} represents a set of annotations that can be used to annotate getter properties
- * on {@link PipelineOptions} with information representing the default value to be returned
- * if no value is specified.
+ * {@link Default} represents a set of annotations that can be used to annotate getter properties on
+ * {@link PipelineOptions} with information representing the default value to be returned if no
+ * value is specified.
  */
 public @interface Default {
   /**
@@ -41,8 +41,7 @@ public @interface Default {
   }
 
   /**
-   * This represents that the default of the option is the specified {@link java.lang.String}
-   * value.
+   * This represents that the default of the option is the specified {@link java.lang.String} value.
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
@@ -52,9 +51,7 @@ public @interface Default {
     java.lang.String value();
   }
 
-  /**
-   * This represents that the default of the option is the specified boolean primitive value.
-   */
+  /** This represents that the default of the option is the specified boolean primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -63,9 +60,7 @@ public @interface Default {
     boolean value();
   }
 
-  /**
-   * This represents that the default of the option is the specified char primitive value.
-   */
+  /** This represents that the default of the option is the specified char primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -74,9 +69,7 @@ public @interface Default {
     char value();
   }
 
-  /**
-   * This represents that the default of the option is the specified byte primitive value.
-   */
+  /** This represents that the default of the option is the specified byte primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -84,9 +77,7 @@ public @interface Default {
   @interface Byte {
     byte value();
   }
-  /**
-   * This represents that the default of the option is the specified short primitive value.
-   */
+  /** This represents that the default of the option is the specified short primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -94,9 +85,7 @@ public @interface Default {
   @interface Short {
     short value();
   }
-  /**
-   * This represents that the default of the option is the specified int primitive value.
-   */
+  /** This represents that the default of the option is the specified int primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -105,9 +94,7 @@ public @interface Default {
     int value();
   }
 
-  /**
-   * This represents that the default of the option is the specified long primitive value.
-   */
+  /** This represents that the default of the option is the specified long primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -116,9 +103,7 @@ public @interface Default {
     long value();
   }
 
-  /**
-   * This represents that the default of the option is the specified float primitive value.
-   */
+  /** This represents that the default of the option is the specified float primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -127,9 +112,7 @@ public @interface Default {
     float value();
   }
 
-  /**
-   * This represents that the default of the option is the specified double primitive value.
-   */
+  /** This represents that the default of the option is the specified double primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
@@ -139,8 +122,8 @@ public @interface Default {
   }
 
   /**
-   * This represents that the default of the option is the specified enum.
-   * The value should equal the enum's {@link java.lang.Enum#name() name}.
+   * This represents that the default of the option is the specified enum. The value should equal
+   * the enum's {@link java.lang.Enum#name() name}.
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
@@ -151,8 +134,8 @@ public @interface Default {
   }
 
   /**
-   * Value must be of type {@link DefaultValueFactory} and have a default constructor.
-   * Value is instantiated and then used as a factory to generate the default.
+   * Value must be of type {@link DefaultValueFactory} and have a default constructor. Value is
+   * instantiated and then used as a factory to generate the default.
    *
    * <p>See {@link DefaultValueFactory} for more details.
    */

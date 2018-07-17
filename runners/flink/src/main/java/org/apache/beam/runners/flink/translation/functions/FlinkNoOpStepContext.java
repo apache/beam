@@ -21,9 +21,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 
-/**
- * A {@link StepContext} for Flink Batch Runner execution.
- */
+/** A {@link StepContext} for Flink Batch Runner execution. */
 public class FlinkNoOpStepContext implements StepContext {
 
   @Override
@@ -36,4 +34,3 @@ public class FlinkNoOpStepContext implements StepContext {
     throw new UnsupportedOperationException("timerInternals is not supported");
   }
 }
-

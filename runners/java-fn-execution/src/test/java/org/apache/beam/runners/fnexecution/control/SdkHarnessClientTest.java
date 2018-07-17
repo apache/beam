@@ -135,10 +135,11 @@ public class SdkHarnessClientTest {
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(registerResponseFuture);
 
-    ProcessBundleDescriptor descriptor = ProcessBundleDescriptor.newBuilder()
-        .setId("test")
-        .setStateApiServiceDescriptor(ApiServiceDescriptor.newBuilder().setUrl("foo"))
-        .build();
+    ProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptor.newBuilder()
+            .setId("test")
+            .setStateApiServiceDescriptor(ApiServiceDescriptor.newBuilder().setUrl("foo"))
+            .build();
 
     RemoteInputDestination<WindowedValue<Integer>> remoteInputs =
         RemoteInputDestination.of(
@@ -156,8 +157,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -177,8 +177,7 @@ public class SdkHarnessClientTest {
       //
       // Currently there are no fields so there's nothing to check. This test is formulated
       // to match the pattern it should have if/when the response is meaningful.
-      BeamFnApi.ProcessBundleResponse response =
-          ProcessBundleResponse.getDefaultInstance();
+      BeamFnApi.ProcessBundleResponse response = ProcessBundleResponse.getDefaultInstance();
       processBundleResponseFuture.complete(
           BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
     }
@@ -247,8 +246,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -257,8 +255,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor,
-            RemoteInputDestination.of(coder, Target.getDefaultInstance()));
+            descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -300,8 +297,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -347,8 +343,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -357,8 +352,7 @@ public class SdkHarnessClientTest {
         FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
     BundleProcessor<String> processor =
         sdkHarnessClient.getProcessor(
-            descriptor,
-            RemoteInputDestination.of(coder, Target.getDefaultInstance()));
+            descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
     when(dataService.receive(any(), any(), any())).thenReturn(mockOutputReceiver);
     when(dataService.send(any(), eq(coder))).thenReturn(mockInputSender);
 
@@ -397,8 +391,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -443,8 +436,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -472,8 +464,8 @@ public class SdkHarnessClientTest {
         //
         // Currently there are no fields so there's nothing to check. This test is formulated
         // to match the pattern it should have if/when the response is meaningful.
-        BeamFnApi.ProcessBundleResponse response = BeamFnApi.ProcessBundleResponse
-            .getDefaultInstance();
+        BeamFnApi.ProcessBundleResponse response =
+            BeamFnApi.ProcessBundleResponse.getDefaultInstance();
         processBundleResponseFuture.complete(
             BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
       }
@@ -499,8 +491,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    CompletableFuture<InstructionResponse> processBundleResponseFuture =
-        new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
@@ -584,8 +575,7 @@ public class SdkHarnessClientTest {
         .putTransforms("proc", targetProcessor)
         .putTransforms("read", readNode.toPTransform())
         .putTransforms("write", writeNode.toPTransform());
-    return pbdBuilder
-        .build();
+    return pbdBuilder.build();
   }
 
   private static class TestFn extends DoFn<String, String> {

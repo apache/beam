@@ -31,9 +31,7 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
- */
+/** Translator for the {@code Read} {@code PTransform} for the Dataflow back-end. */
 class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
   @Override
   public void translate(Read.Bounded<?> transform, TranslationContext context) {
@@ -66,7 +64,9 @@ class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
     Map<String, Object> res = new HashMap<>();
     addDictionary(res, PropertyNames.SOURCE_SPEC, source.getSpec());
     if (source.getMetadata() != null) {
-      addDictionary(res, PropertyNames.SOURCE_METADATA,
+      addDictionary(
+          res,
+          PropertyNames.SOURCE_METADATA,
           cloudSourceMetadataToDictionary(source.getMetadata()));
     }
     if (source.getDoesNotNeedSplitting() != null) {

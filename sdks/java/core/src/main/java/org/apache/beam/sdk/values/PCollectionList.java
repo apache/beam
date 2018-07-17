@@ -29,13 +29,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 
 /**
- * A {@link PCollectionList PCollectionList&lt;T&gt;} is an immutable list of homogeneously
- * typed {@link PCollection PCollection&lt;T&gt;s}. A {@link PCollectionList} is used, for
- * instance, as the input to
- * {@link Flatten} or the output of {@link Partition}.
+ * A {@link PCollectionList PCollectionList&lt;T&gt;} is an immutable list of homogeneously typed
+ * {@link PCollection PCollection&lt;T&gt;s}. A {@link PCollectionList} is used, for instance, as
+ * the input to {@link Flatten} or the output of {@link Partition}.
  *
  * <p>PCollectionLists can be created and accessed like follows:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<String> pc1 = ...;
  * PCollection<String> pc2 = ...;
  * PCollection<String> pc3 = ...;
@@ -54,7 +54,7 @@ import org.apache.beam.sdk.transforms.Partition;
  *
  * // Get a list of all PCollections in a PCollectionList:
  * List<PCollection<String>> allPcs = pcs.getAll();
- * } </pre>
+ * }</pre>
  *
  * @param <T> the type of the elements of all the {@link PCollection PCollections} in this list
  */
@@ -62,8 +62,8 @@ public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionList} that is part of the given {@link Pipeline}.
    *
-   * <p>Longer {@link PCollectionList PCollectionLists} can be created by calling
-   * {@link #and} on the result.
+   * <p>Longer {@link PCollectionList PCollectionLists} can be created by calling {@link #and} on
+   * the result.
    */
   public static <T> PCollectionList<T> empty(Pipeline pipeline) {
     return new PCollectionList<>(pipeline);
@@ -72,48 +72,47 @@ public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns a singleton {@link PCollectionList} containing the given {@link PCollection}.
    *
-   * <p>Longer {@link PCollectionList PCollectionLists} can be created by calling
-   * {@link #and} on the result.
+   * <p>Longer {@link PCollectionList PCollectionLists} can be created by calling {@link #and} on
+   * the result.
    */
   public static <T> PCollectionList<T> of(PCollection<T> pc) {
     return new PCollectionList<T>(pc.getPipeline()).and(pc);
   }
 
   /**
-   * Returns a {@link PCollectionList} containing the given {@link PCollection PCollections},
-   * in order.
+   * Returns a {@link PCollectionList} containing the given {@link PCollection PCollections}, in
+   * order.
    *
    * <p>The argument list cannot be empty.
    *
    * <p>All the {@link PCollection PCollections} in the resulting {@link PCollectionList} must be
    * part of the same {@link Pipeline}.
    *
-   * <p>Longer PCollectionLists can be created by calling
-   * {@link #and} on the result.
+   * <p>Longer PCollectionLists can be created by calling {@link #and} on the result.
    */
   public static <T> PCollectionList<T> of(Iterable<PCollection<T>> pcs) {
     Iterator<PCollection<T>> pcsIter = pcs.iterator();
     if (!pcsIter.hasNext()) {
       throw new IllegalArgumentException(
           "must either have a non-empty list of PCollections, "
-          + "or must first call empty(Pipeline)");
+              + "or must first call empty(Pipeline)");
     }
     return new PCollectionList<T>(pcsIter.next().getPipeline()).and(pcs);
   }
 
   /**
-   * Returns a new {@link PCollectionList} that has all the {@link PCollection PCollections} of
-   * this {@link PCollectionList} plus the given {@link PCollection} appended to the end.
+   * Returns a new {@link PCollectionList} that has all the {@link PCollection PCollections} of this
+   * {@link PCollectionList} plus the given {@link PCollection} appended to the end.
    *
    * <p>All the {@link PCollection PCollections} in the resulting {@link PCollectionList} must be
    * part of the same {@link Pipeline}.
    */
   public PCollectionList<T> and(PCollection<T> pc) {
     if (pc.getPipeline() != pipeline) {
-      throw new IllegalArgumentException(
-          "PCollections come from different Pipelines");
+      throw new IllegalArgumentException("PCollections come from different Pipelines");
     }
-    return new PCollectionList<>(pipeline,
+    return new PCollectionList<>(
+        pipeline,
         ImmutableList.<TaggedPValue>builder()
             .addAll(pcollections)
             .add(TaggedPValue.of(new TupleTag<T>(), pc))
@@ -121,9 +120,9 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   /**
-   * Returns a new {@link PCollectionList} that has all the {@link PCollection PCollections} of
-   * this {@link PCollectionList} plus the given {@link PCollection PCollections} appended to the
-   * end, in order.
+   * Returns a new {@link PCollectionList} that has all the {@link PCollection PCollections} of this
+   * {@link PCollectionList} plus the given {@link PCollection PCollections} appended to the end, in
+   * order.
    *
    * <p>All the {@link PCollection PCollections} in the resulting {@link PCollectionList} must be
    * part of the same {@link Pipeline}.
@@ -140,9 +139,7 @@ public class PCollectionList<T> implements PInput, POutput {
     return new PCollectionList<>(pipeline, builder.build());
   }
 
-  /**
-   * Returns the number of {@link PCollection PCollections} in this {@link PCollectionList}.
-   */
+  /** Returns the number of {@link PCollection PCollections} in this {@link PCollectionList}. */
   public int size() {
     return pcollections.size();
   }
@@ -150,8 +147,7 @@ public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns the {@link PCollection} at the given index (origin zero).
    *
-   * @throws IndexOutOfBoundsException if the index is out of the range
-   * {@code [0..size()-1]}.
+   * @throws IndexOutOfBoundsException if the index is out of the range {@code [0..size()-1]}.
    */
   public PCollection<T> get(int index) {
     @SuppressWarnings("unchecked") // Type-safe by construction
@@ -160,8 +156,8 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   /**
-   * Returns an immutable List of all the {@link PCollection PCollections} in this
-   * {@link PCollectionList}.
+   * Returns an immutable List of all the {@link PCollection PCollections} in this {@link
+   * PCollectionList}.
    */
   public List<PCollection<T>> getAll() {
     ImmutableList.Builder<PCollection<T>> res = ImmutableList.builder();
@@ -174,19 +170,17 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   /**
-   * Like {@link #apply(String, PTransform)} but defaulting to the name
-   * of the {@code PTransform}.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name of the {@code PTransform}.
    */
-  public <OutputT extends POutput> OutputT apply(
-      PTransform<PCollectionList<T>, OutputT> t) {
+  public <OutputT extends POutput> OutputT apply(PTransform<PCollectionList<T>, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 
   /**
-   * Applies the given {@link PTransform} to this input {@link PCollectionList},
-   * using {@code name} to identify this specific application of the transform.
-   * This name is used in various places, including the monitoring UI, logging,
-   * and to stably identify this application node in the job graph.
+   * Applies the given {@link PTransform} to this input {@link PCollectionList}, using {@code name}
+   * to identify this specific application of the transform. This name is used in various places,
+   * including the monitoring UI, logging, and to stably identify this application node in the job
+   * graph.
    *
    * @return the output of the applied {@link PTransform}
    */

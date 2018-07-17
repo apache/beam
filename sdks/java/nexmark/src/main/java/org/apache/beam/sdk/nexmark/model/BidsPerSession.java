@@ -30,42 +30,38 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * Result of query 11.
- */
+/** Result of query 11. */
 public class BidsPerSession implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
 
-  public static final Coder<BidsPerSession> CODER = new CustomCoder<BidsPerSession>() {
-    @Override
-    public void encode(BidsPerSession value, OutputStream outStream)
-        throws CoderException, IOException {
-      LONG_CODER.encode(value.personId, outStream);
-      LONG_CODER.encode(value.bidsPerSession, outStream);
-    }
+  public static final Coder<BidsPerSession> CODER =
+      new CustomCoder<BidsPerSession>() {
+        @Override
+        public void encode(BidsPerSession value, OutputStream outStream)
+            throws CoderException, IOException {
+          LONG_CODER.encode(value.personId, outStream);
+          LONG_CODER.encode(value.bidsPerSession, outStream);
+        }
 
-    @Override
-    public BidsPerSession decode(
-        InputStream inStream)
-        throws CoderException, IOException {
-      long personId = LONG_CODER.decode(inStream);
-      long bidsPerSession = LONG_CODER.decode(inStream);
-      return new BidsPerSession(personId, bidsPerSession);
-    }
+        @Override
+        public BidsPerSession decode(InputStream inStream) throws CoderException, IOException {
+          long personId = LONG_CODER.decode(inStream);
+          long bidsPerSession = LONG_CODER.decode(inStream);
+          return new BidsPerSession(personId, bidsPerSession);
+        }
 
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
 
-    @Override
-    public Object structuralValue(BidsPerSession v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(BidsPerSession v) {
+          return v;
+        }
+      };
 
-  @JsonProperty
-  private final long personId;
+  @JsonProperty private final long personId;
 
-  @JsonProperty
-  private final long bidsPerSession;
+  @JsonProperty private final long bidsPerSession;
 
   public BidsPerSession() {
     personId = 0;

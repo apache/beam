@@ -20,11 +20,10 @@ package org.apache.beam.sdk.io.kinesis;
 import java.io.Serializable;
 
 /**
- * Used to generate checkpoint object on demand.
- * How exactly the checkpoint is generated is up to implementing class.
+ * Used to generate checkpoint object on demand. How exactly the checkpoint is generated is up to
+ * implementing class.
  */
 interface CheckpointGenerator extends Serializable {
 
-  KinesisReaderCheckpoint generate(SimplifiedKinesisClient client)
-      throws TransientKinesisException;
+  KinesisReaderCheckpoint generate(SimplifiedKinesisClient client) throws TransientKinesisException;
 }

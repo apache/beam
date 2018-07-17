@@ -29,30 +29,24 @@ import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 
-/**
- * AuctionGenerator.
- */
+/** AuctionGenerator. */
 public class AuctionGenerator {
   /**
-   * Keep the number of categories small so the example queries will find results even with
-   * a small batch of events.
+   * Keep the number of categories small so the example queries will find results even with a small
+   * batch of events.
    */
   private static final int NUM_CATEGORIES = 5;
 
-  /**
-   * Number of yet-to-be-created people and auction ids allowed.
-   */
+  /** Number of yet-to-be-created people and auction ids allowed. */
   private static final int AUCTION_ID_LEAD = 10;
 
   /**
-   * Fraction of people/auctions which may be 'hot' sellers/bidders/auctions are 1
-   * over these values.
+   * Fraction of people/auctions which may be 'hot' sellers/bidders/auctions are 1 over these
+   * values.
    */
   private static final int HOT_SELLER_RATIO = 100;
 
-  /**
-   * Generate and return a random auction with next available id.
-   */
+  /** Generate and return a random auction with next available id. */
   public static Auction nextAuction(
       long eventsCountSoFar, long eventId, Random random, long timestamp, GeneratorConfig config) {
 
@@ -76,8 +70,8 @@ public class AuctionGenerator {
     long reserve = initialBid + nextPrice(random);
     int currentSize = 8 + name.length() + desc.length() + 8 + 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.getAvgAuctionByteSize());
-    return new Auction(id, name, desc, initialBid, reserve, timestamp, expires, seller, category,
-        extra);
+    return new Auction(
+        id, name, desc, initialBid, reserve, timestamp, expires, seller, category, extra);
   }
 
   /**
@@ -103,18 +97,15 @@ public class AuctionGenerator {
     return epoch * GeneratorConfig.AUCTION_PROPORTION + offset;
   }
 
-  /**
-   * Return a random auction id (base 0).
-   */
-  public static long nextBase0AuctionId(
-      long nextEventId, Random random, GeneratorConfig config) {
+  /** Return a random auction id (base 0). */
+  public static long nextBase0AuctionId(long nextEventId, Random random, GeneratorConfig config) {
 
     // Choose a random auction for any of those which are likely to still be in flight,
     // plus a few 'leads'.
     // Note that ideally we'd track non-expired auctions exactly, but that state
     // is difficult to split.
-    long minAuction = Math.max(
-        lastBase0AuctionId(nextEventId) - config.getNumInFlightAuctions(), 0);
+    long minAuction =
+        Math.max(lastBase0AuctionId(nextEventId) - config.getNumInFlightAuctions(), 0);
     long maxAuction = lastBase0AuctionId(nextEventId);
     return minAuction + nextLong(random, maxAuction - minAuction + 1 + AUCTION_ID_LEAD);
   }
@@ -130,9 +121,10 @@ public class AuctionGenerator {
         ((long) config.getNumInFlightAuctions() * GeneratorConfig.PROPORTION_DENOMINATOR)
             / GeneratorConfig.AUCTION_PROPORTION;
     // When will the auction numInFlightAuctions beyond now be generated?
-    long futureAuction = config
-        .timestampAndInterEventDelayUsForEvent(currentEventNumber + numEventsForAuctions)
-        .getKey();
+    long futureAuction =
+        config
+            .timestampAndInterEventDelayUsForEvent(currentEventNumber + numEventsForAuctions)
+            .getKey();
     // System.out.printf("*** auction will be for %dms (%d events ahead) ***\n",
     //     futureAuction - timestamp, numEventsForAuctions);
     // Choose a length with average horizonMs.

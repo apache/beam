@@ -18,9 +18,9 @@
 
 package org.apache.beam.sdk.fn.windowing;
 
-import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.fn.windowing.EncodedBoundedWindow.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,16 +31,19 @@ public class EncodedBoundedWindowTest {
   @Test
   public void testCoder() throws Exception {
     CoderProperties.coderSerializable(Coder.INSTANCE);
-    CoderProperties.coderConsistentWithEquals(Coder.INSTANCE,
+    CoderProperties.coderConsistentWithEquals(
+        Coder.INSTANCE,
         EncodedBoundedWindow.forEncoding(ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03})),
         EncodedBoundedWindow.forEncoding(ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03})));
-    CoderProperties.coderDecodeEncodeEqual(Coder.INSTANCE,
+    CoderProperties.coderDecodeEncodeEqual(
+        Coder.INSTANCE,
         EncodedBoundedWindow.forEncoding(ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03})));
     CoderProperties.coderDeterministic(
         Coder.INSTANCE,
         EncodedBoundedWindow.forEncoding(ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03})),
         EncodedBoundedWindow.forEncoding(ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03})));
-    CoderProperties.structuralValueDecodeEncodeEqual(Coder.INSTANCE,
+    CoderProperties.structuralValueDecodeEncodeEqual(
+        Coder.INSTANCE,
         EncodedBoundedWindow.forEncoding(ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03})));
   }
 }

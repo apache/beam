@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import os
 import shutil
+from builtins import zip
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile

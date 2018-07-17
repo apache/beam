@@ -26,12 +26,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.protobuf.Struct;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,12 +48,9 @@ public class InMemoryJobServiceTest {
   private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
   private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
 
-
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
-  @Mock
-  JobInvoker invoker;
-  @Mock
-  JobInvocation invocation;
+  @Mock JobInvoker invoker;
+  @Mock JobInvocation invocation;
 
   InMemoryJobService service;
 
@@ -69,8 +66,7 @@ public class InMemoryJobServiceTest {
   @Test
   public void testPrepareIsSuccessful() {
     JobApi.PrepareJobRequest request =
-        JobApi.PrepareJobRequest
-            .newBuilder()
+        JobApi.PrepareJobRequest.newBuilder()
             .setJobName(TEST_JOB_NAME)
             .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
             .setPipelineOptions(Struct.getDefaultInstance())

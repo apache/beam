@@ -63,9 +63,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link ParDoEvaluator}.
- */
+/** Tests for {@link ParDoEvaluator}. */
 @RunWith(JUnit4.class)
 public class ParDoEvaluatorTest {
   @Mock private EvaluationContext evaluationContext;
@@ -74,8 +72,7 @@ public class ParDoEvaluatorTest {
   private List<TupleTag<?>> additionalOutputTags;
   private BundleFactory bundleFactory;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -99,8 +96,7 @@ public class ParDoEvaluatorTest {
     UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(output);
     when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
 
-    ParDoEvaluator<Integer> evaluator =
-        createEvaluator(singletonView, fn, inputPc, output);
+    ParDoEvaluator<Integer> evaluator = createEvaluator(singletonView, fn, inputPc, output);
 
     IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
     WindowedValue<Integer> first = WindowedValue.valueInGlobalWindow(3);
@@ -140,14 +136,10 @@ public class ParDoEvaluatorTest {
         .thenReturn(new ReadyInGlobalWindowReader());
     DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
     DirectStepContext stepContext = mock(DirectStepContext.class);
-    when(
-            executionContext.getStepContext(
-                Mockito.any(String.class)))
-        .thenReturn(stepContext);
+    when(executionContext.getStepContext(Mockito.any(String.class))).thenReturn(stepContext);
     when(stepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());
-    when(
-            evaluationContext.getExecutionContext(
-                Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
+    when(evaluationContext.getExecutionContext(
+            Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
         .thenReturn(executionContext);
 
     DirectGraphs.performDirectOverrides(p);
@@ -159,6 +151,7 @@ public class ParDoEvaluatorTest {
         PipelineOptionsFactory.create(),
         stepContext,
         transform,
+        input.getCoder(),
         input.getWindowingStrategy(),
         fn,
         null /* key */,

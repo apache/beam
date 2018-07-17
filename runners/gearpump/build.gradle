@@ -47,7 +47,6 @@ dependencies {
   shadow "org.apache.gearpump:gearpump-streaming_2.11:$gearpump_version"
   shadow library.java.joda_time
   shadow library.java.jackson_annotations
-  shadow library.java.findbugs_jsr305
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
@@ -72,15 +71,18 @@ task validatesRunnerStreaming(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 

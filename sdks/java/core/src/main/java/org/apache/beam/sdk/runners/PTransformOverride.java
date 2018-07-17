@@ -36,13 +36,9 @@ public abstract class PTransformOverride {
     return new AutoValue_PTransformOverride(matcher, factory);
   }
 
-  /**
-   * Gets the {@link PTransformMatcher} to identify {@link PTransform PTransforms} to replace.
-   */
+  /** Gets the {@link PTransformMatcher} to identify {@link PTransform PTransforms} to replace. */
   public abstract PTransformMatcher getMatcher();
 
-  /**
-   * Gets the {@link PTransformOverrideFactory} of this override.
-   */
+  /** Gets the {@link PTransformOverrideFactory} of this override. */
   public abstract PTransformOverrideFactory getOverrideFactory();
 }

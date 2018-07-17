@@ -87,10 +87,11 @@ public class SqlSchemaFactoryTest {
         Arrays.<FieldValueGetter>asList(getter("arrayListGetter", ArrayList.class)));
   }
 
-  private static FieldValueGetter<Object> getter(final String fieldName, final Class fieldType) {
-    return new FieldValueGetter<Object>() {
+  private static <T> FieldValueGetter<Object, T> getter(
+      final String fieldName, final Class<T> fieldType) {
+    return new FieldValueGetter<Object, T>() {
       @Override
-      public Object get(Object object) {
+      public T get(Object object) {
         return null;
       }
 

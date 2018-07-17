@@ -24,19 +24,15 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 
-/**
- * Samza's extended MapState, allowing extra access methods to the state.
- *
- */
+/** Samza's extended MapState, allowing extra access methods to the state. */
 @Experimental(Experimental.Kind.STATE)
 public interface SamzaMapState<KeyT, ValueT> extends MapState<KeyT, ValueT> {
 
   /**
-   * Returns an iterator from the current map state.
-   * Note this is different from the iterable implementation in {@link MapState#entries()}},
-   * where we load the entries into memory and return iterable from that. To handle large
-   * state that doesn't fit in memory, we also need this method so it's possible to iterate
-   * on large data set and close the iterator when not needed.
+   * Returns an iterator from the current map state. Note this is different from the iterable
+   * implementation in {@link MapState#entries()}}, where we load the entries into memory and return
+   * iterable from that. To handle large state that doesn't fit in memory, we also need this method
+   * so it's possible to iterate on large data set and close the iterator when not needed.
    *
    * @return a {@link ReadableState} of an iterator
    */

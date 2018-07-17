@@ -29,14 +29,11 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-/***
- *
- */
+/** * */
 @RunWith(MockitoJUnitRunner.class)
 public class KinesisReaderCheckpointTest {
 
-  @Mock
-  private ShardCheckpoint a, b, c;
+  @Mock private ShardCheckpoint a, b, c;
 
   private KinesisReaderCheckpoint checkpoint;
 

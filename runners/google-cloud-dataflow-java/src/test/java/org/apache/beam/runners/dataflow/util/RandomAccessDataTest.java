@@ -38,14 +38,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link RandomAccessData}.
- */
+/** Tests for {@link RandomAccessData}. */
 @RunWith(JUnit4.class)
 public class RandomAccessDataTest {
-  private static final byte[] TEST_DATA_A = new byte[]{ 0x01, 0x02, 0x03 };
-  private static final byte[] TEST_DATA_B = new byte[]{ 0x06, 0x05, 0x04, 0x03 };
-  private static final byte[] TEST_DATA_C = new byte[]{ 0x06, 0x05, 0x03, 0x03 };
+  private static final byte[] TEST_DATA_A = new byte[] {0x01, 0x02, 0x03};
+  private static final byte[] TEST_DATA_B = new byte[] {0x06, 0x05, 0x04, 0x03};
+  private static final byte[] TEST_DATA_C = new byte[] {0x06, 0x05, 0x03, 0x03};
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -69,8 +67,8 @@ public class RandomAccessDataTest {
   public void testCoderWithPositiveInfinityIsError() throws Exception {
     expectedException.expect(CoderException.class);
     expectedException.expectMessage("Positive infinity can not be encoded");
-    RandomAccessDataCoder.of().encode(
-        RandomAccessData.POSITIVE_INFINITY, new ByteArrayOutputStream(), Context.OUTER);
+    RandomAccessDataCoder.of()
+        .encode(RandomAccessData.POSITIVE_INFINITY, new ByteArrayOutputStream(), Context.OUTER);
   }
 
   @Test
@@ -81,25 +79,29 @@ public class RandomAccessDataTest {
     streamB.asOutputStream().write(TEST_DATA_B);
     RandomAccessData streamC = new RandomAccessData();
     streamC.asOutputStream().write(TEST_DATA_C);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        streamA, streamB) < 0);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        streamB, streamA) > 0);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        streamB, streamB) == 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamA, streamB) < 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamB, streamA) > 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamB, streamB) == 0);
     // Check common prefix length.
-    assertEquals(2, RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.commonPrefixLength(
-        streamB, streamC));
+    assertEquals(
+        2,
+        RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.commonPrefixLength(streamB, streamC));
     // Check that we honor the start offset.
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        streamB, streamC, 3) == 0);
+    assertTrue(
+        RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamB, streamC, 3) == 0);
     // Test positive infinity comparisons.
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        streamA, RandomAccessData.POSITIVE_INFINITY) < 0);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        RandomAccessData.POSITIVE_INFINITY, RandomAccessData.POSITIVE_INFINITY) == 0);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
-        RandomAccessData.POSITIVE_INFINITY, streamA) > 0);
+    assertTrue(
+        RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+                streamA, RandomAccessData.POSITIVE_INFINITY)
+            < 0);
+    assertTrue(
+        RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+                RandomAccessData.POSITIVE_INFINITY, RandomAccessData.POSITIVE_INFINITY)
+            == 0);
+    assertTrue(
+        RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+                RandomAccessData.POSITIVE_INFINITY, streamA)
+            > 0);
   }
 
   @Test
@@ -118,7 +120,7 @@ public class RandomAccessDataTest {
 
     // Test same length streams with different data differ
     RandomAccessData streamB = new RandomAccessData();
-    streamB.asOutputStream().write(new byte[]{ 0x01, 0x02, 0x04 });
+    streamB.asOutputStream().write(new byte[] {0x01, 0x02, 0x04});
     assertNotEquals(streamA, streamB);
     assertNotEquals(streamA.hashCode(), streamB.hashCode());
 
@@ -135,8 +137,8 @@ public class RandomAccessDataTest {
     stream.resetTo(1);
     assertEquals(1, stream.size());
     stream.asOutputStream().write(TEST_DATA_A);
-    assertArrayEquals(new byte[]{ 0x01, 0x01, 0x02, 0x03 },
-        Arrays.copyOf(stream.array(), stream.size()));
+    assertArrayEquals(
+        new byte[] {0x01, 0x01, 0x02, 0x03}, Arrays.copyOf(stream.array(), stream.size()));
   }
 
   @Test
@@ -154,8 +156,8 @@ public class RandomAccessDataTest {
     ByteArrayInputStream bais = new ByteArrayInputStream(TEST_DATA_A);
     RandomAccessData stream = new RandomAccessData();
     stream.readFrom(bais, 3, 2);
-    assertArrayEquals(new byte[]{ 0x00, 0x00, 0x00, 0x01, 0x02 },
-        Arrays.copyOf(stream.array(), stream.size()));
+    assertArrayEquals(
+        new byte[] {0x00, 0x00, 0x00, 0x01, 0x02}, Arrays.copyOf(stream.array(), stream.size()));
     bais.close();
   }
 
@@ -165,7 +167,7 @@ public class RandomAccessDataTest {
     RandomAccessData stream = new RandomAccessData();
     stream.asOutputStream().write(TEST_DATA_B);
     stream.writeTo(baos, 1, 2);
-    assertArrayEquals(new byte[]{ 0x05, 0x04 }, baos.toByteArray());
+    assertArrayEquals(new byte[] {0x05, 0x04}, baos.toByteArray());
     baos.close();
   }
 
@@ -173,8 +175,8 @@ public class RandomAccessDataTest {
   public void testThatRandomAccessDataGrowsWhenResettingToPositionBeyondEnd() throws Exception {
     RandomAccessData stream = new RandomAccessData(0);
     assertArrayEquals(new byte[0], stream.array());
-    stream.resetTo(3);  // force resize
-    assertArrayEquals(new byte[]{ 0x00, 0x00, 0x00 }, stream.array());
+    stream.resetTo(3); // force resize
+    assertArrayEquals(new byte[] {0x00, 0x00, 0x00}, stream.array());
   }
 
   @Test
@@ -182,21 +184,23 @@ public class RandomAccessDataTest {
     RandomAccessData stream = new RandomAccessData(0);
     assertArrayEquals(new byte[0], stream.array());
     stream.readFrom(new ByteArrayInputStream(TEST_DATA_A), 0, TEST_DATA_A.length);
-    assertArrayEquals(TEST_DATA_A,
-        Arrays.copyOf(stream.array(), TEST_DATA_A.length));
+    assertArrayEquals(TEST_DATA_A, Arrays.copyOf(stream.array(), TEST_DATA_A.length));
   }
 
   @Test
   public void testIncrement() throws Exception {
-    assertEquals(new RandomAccessData(new byte[]{ 0x00, 0x01 }),
-        new RandomAccessData(new byte[]{ 0x00, 0x00 }).increment());
-    assertEquals(new RandomAccessData(new byte[]{ 0x01, UnsignedBytes.MAX_VALUE }),
-        new RandomAccessData(new byte[]{ 0x00, UnsignedBytes.MAX_VALUE }).increment());
+    assertEquals(
+        new RandomAccessData(new byte[] {0x00, 0x01}),
+        new RandomAccessData(new byte[] {0x00, 0x00}).increment());
+    assertEquals(
+        new RandomAccessData(new byte[] {0x01, UnsignedBytes.MAX_VALUE}),
+        new RandomAccessData(new byte[] {0x00, UnsignedBytes.MAX_VALUE}).increment());
 
     // Test for positive infinity
     assertSame(RandomAccessData.POSITIVE_INFINITY, new RandomAccessData(new byte[0]).increment());
-    assertSame(RandomAccessData.POSITIVE_INFINITY,
-        new RandomAccessData(new byte[]{ UnsignedBytes.MAX_VALUE }).increment());
+    assertSame(
+        RandomAccessData.POSITIVE_INFINITY,
+        new RandomAccessData(new byte[] {UnsignedBytes.MAX_VALUE}).increment());
     assertSame(RandomAccessData.POSITIVE_INFINITY, RandomAccessData.POSITIVE_INFINITY.increment());
   }
 }

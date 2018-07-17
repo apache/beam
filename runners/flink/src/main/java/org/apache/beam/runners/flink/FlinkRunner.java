@@ -42,17 +42,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PipelineRunner} that executes the operations in the
- * pipeline by first translating them to a Flink Plan and then executing them either locally
- * or on a Flink cluster, depending on the configuration.
+ * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
+ * to a Flink Plan and then executing them either locally or on a Flink cluster, depending on the
+ * configuration.
  */
 public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);
 
-  /**
-   * Provided options.
-   */
+  /** Provided options. */
   private final FlinkPipelineOptions options;
 
   /**
@@ -75,9 +73,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     if (flinkOptions.getFilesToStage() == null) {
-      flinkOptions.setFilesToStage(detectClassPathResourcesToStage(
-          FlinkRunner.class.getClassLoader()));
-      LOG.info("PipelineOptions.filesToStage was not specified. "
+      flinkOptions.setFilesToStage(
+          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
+      LOG.info(
+          "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
               + "Enable logging at DEBUG level to see which files will be staged.",
           flinkOptions.getFilesToStage().size());
@@ -136,8 +135,8 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           LOG.info("{} : {}", entry.getKey(), entry.getValue());
         }
       }
-      FlinkRunnerResult flinkRunnerResult = new FlinkRunnerResult(accumulators,
-          result.getNetRuntime());
+      FlinkRunnerResult flinkRunnerResult =
+          new FlinkRunnerResult(accumulators, result.getNetRuntime());
       MetricsPusher metricsPusher =
           new MetricsPusher(
               flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
@@ -146,9 +145,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
   }
 
-  /**
-   * For testing.
-   */
+  /** For testing. */
   public FlinkPipelineOptions getPipelineOptions() {
     return options;
   }
@@ -158,14 +155,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     return "FlinkRunner#" + hashCode();
   }
 
-
-
   /** A set of {@link View}s with non-deterministic key coders. */
   Set<PTransform<?, ?>> ptransformViewsWithNonDeterministicKeyCoders;
 
-  /**
-   * Records that the {@link PTransform} requires a deterministic key coder.
-   */
+  /** Records that the {@link PTransform} requires a deterministic key coder. */
   void recordViewUsesNonDeterministicKeyCoder(PTransform<?, ?> ptransform) {
     ptransformViewsWithNonDeterministicKeyCoders.add(ptransform);
   }
@@ -177,25 +170,27 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     // have just recorded the full names during apply time.
     if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
-      pipeline.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
+      pipeline.traverseTopologically(
+          new Pipeline.PipelineVisitor.Defaults() {
 
-        @Override
-        public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
-            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
-          }
-        }
+            @Override
+            public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+                ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+              }
+            }
 
-        @Override
-        public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
-            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
-          }
-          return CompositeBehavior.ENTER_TRANSFORM;
-        }
-      });
+            @Override
+            public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+                ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+              }
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+          });
 
-      LOG.warn("Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
+      LOG.warn(
+          "Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
               + "because the key coder is not deterministic. Falling back to singleton "
               + "implementation which may cause memory and/or performance problems. Future major "
               + "versions of the Flink runner will require deterministic key coders.",

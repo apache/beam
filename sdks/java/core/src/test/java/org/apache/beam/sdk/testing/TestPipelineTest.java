@@ -54,8 +54,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestPipeline}. */
 public class TestPipelineTest implements Serializable {
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   /** Tests related to the creation of a {@link TestPipeline}. */
   @RunWith(JUnit4.class)
@@ -82,9 +83,7 @@ public class TestPipelineTest implements Serializable {
     public void testCreationOfPipelineOptions() throws Exception {
       String stringOptions =
           MAPPER.writeValueAsString(
-              new String[] {
-                "--runner=org.apache.beam.sdk.testing.CrashingRunner"
-              });
+              new String[] {"--runner=org.apache.beam.sdk.testing.CrashingRunner"});
       System.getProperties().put("beamTestPipelineOptions", stringOptions);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       assertEquals(CrashingRunner.class, options.getRunner());

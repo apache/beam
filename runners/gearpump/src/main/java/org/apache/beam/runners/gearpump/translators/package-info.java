@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Gearpump specific translators.
- */
+/** Gearpump specific translators. */
 package org.apache.beam.runners.gearpump.translators;

@@ -44,9 +44,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Integration test for {@link FlattenPCollectionTranslator}.
- */
+/** Integration test for {@link FlattenPCollectionTranslator}. */
 public class FlattenPCollectionTranslatorTest {
   private static final Logger LOG = LoggerFactory.getLogger(FlattenPCollectionTranslatorTest.class);
 
@@ -56,9 +54,7 @@ public class FlattenPCollectionTranslatorTest {
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    String[][] collections = {
-        {"1"}, {"2"}, {"3"}, {"4"}, {"5"}
-    };
+    String[][] collections = {{"1"}, {"2"}, {"3"}, {"4"}, {"5"}};
 
     Set<String> expected = Sets.newHashSet();
     List<PCollection<String>> pcList = new ArrayList<>();
@@ -106,5 +102,4 @@ public class FlattenPCollectionTranslatorTest {
     Assert.assertNotNull(
         dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }
-
 }

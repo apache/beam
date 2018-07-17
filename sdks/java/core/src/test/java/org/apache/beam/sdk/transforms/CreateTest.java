@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -50,6 +51,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -59,6 +62,7 @@ import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
@@ -70,35 +74,28 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Create.
- */
+/** Tests for Create. */
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class CreateTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline p = TestPipeline.create();
 
-
   @Test
   @Category(ValidatesRunner.class)
   public void testCreate() {
-    PCollection<String> output =
-        p.apply(Create.of(LINES));
+    PCollection<String> output = p.apply(Create.of(LINES));
 
-    PAssert.that(output)
-        .containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
     p.run();
   }
 
   @Test
   @Category(ValidatesRunner.class)
   public void testCreateEmpty() {
-    PCollection<String> output =
-        p.apply(Create.empty(StringUtf8Coder.of()));
+    PCollection<String> output = p.apply(Create.empty(StringUtf8Coder.of()));
 
-    PAssert.that(output)
-        .containsInAnyOrder(NO_LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(NO_LINES_ARRAY);
 
     assertEquals(StringUtf8Coder.of(), output.getCoder());
     p.run();
@@ -128,16 +125,13 @@ public class CreateTest {
     p.run();
   }
 
-  static class Record implements Serializable {
-  }
+  static class Record implements Serializable {}
 
-  static class Record2 extends Record {
-  }
+  static class Record2 extends Record {}
 
   private static class RecordCoder extends AtomicCoder<Record> {
     @Override
-    public void encode(Record value, OutputStream outStream)
-        throws CoderException, IOException {}
+    public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
     public Record decode(InputStream inStream) throws CoderException, IOException {
@@ -148,8 +142,7 @@ public class CreateTest {
   @Test
   public void testPolymorphicType() throws Exception {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage(
-        Matchers.containsString("Unable to infer a coder"));
+    thrown.expectMessage(Matchers.containsString("Unable to infer a coder"));
 
     // Create won't infer a default coder in this case.
     p.apply(Create.of(new Record(), new Record2()));
@@ -161,10 +154,10 @@ public class CreateTest {
   @Category(ValidatesRunner.class)
   public void testCreateWithNullsAndValues() throws Exception {
     PCollection<String> output =
-        p.apply(Create.of(null, "test1", null, "test2", null)
-            .withCoder(SerializableCoder.of(String.class)));
-    PAssert.that(output)
-        .containsInAnyOrder(null, "test1", null, "test2", null);
+        p.apply(
+            Create.of(null, "test1", null, "test2", null)
+                .withCoder(SerializableCoder.of(String.class)));
+    PAssert.that(output).containsInAnyOrder(null, "test1", null, "test2", null);
     p.run();
   }
 
@@ -172,20 +165,18 @@ public class CreateTest {
   @Category(NeedsRunner.class)
   public void testCreateParameterizedType() throws Exception {
     PCollection<TimestampedValue<String>> output =
-        p.apply(Create.of(
-            TimestampedValue.of("a", new Instant(0)),
-            TimestampedValue.of("b", new Instant(0))));
+        p.apply(
+            Create.of(
+                TimestampedValue.of("a", new Instant(0)),
+                TimestampedValue.of("b", new Instant(0))));
 
     PAssert.that(output)
         .containsInAnyOrder(
-            TimestampedValue.of("a", new Instant(0)),
-            TimestampedValue.of("b", new Instant(0)));
+            TimestampedValue.of("a", new Instant(0)), TimestampedValue.of("b", new Instant(0)));
 
     p.run();
   }
-  /**
-   * An unserializable class to demonstrate encoding of elements.
-   */
+  /** An unserializable class to demonstrate encoding of elements. */
   private static class UnserializableRecord {
     private final String myString;
 
@@ -207,17 +198,13 @@ public class CreateTest {
       private final Coder<String> stringCoder = StringUtf8Coder.of();
 
       @Override
-      public void encode(
-          UnserializableRecord value,
-          OutputStream outStream)
+      public void encode(UnserializableRecord value, OutputStream outStream)
           throws CoderException, IOException {
         stringCoder.encode(value.myString, outStream);
       }
 
       @Override
-      public UnserializableRecord decode(
-          InputStream inStream)
-          throws CoderException, IOException {
+      public UnserializableRecord decode(InputStream inStream) throws CoderException, IOException {
         return new UnserializableRecord(stringCoder.decode(inStream));
       }
     }
@@ -244,7 +231,7 @@ public class CreateTest {
 
   private static class PrintTimestamps extends DoFn<String, String> {
     @ProcessElement
-      public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) {
       c.output(c.element() + ":" + c.timestamp().getMillis());
     }
   }
@@ -252,26 +239,26 @@ public class CreateTest {
   @Test
   @Category(NeedsRunner.class)
   public void testCreateTimestamped() {
-    List<TimestampedValue<String>> data = Arrays.asList(
-        TimestampedValue.of("a", new Instant(1L)),
-        TimestampedValue.of("b", new Instant(2L)),
-        TimestampedValue.of("c", new Instant(3L)));
+    List<TimestampedValue<String>> data =
+        Arrays.asList(
+            TimestampedValue.of("a", new Instant(1L)),
+            TimestampedValue.of("b", new Instant(2L)),
+            TimestampedValue.of("c", new Instant(3L)));
 
     PCollection<String> output =
-        p.apply(Create.timestamped(data))
-        .apply(ParDo.of(new PrintTimestamps()));
+        p.apply(Create.timestamped(data)).apply(ParDo.of(new PrintTimestamps()));
 
-    PAssert.that(output)
-        .containsInAnyOrder("a:1", "b:2", "c:3");
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
     p.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testCreateTimestampedEmpty() {
-    PCollection<String> output = p
-        .apply(Create.timestamped(new ArrayList<TimestampedValue<String>>())
-            .withCoder(StringUtf8Coder.of()));
+    PCollection<String> output =
+        p.apply(
+            Create.timestamped(new ArrayList<TimestampedValue<String>>())
+                .withCoder(StringUtf8Coder.of()));
 
     PAssert.that(output).empty();
     p.run();
@@ -293,8 +280,7 @@ public class CreateTest {
   @Test
   public void testCreateTimestampedPolymorphicType() throws Exception {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage(
-        Matchers.containsString("Unable to infer a coder"));
+    thrown.expectMessage(Matchers.containsString("Unable to infer a coder"));
 
     // Create won't infer a default coder in this case.
     PCollection<Record> c =
@@ -342,13 +328,11 @@ public class CreateTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testCreateWithKVVoidType() throws Exception {
-    PCollection<KV<Void, Void>> output = p.apply(Create.of(
-        KV.of((Void) null, (Void) null),
-        KV.of((Void) null, (Void) null)));
+    PCollection<KV<Void, Void>> output =
+        p.apply(Create.of(KV.of((Void) null, (Void) null), KV.of((Void) null, (Void) null)));
 
-    PAssert.that(output).containsInAnyOrder(
-        KV.of((Void) null, (Void) null),
-        KV.of((Void) null, (Void) null));
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of((Void) null, (Void) null), KV.of((Void) null, (Void) null));
 
     p.run();
   }
@@ -356,6 +340,7 @@ public class CreateTest {
   /** Testing options for {@link #testCreateOfProvider()}. */
   public interface CreateOfProviderOptions extends PipelineOptions {
     ValueProvider<String> getFoo();
+
     void setFoo(ValueProvider<String> value);
   }
 
@@ -381,13 +366,11 @@ public class CreateTest {
     p.run();
   }
 
-
   @Test
   public void testCreateGetName() {
     assertEquals("Create.Values", Create.of(1, 2, 3).getName());
     assertEquals("Create.TimestampedValues", Create.timestamped(Collections.emptyList()).getName());
   }
-
 
   @Test
   public void testCreateDefaultOutputCoderUsingInference() throws Exception {
@@ -412,6 +395,32 @@ public class CreateTest {
     Create.Values<Record> values =
         Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
+  }
+
+  private static final Schema STRING_SCHEMA = Schema.builder().addStringField("field").build();
+
+  @Test
+  public void testCreateRegisteredSchema() {
+    p.getSchemaRegistry()
+        .registerSchemaForClass(
+            String.class,
+            STRING_SCHEMA,
+            s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
+            r -> r.getString("field"));
+    PCollection<String> out = p.apply(Create.of("a", "b", "c", "d"));
+    assertThat(out.getCoder(), instanceOf(SchemaCoder.class));
+  }
+
+  @Test
+  public void testCreateExplicitSchema() {
+    PCollection<String> out =
+        p.apply(
+            Create.of("a", "b", "c", "d")
+                .withSchema(
+                    STRING_SCHEMA,
+                    s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
+                    r -> r.getString("field")));
+    assertThat(out.getCoder(), instanceOf(SchemaCoder.class));
   }
 
   @Test

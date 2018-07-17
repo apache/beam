@@ -66,14 +66,14 @@ import org.slf4j.LoggerFactory;
  * protected occurrence of:
  *
  * <ul>
- * <li>superclasses
- * <li>interfaces implemented
- * <li>actual type arguments to generic types
- * <li>array component types
- * <li>method return types
- * <li>method parameter types
- * <li>type variable bounds
- * <li>wildcard bounds
+ *   <li>superclasses
+ *   <li>interfaces implemented
+ *   <li>actual type arguments to generic types
+ *   <li>array component types
+ *   <li>method return types
+ *   <li>method parameter types
+ *   <li>type variable bounds
+ *   <li>wildcard bounds
  * </ul>
  *
  * <p>Exposure is a transitive property. The resulting map excludes primitives and array classes

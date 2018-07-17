@@ -51,20 +51,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link FlinkKeyGroupStateInternals}. This is based on the tests for
- * {@code StateInternalsTest}.
+ * Tests for {@link FlinkKeyGroupStateInternals}. This is based on the tests for {@code
+ * StateInternalsTest}.
  */
 public class FlinkKeyGroupStateInternalsTest {
 
-  /**
-   * A standard StateInternals test. Just test BagState.
-   */
+  /** A standard StateInternals test. Just test BagState. */
   @RunWith(JUnit4.class)
   public static class StandardStateInternalsTests extends StateInternalsTest {
     @Override
     protected StateInternals createStateInternals() {
-      KeyedStateBackend keyedStateBackend =
-          getKeyedStateBackend(2, new KeyGroupRange(0, 1));
+      KeyedStateBackend keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(0, 1));
       return new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
     }
 
@@ -133,9 +130,7 @@ public class FlinkKeyGroupStateInternalsTest {
     public void testMapReadable() {}
   }
 
-  /**
-   * A specific test of FlinkKeyGroupStateInternalsTest.
-   */
+  /** A specific test of FlinkKeyGroupStateInternalsTest. */
   @RunWith(JUnit4.class)
   public static class OtherTests {
 
@@ -147,17 +142,16 @@ public class FlinkKeyGroupStateInternalsTest {
     @Test
     public void testKeyGroupAndCheckpoint() throws Exception {
       // assign to keyGroup 0
-      ByteBuffer key0 = ByteBuffer.wrap(
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "11111111"));
+      ByteBuffer key0 =
+          ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "11111111"));
       // assign to keyGroup 1
-      ByteBuffer key1 = ByteBuffer.wrap(
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "22222222"));
+      ByteBuffer key1 =
+          ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "22222222"));
       FlinkKeyGroupStateInternals<String> allState;
       {
         KeyedStateBackend<ByteBuffer> keyedStateBackend =
             getKeyedStateBackend(2, new KeyGroupRange(0, 1));
-        allState = new FlinkKeyGroupStateInternals<>(
-            StringUtf8Coder.of(), keyedStateBackend);
+        allState = new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
         BagState<String> valueForNamespace0 = allState.state(NAMESPACE_1, STRING_BAG_ADDR);
         BagState<String> valueForNamespace1 = allState.state(NAMESPACE_2, STRING_BAG_ADDR);
         keyedStateBackend.setCurrentKey(key0);
@@ -175,14 +169,12 @@ public class FlinkKeyGroupStateInternalsTest {
       // 1. scale up
       ByteArrayOutputStream out0 = new ByteArrayOutputStream();
       allState.snapshotKeyGroupState(0, new DataOutputStream(out0));
-      DataInputStream in0 = new DataInputStream(
-          new ByteArrayInputStream(out0.toByteArray()));
+      DataInputStream in0 = new DataInputStream(new ByteArrayInputStream(out0.toByteArray()));
       {
         KeyedStateBackend<ByteBuffer> keyedStateBackend =
             getKeyedStateBackend(2, new KeyGroupRange(0, 0));
         FlinkKeyGroupStateInternals<String> state0 =
-            new FlinkKeyGroupStateInternals<>(
-                StringUtf8Coder.of(), keyedStateBackend);
+            new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
         state0.restoreKeyGroupState(0, in0, classLoader);
         BagState<String> valueForNamespace0 = state0.state(NAMESPACE_1, STRING_BAG_ADDR);
         BagState<String> valueForNamespace1 = state0.state(NAMESPACE_2, STRING_BAG_ADDR);
@@ -192,14 +184,12 @@ public class FlinkKeyGroupStateInternalsTest {
 
       ByteArrayOutputStream out1 = new ByteArrayOutputStream();
       allState.snapshotKeyGroupState(1, new DataOutputStream(out1));
-      DataInputStream in1 = new DataInputStream(
-          new ByteArrayInputStream(out1.toByteArray()));
+      DataInputStream in1 = new DataInputStream(new ByteArrayInputStream(out1.toByteArray()));
       {
         KeyedStateBackend<ByteBuffer> keyedStateBackend =
             getKeyedStateBackend(2, new KeyGroupRange(1, 1));
         FlinkKeyGroupStateInternals<String> state1 =
-            new FlinkKeyGroupStateInternals<>(
-                StringUtf8Coder.of(), keyedStateBackend);
+            new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
         state1.restoreKeyGroupState(1, in1, classLoader);
         BagState<String> valueForNamespace0 = state1.state(NAMESPACE_1, STRING_BAG_ADDR);
         BagState<String> valueForNamespace1 = state1.state(NAMESPACE_2, STRING_BAG_ADDR);
@@ -211,8 +201,8 @@ public class FlinkKeyGroupStateInternalsTest {
       {
         KeyedStateBackend<ByteBuffer> keyedStateBackend =
             getKeyedStateBackend(2, new KeyGroupRange(0, 1));
-        FlinkKeyGroupStateInternals<String> newAllState = new FlinkKeyGroupStateInternals<>(
-            StringUtf8Coder.of(), keyedStateBackend);
+        FlinkKeyGroupStateInternals<String> newAllState =
+            new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
         in0.reset();
         in1.reset();
         newAllState.restoreKeyGroupState(0, in0, classLoader);
@@ -223,27 +213,26 @@ public class FlinkKeyGroupStateInternalsTest {
         assertThat(valueForNamespace1.read(), Matchers.containsInAnyOrder("2", "3"));
       }
     }
-
   }
 
-  private static KeyedStateBackend<ByteBuffer> getKeyedStateBackend(int numberOfKeyGroups,
-                                                   KeyGroupRange keyGroupRange) {
+  private static KeyedStateBackend<ByteBuffer> getKeyedStateBackend(
+      int numberOfKeyGroups, KeyGroupRange keyGroupRange) {
     MemoryStateBackend backend = new MemoryStateBackend();
     try {
-      AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend = backend.createKeyedStateBackend(
-          new DummyEnvironment("test", 1, 0),
-          new JobID(),
-          "test_op",
-          new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
-          numberOfKeyGroups,
-          keyGroupRange,
-          new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
-      keyedStateBackend.setCurrentKey(ByteBuffer.wrap(
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "1")));
+      AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend =
+          backend.createKeyedStateBackend(
+              new DummyEnvironment("test", 1, 0),
+              new JobID(),
+              "test_op",
+              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
+              numberOfKeyGroups,
+              keyGroupRange,
+              new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+      keyedStateBackend.setCurrentKey(
+          ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "1")));
       return keyedStateBackend;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
-
 }

@@ -44,9 +44,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Invocation of a Flink Job via {@link FlinkRunner}.
- */
+/** Invocation of a Flink Job via {@link FlinkRunner}. */
 public class FlinkJobInvocation implements JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvocation.class);
 
@@ -55,8 +53,10 @@ public class FlinkJobInvocation implements JobInvocation {
       String retrievalToken,
       ListeningExecutorService executorService,
       Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions) {
-    return new FlinkJobInvocation(id, retrievalToken, executorService, pipeline, pipelineOptions);
+      FlinkPipelineOptions pipelineOptions,
+      List<String> filesToStage) {
+    return new FlinkJobInvocation(
+        id, retrievalToken, executorService, pipeline, pipelineOptions, filesToStage);
   }
 
   private final String id;
@@ -64,23 +64,25 @@ public class FlinkJobInvocation implements JobInvocation {
   private final ListeningExecutorService executorService;
   private final RunnerApi.Pipeline pipeline;
   private final FlinkPipelineOptions pipelineOptions;
+  private final List<String> filesToStage;
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
 
-  @Nullable
-  private ListenableFuture<PipelineResult> invocationFuture;
+  @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
   private FlinkJobInvocation(
       String id,
       String retrievalToken,
       ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions) {
+      Pipeline pipeline,
+      FlinkPipelineOptions pipelineOptions,
+      List<String> filesToStage) {
     this.id = id;
     this.retrievalToken = retrievalToken;
     this.executorService = executorService;
     this.pipeline = pipeline;
     this.pipelineOptions = pipelineOptions;
+    this.filesToStage = filesToStage;
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
     this.stateObservers = new ArrayList<>();
@@ -106,7 +108,7 @@ public class FlinkJobInvocation implements JobInvocation {
       FlinkBatchPortablePipelineTranslator translator =
           FlinkBatchPortablePipelineTranslator.createTranslator();
       FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
-          FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo);
+          FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo, filesToStage);
       translator.translate(context, fusedPipeline);
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     } else {
@@ -114,7 +116,7 @@ public class FlinkJobInvocation implements JobInvocation {
       FlinkStreamingPortablePipelineTranslator translator =
           new FlinkStreamingPortablePipelineTranslator();
       FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context =
-          FlinkStreamingPortablePipelineTranslator.createTranslationContext(jobInfo);
+          FlinkStreamingPortablePipelineTranslator.createTranslationContext(jobInfo, filesToStage);
       translator.translate(context, fusedPipeline);
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     }
@@ -138,7 +140,8 @@ public class FlinkJobInvocation implements JobInvocation {
           @Override
           public void onSuccess(@Nullable PipelineResult pipelineResult) {
             if (pipelineResult != null) {
-              checkArgument(pipelineResult.getState() == PipelineResult.State.DONE,
+              checkArgument(
+                  pipelineResult.getState() == PipelineResult.State.DONE,
                   "Success on non-Done state: " + pipelineResult.getState());
               setState(JobState.Enum.DONE);
             } else {
@@ -181,7 +184,7 @@ public class FlinkJobInvocation implements JobInvocation {
             }
 
             @Override
-            public void onFailure(Throwable throwable) { }
+            public void onFailure(Throwable throwable) {}
           },
           executorService);
     }
@@ -213,11 +216,11 @@ public class FlinkJobInvocation implements JobInvocation {
   /** Indicates whether the given pipeline has any unbounded PCollections. */
   private static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
     checkNotNull(pipeline);
-    Collection<RunnerApi.PCollection> pCollecctions = pipeline.getComponents()
-        .getPcollectionsMap().values();
+    Collection<RunnerApi.PCollection> pCollecctions =
+        pipeline.getComponents().getPcollectionsMap().values();
     // Assume that all PCollections are consumed at some point in the pipeline.
-    return pCollecctions.stream()
+    return pCollecctions
+        .stream()
         .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
   }
-
 }

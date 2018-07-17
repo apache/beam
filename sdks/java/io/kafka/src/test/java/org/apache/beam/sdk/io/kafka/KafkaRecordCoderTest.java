@@ -58,8 +58,7 @@ public class KafkaRecordCoderTest {
   private void verifySerialization(Headers headers) throws IOException {
     KafkaRecord<String, String> kafkaRecord =
         new KafkaRecord<>(
-            "topic", 0, 0, 0,
-            KafkaTimestampType.CREATE_TIME, headers, "key", "value");
+            "topic", 0, 0, 0, KafkaTimestampType.CREATE_TIME, headers, "key", "value");
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     KafkaRecordCoder kafkaRecordCoder =

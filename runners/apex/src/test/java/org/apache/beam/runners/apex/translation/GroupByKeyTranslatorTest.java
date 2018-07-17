@@ -51,27 +51,25 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Integration test for {@link GroupByKeyTranslator}.
- */
+/** Integration test for {@link GroupByKeyTranslator}. */
 public class GroupByKeyTranslatorTest {
 
   @SuppressWarnings({"unchecked"})
   @Test
   public void test() throws Exception {
-    ApexPipelineOptions options =
-        PipelineOptionsFactory.as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     options.setApplicationName("GroupByKey");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 
     List<KV<String, Instant>> data =
         Lists.newArrayList(
-            KV.of("foo", new Instant(1000)), KV.of("foo", new Instant(1000)),
+            KV.of("foo", new Instant(1000)),
+            KV.of("foo", new Instant(1000)),
             KV.of("foo", new Instant(2000)),
-            KV.of("bar", new Instant(1000)), KV.of("bar", new Instant(2000)),
-            KV.of("bar", new Instant(2000))
-        );
+            KV.of("bar", new Instant(1000)),
+            KV.of("bar", new Instant(2000)),
+            KV.of("bar", new Instant(2000)));
 
     // expected results assume outputAtLatestInputTimestamp
     List<KV<Instant, KV<String, Long>>> expected =
@@ -79,8 +77,7 @@ public class GroupByKeyTranslatorTest {
             KV.of(new Instant(1000), KV.of("foo", 2L)),
             KV.of(new Instant(1000), KV.of("bar", 1L)),
             KV.of(new Instant(2000), KV.of("foo", 1L)),
-            KV.of(new Instant(2000), KV.of("bar", 2L))
-        );
+            KV.of(new Instant(2000), KV.of("bar", 2L)));
 
     p.apply(Read.from(new TestSource(data, new Instant(5000))))
         .apply(
@@ -101,7 +98,6 @@ public class GroupByKeyTranslatorTest {
       Thread.sleep(1000);
     }
     Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
-
   }
 
   private static class EmbeddedCollector extends DoFn<Object, Void> {
@@ -137,8 +133,8 @@ public class GroupByKeyTranslatorTest {
     }
 
     @Override
-    public UnboundedReader<String> createReader(PipelineOptions options,
-        @Nullable CheckpointMark checkpointMark) {
+    public UnboundedReader<String> createReader(
+        PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
       return new TestReader(data, watermark, this);
     }
 
@@ -208,8 +204,7 @@ public class GroupByKeyTranslatorTest {
       }
 
       @Override
-      public void close() throws IOException {
-      }
+      public void close() throws IOException {}
 
       @Override
       public Instant getWatermark() {
@@ -231,5 +226,4 @@ public class GroupByKeyTranslatorTest {
       }
     }
   }
-
 }

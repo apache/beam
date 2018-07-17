@@ -31,9 +31,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalArtifactStagingLocation}.
- */
+/** Tests for {@link LocalArtifactStagingLocation}. */
 @RunWith(JUnit4.class)
 public class LocalArtifactStagingLocationTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();

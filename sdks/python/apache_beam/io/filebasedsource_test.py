@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -15,15 +14,19 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import bz2
-import cStringIO
 import gzip
+import io
 import logging
 import math
 import os
 import random
 import tempfile
 import unittest
+from builtins import object
+from builtins import range
 
 import hamcrest as hc
 
@@ -153,7 +156,7 @@ class TestConcatSource(unittest.TestCase):
     def split(self, desired_bundle_size, start_position=None,
               stop_position=None):
       # simply devides values into two bundles
-      middle = len(self._values) / 2
+      middle = len(self._values) // 2
       yield iobase.SourceBundle(0.5, TestConcatSource.DummySource(
           self._values[:middle]), None, None)
       yield iobase.SourceBundle(0.5, TestConcatSource.DummySource(
@@ -188,11 +191,11 @@ class TestConcatSource(unittest.TestCase):
     concat = ConcatSource(sources)
     range_tracker = concat.get_range_tracker(None, None)
     read_data = [value for value in concat.read(range_tracker)]
-    self.assertItemsEqual(range(30), read_data)
+    self.assertItemsEqual(list(range(30)), read_data)
 
   def test_split(self):
-    sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
-               in [0, 10, 20]]
+    sources = [TestConcatSource.DummySource(list(range(start, start + 10)))
+               for start in [0, 10, 20]]
     concat = ConcatSource(sources)
     splits = [split for split in concat.split()]
     self.assertEquals(6, len(splits))
@@ -205,7 +208,7 @@ class TestConcatSource(unittest.TestCase):
           split.stop_position)
       read_data.extend([value for value in split.source.read(
           range_tracker_for_split)])
-    self.assertItemsEqual(range(30), read_data)
+    self.assertItemsEqual(list(range(30)), read_data)
 
   def test_estimate_size(self):
     sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
@@ -473,8 +476,8 @@ class TestFileBasedSource(unittest.TestCase):
     chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      out = cStringIO.StringIO()
-      with gzip.GzipFile(fileobj=out, mode="w") as f:
+      out = io.BytesIO()
+      with gzip.GzipFile(fileobj=out, mode="wb") as f:
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
@@ -520,8 +523,8 @@ class TestFileBasedSource(unittest.TestCase):
     chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      out = cStringIO.StringIO()
-      with gzip.GzipFile(fileobj=out, mode="w") as f:
+      out = io.BytesIO()
+      with gzip.GzipFile(fileobj=out, mode="wb") as f:
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(
@@ -540,8 +543,8 @@ class TestFileBasedSource(unittest.TestCase):
     chunks_to_write = []
     for i, c in enumerate(chunks):
       if i%2 == 0:
-        out = cStringIO.StringIO()
-        with gzip.GzipFile(fileobj=out, mode="w") as f:
+        out = io.BytesIO()
+        with gzip.GzipFile(fileobj=out, mode="wb") as f:
           f.write('\n'.join(c))
         chunks_to_write.append(out.getvalue())
       else:

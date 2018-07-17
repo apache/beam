@@ -37,8 +37,8 @@ import org.apache.beam.sdk.values.PCollectionView;
  * Delays processing of each window in a {@link PCollection} until signaled.
  *
  * <p>Given a main {@link PCollection} and a signal {@link PCollection}, produces output identical
- * to its main input, but all elements for a window are produced only once that window is closed
- * in the signal {@link PCollection}.
+ * to its main input, but all elements for a window are produced only once that window is closed in
+ * the signal {@link PCollection}.
  *
  * <p>To express the pattern "apply T to X after Y is ready", use {@code
  * X.apply(Wait.on(Y)).apply(T)}.
@@ -126,8 +126,7 @@ public class Wait {
   }
 
   private static class CollectWindowsFn<T> extends DoFn<T, Void> {
-    @Nullable
-    private Set<BoundedWindow> windows;
+    @Nullable private Set<BoundedWindow> windows;
 
     @StartBundle
     public void startBundle() {

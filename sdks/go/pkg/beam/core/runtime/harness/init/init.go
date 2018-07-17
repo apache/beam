@@ -31,6 +31,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 )
 
 var (
@@ -81,7 +82,8 @@ func hook() {
 	// Since Init() is hijacking main, it's appropriate to do as main
 	// does, and establish the background context here.
 
-	if err := harness.Main(context.Background(), *loggingEndpoint, *controlEndpoint); err != nil {
+	ctx := grpcx.WriteWorkerID(context.Background(), *id)
+	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v", err)
 		os.Exit(1)
 	}

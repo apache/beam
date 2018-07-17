@@ -22,8 +22,8 @@ import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 
 /**
- * Provides {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
- * on a particular {@link DoFn}.
+ * Provides {@link OnTimerInvoker} instances for invoking a particular {@link TimerId} on a
+ * particular {@link DoFn}.
  */
 interface OnTimerInvokerFactory {
 

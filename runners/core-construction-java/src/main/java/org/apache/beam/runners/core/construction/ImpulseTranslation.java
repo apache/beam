@@ -29,13 +29,11 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 
- /**
- * Utility methods for translating a {@link Impulse} to and from {@link RunnerApi}
- * representations.
+/**
+ * Utility methods for translating a {@link Impulse} to and from {@link RunnerApi} representations.
  */
 public class ImpulseTranslation {
-  private static class ImpulseTranslator
-      extends TransformPayloadTranslator.WithDefaultRehydration<Impulse> {
+  private static class ImpulseTranslator implements TransformPayloadTranslator<Impulse> {
     @Override
     public String getUrn(Impulse transform) {
       return PTransformTranslation.IMPULSE_TRANSFORM_URN;
@@ -53,13 +51,8 @@ public class ImpulseTranslation {
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-    getTransformPayloadTranslators() {
+        getTransformPayloadTranslators() {
       return Collections.singletonMap(Impulse.class, new ImpulseTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

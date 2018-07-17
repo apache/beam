@@ -30,7 +30,6 @@ dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
-  shadow library.java.findbugs_jsr305
   shadow "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"
   shadow "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_version"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")

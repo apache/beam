@@ -16,6 +16,7 @@
 #
 
 """Unit tests for the sources framework."""
+from __future__ import absolute_import
 
 import logging
 import os

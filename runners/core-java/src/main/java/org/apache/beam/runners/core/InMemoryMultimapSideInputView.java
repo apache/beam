@@ -14,7 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-  */
+ */
 package org.apache.beam.runners.core;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -25,14 +25,12 @@ import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.values.KV;
 
-/**
- * An in-memory representation of {@link MultimapView}.
- */
+/** An in-memory representation of {@link MultimapView}. */
 public class InMemoryMultimapSideInputView<K, V> implements Materializations.MultimapView<K, V> {
 
   /**
-   * Creates a {@link MultimapView} from the provided values. The provided {@link Coder} is used
-   * to guarantee structural equality for keys instead of assuming Java object equality.
+   * Creates a {@link MultimapView} from the provided values. The provided {@link Coder} is used to
+   * guarantee structural equality for keys instead of assuming Java object equality.
    */
   public static <K, V> MultimapView<K, V> fromIterable(
       Coder<K> keyCoder, Iterable<KV<K, V>> values) {

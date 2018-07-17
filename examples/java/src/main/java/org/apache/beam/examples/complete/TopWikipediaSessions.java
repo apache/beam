@@ -47,8 +47,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * An example that reads Wikipedia edit data from Cloud Storage and computes the user with
- * the longest string of edits separated by no more than an hour within each month.
+ * An example that reads Wikipedia edit data from Cloud Storage and computes the user with the
+ * longest string of edits separated by no more than an hour within each month.
  *
  * <p>Concepts: Using Windowing to perform time-based aggregations of data.
  *
@@ -56,11 +56,12 @@ import org.joda.time.Instant;
  * data.
  *
  * <p>To execute this pipeline using a selected runner and an output prefix on GCS, specify:
+ *
  * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }
- * </pre>
+ * --runner=YOUR_SELECTED_RUNNER
+ * --output=gs://YOUR_OUTPUT_PREFIX
+ * }</pre>
+ *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The default input is {@code gs://apache-beam-samples/wikipedia_edits/*.json} and can be
@@ -70,9 +71,7 @@ public class TopWikipediaSessions {
   private static final String EXPORTED_WIKI_TABLE =
       "gs://apache-beam-samples/wikipedia_edits/*.json";
 
-  /**
-   * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
-   */
+  /** Extracts user and timestamp from a TableRow representing a Wikipedia edit. */
   static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -87,8 +86,8 @@ public class TopWikipediaSessions {
   }
 
   /**
-   * Computes the number of edits in each user session.  A session is defined as
-   * a string of edits where each is separated from the next by less than an hour.
+   * Computes the number of edits in each user session. A session is defined as a string of edits
+   * where each is separated from the next by less than an hour.
    */
   static class ComputeSessions
       extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
@@ -100,9 +99,7 @@ public class TopWikipediaSessions {
     }
   }
 
-  /**
-   * Computes the longest session ending in each month.
-   */
+  /** Computes the longest session ending in each month. */
   private static class TopPerMonth
       extends PTransform<PCollection<KV<String, Long>>, PCollection<List<KV<String, Long>>>> {
     @Override
@@ -118,8 +115,7 @@ public class TopWikipediaSessions {
   static class SessionsToStringsDoFn extends DoFn<KV<String, Long>, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      c.output(KV.of(
-          c.element().getKey() + " : " + window, c.element().getValue()));
+      c.output(KV.of(c.element().getKey() + " : " + window, c.element().getValue()));
     }
   }
 
@@ -182,21 +178,21 @@ public class TopWikipediaSessions {
    * <p>Inherits standard Beam configuration options.
    */
   public interface Options extends PipelineOptions {
-    @Description(
-      "Input specified as a GCS path containing a BigQuery table exported as json")
+    @Description("Input specified as a GCS path containing a BigQuery table exported as json")
     @Default.String(EXPORTED_WIKI_TABLE)
     String getInput();
+
     void setInput(String value);
+
     @Description("File to output results to")
     @Validation.Required
     String getOutput();
+
     void setOutput(String value);
   }
 
   public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args)
-        .withValidation()
-        .as(Options.class);
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     Pipeline p = Pipeline.create(options);
 

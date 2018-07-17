@@ -20,9 +20,7 @@ package org.apache.beam.runners.samza;
 
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 
-/**
- * Runtime context for the Samza runner.
- */
+/** Runtime context for the Samza runner. */
 public class SamzaExecutionContext {
   private SamzaMetricsContainer metricsContainer;
 

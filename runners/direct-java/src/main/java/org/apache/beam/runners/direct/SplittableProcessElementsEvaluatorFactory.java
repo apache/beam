@@ -53,7 +53,7 @@ class SplittableProcessElementsEvaluatorFactory<
         PositionT,
         TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
     implements TransformEvaluatorFactory {
-  private final ParDoEvaluatorFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
+  private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
   private final ScheduledExecutorService ses;
   private final EvaluationContext evaluationContext;
@@ -107,9 +107,9 @@ class SplittableProcessElementsEvaluatorFactory<
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private TransformEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> createEvaluator(
+  private TransformEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+              PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
               ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
           application,
       CommittedBundle<InputT> inputBundle)
@@ -117,20 +117,22 @@ class SplittableProcessElementsEvaluatorFactory<
     final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
-    final DoFnLifecycleManagerRemovingTransformEvaluator
-      <KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> evaluator =
-      delegateFactory.createEvaluator(
-        (AppliedPTransform) application,
-        (PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>) inputBundle.getPCollection(),
-        inputBundle.getKey(),
-        application.getTransform().getSideInputs(),
-        application.getTransform().getMainOutputTag(),
-        application.getTransform().getAdditionalOutputTags().getAll());
-    final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
-      evaluator.getParDoEvaluator();
+    final DoFnLifecycleManagerRemovingTransformEvaluator<
+            KeyedWorkItem<String, KV<InputT, RestrictionT>>>
+        evaluator =
+            delegateFactory.createEvaluator(
+                (AppliedPTransform) application,
+                (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>)
+                    inputBundle.getPCollection(),
+                inputBundle.getKey(),
+                application.getTransform().getSideInputs(),
+                application.getTransform().getMainOutputTag(),
+                application.getTransform().getAdditionalOutputTags().getAll());
+    final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> pde =
+        evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-      (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
-        ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
+        (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
+            ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
 
     final DirectExecutionContext.DirectStepContext stepContext = pde.getStepContext();
     processFn.setStateInternalsFactory(key -> stepContext.stateInternals());
@@ -176,7 +178,7 @@ class SplittableProcessElementsEvaluatorFactory<
   }
 
   private static <InputT, OutputT, RestrictionT>
-      ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
+      ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
           processFnRunnerFactory() {
     return (options,
         fn,
@@ -186,6 +188,8 @@ class SplittableProcessElementsEvaluatorFactory<
         mainOutputTag,
         additionalOutputTags,
         stepContext,
+        inputCoder,
+        outputCoders,
         windowingStrategy) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
@@ -197,6 +201,8 @@ class SplittableProcessElementsEvaluatorFactory<
           mainOutputTag,
           additionalOutputTags,
           stepContext,
+          inputCoder,
+          outputCoders,
           windowingStrategy);
     };
   }

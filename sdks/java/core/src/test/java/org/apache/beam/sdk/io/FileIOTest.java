@@ -41,7 +41,6 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -185,7 +184,7 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesSplittableParDo.class})
+  @Category(NeedsRunner.class)
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
     basePath.toFile().mkdir();
@@ -203,6 +202,8 @@ public class FileIOTest implements Serializable {
                     .continuously(
                         Duration.millis(100),
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
 
     Thread writer =
         new Thread(
@@ -238,8 +239,9 @@ public class FileIOTest implements Serializable {
     final String path = tmpFolder.newFile("file").getAbsolutePath();
     final String pathGZ = tmpFolder.newFile("file.gz").getAbsolutePath();
     Files.write(new File(path).toPath(), "Hello world".getBytes(Charsets.UTF_8));
-    try (Writer writer = new OutputStreamWriter(new GZIPOutputStream(
-        new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
+    try (Writer writer =
+        new OutputStreamWriter(
+            new GZIPOutputStream(new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
       writer.write("Hello world");
     }
 

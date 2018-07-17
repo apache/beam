@@ -54,8 +54,7 @@ public class TikaIOTest implements Serializable {
           + "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\nthe content from the"
           + " files\nin most known formats.\n";
 
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void testParseAndParseFiles() throws IOException {

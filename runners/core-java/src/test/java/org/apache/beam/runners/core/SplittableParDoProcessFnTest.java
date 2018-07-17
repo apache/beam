@@ -31,7 +31,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -111,8 +110,7 @@ public class SplittableParDoProcessFnTest {
     public void checkDone() {}
   }
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   /**
    * A helper for testing {@link ProcessFn} on 1 element (but possibly over multiple {@link
@@ -125,7 +123,7 @@ public class SplittableParDoProcessFnTest {
           PositionT,
           TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
       implements AutoCloseable {
-    private final DoFnTester<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> tester;
+    private final DoFnTester<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> tester;
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
@@ -144,8 +142,7 @@ public class SplittableParDoProcessFnTest {
       WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
           (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
       final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-          new ProcessFn<>(
-              fn, inputCoder, restrictionCoder, windowingStrategy);
+          new ProcessFn<>(fn, inputCoder, restrictionCoder, windowingStrategy);
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
@@ -201,8 +198,7 @@ public class SplittableParDoProcessFnTest {
 
     void startElement(WindowedValue<KV<InputT, RestrictionT>> windowedValue) throws Exception {
       tester.processElement(
-          KeyedWorkItems.elementsWorkItem(
-              "key".getBytes(StandardCharsets.UTF_8), Collections.singletonList(windowedValue)));
+          KeyedWorkItems.elementsWorkItem("key", Collections.singletonList(windowedValue)));
     }
 
     /**
@@ -221,8 +217,7 @@ public class SplittableParDoProcessFnTest {
       if (timers.isEmpty()) {
         return false;
       }
-      tester.processElement(
-          KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers));
+      tester.processElement(KeyedWorkItems.timersWorkItem("key", timers));
       return true;
     }
 
@@ -427,7 +422,8 @@ public class SplittableParDoProcessFnTest {
     @ProcessElement
     public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
-          tracker.tryClaim(i); ++i, ++numIterations) {
+          tracker.tryClaim(i);
+          ++i, ++numIterations) {
         c.output(String.valueOf(c.element() + i));
         if (numIterations == numOutputsPerCall - 1) {
           return resume();
@@ -477,8 +473,12 @@ public class SplittableParDoProcessFnTest {
 
     ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(OffsetRange.class),
-            max, MAX_BUNDLE_DURATION);
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            max,
+            MAX_BUNDLE_DURATION);
 
     List<String> elements;
 
@@ -519,8 +519,12 @@ public class SplittableParDoProcessFnTest {
 
     ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(OffsetRange.class),
-            max, maxBundleDuration);
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            max,
+            maxBundleDuration);
 
     List<String> elements;
 

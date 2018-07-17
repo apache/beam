@@ -167,8 +167,7 @@ public class ElasticsearchIO {
     boolean errors = searchResult.path("errors").asBoolean();
     if (errors) {
       StringBuilder errorMessages =
-          new StringBuilder(
-              "Error writing to Elasticsearch, some elements could not be inserted:");
+          new StringBuilder("Error writing to Elasticsearch, some elements could not be inserted:");
       JsonNode items = searchResult.path("items");
       //some items present in bulk might have errors, concatenate error messages
       for (JsonNode item : items) {
@@ -285,8 +284,8 @@ public class ElasticsearchIO {
     }
 
     /**
-     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield),
-     * provide the keystore containing the client key.
+     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield), provide the keystore
+     * containing the client key.
      *
      * @param keystorePath the location of the keystore containing the client key.
      */
@@ -297,14 +296,14 @@ public class ElasticsearchIO {
     }
 
     /**
-     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield),
-     * provide the password to open the client keystore.
+     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield), provide the password
+     * to open the client keystore.
      *
      * @param keystorePassword the password of the client keystore.
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
-        checkArgument(keystorePassword != null, "keystorePassword can not be null");
-        return builder().setKeystorePassword(keystorePassword).build();
+      checkArgument(keystorePassword != null, "keystorePassword can not be null");
+      return builder().setKeystorePassword(keystorePassword).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
@@ -340,8 +339,10 @@ public class ElasticsearchIO {
             String keystorePassword = getKeystorePassword();
             keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
           }
-          final SSLContext sslContext = SSLContexts.custom()
-              .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
+          final SSLContext sslContext =
+              SSLContexts.custom()
+                  .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy())
+                  .build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
               httpClientBuilder ->
@@ -436,11 +437,9 @@ public class ElasticsearchIO {
     @Override
     public PCollection<String> expand(PBegin input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
-      checkState(
-          connectionConfiguration != null,
-          "withConnectionConfiguration() is required");
-      return input.apply(org.apache.beam.sdk.io.Read
-          .from(new BoundedElasticsearchSource(this, null, null, null)));
+      checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
+      return input.apply(
+          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null, null, null)));
     }
 
     @Override
@@ -461,16 +460,17 @@ public class ElasticsearchIO {
 
     private final Read spec;
     // shardPreference is the shard id where the source will read the documents
-    @Nullable
-    private final String shardPreference;
-    @Nullable
-    private final Integer numSlices;
-    @Nullable
-    private final Integer sliceId;
+    @Nullable private final String shardPreference;
+    @Nullable private final Integer numSlices;
+    @Nullable private final Integer sliceId;
 
     //constructor used in split() when we know the backend version
-    private BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
-        @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
+    private BoundedElasticsearchSource(
+        Read spec,
+        @Nullable String shardPreference,
+        @Nullable Integer numSlices,
+        @Nullable Integer sliceId,
+        int backendVersion) {
       this.backendVersion = backendVersion;
       this.spec = spec;
       this.shardPreference = shardPreference;
@@ -479,8 +479,11 @@ public class ElasticsearchIO {
     }
 
     @VisibleForTesting
-    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
-        @Nullable Integer numSlices, @Nullable Integer sliceId) {
+    BoundedElasticsearchSource(
+        Read spec,
+        @Nullable String shardPreference,
+        @Nullable Integer numSlices,
+        @Nullable Integer sliceId) {
       this.spec = spec;
       this.shardPreference = shardPreference;
       this.numSlices = numSlices;
@@ -504,10 +507,7 @@ public class ElasticsearchIO {
 
         JsonNode statsJson = BoundedElasticsearchSource.getStats(connectionConfiguration, true);
         JsonNode shardsJson =
-            statsJson
-                .path("indices")
-                .path(connectionConfiguration.getIndex())
-                .path("shards");
+            statsJson.path("indices").path(connectionConfiguration.getIndex()).path("shards");
 
         Iterator<Map.Entry<String, JsonNode>> shards = shardsJson.fields();
         while (shards.hasNext()) {
@@ -554,10 +554,7 @@ public class ElasticsearchIO {
       // #sliced-scroll)
       JsonNode statsJson = getStats(connectionConfiguration, false);
       JsonNode indexStats =
-          statsJson
-              .path("indices")
-              .path(connectionConfiguration.getIndex())
-              .path("primaries");
+          statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
       JsonNode store = indexStats.path("store");
       return store.path("size_in_bytes").asLong();
     }
@@ -585,16 +582,15 @@ public class ElasticsearchIO {
       return StringUtf8Coder.of();
     }
 
-    private static JsonNode getStats(ConnectionConfiguration connectionConfiguration,
-        boolean shardLevel) throws IOException {
+    private static JsonNode getStats(
+        ConnectionConfiguration connectionConfiguration, boolean shardLevel) throws IOException {
       HashMap<String, String> params = new HashMap<>();
       if (shardLevel) {
         params.put("level", "shards");
       }
       String endpoint = String.format("/%s/_stats", connectionConfiguration.getIndex());
       try (RestClient restClient = connectionConfiguration.createClient()) {
-        return parseResponse(
-            restClient.performRequest("GET", endpoint, params));
+        return parseResponse(restClient.performRequest("GET", endpoint, params));
       }
     }
   }
@@ -622,9 +618,8 @@ public class ElasticsearchIO {
       }
       if (source.backendVersion == 5 && source.numSlices != null && source.numSlices > 1) {
         //if there is more than one slice, add the slice to the user query
-        String sliceQuery = String
-            .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
-                source.numSlices);
+        String sliceQuery =
+            String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
         query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
       }
       Response response;
@@ -641,10 +636,8 @@ public class ElasticsearchIO {
           params.put("preference", "_shards:" + source.shardPreference);
         }
       }
-      HttpEntity queryEntity = new NStringEntity(query,
-          ContentType.APPLICATION_JSON);
-      response =
-          restClient.performRequest("GET", endPoint, params, queryEntity);
+      HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
+      response = restClient.performRequest("GET", endPoint, params, queryEntity);
       JsonNode searchResult = parseResponse(response);
       updateScrollId(searchResult);
       return readNextBatchAndReturnFirstDocument(searchResult);
@@ -876,9 +869,7 @@ public class ElasticsearchIO {
       return PDone.in(input.getPipeline());
     }
 
-    /**
-     * {@link DoFn} to for the {@link Write} transform.
-     * */
+    /** {@link DoFn} to for the {@link Write} transform. */
     @VisibleForTesting
     static class WriteFn extends DoFn<String, Void> {
       private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -891,7 +882,7 @@ public class ElasticsearchIO {
       private long currentBatchSizeBytes;
 
       // Encapsulates the elements which form the metadata for an Elasticsearch bulk operation
-      @JsonPropertyOrder({ "_index", "_type", "_id" })
+      @JsonPropertyOrder({"_index", "_type", "_id"})
       @JsonInclude(JsonInclude.Include.NON_NULL)
       private static class DocumentMetadata implements Serializable {
         @JsonProperty("_index")
@@ -1032,12 +1023,13 @@ public class ElasticsearchIO {
     try (RestClient restClient = connectionConfiguration.createClient()) {
       Response response = restClient.performRequest("GET", "");
       JsonNode jsonNode = parseResponse(response);
-      int backendVersion = Integer
-          .parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
-      checkArgument((backendVersion == 2 || backendVersion == 5),
+      int backendVersion =
+          Integer.parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
+      checkArgument(
+          (backendVersion == 2 || backendVersion == 5),
           "The Elasticsearch version to connect to is %s.x. "
-          + "This version of the ElasticsearchIO is only compatible with "
-          + "Elasticsearch v5.x and v2.x",
+              + "This version of the ElasticsearchIO is only compatible with "
+              + "Elasticsearch v5.x and v2.x",
           backendVersion);
       return backendVersion;
 

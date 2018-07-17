@@ -26,9 +26,6 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.io.BaseEncoding;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.internal.ServerImpl;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -42,6 +39,9 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessServerBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -50,14 +50,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ArtifactServiceStager}.
- */
+/** Tests for {@link ArtifactServiceStager}. */
 @RunWith(JUnit4.class)
 public class ArtifactServiceStagerTest {
   @Rule public TemporaryFolder temp = new TemporaryFolder();
 
-  private ServerImpl server;
+  private Server server;
   private InMemoryArtifactStagerService service;
   private ArtifactServiceStager stager;
 

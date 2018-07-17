@@ -29,9 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of {@link ByteKey}.
- */
+/** Tests of {@link ByteKey}. */
 @RunWith(JUnit4.class)
 public class ByteKeyTest {
   /* A big list of byte[] keys, in ascending sorted order. */
@@ -68,8 +66,8 @@ public class ByteKeyTest {
       };
 
   /**
-   * Tests {@link ByteKey#compareTo(ByteKey)} using exhaustive testing within a large sorted list
-   * of keys.
+   * Tests {@link ByteKey#compareTo(ByteKey)} using exhaustive testing within a large sorted list of
+   * keys.
    */
   @Test
   public void testCompareToExhaustive() {
@@ -96,9 +94,7 @@ public class ByteKeyTest {
     }
   }
 
-  /**
-   * Tests {@link ByteKey#equals}.
-   */
+  /** Tests {@link ByteKey#equals}. */
   @Test
   public void testEquals() {
     // Verify that the comparison gives the correct result for all values in both directions.
@@ -119,9 +115,7 @@ public class ByteKeyTest {
     }
   }
 
-  /**
-   * Tests {@link ByteKey#hashCode}.
-   */
+  /** Tests {@link ByteKey#hashCode}. */
   @Test
   public void testHashCode() {
     // Verify that the hashCode is equal when i==j, and usually not equal otherwise.
@@ -144,9 +138,7 @@ public class ByteKeyTest {
     assertThat("Too many hash collisions", collisions, lessThan(totalUnequalTests / 2));
   }
 
-  /**
-   * Tests {@link ByteKey#toString}.
-   */
+  /** Tests {@link ByteKey#toString}. */
   @Test
   public void testToString() {
     assertEquals("[]", ByteKey.EMPTY.toString());
@@ -157,18 +149,14 @@ public class ByteKeyTest {
         ByteKey.of(0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef).toString());
   }
 
-  /**
-   * Tests {@link ByteKey#isEmpty}.
-   */
+  /** Tests {@link ByteKey#isEmpty}. */
   @Test
   public void testIsEmpty() {
     assertTrue("[] is empty", ByteKey.EMPTY.isEmpty());
     assertFalse("[00]", ByteKey.of(0).isEmpty());
   }
 
-  /**
-   * Tests {@link ByteKey#getBytes}.
-   */
+  /** Tests {@link ByteKey#getBytes}. */
   @Test
   public void testGetBytes() {
     assertTrue("[] equal after getBytes", Arrays.equals(new byte[] {}, ByteKey.EMPTY.getBytes()));

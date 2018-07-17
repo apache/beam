@@ -44,11 +44,11 @@ import org.apache.beam.sdk.values.Row;
 /**
  * Query 0: Pass events through unchanged.
  *
- * <p>This measures the overhead of the Beam SQL implementation and test harness like
- * conversion from Java model classes to Beam records.
+ * <p>This measures the overhead of the Beam SQL implementation and test harness like conversion
+ * from Java model classes to Beam records.
  *
- * <p>{@link Bid} events are used here at the moment, ås they are most numerous
- * with default configuration.
+ * <p>{@link Bid} events are used here at the moment, ås they are most numerous with default
+ * configuration.
  */
 public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> {
 
@@ -64,38 +64,36 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> 
 
     RowCoder bidRowCoder = getBidRowCoder();
 
-    PCollection<Row> bidEventsRows = allEvents
-        .apply(Filter.by(IS_BID))
-        .apply(getName() + ".ToRow", ToRow.parDo())
-        .apply(getName() + ".Serialize", logBytesMetric(bidRowCoder))
-        .setCoder(bidRowCoder);
+    PCollection<Row> bidEventsRows =
+        allEvents
+            .apply(Filter.by(IS_BID))
+            .apply(getName() + ".ToRow", ToRow.parDo())
+            .apply(getName() + ".Serialize", logBytesMetric(bidRowCoder))
+            .setCoder(bidRowCoder);
 
-    PCollection<Row> queryResultsRows = bidEventsRows
-        .apply(QUERY)
-        .setCoder(bidRowCoder);
+    PCollection<Row> queryResultsRows = bidEventsRows.apply(QUERY).setCoder(bidRowCoder);
 
-    return queryResultsRows
-        .apply(bidParDo())
-        .setCoder(Bid.CODER);
+    return queryResultsRows.apply(bidParDo()).setCoder(Bid.CODER);
   }
 
   private PTransform<? super PCollection<Row>, PCollection<Row>> logBytesMetric(
       final RowCoder coder) {
 
-    return ParDo.of(new DoFn<Row, Row>() {
-      private final Counter bytesMetric = Metrics.counter(name , "bytes");
+    return ParDo.of(
+        new DoFn<Row, Row>() {
+          private final Counter bytesMetric = Metrics.counter(name, "bytes");
 
-      @ProcessElement
-      public void processElement(ProcessContext c) throws CoderException, IOException {
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        coder.encode(c.element(), outStream, Coder.Context.OUTER);
-        byte[] byteArray = outStream.toByteArray();
-        bytesMetric.inc((long) byteArray.length);
-        ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
-        Row row = coder.decode(inStream, Coder.Context.OUTER);
-        c.output(row);
-      }
-    });
+          @ProcessElement
+          public void processElement(ProcessContext c) throws CoderException, IOException {
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            coder.encode(c.element(), outStream, Coder.Context.OUTER);
+            byte[] byteArray = outStream.toByteArray();
+            bytesMetric.inc((long) byteArray.length);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
+            Row row = coder.decode(inStream, Coder.Context.OUTER);
+            c.output(row);
+          }
+        });
   }
 
   private RowCoder getBidRowCoder() {

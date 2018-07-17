@@ -16,12 +16,15 @@
 #
 """Tests for filesystemio."""
 
+from __future__ import absolute_import
+
 import io
 import logging
 import multiprocessing
 import os
 import threading
 import unittest
+from builtins import range
 
 from apache_beam.io import filesystemio
 

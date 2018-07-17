@@ -21,12 +21,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.joda.time.Duration;
 
-/**
- * A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set.
- */
+/** A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set. */
 public class DataflowTemplateJob extends DataflowPipelineJob {
-  private static final String ERROR =
-      "The result of template creation should not be used.";
+  private static final String ERROR = "The result of template creation should not be used.";
 
   public DataflowTemplateJob() {
     super(null, null, null, null);

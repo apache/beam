@@ -186,7 +186,7 @@ public class ByteKeyRangeTrackerTest {
   @Test
   public void testCheckDoneUnstarted() {
     ByteKeyRangeTracker tracker =
-            ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     expected.expect(IllegalStateException.class);
     tracker.checkDone();
   }

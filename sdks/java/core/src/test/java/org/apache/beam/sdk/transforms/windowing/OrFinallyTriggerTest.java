@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link OrFinallyTrigger}.
- */
+/** Tests for {@link OrFinallyTrigger}. */
 @RunWith(JUnit4.class)
 public class OrFinallyTriggerTest {
 
@@ -35,24 +33,31 @@ public class OrFinallyTriggerTest {
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    assertEquals(new Instant(9),
+    assertEquals(
+        new Instant(9),
         Repeatedly.forever(AfterWatermark.pastEndOfWindow())
-        .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(new Instant(9), Repeatedly.forever(AfterWatermark.pastEndOfWindow())
-        .orFinally(AfterPane.elementCountAtLeast(1))
-        .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(new Instant(9), Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-        .orFinally(AfterWatermark.pastEndOfWindow())
-        .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(new Instant(9),
+            .getWatermarkThatGuaranteesFiring(window));
+    assertEquals(
+        new Instant(9),
+        Repeatedly.forever(AfterWatermark.pastEndOfWindow())
+            .orFinally(AfterPane.elementCountAtLeast(1))
+            .getWatermarkThatGuaranteesFiring(window));
+    assertEquals(
+        new Instant(9),
+        Repeatedly.forever(AfterPane.elementCountAtLeast(1))
+            .orFinally(AfterWatermark.pastEndOfWindow())
+            .getWatermarkThatGuaranteesFiring(window));
+    assertEquals(
+        new Instant(9),
         AfterPane.elementCountAtLeast(100)
             .orFinally(AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));
 
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MAX_VALUE,
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-        .orFinally(AfterPane.elementCountAtLeast(10))
-        .getWatermarkThatGuaranteesFiring(window));
+            .orFinally(AfterPane.elementCountAtLeast(10))
+            .getWatermarkThatGuaranteesFiring(window));
   }
 
   @Test

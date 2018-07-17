@@ -88,8 +88,7 @@ class DirectGroupByKey<K, V>
   }
 
   static final class DirectGroupAlsoByWindow<K, V>
-      extends PTransform<
-          PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+      extends PTransform<PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
     private final WindowingStrategy<?, ?> inputWindowingStrategy;
     private final WindowingStrategy<?, ?> outputWindowingStrategy;
@@ -126,7 +125,9 @@ class DirectGroupByKey<K, V>
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KeyedWorkItem<K, V>> input) {
       KeyedWorkItemCoder<K, V> inputCoder = getKeyedWorkItemCoder(input.getCoder());
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputWindowingStrategy, input.isBounded(),
+          input.getPipeline(),
+          outputWindowingStrategy,
+          input.isBounded(),
           KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder())));
     }
   }

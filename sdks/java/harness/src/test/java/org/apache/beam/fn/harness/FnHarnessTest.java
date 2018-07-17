@@ -22,9 +22,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -39,6 +36,9 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,14 +48,14 @@ import org.junit.runners.JUnit4;
 public class FnHarnessTest {
   private static final BeamFnApi.InstructionRequest INSTRUCTION_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()
-      .setInstructionId("999L")
-      .setRegister(BeamFnApi.RegisterRequest.getDefaultInstance())
-      .build();
+          .setInstructionId("999L")
+          .setRegister(BeamFnApi.RegisterRequest.getDefaultInstance())
+          .build();
   private static final BeamFnApi.InstructionResponse INSTRUCTION_RESPONSE =
       BeamFnApi.InstructionResponse.newBuilder()
-      .setInstructionId("999L")
-      .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
-      .build();
+          .setInstructionId("999L")
+          .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
+          .build();
 
   @Test(timeout = 10 * 1000)
   @SuppressWarnings("FutureReturnValueIgnored") // failure will cause test to timeout.
@@ -110,14 +110,14 @@ public class FnHarnessTest {
       Server controlServer = ServerBuilder.forPort(0).addService(controlService).build();
       controlServer.start();
       try {
-        Endpoints.ApiServiceDescriptor loggingDescriptor = Endpoints.ApiServiceDescriptor
-            .newBuilder()
-            .setUrl("localhost:" + loggingServer.getPort())
-            .build();
-        Endpoints.ApiServiceDescriptor controlDescriptor = Endpoints.ApiServiceDescriptor
-            .newBuilder()
-            .setUrl("localhost:" + controlServer.getPort())
-            .build();
+        Endpoints.ApiServiceDescriptor loggingDescriptor =
+            Endpoints.ApiServiceDescriptor.newBuilder()
+                .setUrl("localhost:" + loggingServer.getPort())
+                .build();
+        Endpoints.ApiServiceDescriptor controlDescriptor =
+            Endpoints.ApiServiceDescriptor.newBuilder()
+                .setUrl("localhost:" + controlServer.getPort())
+                .build();
 
         FnHarness.main("id", options, loggingDescriptor, controlDescriptor);
         assertThat(instructionResponses, contains(INSTRUCTION_RESPONSE));
@@ -129,4 +129,3 @@ public class FnHarnessTest {
     }
   }
 }
-

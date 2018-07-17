@@ -37,9 +37,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WindowSupplier}.
- */
+/** Tests for {@link WindowSupplier}. */
 @RunWith(JUnit4.class)
 public class WindowSupplierTest {
   private final IntervalWindow window = new IntervalWindow(new Instant(0L), new Instant(100L));
@@ -71,15 +69,13 @@ public class WindowSupplierTest {
 
   private static class FailingCoder extends AtomicCoder<BoundedWindow> {
     @Override
-    public void encode(
-        BoundedWindow value, OutputStream outStream)
+    public void encode(BoundedWindow value, OutputStream outStream)
         throws CoderException, IOException {
       throw new CoderException("Test Encode Exception");
     }
 
     @Override
-    public BoundedWindow decode(
-        InputStream inStream) throws CoderException, IOException {
+    public BoundedWindow decode(InputStream inStream) throws CoderException, IOException {
       throw new CoderException("Test Decode Exception");
     }
   }

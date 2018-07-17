@@ -43,7 +43,9 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    throw new UnsupportedOperationException();
+    return begin
+        .apply(BigQueryIO.read(BigQueryUtils.toBeamRow(schema)).from(tableSpec))
+        .setCoder(getSchema().getRowCoder());
   }
 
   @Override

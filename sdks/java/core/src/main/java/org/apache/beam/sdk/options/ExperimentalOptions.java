@@ -22,31 +22,29 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * Apache Beam provides a number of experimental features that can
- * be enabled with this flag. If executing against a managed service, please contact the
- * service owners before enabling any experiments.
+ * Apache Beam provides a number of experimental features that can be enabled with this flag. If
+ * executing against a managed service, please contact the service owners before enabling any
+ * experiments.
  */
 @Experimental
 @Hidden
 public interface ExperimentalOptions extends PipelineOptions {
-  @Description("[Experimental] Apache Beam provides a number of experimental features that can "
-      + "be enabled with this flag. If executing against a managed service, please contact the "
-      + "service owners before enabling any experiments.")
+  @Description(
+      "[Experimental] Apache Beam provides a number of experimental features that can "
+          + "be enabled with this flag. If executing against a managed service, please contact the "
+          + "service owners before enabling any experiments.")
   @Nullable
   List<String> getExperiments();
+
   void setExperiments(@Nullable List<String> value);
 
-  /**
-   * Returns true iff the provided pipeline options has the specified experiment
-   * enabled.
-   */
+  /** Returns true iff the provided pipeline options has the specified experiment enabled. */
   static boolean hasExperiment(PipelineOptions options, String experiment) {
     if (options == null) {
       return false;
     }
 
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    return experiments != null
-        && experiments.contains(experiment);
+    return experiments != null && experiments.contains(experiment);
   }
 }

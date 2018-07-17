@@ -21,9 +21,6 @@ package org.apache.beam.runners.fnexecution.logging;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
@@ -41,6 +38,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -84,9 +84,15 @@ public class GrpcLoggingServiceTest {
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
-      assertThat(logs,
-          containsInAnyOrder(createLogWithId(1L), createLogWithId(2L), createLogWithId(3L),
-              createLogWithId(-1L), createLogWithId(-2L), createLogWithId(-3L)));
+      assertThat(
+          logs,
+          containsInAnyOrder(
+              createLogWithId(1L),
+              createLogWithId(2L),
+              createLogWithId(3L),
+              createLogWithId(-1L),
+              createLogWithId(-2L),
+              createLogWithId(-3L)));
     }
   }
 
@@ -174,6 +180,7 @@ public class GrpcLoggingServiceTest {
     }
     return builder.build();
   }
+
   private BeamFnApi.LogEntry createLogWithId(long id) {
     return BeamFnApi.LogEntry.newBuilder().setInstructionReference(Long.toString(id)).build();
   }

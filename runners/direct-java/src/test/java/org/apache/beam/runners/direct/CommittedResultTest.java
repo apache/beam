@@ -44,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CommittedResult}.
- */
+/** Tests for {@link CommittedResult}. */
 @RunWith(JUnit4.class)
 public class CommittedResultTest implements Serializable {
 
@@ -83,7 +81,8 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getUncommittedElementsEqualInput() {
     CommittedBundle<Integer> bundle =
-        bundleFactory.createBundle(created)
+        bundleFactory
+            .createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult<AppliedPTransform<?, ?, ?>> result =

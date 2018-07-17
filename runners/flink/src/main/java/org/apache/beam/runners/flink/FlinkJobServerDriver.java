@@ -29,12 +29,13 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /** Driver program that starts a job server. */
 public class FlinkJobServerDriver implements Runnable {
@@ -46,27 +47,17 @@ public class FlinkJobServerDriver implements Runnable {
   private final ServerFactory serverFactory;
 
   private static class ServerConfiguration {
-    @Option(
-        name = "--job-host",
-        required = true,
-        usage = "The job server host string"
-    )
+    @Option(name = "--job-host", required = true, usage = "The job server host string")
     private String host = "";
 
-    @Option(
-        name = "--artifacts-dir",
-        usage = "The location to store staged artifact files"
-    )
+    @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
 
-    @Option(
-        name = "--flink-master-url",
-        usage = "Flink master url to submit job."
-    )
+    @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
     private String flinkMasterUrl = "[auto]";
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     ServerConfiguration configuration = new ServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -76,14 +67,16 @@ public class FlinkJobServerDriver implements Runnable {
       printUsage(parser);
       return;
     }
+    //TODO: Expose the fileSystem related options.
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     FlinkJobServerDriver driver = fromConfig(configuration);
     driver.run();
   }
 
   private static void printUsage(CmdLineParser parser) {
     System.err.println(
-        String.format(
-            "Usage: java %s arguments...", FlinkJobServerDriver.class.getSimpleName()));
+        String.format("Usage: java %s arguments...", FlinkJobServerDriver.class.getSimpleName()));
     parser.printUsage(System.err);
     System.err.println();
   }
@@ -151,8 +144,7 @@ public class FlinkJobServerDriver implements Runnable {
 
   private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
       throws IOException {
-    BeamFileSystemArtifactStagingService service =
-        new BeamFileSystemArtifactStagingService();
+    BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
     return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 

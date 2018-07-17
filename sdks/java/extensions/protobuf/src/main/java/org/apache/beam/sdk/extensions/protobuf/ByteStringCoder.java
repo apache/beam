@@ -40,17 +40,16 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
     return INSTANCE;
   }
 
-  /***************************/
-
+  /** ************************ */
   private static final ByteStringCoder INSTANCE = new ByteStringCoder();
+
   private static final TypeDescriptor<ByteString> TYPE_DESCRIPTOR =
       new TypeDescriptor<ByteString>() {};
 
   private ByteStringCoder() {}
 
   @Override
-  public void encode(ByteString value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(ByteString value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 

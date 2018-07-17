@@ -19,38 +19,26 @@ package org.apache.beam.sdk.io.fs;
 
 import com.google.auto.value.AutoValue;
 
-/**
- * An abstract class that contains common configuration options for creating resources.
- */
+/** An abstract class that contains common configuration options for creating resources. */
 public abstract class CreateOptions {
-  /**
-   * The file-like resource mime type.
-   */
+  /** The file-like resource mime type. */
   public abstract String mimeType();
 
-  /**
-   * An abstract builder for {@link CreateOptions}.
-   */
+  /** An abstract builder for {@link CreateOptions}. */
   public abstract static class Builder<BuilderT extends CreateOptions.Builder<BuilderT>> {
     public abstract BuilderT setMimeType(String value);
   }
 
-  /**
-   * A standard configuration options with builder.
-   */
+  /** A standard configuration options with builder. */
   @AutoValue
   public abstract static class StandardCreateOptions extends CreateOptions {
 
-    /**
-     * Returns a {@link StandardCreateOptions.Builder}.
-     */
+    /** Returns a {@link StandardCreateOptions.Builder}. */
     public static StandardCreateOptions.Builder builder() {
       return new AutoValue_CreateOptions_StandardCreateOptions.Builder();
     }
 
-    /**
-     * Builder for {@link StandardCreateOptions}.
-     */
+    /** Builder for {@link StandardCreateOptions}. */
     @AutoValue.Builder
     public abstract static class Builder
         extends CreateOptions.Builder<StandardCreateOptions.Builder> {

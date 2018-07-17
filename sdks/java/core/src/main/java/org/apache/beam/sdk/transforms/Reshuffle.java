@@ -50,16 +50,15 @@ import org.joda.time.Duration;
 @Deprecated
 public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
-  private Reshuffle() {
-  }
+  private Reshuffle() {}
 
   public static <K, V> Reshuffle<K, V> of() {
     return new Reshuffle<>();
   }
 
   /**
-   * Encapsulates the sequence "pair input with unique key, apply {@link
-   * Reshuffle#of}, drop the key" commonly used to break fusion.
+   * Encapsulates the sequence "pair input with unique key, apply {@link Reshuffle#of}, drop the
+   * key" commonly used to break fusion.
    */
   @Experimental
   public static <T> ViaRandomKey<T> viaRandomKey() {

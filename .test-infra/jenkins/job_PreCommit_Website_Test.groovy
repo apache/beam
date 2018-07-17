@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // Defines a job.
 job('beam_PreCommit_Website_Test') {
@@ -24,7 +24,7 @@ job('beam_PreCommit_Website_Test') {
               'website.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelWebsiteJobProperties(delegate)
+  commonJobProperties.setTopLevelWebsiteJobProperties(delegate)
 
   // Execute concurrent builds. Multiple builds of this project may be executed
   // in parallel. This is safe because this build does not require exclusive
@@ -32,7 +32,7 @@ job('beam_PreCommit_Website_Test') {
   concurrentBuild()
 
   // Set pull request build trigger.
-  common_job_properties.setPreCommit(
+  commonJobProperties.setPreCommit(
       delegate,
       'Test website (dead links, etc.)')
 

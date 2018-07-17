@@ -42,9 +42,9 @@ import org.slf4j.LoggerFactory;
 /**
  * A custom, unbounded source of event records.
  *
- * <p>If {@code isRateLimited} is true, events become available for return from the reader such
- * that the overall rate respect the {@code interEventDelayUs} period if possible. Otherwise,
- * events are returned every time the system asks for one.
+ * <p>If {@code isRateLimited} is true, events become available for return from the reader such that
+ * the overall rate respect the {@code interEventDelayUs} period if possible. Otherwise, events are
+ * returned every time the system asks for one.
  */
 public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckpoint> {
   private static final Duration BACKLOG_PERIOD = Duration.standardSeconds(30);
@@ -62,8 +62,11 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
   /** Are we rate limiting the events? */
   private final boolean isRateLimited;
 
-  public UnboundedEventSource(GeneratorConfig config, int numEventGenerators,
-      long watermarkHoldbackSec, boolean isRateLimited) {
+  public UnboundedEventSource(
+      GeneratorConfig config,
+      int numEventGenerators,
+      long watermarkHoldbackSec,
+      boolean isRateLimited) {
     this.config = config;
     this.numEventGenerators = numEventGenerators;
     this.watermarkHoldbackSec = watermarkHoldbackSec;
@@ -76,28 +79,25 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
     private final Generator generator;
 
     /**
-     * Current watermark (ms since epoch). Initially set to beginning of time.
-     * Then updated to be the time of the next generated event.
-     * Then, once all events have been generated, set to the end of time.
+     * Current watermark (ms since epoch). Initially set to beginning of time. Then updated to be
+     * the time of the next generated event. Then, once all events have been generated, set to the
+     * end of time.
      */
     private long watermark;
 
     /**
-     * Current backlog (ms), as delay between timestamp of last returned event and the timestamp
-     * we should be up to according to wall-clock time. Used only for logging.
+     * Current backlog (ms), as delay between timestamp of last returned event and the timestamp we
+     * should be up to according to wall-clock time. Used only for logging.
      */
     private long backlogDurationMs;
 
     /**
-     * Current backlog, as estimated number of event bytes we are behind, or null if
-     * unknown. Reported to callers.
+     * Current backlog, as estimated number of event bytes we are behind, or null if unknown.
+     * Reported to callers.
      */
-    @Nullable
-    private Long backlogBytes;
+    @Nullable private Long backlogBytes;
 
-    /**
-     * Wallclock time (ms since epoch) we last reported the backlog, or -1 if never reported.
-     */
+    /** Wallclock time (ms since epoch) we last reported the backlog, or -1 if never reported. */
     private long lastReportedBacklogWallclock;
 
     /**
@@ -107,15 +107,13 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
     private long timestampAtLastReportedBacklogMs;
 
     /** Next event to make 'current' when wallclock time has advanced sufficiently. */
-    @Nullable
-    private TimestampedValue<Event> pendingEvent;
+    @Nullable private TimestampedValue<Event> pendingEvent;
 
     /** Wallclock time when {@link #pendingEvent} is due, or -1 if no pending event. */
     private long pendingEventWallclockTime;
 
     /** Current event to return from getCurrent. */
-    @Nullable
-    private TimestampedValue<Event> currentEvent;
+    @Nullable private TimestampedValue<Event> currentEvent;
 
     /** Events which have been held back so as to force them to be late. */
     private final Queue<Generator.NextEvent> heldBackEvents = new PriorityQueue<>();
@@ -138,7 +136,6 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
       return advance();
     }
 
-
     @Override
     public boolean advance() {
       long now = System.currentTimeMillis();
@@ -160,17 +157,17 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
         if (next != null && next.wallclockTimestamp <= now) {
           // Time to use the held-back event.
           heldBackEvents.poll();
-          LOG.debug("replaying held-back event {}ms behind watermark",
-                             watermark - next.eventTimestamp);
+          LOG.debug(
+              "replaying held-back event {}ms behind watermark", watermark - next.eventTimestamp);
         } else if (generator.hasNext()) {
           next = generator.nextEvent();
-          if (isRateLimited && config.getProbDelayedEvent() > 0.0
+          if (isRateLimited
+              && config.getProbDelayedEvent() > 0.0
               && config.getOccasionalDelaySec() > 0
               && ThreadLocalRandom.current().nextDouble() < config.getProbDelayedEvent()) {
             // We'll hold back this event and go around again.
             long delayMs =
-                ThreadLocalRandom.current().nextLong(config.getOccasionalDelaySec() * 1000)
-                + 1L;
+                ThreadLocalRandom.current().nextLong(config.getOccasionalDelaySec() * 1000) + 1L;
             LOG.debug("delaying event by {}ms", delayMs);
             heldBackEvents.add(next.withDelay(delayMs));
             continue;
@@ -227,8 +224,11 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
         }
         LOG.debug(
             "unbounded generator backlog now {}ms ({} bytes) at {}us interEventDelay "
-            + "with {} time dilation",
-            backlogDurationMs, backlogBytes, interEventDelayUs, timeDialation);
+                + "with {} time dilation",
+            backlogDurationMs,
+            backlogBytes,
+            interEventDelayUs,
+            timeDialation);
         lastReportedBacklogWallclock = now;
         if (pendingEvent != null) {
           timestampAtLastReportedBacklogMs = pendingEvent.getTimestamp().getMillis();
@@ -279,8 +279,10 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
 
     @Override
     public String toString() {
-      return String.format("EventReader(%d, %d, %d)",
-          generator.getCurrentConfig().getStartEventId(), generator.getNextEventId(),
+      return String.format(
+          "EventReader(%d, %d, %d)",
+          generator.getCurrentConfig().getStartEventId(),
+          generator.getNextEventId(),
           generator.getCurrentConfig().getStopEventId());
     }
   }
@@ -291,8 +293,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
   }
 
   @Override
-  public List<UnboundedEventSource> split(
-      int desiredNumSplits, PipelineOptions options) {
+  public List<UnboundedEventSource> split(int desiredNumSplits, PipelineOptions options) {
     LOG.trace("splitting unbounded source into {} sub-sources", numEventGenerators);
     List<UnboundedEventSource> results = new ArrayList<>();
     // Ignore desiredNumSplits and use numEventGenerators instead.

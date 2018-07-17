@@ -63,8 +63,7 @@ class ReshuffleOverrideFactory<K, V>
       // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
       Window<KV<K, V>> rewindow =
           Window.<KV<K, V>>into(
-              new IdentityWindowFn<>(
-                  originalStrategy.getWindowFn().windowCoder()))
+                  new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
               .triggering(new ReshuffleTrigger<>())
               .discardingFiredPanes()
               .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));

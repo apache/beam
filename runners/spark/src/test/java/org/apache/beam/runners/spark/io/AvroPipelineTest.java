@@ -41,19 +41,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Avro pipeline test.
- */
+/** Avro pipeline test. */
 public class AvroPipelineTest {
 
   private File inputFile;
   private File outputFile;
 
-  @Rule
-  public final TemporaryFolder tmpDir = new TemporaryFolder();
+  @Rule public final TemporaryFolder tmpDir = new TemporaryFolder();
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void setUp() throws IOException {
@@ -70,19 +66,17 @@ public class AvroPipelineTest {
     savedRecord.put("siblingnames", Lists.newArrayList("Jimmy", "Jane"));
     populateGenericFile(Lists.newArrayList(savedRecord), schema);
 
-    PCollection<GenericRecord> input = pipeline.apply(
-        AvroIO.readGenericRecords(schema).from(inputFile.getAbsolutePath()));
-    input.apply(
-        AvroIO.writeGenericRecords(schema)
-            .to(outputFile.getAbsolutePath()));
+    PCollection<GenericRecord> input =
+        pipeline.apply(AvroIO.readGenericRecords(schema).from(inputFile.getAbsolutePath()));
+    input.apply(AvroIO.writeGenericRecords(schema).to(outputFile.getAbsolutePath()));
     pipeline.run();
 
     List<GenericRecord> records = readGenericFile();
     assertEquals(Lists.newArrayList(savedRecord), records);
   }
 
-  private void populateGenericFile(List<GenericRecord> genericRecords,
-                                   Schema schema) throws IOException {
+  private void populateGenericFile(List<GenericRecord> genericRecords, Schema schema)
+      throws IOException {
     FileOutputStream outputStream = new FileOutputStream(this.inputFile);
     GenericDatumWriter<GenericRecord> genericDatumWriter = new GenericDatumWriter<>(schema);
 
@@ -106,6 +100,4 @@ public class AvroPipelineTest {
     }
     return records;
   }
-
-
 }

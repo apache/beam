@@ -105,16 +105,12 @@ public interface PipelineResult {
       this.hasReplacement = hasReplacement;
     }
 
-    /**
-     * @return {@code true} if the job state can no longer complete work.
-     */
+    /** @return {@code true} if the job state can no longer complete work. */
     public final boolean isTerminal() {
       return terminal;
     }
 
-    /**
-     * @return {@code true} if this job state indicates that a replacement job exists.
-     */
+    /** @return {@code true} if this job state indicates that a replacement job exists. */
     public final boolean hasReplacementJob() {
       return hasReplacement;
     }

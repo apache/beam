@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
@@ -149,19 +148,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
           .build();
     }
 
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s.rehydrate should never be called; the serialized form is that of a ParDo",
-              getClass().getCanonicalName()));
-    }
-
     private static RunnerApi.ParDoPayload payloadForParDoSingle(
-        final ParDoSingle<?, ?> parDo, SdkComponents components)
-        throws IOException {
+        final ParDoSingle<?, ?> parDo, SdkComponents components) throws IOException {
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       checkArgument(
@@ -239,12 +227,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             ? extends PTransformTranslation.TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(ParDoSingle.class, new PayloadTranslator());
-    }
-
-    @Override
-    public Map<String, ? extends PTransformTranslation.TransformPayloadTranslator>
-        getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

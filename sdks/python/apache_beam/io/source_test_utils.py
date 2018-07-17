@@ -43,10 +43,15 @@ For example usages, see the unit tests of modules such as
  * apache_beam.io.source_test_utils_test.py
  * apache_beam.io.avroio_test.py
 """
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import threading
 import weakref
+from builtins import next
+from builtins import object
+from builtins import range
 from collections import namedtuple
 from multiprocessing.pool import ThreadPool
 

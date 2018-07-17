@@ -21,21 +21,28 @@ import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Represents the output of 'get' operation on Kinesis stream.
- */
+/** Represents the output of 'get' operation on Kinesis stream. */
 class GetKinesisRecordsResult {
 
   private final List<KinesisRecord> records;
   private final String nextShardIterator;
   private final long millisBehindLatest;
 
-  public GetKinesisRecordsResult(List<UserRecord> records, String nextShardIterator,
-      long millisBehindLatest, final String streamName, final String shardId) {
-    this.records = records.stream().map(input -> {
-      assert input != null;  // to make FindBugs happy
-      return new KinesisRecord(input, streamName, shardId);
-    }).collect(Collectors.toList());
+  public GetKinesisRecordsResult(
+      List<UserRecord> records,
+      String nextShardIterator,
+      long millisBehindLatest,
+      final String streamName,
+      final String shardId) {
+    this.records =
+        records
+            .stream()
+            .map(
+                input -> {
+                  assert input != null; // to make FindBugs happy
+                  return new KinesisRecord(input, streamName, shardId);
+                })
+            .collect(Collectors.toList());
     this.nextShardIterator = nextShardIterator;
     this.millisBehindLatest = millisBehindLatest;
   }

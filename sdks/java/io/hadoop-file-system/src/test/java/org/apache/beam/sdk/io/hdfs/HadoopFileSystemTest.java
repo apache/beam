@@ -59,9 +59,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link HadoopFileSystem}.
- */
+/** Tests for {@link HadoopFileSystem}. */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemTest {
 
@@ -118,12 +116,8 @@ public class HadoopFileSystemTest {
     create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
     create("testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
     fileSystem.copy(
-        ImmutableList.of(
-            testPath("testFileA"),
-            testPath("testFileB")),
-        ImmutableList.of(
-            testPath("copyTestFileA"),
-            testPath("copyTestFileB")));
+        ImmutableList.of(testPath("testFileA"), testPath("testFileB")),
+        ImmutableList.of(testPath("copyTestFileA"), testPath("copyTestFileB")));
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileA", 0));
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("copyTestFileA", 0));
@@ -141,18 +135,21 @@ public class HadoopFileSystemTest {
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
     assertArrayEquals("testDataC".getBytes(StandardCharsets.UTF_8), read("testFileC", 0));
 
-    fileSystem.delete(ImmutableList.of(
-        testPath("testFileA"),
-        testPath("testFileC")));
+    fileSystem.delete(ImmutableList.of(testPath("testFileA"), testPath("testFileC")));
 
     List<MatchResult> results =
         fileSystem.match(ImmutableList.of(testPath("testFile*").toString()));
-    assertThat(results, contains(MatchResult.create(Status.OK, ImmutableList.of(
-        Metadata.builder()
-            .setResourceId(testPath("testFileB"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
-            .build()))));
+    assertThat(
+        results,
+        contains(
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("testFileB"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
+                        .build()))));
   }
 
   @Test
@@ -169,17 +166,19 @@ public class HadoopFileSystemTest {
     List<MatchResult> results =
         fileSystem.match(ImmutableList.of(testPath("testFileA*").toString()));
     assertEquals(Status.OK, Iterables.getOnlyElement(results).status());
-    assertThat(Iterables.getOnlyElement(results).metadata(), containsInAnyOrder(
-        Metadata.builder()
-            .setResourceId(testPath("testFileAA"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataAA".getBytes(StandardCharsets.UTF_8).length)
-            .build(),
-        Metadata.builder()
-            .setResourceId(testPath("testFileA"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
-            .build()));
+    assertThat(
+        Iterables.getOnlyElement(results).metadata(),
+        containsInAnyOrder(
+            Metadata.builder()
+                .setResourceId(testPath("testFileAA"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testDataAA".getBytes(StandardCharsets.UTF_8).length)
+                .build(),
+            Metadata.builder()
+                .setResourceId(testPath("testFileA"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
+                .build()));
   }
 
   @Test
@@ -191,10 +190,12 @@ public class HadoopFileSystemTest {
     assertArrayEquals("testDataAA".getBytes(StandardCharsets.UTF_8), read("testFileAA", 0));
     assertArrayEquals("testDataBB".getBytes(StandardCharsets.UTF_8), read("testFileBB", 0));
 
-    List<MatchResult> matchResults = fileSystem.match(ImmutableList.of(
-        testPath("testFileAA").toString(),
-        testPath("testFileA").toString(),
-        testPath("testFileBB").toString()));
+    List<MatchResult> matchResults =
+        fileSystem.match(
+            ImmutableList.of(
+                testPath("testFileAA").toString(),
+                testPath("testFileA").toString(),
+                testPath("testFileBB").toString()));
 
     assertThat(matchResults, hasSize(3));
 
@@ -230,25 +231,24 @@ public class HadoopFileSystemTest {
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
 
     fileSystem.rename(
-        ImmutableList.of(
-            testPath("testFileA"), testPath("testFileB")),
-        ImmutableList.of(
-            testPath("renameFileA"), testPath("renameFileB")));
+        ImmutableList.of(testPath("testFileA"), testPath("testFileB")),
+        ImmutableList.of(testPath("renameFileA"), testPath("renameFileB")));
 
-    List<MatchResult> results =
-        fileSystem.match(ImmutableList.of(testPath("*").toString()));
+    List<MatchResult> results = fileSystem.match(ImmutableList.of(testPath("*").toString()));
     assertEquals(Status.OK, Iterables.getOnlyElement(results).status());
-    assertThat(Iterables.getOnlyElement(results).metadata(), containsInAnyOrder(
-        Metadata.builder()
-            .setResourceId(testPath("renameFileA"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
-            .build(),
-        Metadata.builder()
-            .setResourceId(testPath("renameFileB"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
-            .build()));
+    assertThat(
+        Iterables.getOnlyElement(results).metadata(),
+        containsInAnyOrder(
+            Metadata.builder()
+                .setResourceId(testPath("renameFileA"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
+                .build(),
+            Metadata.builder()
+                .setResourceId(testPath("renameFileB"))
+                .setIsReadSeekEfficient(true)
+                .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
+                .build()));
 
     // ensure files exist
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("renameFileA", 0));
@@ -258,14 +258,11 @@ public class HadoopFileSystemTest {
   @Test
   public void testMatchNewResource() {
     // match file spec
-    assertEquals(testPath("file"),
-        fileSystem.matchNewResource(testPath("file").toString(), false));
+    assertEquals(testPath("file"), fileSystem.matchNewResource(testPath("file").toString(), false));
     // match dir spec missing '/'
-    assertEquals(testPath("dir/"),
-        fileSystem.matchNewResource(testPath("dir").toString(), true));
+    assertEquals(testPath("dir/"), fileSystem.matchNewResource(testPath("dir").toString(), true));
     // match dir spec with '/'
-    assertEquals(testPath("dir/"),
-        fileSystem.matchNewResource(testPath("dir/").toString(), true));
+    assertEquals(testPath("dir/"), fileSystem.matchNewResource(testPath("dir/").toString(), true));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Expected file path but received directory path");
@@ -279,20 +276,20 @@ public class HadoopFileSystemTest {
     create("testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
     create("testFileC", "testDataC".getBytes(StandardCharsets.UTF_8));
 
-    HadoopFileSystemOptions options = TestPipeline.testingPipelineOptions()
-        .as(HadoopFileSystemOptions.class);
+    HadoopFileSystemOptions options =
+        TestPipeline.testingPipelineOptions().as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(fileSystem.fileSystem.getConf()));
     FileSystems.setDefaultPipelineOptions(options);
-    PCollection<String> pc = p.apply(
-        TextIO.read().from(testPath("testFile*").toString()));
+    PCollection<String> pc = p.apply(TextIO.read().from(testPath("testFile*").toString()));
     PAssert.that(pc).containsInAnyOrder("testDataA", "testDataB", "testDataC");
     p.run();
   }
 
   private void create(String relativePath, byte[] contents) throws Exception {
-    try (WritableByteChannel channel = fileSystem.create(
-        testPath(relativePath),
-        StandardCreateOptions.builder().setMimeType(MimeTypes.BINARY).build())) {
+    try (WritableByteChannel channel =
+        fileSystem.create(
+            testPath(relativePath),
+            StandardCreateOptions.builder().setMimeType(MimeTypes.BINARY).build())) {
       channel.write(ByteBuffer.wrap(contents));
     }
   }

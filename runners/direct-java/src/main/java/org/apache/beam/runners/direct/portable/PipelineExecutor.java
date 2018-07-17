@@ -37,8 +37,8 @@ interface PipelineExecutor {
 
   /**
    * Blocks until the job being executed enters a terminal state. A job is completed after all root
-   * {@link PTransformNode PTransformNodes} have completed, and all {@link CommittedBundle
-   * Bundles} have been consumed. Jobs may also terminate abnormally.
+   * {@link PTransformNode PTransformNodes} have completed, and all {@link CommittedBundle Bundles}
+   * have been consumed. Jobs may also terminate abnormally.
    *
    * <p>Waits for up to the provided duration, or forever if the provided duration is less than or
    * equal to zero.

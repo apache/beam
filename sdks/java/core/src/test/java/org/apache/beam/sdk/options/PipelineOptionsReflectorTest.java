@@ -36,9 +36,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link PipelineOptionsReflector}.
- */
+/** Unit tests for {@link PipelineOptionsReflector}. */
 @RunWith(JUnit4.class)
 public class PipelineOptionsReflectorTest {
   @Test
@@ -46,12 +44,16 @@ public class PipelineOptionsReflectorTest {
     Set<PipelineOptionSpec> properties =
         PipelineOptionsReflector.getOptionSpecs(SimpleOptions.class);
 
-    assertThat(properties, Matchers.hasItems(PipelineOptionSpec.of(
-        SimpleOptions.class, "foo", SimpleOptions.class.getDeclaredMethod("getFoo"))));
+    assertThat(
+        properties,
+        Matchers.hasItems(
+            PipelineOptionSpec.of(
+                SimpleOptions.class, "foo", SimpleOptions.class.getDeclaredMethod("getFoo"))));
   }
 
   interface SimpleOptions extends PipelineOptions {
     String getFoo();
+
     void setFoo(String value);
   }
 
@@ -65,18 +67,23 @@ public class PipelineOptionsReflectorTest {
 
   interface OnlyTwoValidGetters extends PipelineOptions {
     String getFoo();
+
     void setFoo(String value);
 
     boolean isBar();
+
     void setBar(boolean value);
 
     String gtMisspelled();
+
     void setMisspelled(String value);
 
     String getHasParameter(String value);
+
     void setHasParameter(String value);
 
     String noPrefix();
+
     void setNoPrefix(String value);
   }
 
@@ -85,19 +92,20 @@ public class PipelineOptionsReflectorTest {
     Set<PipelineOptionSpec> props =
         PipelineOptionsReflector.getOptionSpecs(ExtendsSimpleOptions.class);
 
-    assertThat(props, hasItem(
-        allOf(hasName("foo"), hasClass(SimpleOptions.class))));
-    assertThat(props, hasItem(
-        allOf(hasName("foo"), hasClass(ExtendsSimpleOptions.class))));
-    assertThat(props, hasItem(
-        allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
+    assertThat(props, hasItem(allOf(hasName("foo"), hasClass(SimpleOptions.class))));
+    assertThat(props, hasItem(allOf(hasName("foo"), hasClass(ExtendsSimpleOptions.class))));
+    assertThat(props, hasItem(allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
   }
 
   interface ExtendsSimpleOptions extends SimpleOptions {
-    @Override String getFoo();
-    @Override void setFoo(String value);
+    @Override
+    String getFoo();
+
+    @Override
+    void setFoo(String value);
 
     String getBar();
+
     void setBar(String value);
   }
 
@@ -111,6 +119,7 @@ public class PipelineOptionsReflectorTest {
 
   interface NoExtendsClause {
     String getFoo();
+
     void setFoo(String value);
   }
 
@@ -127,6 +136,7 @@ public class PipelineOptionsReflectorTest {
   @Hidden
   interface HiddenOptions extends PipelineOptions {
     String getFoo();
+
     void setFoo(String value);
   }
 
@@ -141,10 +151,12 @@ public class PipelineOptionsReflectorTest {
 
   interface JsonIgnoreOptions extends PipelineOptions {
     String getNotIgnored();
+
     void setNotIgnored(String value);
 
     @JsonIgnore
     String getIgnored();
+
     void setIgnored(String value);
   }
 
@@ -156,24 +168,25 @@ public class PipelineOptionsReflectorTest {
     Set<PipelineOptionSpec> props = PipelineOptionsReflector.getOptionSpecs(interfaces);
 
     assertThat(props, hasItem(allOf(hasName("baseOption"), hasClass(BaseOptions.class))));
-    assertThat(props, hasItem(
-        allOf(hasName("extendOption1"), hasClass(ExtendOptions1.class))));
-    assertThat(props, hasItem(
-        allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
+    assertThat(props, hasItem(allOf(hasName("extendOption1"), hasClass(ExtendOptions1.class))));
+    assertThat(props, hasItem(allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
   }
 
   interface BaseOptions extends PipelineOptions {
     String getBaseOption();
+
     void setBaseOption(String value);
   }
 
   interface ExtendOptions1 extends BaseOptions {
     String getExtendOption1();
+
     void setExtendOption1(String value);
   }
 
   interface ExtendOptions2 extends BaseOptions {
     String getExtendOption2();
+
     void setExtendOption2(String value);
   }
 
@@ -201,8 +214,7 @@ public class PipelineOptionsReflectorTest {
   }
 
   private static Matcher<PipelineOptionSpec> hasGetter(String methodName) {
-    return new FeatureMatcher<PipelineOptionSpec, String>(
-        is(methodName), "getter method", "name") {
+    return new FeatureMatcher<PipelineOptionSpec, String>(is(methodName), "getter method", "name") {
       @Override
       protected String featureValueOf(PipelineOptionSpec actual) {
         return actual.getGetterMethod().getName();
@@ -211,8 +223,8 @@ public class PipelineOptionsReflectorTest {
   }
 
   private static Matcher<PipelineOptionSpec> shouldSerialize() {
-    return new FeatureMatcher<PipelineOptionSpec, Boolean>(equalTo(true),
-        "should serialize", "shouldSerialize") {
+    return new FeatureMatcher<PipelineOptionSpec, Boolean>(
+        equalTo(true), "should serialize", "shouldSerialize") {
 
       @Override
       protected Boolean featureValueOf(PipelineOptionSpec actual) {

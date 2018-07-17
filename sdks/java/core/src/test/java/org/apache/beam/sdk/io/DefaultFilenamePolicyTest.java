@@ -24,9 +24,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of {@link DefaultFilenamePolicy}.
- */
+/** Tests of {@link DefaultFilenamePolicy}. */
 @RunWith(JUnit4.class)
 public class DefaultFilenamePolicyTest {
 
@@ -133,5 +131,4 @@ public class DefaultFilenamePolicyTest {
         constructName(
             "/path/to/out", "-N/S.part-S-of-N-W-winW-pP", ".txt", 1, 2, "paneL", "sWindow1"));
   }
-
 }

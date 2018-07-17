@@ -52,11 +52,12 @@ import org.junit.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 
 /**
- * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO}
- * on an independent postgres instance.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an independent
+ * postgres instance.
  *
  * <p>This test requires a running instance of Postgres. Pass in connection information using
  * PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/hadoop/input-format/
  *   -DintegrationTestPipelineOptions='[
@@ -70,8 +71,8 @@ import org.postgresql.ds.PGSimpleDataSource;
  *  -DintegrationTestRunner=direct
  * </pre>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 public class HadoopInputFormatIOIT {
 
@@ -80,16 +81,14 @@ public class HadoopInputFormatIOIT {
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
 
-  @Rule
-  public TestPipeline writePipeline = TestPipeline.create();
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() throws Exception {
-    PostgresIOTestPipelineOptions options = readIOTestPipelineOptions(
-      PostgresIOTestPipelineOptions.class);
+    PostgresIOTestPipelineOptions options =
+        readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
 
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     numberOfRows = options.getNumberOfRecords();
@@ -110,8 +109,7 @@ public class HadoopInputFormatIOIT {
         "org.postgresql.Driver",
         DatabaseTestHelper.getPostgresDBUrl(options),
         options.getPostgresUsername(),
-        options.getPostgresPassword()
-    );
+        options.getPostgresPassword());
     conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
     conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
     conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
@@ -135,23 +133,28 @@ public class HadoopInputFormatIOIT {
 
   @Test
   public void readUsingHadoopInputFormat() {
-    writePipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
-      .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
-      .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
-      .apply("Write using JDBCIO", JdbcIO.<TestRow>write()
-        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-        .withStatement(String.format("insert into %s values(?, ?)", tableName))
-        .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
+    writePipeline
+        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
+        .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
+        .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
+        .apply(
+            "Write using JDBCIO",
+            JdbcIO.<TestRow>write()
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
 
     writePipeline.run().waitUntilFinish();
 
-    PCollection<String> consolidatedHashcode = readPipeline
-      .apply("Read using HadoopInputFormat", HadoopInputFormatIO.
-        <LongWritable, TestRowDBWritable>read()
-        .withConfiguration(hadoopConfiguration.get()))
-      .apply("Get values only", Values.create())
-      .apply("Values as string", ParDo.of(new SelectNameFn()))
-      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode =
+        readPipeline
+            .apply(
+                "Read using HadoopInputFormat",
+                HadoopInputFormatIO.<LongWritable, TestRowDBWritable>read()
+                    .withConfiguration(hadoopConfiguration.get()))
+            .apply("Get values only", Values.create())
+            .apply("Values as string", ParDo.of(new SelectNameFn()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 

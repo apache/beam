@@ -43,13 +43,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Read}.
- */
+/** Tests for {@link Read}. */
 @RunWith(JUnit4.class)
-public class ReadTest implements Serializable{
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+public class ReadTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void failsWhenCustomBoundedSourceIsNotSerializable() {
@@ -75,24 +72,25 @@ public class ReadTest implements Serializable{
 
   @Test
   public void testDisplayData() {
-    SerializableBoundedSource boundedSource = new SerializableBoundedSource() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    SerializableUnboundedSource unboundedSource = new SerializableUnboundedSource() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    SerializableBoundedSource boundedSource =
+        new SerializableBoundedSource() {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
+    SerializableUnboundedSource unboundedSource =
+        new SerializableUnboundedSource() {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
     Duration maxReadTime = Duration.standardMinutes(2345);
 
     Read.Bounded<String> bounded = Read.from(boundedSource);
-    BoundedReadFromUnboundedSource<String> unbounded = Read.from(unboundedSource)
-        .withMaxNumRecords(1234)
-        .withMaxReadTime(maxReadTime);
+    BoundedReadFromUnboundedSource<String> unbounded =
+        Read.from(unboundedSource).withMaxNumRecords(1234).withMaxReadTime(maxReadTime);
 
     DisplayData boundedDisplayData = DisplayData.from(bounded);
     assertThat(boundedDisplayData, hasDisplayItem("source", boundedSource.getClass()));
@@ -122,30 +120,32 @@ public class ReadTest implements Serializable{
     options.as(StreamingOptions.class).setStreaming(isStreaming);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
-    SerializableBoundedSource boundedSource = new SerializableBoundedSource() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    SerializableUnboundedSource unboundedSource = new SerializableUnboundedSource() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    SerializableBoundedSource boundedSource =
+        new SerializableBoundedSource() {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
+    SerializableUnboundedSource unboundedSource =
+        new SerializableUnboundedSource() {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
 
     Read.Bounded<String> bounded = Read.from(boundedSource);
-    BoundedReadFromUnboundedSource<String> unbounded = Read.from(unboundedSource)
-        .withMaxNumRecords(1234);
+    BoundedReadFromUnboundedSource<String> unbounded =
+        Read.from(unboundedSource).withMaxNumRecords(1234);
 
-    Set<DisplayData> boundedDisplayData = evaluator
-        .displayDataForPrimitiveSourceTransforms(bounded);
+    Set<DisplayData> boundedDisplayData =
+        evaluator.displayDataForPrimitiveSourceTransforms(bounded);
     assertThat(boundedDisplayData, hasItem(hasDisplayItem("source", boundedSource.getClass())));
     assertThat(boundedDisplayData, hasItem(includesDisplayDataFor("source", boundedSource)));
 
-    Set<DisplayData> unboundedDisplayData = evaluator
-        .displayDataForPrimitiveSourceTransforms(unbounded);
+    Set<DisplayData> unboundedDisplayData =
+        evaluator.displayDataForPrimitiveSourceTransforms(unbounded);
     assertThat(unboundedDisplayData, hasItem(hasDisplayItem("source")));
     assertThat(unboundedDisplayData, hasItem(includesDisplayDataFor("source", unboundedSource)));
   }

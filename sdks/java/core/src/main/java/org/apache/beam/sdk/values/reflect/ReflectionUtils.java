@@ -23,14 +23,10 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Helpers to get the information about a class.
- */
+/** Helpers to get the information about a class. */
 class ReflectionUtils {
 
-  /**
-   * Returns a list of non-void public methods with names prefixed with 'get'.
-   */
+  /** Returns a list of non-void public methods with names prefixed with 'get'. */
   static List<Method> getPublicGetters(Class clazz) {
     List<Method> getters = new ArrayList<>();
     for (Method method : clazz.getDeclaredMethods()) {
@@ -45,8 +41,8 @@ class ReflectionUtils {
   /**
    * Tries to remove a 'get' prefix from a method name.
    *
-   * <p>Converts method names like 'getSomeField' into 'someField' if they start with 'get'.
-   * Returns names unchanged if they don't start with 'get'.
+   * <p>Converts method names like 'getSomeField' into 'someField' if they start with 'get'. Returns
+   * names unchanged if they don't start with 'get'.
    */
   static String tryStripGetPrefix(Method method) {
     String name = method.getName();
@@ -57,14 +53,11 @@ class ReflectionUtils {
 
     String firstLetter = name.substring(3, 4).toLowerCase();
 
-    return (name.length() == 4)
-        ? firstLetter
-        : (firstLetter + name.substring(4, name.length()));
+    return (name.length() == 4) ? firstLetter : (firstLetter + name.substring(4, name.length()));
   }
 
   private static boolean isGetter(Method method) {
-    return method.getName().startsWith("get")
-        && !Void.TYPE.equals(method.getReturnType());
+    return method.getName().startsWith("get") && !Void.TYPE.equals(method.getReturnType());
   }
 
   private static boolean isPublic(Method method) {

@@ -16,6 +16,8 @@
 #
 
 """Tests for textio module."""
+from __future__ import absolute_import
+from __future__ import division
 
 import bz2
 import glob
@@ -25,6 +27,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from builtins import range
 
 import apache_beam as beam
 import apache_beam.io.source_test_utils as source_test_utils

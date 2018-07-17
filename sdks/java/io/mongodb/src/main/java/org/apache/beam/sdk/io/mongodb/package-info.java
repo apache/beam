@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from MongoDB.
- */
+/** Transforms for reading and writing from MongoDB. */
 package org.apache.beam.sdk.io.mongodb;

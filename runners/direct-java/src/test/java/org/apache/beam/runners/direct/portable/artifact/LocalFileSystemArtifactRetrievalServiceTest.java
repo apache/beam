@@ -27,8 +27,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -52,6 +50,8 @@ import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFil
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -60,9 +60,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalFileSystemArtifactRetrievalService}.
- */
+/** Tests for {@link LocalFileSystemArtifactRetrievalService}. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemArtifactRetrievalServiceTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
@@ -153,8 +151,8 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
 
   @Test
   public void retrieveArtifactNotPresent() throws Exception {
-    stageAndCreateRetrievalService(Collections.singletonMap(
-        "foo", "bar, baz, quux".getBytes(UTF_8)));
+    stageAndCreateRetrievalService(
+        Collections.singletonMap("foo", "bar, baz, quux".getBytes(UTF_8)));
 
     final CountDownLatch completed = new CountDownLatch(1);
     final AtomicReference<Throwable> thrown = new AtomicReference<>();

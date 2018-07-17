@@ -29,14 +29,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for SerializableConfiguration.
- */
+/** Tests for SerializableConfiguration. */
 @RunWith(JUnit4.class)
 public class SerializableConfigurationTest {
-  @Rule public  final ExpectedException thrown = ExpectedException.none();
+  @Rule public final ExpectedException thrown = ExpectedException.none();
   private static final SerializableConfiguration DEFAULT_SERIALIZABLE_CONF =
-          new SerializableConfiguration(new Configuration());
+      new SerializableConfiguration(new Configuration());
 
   @Test
   public void testSerializationDeserialization() {
@@ -61,7 +59,7 @@ public class SerializableConfigurationTest {
     Configuration confFromNull = SerializableConfiguration.newConfiguration(null);
     assertNotNull(confFromNull);
     Configuration conf =
-            SerializableConfiguration.newConfiguration(new SerializableConfiguration(confFromNull));
+        SerializableConfiguration.newConfiguration(new SerializableConfiguration(confFromNull));
     assertNotNull(conf);
   }
 

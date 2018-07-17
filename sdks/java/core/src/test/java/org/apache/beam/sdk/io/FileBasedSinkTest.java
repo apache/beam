@@ -119,7 +119,7 @@ public class FileBasedSinkTest {
   private void assertFileContains(List<String> expected, ResourceId file) throws Exception {
     try (BufferedReader reader = Files.newBufferedReader(Paths.get(file.toString()), UTF_8)) {
       List<String> actual = new ArrayList<>();
-      for (;;) {
+      for (; ; ) {
         String line = reader.readLine();
         if (line == null) {
           break;
@@ -132,8 +132,9 @@ public class FileBasedSinkTest {
 
   /** Write lines to a file. */
   private void writeFile(List<String> lines, File file) throws Exception {
-    try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(
-        new FileOutputStream(file), UTF_8)))) {
+    try (PrintWriter writer =
+        new PrintWriter(
+            new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), UTF_8)))) {
       for (String line : lines) {
         writer.println(line);
       }
@@ -291,11 +292,12 @@ public class FileBasedSinkTest {
       File inputTmpFile = tmpFolder.newFile(inputFilenames.get(i));
       List<String> lines = Collections.singletonList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
-      ResourceId finalFilename = writeOp
-          .getSink()
-          .getDynamicDestinations()
-          .getFilenamePolicy(null)
-          .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
+      ResourceId finalFilename =
+          writeOp
+              .getSink()
+              .getDynamicDestinations()
+              .getFilenamePolicy(null)
+              .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
       resultsToFinalFilenames.add(
           KV.of(
               new FileResult<>(
@@ -317,8 +319,7 @@ public class FileBasedSinkTest {
     }
   }
 
-  public List<ResourceId> generateDestinationFilenames(
-      FilenamePolicy policy, int numFiles) {
+  public List<ResourceId> generateDestinationFilenames(FilenamePolicy policy, int numFiles) {
     List<ResourceId> filenames = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       filenames.add(policy.unwindowedFilename(i, numFiles, CompressionType.UNCOMPRESSED));
@@ -392,8 +393,7 @@ public class FileBasedSinkTest {
     List<ResourceId> actual;
     ResourceId root = getBaseOutputDirectory();
     SimpleSink<Void> sink =
-        SimpleSink.makeSimpleSink(
-            root, "file", "-SSSSS-of-NNNNN", "", Compression.UNCOMPRESSED);
+        SimpleSink.makeSimpleSink(root, "file", "-SSSSS-of-NNNNN", "", Compression.UNCOMPRESSED);
     FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected =
@@ -418,14 +418,12 @@ public class FileBasedSinkTest {
   /** {@link Compression#BZIP2} correctly writes BZip2 data. */
   @Test
   public void testCompressionBZIP2() throws FileNotFoundException, IOException {
-    final File file =
-        writeValuesWithCompression(Compression.BZIP2, "abc", "123");
+    final File file = writeValuesWithCompression(Compression.BZIP2, "abc", "123");
     // Read Bzip2ed data back in using Apache commons API (de facto standard).
     assertReadValues(
         new BufferedReader(
             new InputStreamReader(
-                new BZip2CompressorInputStream(new FileInputStream(file)),
-                StandardCharsets.UTF_8)),
+                new BZip2CompressorInputStream(new FileInputStream(file)), StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -446,8 +444,7 @@ public class FileBasedSinkTest {
   /** {@link Compression#DEFLATE} correctly writes deflate data. */
   @Test
   public void testCompressionDEFLATE() throws FileNotFoundException, IOException {
-    final File file =
-        writeValuesWithCompression(Compression.DEFLATE, "abc", "123");
+    final File file = writeValuesWithCompression(Compression.DEFLATE, "abc", "123");
     // Read Gzipped data back in using standard API.
     assertReadValues(
         new BufferedReader(
@@ -461,8 +458,7 @@ public class FileBasedSinkTest {
   /** {@link Compression#UNCOMPRESSED} correctly writes uncompressed data. */
   @Test
   public void testCompressionUNCOMPRESSED() throws FileNotFoundException, IOException {
-    final File file =
-        writeValuesWithCompression(Compression.UNCOMPRESSED, "abc", "123");
+    final File file = writeValuesWithCompression(Compression.UNCOMPRESSED, "abc", "123");
     // Read uncompressed data back in using standard API.
     assertReadValues(
         new BufferedReader(
@@ -479,8 +475,8 @@ public class FileBasedSinkTest {
     }
   }
 
-  private File writeValuesWithCompression(
-      Compression compression, String... values) throws IOException {
+  private File writeValuesWithCompression(Compression compression, String... values)
+      throws IOException {
     final File file = tmpFolder.newFile("test.gz");
     final WritableByteChannel channel =
         compression.writeCompressed(Channels.newChannel(new FileOutputStream(file)));

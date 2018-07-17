@@ -54,14 +54,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link UnboundedSourceWrapper}.
- */
+/** Tests for {@link UnboundedSourceWrapper}. */
 public class UnboundedSourceWrapperTest {
 
-  /**
-   * Parameterized tests.
-   */
+  /** Parameterized tests. */
   @RunWith(Parameterized.class)
   public static class UnboundedSourceWrapperTestWithParams {
     private final int numTasks;
@@ -79,16 +75,17 @@ public class UnboundedSourceWrapperTest {
        * {numTasks, numSplits}
        * The test currently assumes powers of two for some assertions.
        */
-      return Arrays.asList(new Object[][]{
-          {1, 1}, {1, 2}, {1, 4},
-          {2, 1}, {2, 2}, {2, 4},
-          {4, 1}, {4, 2}, {4, 4}
-      });
+      return Arrays.asList(
+          new Object[][] {
+            {1, 1}, {1, 2}, {1, 4},
+            {2, 1}, {2, 2}, {2, 4},
+            {4, 1}, {4, 2}, {4, 4}
+          });
     }
 
     /**
-     * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source.
-     * If numSplits > numTasks the source has one source will manage multiple readers.
+     * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source. If
+     * numSplits > numTasks the source has one source will manage multiple readers.
      */
     @Test
     public void testValueEmission() throws Exception {
@@ -105,32 +102,31 @@ public class UnboundedSourceWrapperTest {
 
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
-      StreamSource<WindowedValue<
-          ValueWithRecordId<KV<Integer, Integer>>>,
-          UnboundedSourceWrapper<
-              KV<Integer, Integer>,
-              TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
+      StreamSource<
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          sourceOperator = new StreamSource<>(flinkWrapper);
 
       AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
           testHarness =
-          new AbstractStreamOperatorTestHarness<>(
-              sourceOperator,
-              numTasks /* max parallelism */,
-              numTasks /* parallelism */,
-              0 /* subtask index */);
+              new AbstractStreamOperatorTestHarness<>(
+                  sourceOperator,
+                  numTasks /* max parallelism */,
+                  numTasks /* parallelism */,
+                  0 /* subtask index */);
 
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
       try {
         testHarness.open();
-        sourceOperator.run(checkpointLock,
+        sourceOperator.run(
+            checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
-              public void emitWatermark(Watermark watermark) {
-              }
+              public void emitWatermark(Watermark watermark) {}
 
               @Override
               public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
@@ -138,12 +134,12 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void emitLatencyMarker(LatencyMarker latencyMarker) {
-              }
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {}
 
               @Override
-              public void collect(StreamRecord<WindowedValue<
-                  ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
+              public void collect(
+                  StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+                      windowedValueStreamRecord) {
 
                 count++;
                 if (count >= numElements) {
@@ -152,9 +148,7 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void close() {
-
-              }
+              public void close() {}
             });
       } catch (SuccessException e) {
 
@@ -167,8 +161,8 @@ public class UnboundedSourceWrapperTest {
     }
 
     /**
-     * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source.
-     * If numSplits > numTasks the source has one source will manage multiple readers.
+     * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source. If
+     * numSplits > numTasks the source has one source will manage multiple readers.
      *
      * <p>This test verifies that watermark are correctly forwarded.
      */
@@ -187,19 +181,19 @@ public class UnboundedSourceWrapperTest {
 
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
-      final StreamSource<WindowedValue<
-          ValueWithRecordId<KV<Integer, Integer>>>,
-          UnboundedSourceWrapper<
-              KV<Integer, Integer>,
-              TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
+      final StreamSource<
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          sourceOperator = new StreamSource<>(flinkWrapper);
 
       final AbstractStreamOperatorTestHarness<
-          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> testHarness =
-          new AbstractStreamOperatorTestHarness<>(
-              sourceOperator,
-              numTasks /* max parallelism */,
-              numTasks /* parallelism */,
-              0 /* subtask index */);
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          testHarness =
+              new AbstractStreamOperatorTestHarness<>(
+                  sourceOperator,
+                  numTasks /* max parallelism */,
+                  numTasks /* parallelism */,
+                  0 /* subtask index */);
 
       testHarness.setProcessingTime(Instant.now().getMillis());
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -268,12 +262,10 @@ public class UnboundedSourceWrapperTest {
       sourceThread.join();
     }
 
-
     /**
-     * Verify that snapshot/restore work as expected. We bring up a source and cancel
-     * after seeing a certain number of elements. Then we snapshot that source,
-     * bring up a completely new source that we restore from the snapshot and verify
-     * that we see all expected elements in the end.
+     * Verify that snapshot/restore work as expected. We bring up a source and cancel after seeing a
+     * certain number of elements. Then we snapshot that source, bring up a completely new source
+     * that we restore from the snapshot and verify that we see all expected elements in the end.
      */
     @Test
     public void testRestore() throws Exception {
@@ -291,19 +283,17 @@ public class UnboundedSourceWrapperTest {
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
       StreamSource<
-          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
-          UnboundedSourceWrapper<
-              KV<Integer, Integer>,
-              TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
-
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          sourceOperator = new StreamSource<>(flinkWrapper);
 
       AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
           testHarness =
-          new AbstractStreamOperatorTestHarness<>(
-              sourceOperator,
-              numTasks /* max parallelism */,
-              numTasks /* parallelism */,
-              0 /* subtask index */);
+              new AbstractStreamOperatorTestHarness<>(
+                  sourceOperator,
+                  numTasks /* max parallelism */,
+                  numTasks /* parallelism */,
+                  0 /* subtask index */);
 
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
@@ -313,14 +303,14 @@ public class UnboundedSourceWrapperTest {
 
       try {
         testHarness.open();
-        sourceOperator.run(checkpointLock,
+        sourceOperator.run(
+            checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
-              public void emitWatermark(Watermark watermark) {
-              }
+              public void emitWatermark(Watermark watermark) {}
 
               @Override
               public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
@@ -328,12 +318,12 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void emitLatencyMarker(LatencyMarker latencyMarker) {
-              }
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {}
 
               @Override
-              public void collect(StreamRecord<WindowedValue<
-                  ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
+              public void collect(
+                  StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+                      windowedValueStreamRecord) {
 
                 emittedElements.add(windowedValueStreamRecord.getValue().getValue().getValue());
                 count++;
@@ -343,9 +333,7 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void close() {
-
-              }
+              public void close() {}
             });
       } catch (SuccessException e) {
         // success
@@ -365,27 +353,25 @@ public class UnboundedSourceWrapperTest {
 
       // create a completely new source but restore from the snapshot
       TestCountingSource restoredSource = new TestCountingSource(numElements);
-      UnboundedSourceWrapper<
-          KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
-          new UnboundedSourceWrapper<>("stepName", options, restoredSource, numSplits);
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>
+          restoredFlinkWrapper =
+              new UnboundedSourceWrapper<>("stepName", options, restoredSource, numSplits);
 
       assertEquals(numSplits, restoredFlinkWrapper.getSplitSources().size());
 
       StreamSource<
-          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
-          UnboundedSourceWrapper<
-              KV<Integer, Integer>,
-              TestCountingSource.CounterMark>> restoredSourceOperator =
-          new StreamSource<>(restoredFlinkWrapper);
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          restoredSourceOperator = new StreamSource<>(restoredFlinkWrapper);
 
       // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
       AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
           restoredTestHarness =
-          new AbstractStreamOperatorTestHarness<>(
-              restoredSourceOperator,
-              numTasks /* max parallelism */,
-              1 /* parallelism */,
-              0 /* subtask index */);
+              new AbstractStreamOperatorTestHarness<>(
+                  restoredSourceOperator,
+                  numTasks /* max parallelism */,
+                  1 /* parallelism */,
+                  0 /* subtask index */);
 
       restoredTestHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
@@ -397,14 +383,14 @@ public class UnboundedSourceWrapperTest {
       // run again and verify that we see the other elements
       try {
         restoredTestHarness.open();
-        restoredSourceOperator.run(checkpointLock,
+        restoredSourceOperator.run(
+            checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
-              public void emitWatermark(Watermark watermark) {
-              }
+              public void emitWatermark(Watermark watermark) {}
 
               @Override
               public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
@@ -412,12 +398,12 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void emitLatencyMarker(LatencyMarker latencyMarker) {
-              }
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {}
 
               @Override
-              public void collect(StreamRecord<WindowedValue<
-                  ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
+              public void collect(
+                  StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+                      windowedValueStreamRecord) {
                 emittedElements.add(windowedValueStreamRecord.getValue().getValue().getValue());
                 count++;
                 if (count >= numElements / 2) {
@@ -426,9 +412,7 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void close() {
-
-              }
+              public void close() {}
             });
       } catch (SuccessException e) {
         // success
@@ -436,8 +420,7 @@ public class UnboundedSourceWrapperTest {
       }
 
       assertEquals(
-          Math.max(1, numSplits / numTasks),
-          restoredFlinkWrapper.getLocalSplitSources().size());
+          Math.max(1, numSplits / numTasks), restoredFlinkWrapper.getLocalSplitSources().size());
 
       assertTrue("Did not successfully read second batch of elements.", readSecondBatchOfElements);
 
@@ -450,28 +433,29 @@ public class UnboundedSourceWrapperTest {
       final int numElements = 20;
       PipelineOptions options = PipelineOptionsFactory.create();
 
-      TestCountingSource source = new TestCountingSource(numElements) {
-        @Override
-        public Coder<CounterMark> getCheckpointMarkCoder() {
-          return null;
-        }
-      };
+      TestCountingSource source =
+          new TestCountingSource(numElements) {
+            @Override
+            public Coder<CounterMark> getCheckpointMarkCoder() {
+              return null;
+            }
+          };
 
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
           new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
 
       StreamSource<
-          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
-          UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
           sourceOperator = new StreamSource<>(flinkWrapper);
 
       AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
           testHarness =
-          new AbstractStreamOperatorTestHarness<>(
-              sourceOperator,
-              numTasks /* max parallelism */,
-              numTasks /* parallelism */,
-              0 /* subtask index */);
+              new AbstractStreamOperatorTestHarness<>(
+                  sourceOperator,
+                  numTasks /* max parallelism */,
+                  numTasks /* parallelism */,
+                  0 /* subtask index */);
 
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
@@ -479,25 +463,24 @@ public class UnboundedSourceWrapperTest {
 
       OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
-      UnboundedSourceWrapper<
-          KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
-          new UnboundedSourceWrapper<>(
-              "stepName", options, new TestCountingSource(numElements), numSplits);
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>
+          restoredFlinkWrapper =
+              new UnboundedSourceWrapper<>(
+                  "stepName", options, new TestCountingSource(numElements), numSplits);
 
       StreamSource<
-          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
-          UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
-          restoredSourceOperator =
-          new StreamSource<>(restoredFlinkWrapper);
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          restoredSourceOperator = new StreamSource<>(restoredFlinkWrapper);
 
       // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
       AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
           restoredTestHarness =
-          new AbstractStreamOperatorTestHarness<>(
-              restoredSourceOperator,
-              numTasks /* max parallelism */,
-              1 /* parallelism */,
-              0 /* subtask index */);
+              new AbstractStreamOperatorTestHarness<>(
+                  restoredSourceOperator,
+                  numTasks /* max parallelism */,
+                  1 /* parallelism */,
+                  0 /* subtask index */);
 
       restoredTestHarness.setup();
       restoredTestHarness.initializeState(snapshot);
@@ -506,25 +489,17 @@ public class UnboundedSourceWrapperTest {
       // when the source checkpointed a null we don't re-initialize the splits, that is we
       // will have no splits.
       assertEquals(0, restoredFlinkWrapper.getLocalSplitSources().size());
-
     }
 
-    /**
-     * A special {@link RuntimeException} that we throw to signal that the test was successful.
-     */
-    private static class SuccessException extends RuntimeException {
-    }
+    /** A special {@link RuntimeException} that we throw to signal that the test was successful. */
+    private static class SuccessException extends RuntimeException {}
   }
 
-  /**
-   * Not parameterized tests.
-   */
+  /** Not parameterized tests. */
   @RunWith(JUnit4.class)
   public static class BasicTest {
 
-    /**
-     * Check serialization a {@link UnboundedSourceWrapper}.
-     */
+    /** Check serialization a {@link UnboundedSourceWrapper}. */
     @Test
     public void testSerialization() throws Exception {
       final int parallelism = 1;
@@ -537,7 +512,6 @@ public class UnboundedSourceWrapperTest {
 
       InstantiationUtil.serializeObject(flinkWrapper);
     }
-
   }
 
   private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
@@ -555,5 +529,4 @@ public class UnboundedSourceWrapperTest {
       return currentStreamStatus;
     }
   }
-
 }

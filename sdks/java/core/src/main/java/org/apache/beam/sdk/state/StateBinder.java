@@ -30,14 +30,11 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
  */
 @Internal
 public interface StateBinder {
-  <T> ValueState<T> bindValue(
-      String id, StateSpec<ValueState<T>> spec, Coder<T> coder);
+  <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder);
 
-  <T> BagState<T> bindBag(
-      String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder);
+  <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder);
 
-  <T> SetState<T> bindSet(
-      String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder);
+  <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder);
 
   <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
       String id,
@@ -64,7 +61,5 @@ public interface StateBinder {
    * to the returned {@link WatermarkHoldState} are to be combined.
    */
   WatermarkHoldState bindWatermark(
-      String id,
-      StateSpec<WatermarkHoldState> spec,
-      TimestampCombiner timestampCombiner);
+      String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner);
 }

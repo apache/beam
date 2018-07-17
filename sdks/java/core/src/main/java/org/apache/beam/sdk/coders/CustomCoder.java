@@ -42,14 +42,14 @@ public abstract class CustomCoder<T> extends Coder<T> implements Serializable {
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException a {@link CustomCoder} is presumed
-   * nondeterministic.
+   * @throws NonDeterministicException a {@link CustomCoder} is presumed nondeterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
+    throw new NonDeterministicException(
+        this,
         "CustomCoder implementations must override verifyDeterministic,"
-        + " or they are presumed nondeterministic.");
+            + " or they are presumed nondeterministic.");
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

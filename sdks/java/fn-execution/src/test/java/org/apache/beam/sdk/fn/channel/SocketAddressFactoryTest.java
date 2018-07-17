@@ -21,10 +21,10 @@ package org.apache.beam.sdk.fn.channel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import io.netty.channel.unix.DomainSocketAddress;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,8 +48,8 @@ public class SocketAddressFactoryTest {
   @Test
   public void testDomainSocket() throws Exception {
     File tmpFile = tmpFolder.newFile();
-    SocketAddress socketAddress = SocketAddressFactory.createFrom(
-        "unix://" + tmpFile.getAbsolutePath());
+    SocketAddress socketAddress =
+        SocketAddressFactory.createFrom("unix://" + tmpFile.getAbsolutePath());
     assertThat(socketAddress, Matchers.instanceOf(DomainSocketAddress.class));
     assertEquals(tmpFile.getAbsolutePath(), ((DomainSocketAddress) socketAddress).path());
   }

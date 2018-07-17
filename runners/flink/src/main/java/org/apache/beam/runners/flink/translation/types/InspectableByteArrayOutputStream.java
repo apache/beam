@@ -20,14 +20,12 @@ package org.apache.beam.runners.flink.translation.types;
 import java.io.ByteArrayOutputStream;
 
 /**
- * Version of {@link java.io.ByteArrayOutputStream} that allows to retrieve the internal
- * byte[] buffer without incurring an array copy.
+ * Version of {@link java.io.ByteArrayOutputStream} that allows to retrieve the internal byte[]
+ * buffer without incurring an array copy.
  */
 public class InspectableByteArrayOutputStream extends ByteArrayOutputStream {
 
-  /**
-   * Get the underlying byte array.
-   */
+  /** Get the underlying byte array. */
   public byte[] getBuffer() {
     return buf;
   }

@@ -29,25 +29,23 @@ import org.joda.time.Instant;
 /**
  * Base class for defining input formats and creating a {@code Source} for reading the input.
  *
- * <p>This class is not intended to be subclassed directly. Instead, to define
- * a bounded source (a source which produces a finite amount of input), subclass
- * {@link BoundedSource}; to define an unbounded source, subclass {@link UnboundedSource}.
+ * <p>This class is not intended to be subclassed directly. Instead, to define a bounded source (a
+ * source which produces a finite amount of input), subclass {@link BoundedSource}; to define an
+ * unbounded source, subclass {@link UnboundedSource}.
  *
- * <p>A {@code Source} passed to a {@code Read} transform must be
- * {@code Serializable}.  This allows the {@code Source} instance
- * created in this "main program" to be sent (in serialized form) to
- * remote worker machines and reconstituted for each batch of elements
- * of the input {@code PCollection} being processed or for each source splitting
- * operation. A {@code Source} can have instance variable state, and
- * non-transient instance variable state will be serialized in the main program
- * and then deserialized on remote worker machines.
+ * <p>A {@code Source} passed to a {@code Read} transform must be {@code Serializable}. This allows
+ * the {@code Source} instance created in this "main program" to be sent (in serialized form) to
+ * remote worker machines and reconstituted for each batch of elements of the input {@code
+ * PCollection} being processed or for each source splitting operation. A {@code Source} can have
+ * instance variable state, and non-transient instance variable state will be serialized in the main
+ * program and then deserialized on remote worker machines.
  *
- * <p>{@code Source} classes MUST be effectively immutable. The only acceptable use of
- * mutable fields is to cache the results of expensive operations, and such fields MUST be
- * marked {@code transient}.
+ * <p>{@code Source} classes MUST be effectively immutable. The only acceptable use of mutable
+ * fields is to cache the results of expensive operations, and such fields MUST be marked {@code
+ * transient}.
  *
- * <p>{@code Source} objects should override {@link Object#toString}, as it will be
- * used in important error and debugging messages.
+ * <p>{@code Source} objects should override {@link Object#toString}, as it will be used in
+ * important error and debugging messages.
  *
  * @param <T> Type of elements read by the source.
  */
@@ -56,8 +54,8 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * Checks that this source is valid, before it can be used in a pipeline.
    *
-   * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing
-   * this method.
+   * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing this
+   * method.
    */
   public void validate() {}
 
@@ -87,8 +85,8 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * {@inheritDoc}
    *
-   * <p>By default, does not register any display data. Implementors may override this method
-   * to provide their own display data.
+   * <p>By default, does not register any display data. Implementors may override this method to
+   * provide their own display data.
    */
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {}
@@ -96,22 +94,27 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * The interface that readers of custom input sources must implement.
    *
-   * <p>This interface is deliberately distinct from {@link java.util.Iterator} because
-   * the current model tends to be easier to program and more efficient in practice
-   * for iterating over sources such as files, databases etc. (rather than pure collections).
+   * <p>This interface is deliberately distinct from {@link java.util.Iterator} because the current
+   * model tends to be easier to program and more efficient in practice for iterating over sources
+   * such as files, databases etc. (rather than pure collections).
    *
    * <p>Reading data from the {@link Reader} must obey the following access pattern:
+   *
    * <ul>
-   * <li> One call to {@link #start}
-   * <ul><li>If {@link #start} returned true, any number of calls to {@code getCurrent}*
-   *   methods</ul>
-   * <li> Repeatedly, a call to {@link #advance}. This may be called regardless
-   *   of what the previous {@link #start}/{@link #advance} returned.
-   * <ul><li>If {@link #advance} returned true, any number of calls to {@code getCurrent}*
-   *   methods</ul>
+   *   <li>One call to {@link #start}
+   *       <ul>
+   *         <li>If {@link #start} returned true, any number of calls to {@code getCurrent}* methods
+   *       </ul>
+   *   <li>Repeatedly, a call to {@link #advance}. This may be called regardless of what the
+   *       previous {@link #start}/{@link #advance} returned.
+   *       <ul>
+   *         <li>If {@link #advance} returned true, any number of calls to {@code getCurrent}*
+   *             methods
+   *       </ul>
    * </ul>
    *
    * <p>For example, if the reader is reading a fixed set of data:
+   *
    * <pre>
    *   try {
    *     for (boolean available = reader.start(); available; available = reader.advance()) {
@@ -125,6 +128,7 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
    * </pre>
    *
    * <p>If the set of data being read is continually growing:
+   *
    * <pre>
    *   try {
    *     boolean available = reader.start();
@@ -173,36 +177,34 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
     public abstract boolean advance() throws IOException;
 
     /**
-     * Returns the value of the data item that was read by the last {@link #start} or
-     * {@link #advance} call. The returned value must be effectively immutable and remain valid
+     * Returns the value of the data item that was read by the last {@link #start} or {@link
+     * #advance} call. The returned value must be effectively immutable and remain valid
      * indefinitely.
      *
      * <p>Multiple calls to this method without an intervening call to {@link #advance} should
      * return the same result.
      *
-     * @throws java.util.NoSuchElementException if {@link #start} was never called, or if
-     *         the last {@link #start} or {@link #advance} returned {@code false}.
+     * @throws java.util.NoSuchElementException if {@link #start} was never called, or if the last
+     *     {@link #start} or {@link #advance} returned {@code false}.
      */
     public abstract T getCurrent() throws NoSuchElementException;
 
     /**
      * Returns the timestamp associated with the current data item.
      *
-     * <p>If the source does not support timestamps, this should return
-     * {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
+     * <p>If the source does not support timestamps, this should return {@code
+     * BoundedWindow.TIMESTAMP_MIN_VALUE}.
      *
      * <p>Multiple calls to this method without an intervening call to {@link #advance} should
      * return the same result.
      *
-     * @throws NoSuchElementException if the reader is at the beginning of the input and
-     *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
-     *         {@link #advance} returned {@code false}.
+     * @throws NoSuchElementException if the reader is at the beginning of the input and {@link
+     *     #start} or {@link #advance} wasn't called, or if the last {@link #start} or {@link
+     *     #advance} returned {@code false}.
      */
     public abstract Instant getCurrentTimestamp() throws NoSuchElementException;
 
-    /**
-     * Closes the reader. The reader cannot be used after this method is called.
-     */
+    /** Closes the reader. The reader cannot be used after this method is called. */
     @Override
     public abstract void close() throws IOException;
 
@@ -211,10 +213,10 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
      * (including items already read).
      *
      * <p>Usually, an implementation will simply return the immutable {@link Source} object from
-     * which the current {@link Reader} was constructed, or delegate to the base class.
-     * However, when using or implementing this method on a {@link BoundedSource.BoundedReader},
-     * special considerations apply, see documentation for
-     * {@link BoundedSource.BoundedReader#getCurrentSource}.
+     * which the current {@link Reader} was constructed, or delegate to the base class. However,
+     * when using or implementing this method on a {@link BoundedSource.BoundedReader}, special
+     * considerations apply, see documentation for {@link
+     * BoundedSource.BoundedReader#getCurrentSource}.
      */
     public abstract Source<T> getCurrentSource();
   }

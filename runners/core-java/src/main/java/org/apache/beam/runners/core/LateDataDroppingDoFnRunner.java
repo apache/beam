@@ -33,8 +33,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * A customized {@link DoFnRunner} that handles late data dropping for
- * a {@link KeyedWorkItem} input {@link DoFn}.
+ * A customized {@link DoFnRunner} that handles late data dropping for a {@link KeyedWorkItem} input
+ * {@link DoFn}.
  *
  * <p>It expands windows before checking data lateness.
  *
@@ -72,16 +72,17 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
 
   @Override
   public void processElement(WindowedValue<KeyedWorkItem<K, InputT>> elem) {
-    Iterable<WindowedValue<InputT>> nonLateElements = lateDataFilter.filter(
-        elem.getValue().key(), elem.getValue().elementsIterable());
-    KeyedWorkItem<K, InputT> keyedWorkItem = KeyedWorkItems.workItem(
-        elem.getValue().key(), elem.getValue().timersIterable(), nonLateElements);
+    Iterable<WindowedValue<InputT>> nonLateElements =
+        lateDataFilter.filter(elem.getValue().key(), elem.getValue().elementsIterable());
+    KeyedWorkItem<K, InputT> keyedWorkItem =
+        KeyedWorkItems.workItem(
+            elem.getValue().key(), elem.getValue().timersIterable(), nonLateElements);
     doFnRunner.processElement(elem.withValue(keyedWorkItem));
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-      TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
   }
 
@@ -90,9 +91,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     doFnRunner.finishBundle();
   }
 
-  /**
-   * It filters late data in a {@link KeyedWorkItem}.
-   */
+  /** It filters late data in a {@link KeyedWorkItem}. */
   @VisibleForTesting
   static class LateDataFilter {
     private final WindowingStrategy<?, ?> windowingStrategy;
@@ -100,17 +99,16 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     private final Counter droppedDueToLateness;
 
     public LateDataFilter(
-        WindowingStrategy<?, ?> windowingStrategy,
-        TimerInternals timerInternals) {
+        WindowingStrategy<?, ?> windowingStrategy, TimerInternals timerInternals) {
       this.windowingStrategy = windowingStrategy;
       this.timerInternals = timerInternals;
-      this.droppedDueToLateness = Metrics.counter(LateDataDroppingDoFnRunner.class,
-          DROPPED_DUE_TO_LATENESS);
+      this.droppedDueToLateness =
+          Metrics.counter(LateDataDroppingDoFnRunner.class, DROPPED_DUE_TO_LATENESS);
     }
 
     /**
-     * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains
-     * non-late input elements.
+     * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains non-late input
+     * elements.
      */
     public <K, InputT> Iterable<WindowedValue<InputT>> filter(
         final K key, Iterable<WindowedValue<InputT>> elements) {

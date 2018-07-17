@@ -35,9 +35,9 @@ public class ExecutableStageTranslation {
   public static ExecutableStagePayload getExecutableStagePayload(
       AppliedPTransform<?, ?, ?> appliedTransform) throws IOException {
     RunnerApi.PTransform transform =
-        PTransformTranslation.toProto(appliedTransform, SdkComponents.create());
+        PTransformTranslation.toProto(
+            appliedTransform, SdkComponents.create(appliedTransform.getPipeline().getOptions()));
     checkArgument(ExecutableStage.URN.equals(transform.getSpec().getUrn()));
     return ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
   }
-
 }

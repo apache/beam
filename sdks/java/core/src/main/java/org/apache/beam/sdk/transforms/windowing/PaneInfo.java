@@ -35,31 +35,30 @@ import org.apache.beam.sdk.util.VarInt;
 
 /**
  * Provides information about the pane an element belongs to. Every pane is implicitly associated
- * with a window. Panes are observable only via the
- * {@link DoFn.ProcessContext#pane} method of the context
- * passed to a {@link DoFn.ProcessElement} method.
+ * with a window. Panes are observable only via the {@link DoFn.ProcessContext#pane} method of the
+ * context passed to a {@link DoFn.ProcessElement} method.
  *
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
 public final class PaneInfo {
   /**
-   * Enumerates the possibilities for the timing of this pane firing related to the
-   * input and output watermarks for its computation.
+   * Enumerates the possibilities for the timing of this pane firing related to the input and output
+   * watermarks for its computation.
    *
    * <p>A window may fire multiple panes, and the timing of those panes generally follows the
    * regular expression {@code EARLY* ON_TIME? LATE*}. Generally a pane is considered:
+   *
    * <ol>
-   * <li>{@code EARLY} if the system cannot be sure it has seen all data which may contribute
-   * to the pane's window.
-   * <li>{@code ON_TIME} if the system predicts it has seen all the data which may contribute
-   * to the pane's window.
-   * <li>{@code LATE} if the system has encountered new data after predicting no more could arrive.
-   * It is possible an {@code ON_TIME} pane has already been emitted, in which case any
-   * following panes are considered {@code LATE}.
+   *   <li>{@code EARLY} if the system cannot be sure it has seen all data which may contribute to
+   *       the pane's window.
+   *   <li>{@code ON_TIME} if the system predicts it has seen all the data which may contribute to
+   *       the pane's window.
+   *   <li>{@code LATE} if the system has encountered new data after predicting no more could
+   *       arrive. It is possible an {@code ON_TIME} pane has already been emitted, in which case
+   *       any following panes are considered {@code LATE}.
    * </ol>
    *
-   * <p>Only an
-   * {@link AfterWatermark#pastEndOfWindow} trigger may produce an {@code ON_TIME} pane.
+   * <p>Only an {@link AfterWatermark#pastEndOfWindow} trigger may produce an {@code ON_TIME} pane.
    * With merging {@link WindowFn}'s, windows may be merged to produce new windows that satisfy
    * their own instance of the above regular expression. The only guarantee is that once a window
    * produces a final pane, it will not be merged into any new windows.
@@ -68,59 +67,58 @@ public final class PaneInfo {
    *
    * <p>We can state some properties of {@code LATE} and {@code ON_TIME} panes, but first need some
    * definitions:
+   *
    * <ol>
-   * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link WindowedContext#outputWithTimestamp} in
-   * any {@link DoFn}, and it uses the same
-   * {@link org.apache.beam.sdk.transforms.windowing.Window#withAllowedLateness}
-   * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
-   * <li>We'll call an element 'locally late', from the point of view of a computation on a
-   * worker, if the element's timestamp is before the input watermark for that computation
-   * on that worker. The element is otherwise 'locally on-time'.
-   * <li>We'll say 'the pane's timestamp' to mean the timestamp of the element produced to
-   * represent the pane's contents.
+   *   <li>We'll call a pipeline 'simple' if it does not use {@link
+   *       WindowedContext#outputWithTimestamp} in any {@link DoFn}, and it uses the same {@link
+   *       org.apache.beam.sdk.transforms.windowing.Window#withAllowedLateness} argument value on
+   *       all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
+   *   <li>We'll call an element 'locally late', from the point of view of a computation on a
+   *       worker, if the element's timestamp is before the input watermark for that computation on
+   *       that worker. The element is otherwise 'locally on-time'.
+   *   <li>We'll say 'the pane's timestamp' to mean the timestamp of the element produced to
+   *       represent the pane's contents.
    * </ol>
    *
    * <p>Then in simple pipelines:
+   *
    * <ol>
-   * <li> (Soundness) An {@code ON_TIME} pane can never cause a later computation to generate a
-   * {@code LATE} pane. (If it did, it would imply a later computation's input watermark progressed
-   * ahead of an earlier stage's output watermark, which by design is not possible.)
-   * <li> (Liveness) An {@code ON_TIME} pane is emitted as soon as possible after the input
-   * watermark passes the end of the pane's window.
-   * <li> (Consistency) A pane with only locally on-time elements will always be {@code ON_TIME}.
-   * And a {@code LATE} pane cannot contain locally on-time elements.
+   *   <li>(Soundness) An {@code ON_TIME} pane can never cause a later computation to generate a
+   *       {@code LATE} pane. (If it did, it would imply a later computation's input watermark
+   *       progressed ahead of an earlier stage's output watermark, which by design is not
+   *       possible.)
+   *   <li>(Liveness) An {@code ON_TIME} pane is emitted as soon as possible after the input
+   *       watermark passes the end of the pane's window.
+   *   <li>(Consistency) A pane with only locally on-time elements will always be {@code ON_TIME}.
+   *       And a {@code LATE} pane cannot contain locally on-time elements.
    * </ol>
    *
    * <p>However, note that:
+   *
    * <ol>
-   * <li> An {@code ON_TIME} pane may contain locally late elements. It may even contain only
-   * locally late elements. Provided a locally late element finds its way into an {@code ON_TIME}
-   * pane its lateness becomes unobservable.
-   * <li> A {@code LATE} pane does not necessarily cause any following computation panes to be
-   * marked as {@code LATE}.
+   *   <li>An {@code ON_TIME} pane may contain locally late elements. It may even contain only
+   *       locally late elements. Provided a locally late element finds its way into an {@code
+   *       ON_TIME} pane its lateness becomes unobservable.
+   *   <li>A {@code LATE} pane does not necessarily cause any following computation panes to be
+   *       marked as {@code LATE}.
    * </ol>
    */
   public enum Timing {
-    /**
-     * Pane was fired before the input watermark had progressed after the end of the window.
-     */
+    /** Pane was fired before the input watermark had progressed after the end of the window. */
     EARLY,
     /**
      * Pane was fired by a {@link AfterWatermark#pastEndOfWindow} trigger because the input
-     * watermark progressed after the end of the window. However the output watermark has not
-     * yet progressed after the end of the window. Thus it is still possible to assign a timestamp
-     * to the element representing this pane which cannot be considered locally late by any
-     * following computation.
+     * watermark progressed after the end of the window. However the output watermark has not yet
+     * progressed after the end of the window. Thus it is still possible to assign a timestamp to
+     * the element representing this pane which cannot be considered locally late by any following
+     * computation.
      */
     ON_TIME,
-    /**
-     * Pane was fired after the output watermark had progressed past the end of the window.
-     */
+    /** Pane was fired after the output watermark had progressed past the end of the window. */
     LATE,
     /**
-     * This element was not produced in a triggered pane and its relation to input and
-     * output watermarks is unknown.
+     * This element was not produced in a triggered pane and its relation to input and output
+     * watermarks is unknown.
      */
     UNKNOWN
 
@@ -141,6 +139,7 @@ public final class PaneInfo {
   }
 
   private static final ImmutableMap<Byte, PaneInfo> BYTE_TO_PANE_INFO;
+
   static {
     ImmutableMap.Builder<Byte, PaneInfo> decodingBuilder = ImmutableMap.builder();
     for (Timing timing : Timing.values()) {
@@ -170,12 +169,9 @@ public final class PaneInfo {
    * elements read from sources) before they have passed through a {@link GroupByKey} and are
    * associated with a particular trigger firing.
    */
-  public static final PaneInfo NO_FIRING =
-      PaneInfo.createPane(true, true, Timing.UNKNOWN, 0, 0);
+  public static final PaneInfo NO_FIRING = PaneInfo.createPane(true, true, Timing.UNKNOWN, 0, 0);
 
-  /**
-   * {@code PaneInfo} to use when there will be exactly one firing and it is on time.
-   */
+  /** {@code PaneInfo} to use when there will be exactly one firing and it is on time. */
   public static final PaneInfo ON_TIME_AND_ONLY_FIRING =
       PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0);
 
@@ -193,9 +189,7 @@ public final class PaneInfo {
     return createPane(isFirst, isLast, timing, 0, timing == Timing.EARLY ? -1 : 0);
   }
 
-  /**
-   * Factory method to create a {@link PaneInfo} with the specified parameters.
-   */
+  /** Factory method to create a {@link PaneInfo} with the specified parameters. */
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
     if (isFirst || timing == Timing.UNKNOWN) {
@@ -210,31 +204,25 @@ public final class PaneInfo {
   }
 
   /**
-   * Return true if there is no timing information for the current {@link PaneInfo}.
-   * This typically indicates that the current element has not been assigned to
-   * windows or passed through an operation that executes triggers yet.
+   * Return true if there is no timing information for the current {@link PaneInfo}. This typically
+   * indicates that the current element has not been assigned to windows or passed through an
+   * operation that executes triggers yet.
    */
   public boolean isUnknown() {
     return Timing.UNKNOWN.equals(timing);
   }
 
-  /**
-   * Return true if this is the first pane produced for the associated window.
-   */
+  /** Return true if this is the first pane produced for the associated window. */
   public boolean isFirst() {
     return isFirst;
   }
 
-  /**
-   * Return true if this is the last pane that will be produced in the associated window.
-   */
+  /** Return true if this is the last pane that will be produced in the associated window. */
   public boolean isLast() {
     return isLast;
   }
 
-  /**
-   * Return the timing of this pane.
-   */
+  /** Return the timing of this pane. */
   public Timing getTiming() {
     return timing;
   }
@@ -244,8 +232,8 @@ public final class PaneInfo {
    *
    * <p>This will return 0 for the first time the timer fires, 1 for the next time, etc.
    *
-   * <p>A given (key, window, pane-index) is guaranteed to be unique in the
-   * output of a group-by-key operation.
+   * <p>A given (key, window, pane-index) is guaranteed to be unique in the output of a group-by-key
+   * operation.
    */
   public long getIndex() {
     return index;
@@ -303,9 +291,7 @@ public final class PaneInfo {
         .toString();
   }
 
-  /**
-   * A Coder for encoding PaneInfo instances.
-   */
+  /** A Coder for encoding PaneInfo instances. */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
     private enum Encoding {
       FIRST,
@@ -368,8 +354,7 @@ public final class PaneInfo {
     }
 
     @Override
-    public PaneInfo decode(final InputStream inStream)
-        throws CoderException, IOException {
+    public PaneInfo decode(final InputStream inStream) throws CoderException, IOException {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F));
       long index, onTimeIndex;

@@ -138,8 +138,7 @@ public class KinesisMockWriteTest {
             KinesisIO.write()
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(false))
-        );
+                .withAWSClientsProvider(new FakeKinesisProvider(false)));
 
     thrown.expect(RuntimeException.class);
     p.run().waitUntilFinish();
@@ -252,8 +251,7 @@ public class KinesisMockWriteTest {
     private boolean isExistingStream = true;
     private boolean isFailedFlush = false;
 
-    public FakeKinesisProvider() {
-    }
+    public FakeKinesisProvider() {}
 
     public FakeKinesisProvider(boolean isExistingStream) {
       this.isExistingStream = isExistingStream;

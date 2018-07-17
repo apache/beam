@@ -34,9 +34,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StateTag}.
- */
+/** Tests for {@link StateTag}. */
 @RunWith(JUnit4.class)
 public class StateTagTest {
   @Test
@@ -77,16 +75,13 @@ public class StateTagTest {
 
   @Test
   public void testMapEquality() {
-    StateTag<?> fooStringVarInt1 =
-        StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
-    StateTag<?> fooStringVarInt2 =
-        StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
+    StateTag<?> fooStringVarInt1 = StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
+    StateTag<?> fooStringVarInt2 = StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
     StateTag<?> fooStringBigEndian =
         StateTags.map("foo", StringUtf8Coder.of(), BigEndianIntegerCoder.of());
     StateTag<?> fooVarIntBigEndian =
         StateTags.map("foo", VarIntCoder.of(), BigEndianIntegerCoder.of());
-    StateTag<?> barStringVarInt =
-        StateTags.map("bar", StringUtf8Coder.of(), VarIntCoder.of());
+    StateTag<?> barStringVarInt = StateTags.map("bar", StringUtf8Coder.of(), VarIntCoder.of());
 
     assertEquals(fooStringVarInt1, fooStringVarInt2);
     assertNotEquals(fooStringVarInt1, fooStringBigEndian);
@@ -162,17 +157,17 @@ public class StateTagTest {
     Coder<int[]> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
     Coder<int[]> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());
 
-    StateTag<?> fooCoder1Max1 = StateTags.combiningValueWithContext(
-            "foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
-    StateTag<?> fooCoder1Max2 = StateTags.combiningValueWithContext(
-        "foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
-    StateTag<?> fooCoder1Min = StateTags.combiningValueWithContext(
-        "foo", accum1, CombineFnUtil.toFnWithContext(minFn));
+    StateTag<?> fooCoder1Max1 =
+        StateTags.combiningValueWithContext("foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> fooCoder1Max2 =
+        StateTags.combiningValueWithContext("foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> fooCoder1Min =
+        StateTags.combiningValueWithContext("foo", accum1, CombineFnUtil.toFnWithContext(minFn));
 
-    StateTag<?> fooCoder2Max = StateTags.combiningValueWithContext(
-        "foo", accum2, CombineFnUtil.toFnWithContext(maxFn));
-    StateTag<?> barCoder1Max = StateTags.combiningValueWithContext(
-        "bar", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> fooCoder2Max =
+        StateTags.combiningValueWithContext("foo", accum2, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> barCoder1Max =
+        StateTags.combiningValueWithContext("bar", accum1, CombineFnUtil.toFnWithContext(maxFn));
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);

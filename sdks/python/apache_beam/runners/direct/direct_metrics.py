@@ -20,7 +20,10 @@ DirectRunner implementation of MetricResults. It is in charge not only of
 responding to queries of current metrics, but also of keeping the common
 state consistent.
 """
+from __future__ import absolute_import
+
 import threading
+from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterAggregator

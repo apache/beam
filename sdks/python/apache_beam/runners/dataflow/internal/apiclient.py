@@ -19,6 +19,9 @@
 
 Dataflow client utility functions."""
 
+from __future__ import absolute_import
+
+from builtins import object
 import codecs
 import getpass
 import json
@@ -28,12 +31,13 @@ import re
 import tempfile
 import time
 from datetime import datetime
-from StringIO import StringIO
+import io
+
+from past.builtins import unicode
 
 import pkg_resources
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
-import six
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
@@ -262,7 +266,7 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue())
 
       options_dict = {k: v
-                      for k, v in sdk_pipeline_options.iteritems()
+                      for k, v in sdk_pipeline_options.items()
                       if v is not None}
       options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
@@ -298,7 +302,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return six.text_type(shortened), length
+      return unicode(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
@@ -442,10 +446,11 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
-    return resource_stager.stage_job_resources(
+    _, resources = resource_stager.stage_job_resources(
         options,
         temp_dir=tempfile.mkdtemp(),
         staging_location=google_cloud_options.staging_location)
+    return resources
 
   def stage_file(self, gcs_or_local_path, file_name, stream,
                  mime_type='application/octet-stream'):
@@ -493,7 +498,7 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
+      self.stage_file(gcs_or_local_path, file_name, io.BytesIO(job.json()))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -508,7 +513,7 @@ class DataflowApplicationClient(object):
     # Stage the pipeline for the runner harness
     self.stage_file(job.google_cloud_options.staging_location,
                     names.STAGED_PIPELINE_FILENAME,
-                    StringIO(job.proto_pipeline.SerializeToString()))
+                    io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
     resources = self._stage_resources(job.options)

@@ -47,7 +47,6 @@ Typical usage::
 from __future__ import absolute_import
 
 import abc
-import collections
 import logging
 import os
 import re
@@ -529,7 +528,6 @@ class Pipeline(object):
                            'output type-hint was found for the '
                            'PTransform %s' % ptransform_name)
 
-    current.update_input_refcounts()
     self.transforms_stack.pop()
     return pvalueish_result
 
@@ -608,6 +606,8 @@ class Pipeline(object):
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
         components=context.to_runner_api())
+    proto.components.transforms[root_transform_id].unique_name = (
+        root_transform_id)
     if return_context:
       return proto, context
     else:
@@ -697,29 +697,9 @@ class AppliedPTransform(object):
     self.outputs = {}
     self.parts = []
 
-    # Per tag refcount dictionary for PValues for which this node is a
-    # root producer.
-    self.refcounts = collections.defaultdict(int)
-
   def __repr__(self):
     return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
                            type(self.transform).__name__)
-
-  def update_input_refcounts(self):
-    """Increment refcounts for all transforms providing inputs."""
-
-    def real_producer(pv):
-      real = pv.producer
-      while real.parts:
-        real = real.parts[-1]
-      return real
-
-    if not self.is_composite():
-      for main_input in self.inputs:
-        if not isinstance(main_input, pvalue.PBegin):
-          real_producer(main_input).refcounts[main_input.tag] += 1
-      for side_input in self.side_inputs:
-        real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
 
   def replace_output(self, output, tag=None):
     """Replaces the output defined by the given tag with the given output.
@@ -883,7 +863,6 @@ class AppliedPTransform(object):
           pc = context.pcollections.get_by_id(pcoll_id)
           pc.producer = result
           pc.tag = None if tag == 'None' else tag
-    result.update_input_refcounts()
     return result
 
 

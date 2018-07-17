@@ -52,7 +52,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   private SimplePushbackSideInputDoFnRunner(
-          DoFnRunner<InputT, OutputT> underlying,
+      DoFnRunner<InputT, OutputT> underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
     this.underlying = underlying;
@@ -98,8 +98,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       return false;
     }
     for (PCollectionView<?> view : views) {
-      BoundedWindow sideInputWindow =
-          view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+      BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       if (!sideInputReader.isReady(view, sideInputWindow)) {
         return false;
       }
@@ -108,8 +107,8 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-                      TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     underlying.onTimer(timerId, window, timestamp, timeDomain);
   }
 
@@ -119,4 +118,3 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     underlying.finishBundle();
   }
 }
-

@@ -48,21 +48,20 @@ import org.apache.samza.operators.functions.FlatMapFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
 import org.joda.time.Instant;
 
-/**
- * Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutput} to Samza {@link DoFnOp}.
- */
+/** Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutput} to Samza {@link DoFnOp}. */
 class ParDoBoundMultiTranslator<InT, OutT>
     implements TransformTranslator<ParDo.MultiOutput<InT, OutT>> {
 
   @Override
-  public void translate(ParDo.MultiOutput<InT, OutT> transform,
-                        TransformHierarchy.Node node,
-                        TranslationContext ctx) {
+  public void translate(
+      ParDo.MultiOutput<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
 
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-    final Coder<?> keyCoder = signature.usesState()
-        ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
+    final Coder<?> keyCoder =
+        signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
 
     if (signature.usesTimers()) {
       throw new UnsupportedOperationException("DoFn with timers is not currently supported");
@@ -74,7 +73,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform.getSideInputs().stream()
+        transform
+            .getSideInputs()
+            .stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final Map<TupleTag<?>, Integer> tagToIdMap = new HashMap<>();
@@ -86,8 +87,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
       tagToIdMap.put(taggedOutput.getKey(), id);
 
       if (!(taggedOutput.getValue() instanceof PCollection)) {
-        throw new IllegalArgumentException("Expected side output to be PCollection, but was: "
-            + taggedOutput.getValue());
+        throw new IllegalArgumentException(
+            "Expected side output to be PCollection, but was: " + taggedOutput.getValue());
       }
       final PCollection<?> sideOutputCollection = (PCollection<?>) taggedOutput.getValue();
 
@@ -99,24 +100,24 @@ class ParDoBoundMultiTranslator<InT, OutT>
       idToPValueMap.put(ctx.getViewId(view), view);
     }
 
-    final DoFnOp<InT, OutT, RawUnionValue> op = new DoFnOp<>(
-        transform.getMainOutputTag(),
-        transform.getFn(),
-        keyCoder,
-        transform.getSideInputs(),
-        transform.getAdditionalOutputTags().getAll(),
-        input.getWindowingStrategy(),
-        idToPValueMap,
-        new DoFnOp.MultiOutputManagerFactory(tagToIdMap),
-        node.getFullName());
+    final DoFnOp<InT, OutT, RawUnionValue> op =
+        new DoFnOp<>(
+            transform.getMainOutputTag(),
+            transform.getFn(),
+            keyCoder,
+            transform.getSideInputs(),
+            transform.getAdditionalOutputTags().getAll(),
+            input.getWindowingStrategy(),
+            idToPValueMap,
+            new DoFnOp.MultiOutputManagerFactory(tagToIdMap),
+            node.getFullName());
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
       mergedStreams = inputStream;
     } else {
-      MessageStream<OpMessage<InT>> mergedSideInputStreams = MessageStream
-          .mergeAll(sideInputStreams)
-          .flatMap(new SideInputWatermarkFn());
+      MessageStream<OpMessage<InT>> mergedSideInputStreams =
+          MessageStream.mergeAll(sideInputStreams).flatMap(new SideInputWatermarkFn());
       mergedStreams = inputStream.merge(Collections.singletonList(mergedSideInputStreams));
     }
 
@@ -125,10 +126,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     for (int outputIndex : tagToIdMap.values()) {
       registerSideOutputStream(
-          taggedOutputStream,
-          idToPCollectionMap.get(outputIndex),
-          outputIndex,
-          ctx);
+          taggedOutputStream, idToPCollectionMap.get(outputIndex), outputIndex, ctx);
     }
   }
 
@@ -139,16 +137,17 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TranslationContext ctx) {
 
     @SuppressWarnings("unchecked")
-    final MessageStream<OpMessage<T>> outputStream = inputStream
-        .filter(new FilterByUnionId(outputIndex))
-        .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
+    final MessageStream<OpMessage<T>> outputStream =
+        inputStream
+            .filter(new FilterByUnionId(outputIndex))
+            .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
 
     ctx.registerMessageStream(outputPValue, outputStream);
   }
 
   private class SideInputWatermarkFn
       implements FlatMapFunction<OpMessage<InT>, OpMessage<InT>>,
-                 WatermarkFunction<OpMessage<InT>> {
+          WatermarkFunction<OpMessage<InT>> {
 
     @Override
     public Collection<OpMessage<InT>> apply(OpMessage<InT> message) {
@@ -157,8 +156,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     @Override
     public Collection<OpMessage<InT>> processWatermark(long watermark) {
-      return Collections.singletonList(
-          OpMessage.ofSideInputWatermark(new Instant(watermark)));
+      return Collections.singletonList(OpMessage.ofSideInputWatermark(new Instant(watermark)));
     }
 
     @Override
@@ -185,8 +183,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
   private static class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
 
     @Override
-    public void processElement(WindowedValue<RawUnionValue> inputElement,
-                                  OpEmitter<OutT> emitter) {
+    public void processElement(WindowedValue<RawUnionValue> inputElement, OpEmitter<OutT> emitter) {
       @SuppressWarnings("unchecked")
       final OutT value = (OutT) inputElement.getValue().getValue();
       emitter.emitElement(inputElement.withValue(value));

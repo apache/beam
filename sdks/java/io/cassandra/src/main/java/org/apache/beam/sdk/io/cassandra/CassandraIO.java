@@ -42,11 +42,10 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <h3>Reading from Apache Cassandra</h3>
  *
- * <p>{@code CassandraIO} provides a source to read and returns a bounded collection of
- * entities as {@code PCollection<Entity>}. An entity is built by Cassandra mapper
- * ({@code com.datastax.driver.mapping.EntityMapper}) based on a
- * POJO containing annotations (as described http://docs.datastax
- * .com/en/developer/java-driver/2.1/manual/object_mapper/creating/").
+ * <p>{@code CassandraIO} provides a source to read and returns a bounded collection of entities as
+ * {@code PCollection<Entity>}. An entity is built by Cassandra mapper ({@code
+ * com.datastax.driver.mapping.EntityMapper}) based on a POJO containing annotations (as described
+ * http://docs.datastax .com/en/developer/java-driver/2.1/manual/object_mapper/creating/").
  *
  * <p>The following example illustrates various options for configuring the IO:
  *
@@ -82,18 +81,14 @@ import org.apache.beam.sdk.values.PDone;
 public class CassandraIO {
   private CassandraIO() {}
 
-  /**
-   * Provide a {@link Read} {@link PTransform} to read data from a Cassandra database.
-   */
+  /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
   public static <T> Read<T> read() {
     return new AutoValue_CassandraIO_Read.Builder<T>()
         .setCassandraService(new CassandraServiceImpl<>())
         .build();
   }
 
-  /**
-   * Provide a {@link Write} {@link PTransform} to write data to a Cassandra database.
-   */
+  /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
   public static <T> Write<T> write() {
     return new AutoValue_CassandraIO_Write.Builder<T>()
         .setCassandraService(new CassandraServiceImpl<>())
@@ -106,48 +101,63 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable abstract List<String> hosts();
-    @Nullable abstract Integer port();
-    @Nullable abstract String keyspace();
-    @Nullable abstract String table();
-    @Nullable abstract Class<T> entity();
-    @Nullable abstract Coder<T> coder();
-    @Nullable abstract String username();
-    @Nullable abstract String password();
-    @Nullable abstract String localDc();
-    @Nullable abstract String consistencyLevel();
-    @Nullable abstract Integer minNumberOfSplits();
+    @Nullable
+    abstract List<String> hosts();
+
+    @Nullable
+    abstract Integer port();
+
+    @Nullable
+    abstract String keyspace();
+
+    @Nullable
+    abstract String table();
+
+    @Nullable
+    abstract Class<T> entity();
+
+    @Nullable
+    abstract Coder<T> coder();
+
+    @Nullable
+    abstract String username();
+
+    @Nullable
+    abstract String password();
+
+    @Nullable
+    abstract String localDc();
+
+    @Nullable
+    abstract String consistencyLevel();
+
+    @Nullable
+    abstract Integer minNumberOfSplits();
+
     abstract CassandraService<T> cassandraService();
+
     abstract Builder<T> builder();
 
-    /**
-     * Specify the hosts of the Apache Cassandra instances.
-     */
+    /** Specify the hosts of the Apache Cassandra instances. */
     public Read<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "hosts can not be null");
       checkArgument(!hosts.isEmpty(), "hosts can not be empty");
       return builder().setHosts(hosts).build();
     }
 
-    /**
-     * Specify the port number of the Apache Cassandra instances.
-     */
+    /** Specify the port number of the Apache Cassandra instances. */
     public Read<T> withPort(int port) {
       checkArgument(port > 0, "port must be > 0, but was: %s", port);
       return builder().setPort(port).build();
     }
 
-    /**
-     * Specify the Cassandra keyspace where to read data.
-     */
+    /** Specify the Cassandra keyspace where to read data. */
     public Read<T> withKeyspace(String keyspace) {
       checkArgument(keyspace != null, "keyspace can not be null");
       return builder().setKeyspace(keyspace).build();
     }
 
-    /**
-     * Specify the Cassandra table where to read data.
-     */
+    /** Specify the Cassandra table where to read data. */
     public Read<T> withTable(String table) {
       checkArgument(table != null, "table can not be null");
       return builder().setTable(table).build();
@@ -163,33 +173,25 @@ public class CassandraIO {
       return builder().setEntity(entity).build();
     }
 
-    /**
-     * Specify the {@link Coder} used to serialize the entity in the {@link PCollection}.
-     */
+    /** Specify the {@link Coder} used to serialize the entity in the {@link PCollection}. */
     public Read<T> withCoder(Coder<T> coder) {
       checkArgument(coder != null, "coder can not be null");
       return builder().setCoder(coder).build();
     }
 
-    /**
-     * Specify the username for authentication.
-     */
+    /** Specify the username for authentication. */
     public Read<T> withUsername(String username) {
       checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
-    /**
-     * Specify the password for authentication.
-     */
+    /** Specify the password for authentication. */
     public Read<T> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
-    /**
-     * Specify the local DC used for the load balancing.
-     */
+    /** Specify the local DC used for the load balancing. */
     public Read<T> withLocalDc(String localDc) {
       checkArgument(localDc != null, "localDc can not be null");
       return builder().setLocalDc(localDc).build();
@@ -202,9 +204,8 @@ public class CassandraIO {
 
     /**
      * It's possible that system.size_estimates isn't populated or that the number of splits
-     * computed by Beam is still to low for Cassandra to handle it.
-     * This setting allows to enforce a minimum number of splits in case Beam cannot compute
-     * it correctly.
+     * computed by Beam is still to low for Cassandra to handle it. This setting allows to enforce a
+     * minimum number of splits in case Beam cannot compute it correctly.
      */
     public Read<T> withMinNumberOfSplits(Integer minNumberOfSplits) {
       checkArgument(minNumberOfSplits != null, "minNumberOfSplits can not be null");
@@ -237,17 +238,29 @@ public class CassandraIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setHosts(List<String> hosts);
+
       abstract Builder<T> setPort(Integer port);
+
       abstract Builder<T> setKeyspace(String keyspace);
+
       abstract Builder<T> setTable(String table);
+
       abstract Builder<T> setEntity(Class<T> entity);
+
       abstract Builder<T> setCoder(Coder<T> coder);
+
       abstract Builder<T> setUsername(String username);
+
       abstract Builder<T> setPassword(String password);
+
       abstract Builder<T> setLocalDc(String localDc);
+
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
+
       abstract Builder<T> setMinNumberOfSplits(Integer minNumberOfSplits);
+
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
+
       abstract Read<T> build();
     }
   }
@@ -306,85 +319,100 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable abstract List<String> hosts();
-    @Nullable abstract Integer port();
-    @Nullable abstract String keyspace();
-    @Nullable abstract Class<T> entity();
-    @Nullable abstract String username();
-    @Nullable abstract String password();
-    @Nullable abstract String localDc();
-    @Nullable abstract String consistencyLevel();
-    @Nullable abstract CassandraService<T> cassandraService();
+    @Nullable
+    abstract List<String> hosts();
+
+    @Nullable
+    abstract Integer port();
+
+    @Nullable
+    abstract String keyspace();
+
+    @Nullable
+    abstract Class<T> entity();
+
+    @Nullable
+    abstract String username();
+
+    @Nullable
+    abstract String password();
+
+    @Nullable
+    abstract String localDc();
+
+    @Nullable
+    abstract String consistencyLevel();
+
+    @Nullable
+    abstract CassandraService<T> cassandraService();
+
     abstract Builder<T> builder();
 
-    /**
-     * Specify the Cassandra instance hosts where to write data.
-     */
+    /** Specify the Cassandra instance hosts where to write data. */
     public Write<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "CassandraIO.write().withHosts(hosts) called with null hosts");
-      checkArgument(!hosts.isEmpty(), "CassandraIO.write().withHosts(hosts) called with empty "
-          + "hosts list");
+      checkArgument(
+          !hosts.isEmpty(),
+          "CassandraIO.write().withHosts(hosts) called with empty " + "hosts list");
       return builder().setHosts(hosts).build();
     }
 
-    /**
-     * Specify the Cassandra instance port number where to write data.
-     */
+    /** Specify the Cassandra instance port number where to write data. */
     public Write<T> withPort(int port) {
-      checkArgument(port > 0, "CassandraIO.write().withPort(port) called with invalid port "
-          + "number (%s)", port);
+      checkArgument(
+          port > 0,
+          "CassandraIO.write().withPort(port) called with invalid port " + "number (%s)",
+          port);
       return builder().setPort(port).build();
     }
 
-    /**
-     * Specify the Cassandra keyspace where to write data.
-     */
+    /** Specify the Cassandra keyspace where to write data. */
     public Write<T> withKeyspace(String keyspace) {
-      checkArgument(keyspace != null, "CassandraIO.write().withKeyspace(keyspace) called with "
-          + "null keyspace");
+      checkArgument(
+          keyspace != null,
+          "CassandraIO.write().withKeyspace(keyspace) called with " + "null keyspace");
       return builder().setKeyspace(keyspace).build();
     }
 
     /**
-     * Specify the entity class in the input {@link PCollection}. The {@link CassandraIO} will
-     * map this entity to the Cassandra table thanks to the annotations.
+     * Specify the entity class in the input {@link PCollection}. The {@link CassandraIO} will map
+     * this entity to the Cassandra table thanks to the annotations.
      */
     public Write<T> withEntity(Class<T> entity) {
-      checkArgument(entity != null, "CassandraIO.write().withEntity(entity) called with null "
-          + "entity");
+      checkArgument(
+          entity != null, "CassandraIO.write().withEntity(entity) called with null " + "entity");
       return builder().setEntity(entity).build();
     }
 
-    /**
-     * Specify the username used for authentication.
-     */
+    /** Specify the username used for authentication. */
     public Write<T> withUsername(String username) {
-      checkArgument(username != null, "CassandraIO.write().withUsername(username) called with "
-          + "null username");
+      checkArgument(
+          username != null,
+          "CassandraIO.write().withUsername(username) called with " + "null username");
       return builder().setUsername(username).build();
     }
 
-    /**
-     * Specify the password used for authentication.
-     */
+    /** Specify the password used for authentication. */
     public Write<T> withPassword(String password) {
-      checkArgument(password != null, "CassandraIO.write().withPassword(password) called with "
-          + "null password");
+      checkArgument(
+          password != null,
+          "CassandraIO.write().withPassword(password) called with " + "null password");
       return builder().setPassword(password).build();
     }
 
-    /**
-     * Specify the local DC used by the load balancing policy.
-     */
+    /** Specify the local DC used by the load balancing policy. */
     public Write<T> withLocalDc(String localDc) {
-      checkArgument(localDc != null, "CassandraIO.write().withLocalDc(localDc) called with null"
-          + " localDc");
+      checkArgument(
+          localDc != null,
+          "CassandraIO.write().withLocalDc(localDc) called with null" + " localDc");
       return builder().setLocalDc(localDc).build();
     }
 
     public Write<T> withConsistencyLevel(String consistencyLevel) {
-      checkArgument(consistencyLevel != null, "CassandraIO.write().withConsistencyLevel"
-          + "(consistencyLevel) called with null consistencyLevel");
+      checkArgument(
+          consistencyLevel != null,
+          "CassandraIO.write().withConsistencyLevel"
+              + "(consistencyLevel) called with null consistencyLevel");
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
@@ -392,23 +420,29 @@ public class CassandraIO {
      * Specify the {@link CassandraService} used to connect and write into the Cassandra database.
      */
     public Write<T> withCassandraService(CassandraService<T> cassandraService) {
-      checkArgument(cassandraService != null, "CassandraIO.write().withCassandraService"
-          + "(service) called with null service");
+      checkArgument(
+          cassandraService != null,
+          "CassandraIO.write().withCassandraService" + "(service) called with null service");
       return builder().setCassandraService(cassandraService).build();
     }
 
     @Override
     public void validate(PipelineOptions pipelineOptions) {
-      checkState(hosts() != null || cassandraService() != null,
+      checkState(
+          hosts() != null || cassandraService() != null,
           "CassandraIO.write() requires a list of hosts to be set via withHosts(hosts) or a "
               + "Cassandra service to be set via withCassandraService(service)");
-      checkState(port() != null || cassandraService() != null, "CassandraIO.write() requires a "
-          + "valid port number to be set via withPort(port) or a Cassandra service to be set via "
-          + "withCassandraService(service)");
-      checkState(keyspace() != null, "CassandraIO.write() requires a keyspace to be set via "
-          + "withKeyspace(keyspace)");
-      checkState(entity() != null, "CassandraIO.write() requires an entity to be set via "
-          + "withEntity(entity)");
+      checkState(
+          port() != null || cassandraService() != null,
+          "CassandraIO.write() requires a "
+              + "valid port number to be set via withPort(port) or a Cassandra service to be set via "
+              + "withCassandraService(service)");
+      checkState(
+          keyspace() != null,
+          "CassandraIO.write() requires a keyspace to be set via " + "withKeyspace(keyspace)");
+      checkState(
+          entity() != null,
+          "CassandraIO.write() requires an entity to be set via " + "withEntity(entity)");
     }
 
     @Override
@@ -420,14 +454,23 @@ public class CassandraIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setHosts(List<String> hosts);
+
       abstract Builder<T> setPort(Integer port);
+
       abstract Builder<T> setKeyspace(String keyspace);
+
       abstract Builder<T> setEntity(Class<T> entity);
+
       abstract Builder<T> setUsername(String username);
+
       abstract Builder<T> setPassword(String password);
+
       abstract Builder<T> setLocalDc(String localDc);
+
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
+
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
+
       abstract Write<T> build();
     }
   }
@@ -446,8 +489,7 @@ public class CassandraIO {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c)
-        throws ExecutionException, InterruptedException {
+    public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
       writer.write(c.element());
     }
 

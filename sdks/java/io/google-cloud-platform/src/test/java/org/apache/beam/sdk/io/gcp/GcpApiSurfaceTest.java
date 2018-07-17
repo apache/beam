@@ -72,8 +72,8 @@ public class GcpApiSurfaceTest {
             Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.Error.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.ExceptionData.class),
-            Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.ExceptionData.Builder
-                .class),
+            Matchers.<Class<?>>equalTo(
+                com.google.cloud.BaseServiceException.ExceptionData.Builder.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.RetryHelper.RetryHelperException.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.grpc.BaseGrpcServiceException.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.ByteArray.class),

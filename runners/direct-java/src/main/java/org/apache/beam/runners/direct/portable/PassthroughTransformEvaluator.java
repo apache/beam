@@ -44,5 +44,4 @@ class PassthroughTransformEvaluator<InputT> implements TransformEvaluator<InputT
   public TransformResult<InputT> finishBundle() throws Exception {
     return StepTransformResult.<InputT>withoutHold(transform).addOutput(output).build();
   }
-
 }

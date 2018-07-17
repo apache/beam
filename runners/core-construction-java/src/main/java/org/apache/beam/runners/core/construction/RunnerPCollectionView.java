@@ -42,9 +42,7 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   private final @Nullable Coder<Iterable<WindowedValue<?>>> coder;
   private final transient PCollection<?> pCollection;
 
-  /**
-   * Create a new {@link RunnerPCollectionView} from the provided components.
-   */
+  /** Create a new {@link RunnerPCollectionView} from the provided components. */
   RunnerPCollectionView(
       PCollection<?> pCollection,
       TupleTag<Iterable<WindowedValue<?>>> tag,
@@ -92,8 +90,8 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    throw new UnsupportedOperationException(String.format(
-        "A %s cannot be expanded", RunnerPCollectionView.class.getSimpleName()));
+    throw new UnsupportedOperationException(
+        String.format("A %s cannot be expanded", RunnerPCollectionView.class.getSimpleName()));
   }
 
   @Override

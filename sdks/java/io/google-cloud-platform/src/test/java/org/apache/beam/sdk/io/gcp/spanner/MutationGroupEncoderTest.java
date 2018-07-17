@@ -37,9 +37,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests for {@link MutationGroupEncoder}.
- */
+/** Tests for {@link MutationGroupEncoder}. */
 public class MutationGroupEncoderTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -97,13 +95,13 @@ public class MutationGroupEncoderTest {
 
   @Test
   public void testAllTypesMultipleMutations() throws Exception {
-    encodeAndVerify(g(
-        appendAllTypes(Mutation.newInsertOrUpdateBuilder("test")).build(),
-        appendAllTypes(Mutation.newInsertBuilder("test")).build(),
-        appendAllTypes(Mutation.newUpdateBuilder("test")).build(),
-        appendAllTypes(Mutation.newReplaceBuilder("test")).build(),
-        Mutation
-            .delete("test", KeySet.range(KeyRange.closedClosed(Key.of(1L), Key.of(2L))))));
+    encodeAndVerify(
+        g(
+            appendAllTypes(Mutation.newInsertOrUpdateBuilder("test")).build(),
+            appendAllTypes(Mutation.newInsertBuilder("test")).build(),
+            appendAllTypes(Mutation.newUpdateBuilder("test")).build(),
+            appendAllTypes(Mutation.newReplaceBuilder("test")).build(),
+            Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(1L), Key.of(2L))))));
   }
 
   @Test
@@ -113,8 +111,7 @@ public class MutationGroupEncoderTest {
     builder.addColumn("test", "bool_field", "BOOL");
     SpannerSchema schema = builder.build();
 
-    Mutation mutation = Mutation.newInsertBuilder("test").set("unknown")
-        .to(true).build();
+    Mutation mutation = Mutation.newInsertBuilder("test").set("unknown").to(true).build();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Columns [unknown] were not defined in table test");
     encodeAndVerify(g(mutation), schema);
@@ -127,8 +124,7 @@ public class MutationGroupEncoderTest {
     builder.addColumn("test", "bool_field", "BOOL");
     SpannerSchema schema = builder.build();
 
-    Mutation mutation = Mutation.newInsertBuilder("unknown").set("bool_field")
-        .to(true).build();
+    Mutation mutation = Mutation.newInsertBuilder("unknown").set("bool_field").to(true).build();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unknown table 'unknown'");
     encodeAndVerify(g(mutation), schema);
@@ -172,63 +168,88 @@ public class MutationGroupEncoderTest {
     encodeAndVerify(g(Mutation.delete("test", Key.of(1L))));
     encodeAndVerify(g(Mutation.delete("test", Key.of((Long) null))));
 
-    KeySet allTypes = KeySet.newBuilder()
-        .addKey(Key.of(1L))
-        .addKey(Key.of((Long) null))
-        .addKey(Key.of(1.2))
-        .addKey(Key.of((Double) null))
-        .addKey(Key.of("one"))
-        .addKey(Key.of((String) null))
-        .addKey(Key.of(ByteArray.fromBase64("abcd")))
-        .addKey(Key.of((ByteArray) null))
-        .addKey(Key.of(Timestamp.now()))
-        .addKey(Key.of((Timestamp) null))
-        .addKey(Key.of(Date.fromYearMonthDay(2012, 1, 1)))
-        .addKey(Key.of((Date) null))
-        .build();
+    KeySet allTypes =
+        KeySet.newBuilder()
+            .addKey(Key.of(1L))
+            .addKey(Key.of((Long) null))
+            .addKey(Key.of(1.2))
+            .addKey(Key.of((Double) null))
+            .addKey(Key.of("one"))
+            .addKey(Key.of((String) null))
+            .addKey(Key.of(ByteArray.fromBase64("abcd")))
+            .addKey(Key.of((ByteArray) null))
+            .addKey(Key.of(Timestamp.now()))
+            .addKey(Key.of((Timestamp) null))
+            .addKey(Key.of(Date.fromYearMonthDay(2012, 1, 1)))
+            .addKey(Key.of((Date) null))
+            .build();
 
     encodeAndVerify(g(Mutation.delete("test", allTypes)));
 
     encodeAndVerify(
-        g(Mutation
-            .delete("test", KeySet.range(KeyRange.closedClosed(Key.of(1L), Key.of(2L))))));
+        g(Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(1L), Key.of(2L))))));
   }
 
   private Mutation.WriteBuilder appendAllTypes(Mutation.WriteBuilder builder) {
     Timestamp ts = Timestamp.now();
     Date date = Date.fromYearMonthDay(2017, 1, 1);
     return builder
-        .set("bool").to(true)
-        .set("int64").to(1L)
-        .set("float64").to(1.0)
-        .set("string").to("my string")
-        .set("bytes").to(ByteArray.fromBase64("abcdedf"))
-        .set("timestamp").to(ts)
-        .set("date").to(date)
-
-        .set("arrbool").toBoolArray(Arrays.asList(true, false, null, true, null, false))
-        .set("arrint64").toInt64Array(Arrays.asList(10L, -12L, null, null, 100000L))
-        .set("arrfloat64").toFloat64Array(Arrays.asList(10., -12.23, null, null, 100000.33231))
-        .set("arrstring").toStringArray(Arrays.asList("one", "two", null, null, "three"))
-        .set("arrbytes").toBytesArray(Arrays.asList(ByteArray.fromBase64("abcs"), null))
-        .set("arrtimestamp").toTimestampArray(Arrays.asList(Timestamp.MIN_VALUE, null, ts))
-        .set("arrdate").toDateArray(Arrays.asList(null, date))
-
-        .set("nullbool").to((Boolean) null)
-        .set("nullint64").to((Long) null)
-        .set("nullfloat64").to((Double) null)
-        .set("nullstring").to((String) null)
-        .set("nullbytes").to((ByteArray) null)
-        .set("nulltimestamp").to((Timestamp) null)
-        .set("nulldate").to((Date) null)
-
-        .set("nullarrbool").toBoolArray((Iterable<Boolean>) null)
-        .set("nullarrint64").toInt64Array((Iterable<Long>) null)
-        .set("nullarrfloat64").toFloat64Array((Iterable<Double>) null)
-        .set("nullarrstring").toStringArray(null)
-        .set("nullarrbytes").toBytesArray(null)
-        .set("nullarrtimestamp").toTimestampArray(null)
-        .set("nullarrdate").toDateArray(null);
+        .set("bool")
+        .to(true)
+        .set("int64")
+        .to(1L)
+        .set("float64")
+        .to(1.0)
+        .set("string")
+        .to("my string")
+        .set("bytes")
+        .to(ByteArray.fromBase64("abcdedf"))
+        .set("timestamp")
+        .to(ts)
+        .set("date")
+        .to(date)
+        .set("arrbool")
+        .toBoolArray(Arrays.asList(true, false, null, true, null, false))
+        .set("arrint64")
+        .toInt64Array(Arrays.asList(10L, -12L, null, null, 100000L))
+        .set("arrfloat64")
+        .toFloat64Array(Arrays.asList(10., -12.23, null, null, 100000.33231))
+        .set("arrstring")
+        .toStringArray(Arrays.asList("one", "two", null, null, "three"))
+        .set("arrbytes")
+        .toBytesArray(Arrays.asList(ByteArray.fromBase64("abcs"), null))
+        .set("arrtimestamp")
+        .toTimestampArray(Arrays.asList(Timestamp.MIN_VALUE, null, ts))
+        .set("arrdate")
+        .toDateArray(Arrays.asList(null, date))
+        .set("nullbool")
+        .to((Boolean) null)
+        .set("nullint64")
+        .to((Long) null)
+        .set("nullfloat64")
+        .to((Double) null)
+        .set("nullstring")
+        .to((String) null)
+        .set("nullbytes")
+        .to((ByteArray) null)
+        .set("nulltimestamp")
+        .to((Timestamp) null)
+        .set("nulldate")
+        .to((Date) null)
+        .set("nullarrbool")
+        .toBoolArray((Iterable<Boolean>) null)
+        .set("nullarrint64")
+        .toInt64Array((Iterable<Long>) null)
+        .set("nullarrfloat64")
+        .toFloat64Array((Iterable<Double>) null)
+        .set("nullarrstring")
+        .toStringArray(null)
+        .set("nullarrbytes")
+        .toBytesArray(null)
+        .set("nullarrtimestamp")
+        .toTimestampArray(null)
+        .set("nullarrdate")
+        .toDateArray(null);
   }
 
   @Test
@@ -243,35 +264,42 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(1L)
-            .set("keydesc").to(0L)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2L)
-            .set("keydesc").to((Long) null)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2L)
-            .set("keydesc").to(10L)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2L)
-            .set("keydesc").to(9L)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to((Long) null)
-            .set("keydesc").to(0L)
-            .build());
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(1L)
+                .set("keydesc")
+                .to(0L)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2L)
+                .set("keydesc")
+                .to((Long) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2L)
+                .set("keydesc")
+                .to(10L)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2L)
+                .set("keydesc")
+                .to(9L)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to((Long) null)
+                .set("keydesc")
+                .to(0L)
+                .build());
 
-    List<Key> keys = Arrays.asList(
-        Key.of(1L, 0L),
-        Key.of(2L, null),
-        Key.of(2L, 10L),
-        Key.of(2L, 9L),
-        Key.of(2L, 0L)
-    );
+    List<Key> keys =
+        Arrays.asList(
+            Key.of(1L, 0L), Key.of(2L, null), Key.of(2L, 10L), Key.of(2L, 9L), Key.of(2L, 0L));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -289,34 +317,41 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(1.0)
-            .set("keydesc").to(0.)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2.)
-            .set("keydesc").to((Long) null)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2.)
-            .set("keydesc").to(10.)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2.)
-            .set("keydesc").to(9.)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(2.)
-            .set("keydesc").to(0.)
-            .build());
-    List<Key> keys = Arrays.asList(
-        Key.of(1., 0.),
-        Key.of(2., null),
-        Key.of(2., 10.),
-        Key.of(2., 9.),
-        Key.of(2., 0.)
-    );
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(1.0)
+                .set("keydesc")
+                .to(0.)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to((Long) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to(10.)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to(9.)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to(0.)
+                .build());
+    List<Key> keys =
+        Arrays.asList(
+            Key.of(1., 0.), Key.of(2., null), Key.of(2., 10.), Key.of(2., 9.), Key.of(2., 0.));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -334,35 +369,46 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to("a")
-            .set("keydesc").to("bc")
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to("b")
-            .set("keydesc").to((String) null)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to("b")
-            .set("keydesc").to("z")
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to("b")
-            .set("keydesc").to("y")
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to("b")
-            .set("keydesc").to("a")
-            .build());
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("bc")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to((String) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("z")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("y")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("a")
+                .build());
 
-    List<Key> keys = Arrays.asList(
-        Key.of("a", "bc"),
-        Key.of("b", null),
-        Key.of("b", "z"),
-        Key.of("b", "y"),
-        Key.of("b", "a")
-    );
+    List<Key> keys =
+        Arrays.asList(
+            Key.of("a", "bc"),
+            Key.of("b", null),
+            Key.of("b", "z"),
+            Key.of("b", "y"),
+            Key.of("b", "a"));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -380,35 +426,46 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(ByteArray.fromBase64("abc"))
-            .set("keydesc").to(ByteArray.fromBase64("zzz"))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(ByteArray.fromBase64("xxx"))
-            .set("keydesc").to((ByteArray) null)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(ByteArray.fromBase64("xxx"))
-            .set("keydesc").to(ByteArray.fromBase64("zzzz"))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(ByteArray.fromBase64("xxx"))
-            .set("keydesc").to(ByteArray.fromBase64("ssss"))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(ByteArray.fromBase64("xxx"))
-            .set("keydesc").to(ByteArray.fromBase64("aaa"))
-            .build());
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("abc"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("zzz"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to((ByteArray) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("zzzz"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("ssss"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("aaa"))
+                .build());
 
-    List<Key> keys = Arrays.asList(
-        Key.of(ByteArray.fromBase64("abc"), ByteArray.fromBase64("zzz")),
-        Key.of(ByteArray.fromBase64("xxx"), null),
-        Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("zzz")),
-        Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("sss")),
-        Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("aaa"))
-    );
+    List<Key> keys =
+        Arrays.asList(
+            Key.of(ByteArray.fromBase64("abc"), ByteArray.fromBase64("zzz")),
+            Key.of(ByteArray.fromBase64("xxx"), null),
+            Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("zzz")),
+            Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("sss")),
+            Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("aaa")));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -426,35 +483,46 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Date.fromYearMonthDay(2012, 10, 10))
-            .set("keydesc").to(Date.fromYearMonthDay(2000, 10, 10))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
-            .set("keydesc").to((Date) null)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
-            .set("keydesc").to(Date.fromYearMonthDay(2050, 10, 10))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
-            .set("keydesc").to(Date.fromYearMonthDay(2000, 10, 10))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
-            .set("keydesc").to(Date.fromYearMonthDay(1900, 10, 10))
-            .build());
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Date.fromYearMonthDay(2012, 10, 10))
+                .set("keydesc")
+                .to(Date.fromYearMonthDay(2000, 10, 10))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Date.fromYearMonthDay(2020, 10, 10))
+                .set("keydesc")
+                .to((Date) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Date.fromYearMonthDay(2020, 10, 10))
+                .set("keydesc")
+                .to(Date.fromYearMonthDay(2050, 10, 10))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Date.fromYearMonthDay(2020, 10, 10))
+                .set("keydesc")
+                .to(Date.fromYearMonthDay(2000, 10, 10))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Date.fromYearMonthDay(2020, 10, 10))
+                .set("keydesc")
+                .to(Date.fromYearMonthDay(1900, 10, 10))
+                .build());
 
-    List<Key> keys = Arrays.asList(
-        Key.of(Date.fromYearMonthDay(2012, 10, 10), ByteArray.fromBase64("zzz")),
-        Key.of(Date.fromYearMonthDay(2015, 10, 10), null),
-        Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(2050, 10, 10)),
-        Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(2000, 10, 10)),
-        Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(1900, 10, 10))
-    );
+    List<Key> keys =
+        Arrays.asList(
+            Key.of(Date.fromYearMonthDay(2012, 10, 10), ByteArray.fromBase64("zzz")),
+            Key.of(Date.fromYearMonthDay(2015, 10, 10), null),
+            Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(2050, 10, 10)),
+            Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(2000, 10, 10)),
+            Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(1900, 10, 10)));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -472,36 +540,46 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Timestamp.ofTimeMicroseconds(10000))
-            .set("keydesc").to(Timestamp.ofTimeMicroseconds(50000))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
-            .set("keydesc").to((Timestamp) null)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
-            .set("keydesc").to(Timestamp.ofTimeMicroseconds(90000))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
-            .set("keydesc").to(Timestamp.ofTimeMicroseconds(50000))
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
-            .set("keydesc").to(Timestamp.ofTimeMicroseconds(10000))
-            .build());
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(10000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(50000))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to((Timestamp) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(90000))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(50000))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(10000))
+                .build());
 
-
-    List<Key> keys = Arrays.asList(
-        Key.of(Timestamp.ofTimeMicroseconds(10000), ByteArray.fromBase64("zzz")),
-        Key.of(Timestamp.ofTimeMicroseconds(20000), null),
-        Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(90000)),
-        Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(50000)),
-        Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(10000))
-    );
+    List<Key> keys =
+        Arrays.asList(
+            Key.of(Timestamp.ofTimeMicroseconds(10000), ByteArray.fromBase64("zzz")),
+            Key.of(Timestamp.ofTimeMicroseconds(20000), null),
+            Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(90000)),
+            Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(50000)),
+            Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(10000)));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -519,32 +597,40 @@ public class MutationGroupEncoderTest {
 
     SpannerSchema schema = builder.build();
 
-    List<Mutation> mutations = Arrays.asList(
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("boolkey").to(true)
-            .set("boolkeydesc").to(false)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("boolkey").to(false)
-            .set("boolkeydesc").to(false)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("boolkey").to(false)
-            .set("boolkeydesc").to(true)
-            .build(),
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("boolkey").to((Boolean) null)
-            .set("boolkeydesc").to(false)
-            .build()
-    );
+    List<Mutation> mutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(true)
+                .set("boolkeydesc")
+                .to(false)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(false)
+                .set("boolkeydesc")
+                .to(false)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(false)
+                .set("boolkeydesc")
+                .to(true)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to((Boolean) null)
+                .set("boolkeydesc")
+                .to(false)
+                .build());
 
-    List<Key> keys = Arrays.asList(
-        Key.of(true, ByteArray.fromBase64("zzz")),
-        Key.of(false, null),
-        Key.of(false, false),
-        Key.of(false, true),
-        Key.of(null, false)
-    );
+    List<Key> keys =
+        Arrays.asList(
+            Key.of(true, ByteArray.fromBase64("zzz")),
+            Key.of(false, null),
+            Key.of(false, false),
+            Key.of(false, true),
+            Key.of(null, false));
 
     verifyEncodedOrdering(schema, mutations);
     verifyEncodedOrdering(schema, "test", keys);
@@ -629,8 +715,8 @@ public class MutationGroupEncoderTest {
 
     // Compare pairs instead? This seems to be good enough...
     return ImmutableSet.copyOf(getNormalizedColumns(a))
-        .equals(ImmutableSet.copyOf(getNormalizedColumns(b))) && ImmutableSet.copyOf(a.getValues())
-        .equals(ImmutableSet.copyOf(b.getValues()));
+            .equals(ImmutableSet.copyOf(getNormalizedColumns(b)))
+        && ImmutableSet.copyOf(a.getValues()).equals(ImmutableSet.copyOf(b.getValues()));
   }
 
   // Pray for Java 8 support.

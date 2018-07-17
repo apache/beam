@@ -33,5 +33,6 @@ public abstract class RemoteInputDestination<T> {
   }
 
   public abstract Coder<T> getCoder();
+
   public abstract BeamFnApi.Target getTarget();
 }

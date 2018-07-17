@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -101,7 +102,7 @@ class BigQueryClientUtils:
     try:
       query_job = self.bigquery_client.query(query)
       if not query_job.done():
-        print query_job.result()
+        print(query_job.result())
     except:
       raise
 
@@ -123,7 +124,7 @@ class BigQueryClientUtils:
     try:
       query_job = self.bigquery_client.query(query)
       if not query_job.done():
-        print query_job.result()
+        print(query_job.result())
     except:
       raise
 

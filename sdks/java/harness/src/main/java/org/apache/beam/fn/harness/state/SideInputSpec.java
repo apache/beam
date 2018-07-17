@@ -37,8 +37,7 @@ public abstract class SideInputSpec<W extends BoundedWindow> {
       Coder<W> windowCoder,
       ViewFn<?, ?> viewFn,
       WindowMappingFn<W> windowMappingFn) {
-    return new AutoValue_SideInputSpec<>(
-        coder, windowCoder, viewFn, windowMappingFn);
+    return new AutoValue_SideInputSpec<>(coder, windowCoder, viewFn, windowMappingFn);
   }
 
   abstract Coder<?> getCoder();

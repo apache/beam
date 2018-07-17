@@ -31,28 +31,20 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link SqlQuery1}.
- */
+/** Unit tests for {@link SqlQuery1}. */
 public class SqlQuery1Test {
 
-  private static final Bid BID1_USD =
-      new Bid(5L, 3L, 100L, 43234234L, "extra1");
+  private static final Bid BID1_USD = new Bid(5L, 3L, 100L, 43234234L, "extra1");
 
-  private static final Bid BID2_USD =
-      new Bid(6L, 4L, 500L, 13234234L, "extra2");
+  private static final Bid BID2_USD = new Bid(6L, 4L, 500L, 13234234L, "extra2");
 
-  private static final Bid BID1_EUR =
-      new Bid(5L, 3L, 89L, 43234234L, "extra1");
+  private static final Bid BID1_EUR = new Bid(5L, 3L, 89L, 43234234L, "extra1");
 
-  private static final Bid BID2_EUR =
-      new Bid(6L, 4L, 445L, 13234234L, "extra2");
+  private static final Bid BID2_EUR = new Bid(6L, 4L, 445L, 13234234L, "extra2");
 
-  private static final ModelFieldsAdapter<Bid> BID_ADAPTER =
-      ADAPTERS.get(Bid.class);
+  private static final ModelFieldsAdapter<Bid> BID_ADAPTER = ADAPTERS.get(Bid.class);
 
-  @Rule
-  public TestPipeline testPipeline = TestPipeline.create();
+  @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   @Test
   public void testDolToEurConversion() {
@@ -62,15 +54,14 @@ public class SqlQuery1Test {
 
   @Test
   public void testConvertsPriceToEur() throws Exception {
-    PCollection<Event> bids = testPipeline.apply(
-        TestStream.create(Event.CODER)
-            .addElements(new Event(BID1_USD))
-            .addElements(new Event(BID2_USD))
-            .advanceWatermarkToInfinity());
+    PCollection<Event> bids =
+        testPipeline.apply(
+            TestStream.create(Event.CODER)
+                .addElements(new Event(BID1_USD))
+                .addElements(new Event(BID2_USD))
+                .advanceWatermarkToInfinity());
 
-    PAssert
-        .that(bids.apply(new SqlQuery1()))
-        .containsInAnyOrder(BID1_EUR, BID2_EUR);
+    PAssert.that(bids.apply(new SqlQuery1())).containsInAnyOrder(BID1_EUR, BID2_EUR);
 
     testPipeline.run();
   }

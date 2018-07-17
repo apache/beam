@@ -33,26 +33,28 @@ import org.hamcrest.Description;
  */
 public interface TestPipelineOptions extends PipelineOptions {
   String getTempRoot();
+
   void setTempRoot(String value);
 
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
   @JsonIgnore
   SerializableMatcher<PipelineResult> getOnCreateMatcher();
+
   void setOnCreateMatcher(SerializableMatcher<PipelineResult> value);
 
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
   @JsonIgnore
   SerializableMatcher<PipelineResult> getOnSuccessMatcher();
+
   void setOnSuccessMatcher(SerializableMatcher<PipelineResult> value);
 
   @Default.Long(10 * 60)
   @Nullable
   Long getTestTimeoutSeconds();
+
   void setTestTimeoutSeconds(Long value);
 
-  /**
-   * Factory for {@link PipelineResult} matchers which always pass.
-   */
+  /** Factory for {@link PipelineResult} matchers which always pass. */
   class AlwaysPassMatcherFactory
       implements DefaultValueFactory<SerializableMatcher<PipelineResult>> {
     @Override
@@ -61,9 +63,7 @@ public interface TestPipelineOptions extends PipelineOptions {
     }
   }
 
-  /**
-   * Matcher which will always pass.
-   */
+  /** Matcher which will always pass. */
   class AlwaysPassMatcher extends BaseMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
     @Override
@@ -72,7 +72,6 @@ public interface TestPipelineOptions extends PipelineOptions {
     }
 
     @Override
-    public void describeTo(Description description) {
-    }
+    public void describeTo(Description description) {}
   }
 }

@@ -29,9 +29,14 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
+from __future__ import absolute_import
+
 import logging
+import math
 import random
 import uuid
+from builtins import object
+from builtins import range
 from collections import namedtuple
 
 from apache_beam import coders
@@ -847,12 +852,21 @@ class Read(ptransform.PTransform):
 
     debug_options = self.pipeline._options.view_as(DebugOptions)
     if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
-      NUM_SPLITS = 1000
       source = self.source
+
+      def split_source(unused_impulse):
+        total_size = source.estimate_size()
+        if total_size:
+          # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
+          chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
+        else:
+          chunk_size = 64 << 20  # 64mb
+        return source.split(chunk_size)
+
       return (
           pbegin
           | core.Impulse()
-          | 'Split' >> core.FlatMap(lambda _: source.split(NUM_SPLITS))
+          | 'Split' >> core.FlatMap(split_source)
           | util.Reshuffle()
           | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
               split.source.get_range_tracker(

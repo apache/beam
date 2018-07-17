@@ -36,13 +36,14 @@ public abstract class MetricResults {
    *
    * <p>For each type of metric, the result contains an iterable of all metrics of that type that
    * matched the filter. Each {@link MetricResult} includes the name of the metric, the step in
-   * which it was reported and the {@link MetricResult#getCommitted} and
-   * {@link MetricResult#getAttempted} values.
+   * which it was reported and the {@link MetricResult#getCommitted} and {@link
+   * MetricResult#getAttempted} values.
    *
    * <p>Note that runners differ in their support for committed and attempted values.
    *
    * <p>Example: Querying the metrics reported from the {@code SomeDoFn} example in {@link Metrics}
    * could be done as follows:
+   *
    * <pre>{@code
    * Pipeline p = ...;
    * p.apply("create1", Create.of("hello")).apply("myStepName1", ParDo.of(new SomeDoFn()));

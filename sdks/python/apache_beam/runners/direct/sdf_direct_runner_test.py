@@ -17,9 +17,13 @@
 
 """Unit tests for SDF implementation for DirectRunner."""
 
+from __future__ import absolute_import
+from __future__ import division
+
 import logging
 import os
 import unittest
+from builtins import range
 
 import apache_beam as beam
 from apache_beam import Create
@@ -192,7 +196,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
         int(self._default_max_num_outputs * 3))
 
   def test_sdf_with_resume_single_element(self):
-    resume_count = self._default_max_num_outputs / 10
+    resume_count = self._default_max_num_outputs // 10
     # Makes sure that resume_count is not trivial.
     assert resume_count > 0
 
@@ -202,7 +206,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
         resume_count)
 
   def test_sdf_with_resume_multiple_elements(self):
-    resume_count = self._default_max_num_outputs / 10
+    resume_count = self._default_max_num_outputs // 10
     assert resume_count > 0
 
     self.run_sdf_read_pipeline(

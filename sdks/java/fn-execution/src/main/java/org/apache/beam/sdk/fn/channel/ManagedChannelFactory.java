@@ -18,17 +18,17 @@
 
 package org.apache.beam.sdk.fn.channel;
 
-import io.grpc.ClientInterceptor;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.netty.NettyChannelBuilder;
-import io.netty.channel.epoll.EpollDomainSocketChannel;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.unix.DomainSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollDomainSocketChannel;
+import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollSocketChannel;
+import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
 
 /** A Factory which creates an underlying {@link ManagedChannel} implementation. */
 public abstract class ManagedChannelFactory {
@@ -37,7 +37,7 @@ public abstract class ManagedChannelFactory {
   }
 
   public static ManagedChannelFactory createEpoll() {
-    io.netty.channel.epoll.Epoll.ensureAvailability();
+    org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.Epoll.ensureAvailability();
     return new Epoll();
   }
 
@@ -71,7 +71,7 @@ public abstract class ManagedChannelFactory {
                   ? EpollDomainSocketChannel.class
                   : EpollSocketChannel.class)
           .eventLoopGroup(new EpollEventLoopGroup())
-          .usePlaintext(true)
+          .usePlaintext()
           // Set the message size to max value here. The actual size is governed by the
           // buffer size in the layers above.
           .maxInboundMessageSize(Integer.MAX_VALUE);
@@ -86,7 +86,7 @@ public abstract class ManagedChannelFactory {
     @Override
     public ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor apiServiceDescriptor) {
       return ManagedChannelBuilder.forTarget(apiServiceDescriptor.getUrl())
-          .usePlaintext(true)
+          .usePlaintext()
           // Set the message size to max value here. The actual size is governed by the
           // buffer size in the layers above.
           .maxInboundMessageSize(Integer.MAX_VALUE);

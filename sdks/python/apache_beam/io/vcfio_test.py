@@ -17,6 +17,8 @@
 
 """Tests for vcfio module."""
 
+from __future__ import absolute_import
+
 import logging
 import os
 import unittest
@@ -74,9 +76,10 @@ def get_full_dir():
 def _variant_comparator(v1, v2):
   if v1.reference_name == v2.reference_name:
     if v1.start == v2.start:
-      return cmp(v1.end, v2.end)
-    return cmp(v1.start, v2.start)
-  return cmp(v1.reference_name, v2.reference_name)
+      return (v1.end > v2.end) - (v1.end < v2.end)
+    return (v1.start > v2.start) - (v1.start < v2.start)
+  return (v1.reference_name > v2.reference_name) - \
+      (v1.reference_name < v2.reference_name)
 
 
 # Helper method for verifying equal count on PCollection.

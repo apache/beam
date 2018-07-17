@@ -38,13 +38,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an
- * independent Cassandra instance.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an independent
+ * Cassandra instance.
  *
- * <p>This test requires a running instance of Cassandra, and the test dataset must exist in
- * the database.
+ * <p>This test requires a running instance of Cassandra, and the test dataset must exist in the
+ * database.
  *
  * <p>You can run this test by doing the following:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/hadoop-input-format
  *  -Dit.test=org.apache.beam.sdk.io.hadoop.inputformat.HIFIOCassandraIT
@@ -61,7 +62,6 @@ import org.junit.runners.JUnit4;
  * and spark in the pom. You'll want to activate those in addition to the normal test runner
  * invocation pipeline options.
  */
-
 @RunWith(JUnit4.class)
 public class HIFIOCassandraIT implements Serializable {
 
@@ -79,8 +79,7 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String INPUT_KEYSPACE_USERNAME_CONFIG = "cassandra.input.keyspace.username";
   private static final String INPUT_KEYSPACE_PASSWD_CONFIG = "cassandra.input.keyspace.passwd";
   private static HIFITestOptions options;
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() {
@@ -88,17 +87,18 @@ public class HIFIOCassandraIT implements Serializable {
     options = TestPipeline.testingPipelineOptions().as(HIFITestOptions.class);
   }
 
-  /**
-   * This test reads data from the Cassandra instance and verifies if data is read successfully.
-   */
+  /** This test reads data from the Cassandra instance and verifies if data is read successfully. */
   @Test
   public void testHIFReadForCassandra() {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     String expectedHashCode = "1a30ad400afe4ebf5fde75f5d2d95408";
     Long expectedRecordsCount = 1000L;
     Configuration conf = getConfiguration(options);
-    PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
-        .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(
+            HadoopInputFormatIO.<Long, String>read()
+                .withConfiguration(conf)
+                .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.globally()))
         .isEqualTo(expectedRecordsCount);
     PCollection<String> textValues = cassandraData.apply(Values.create());
@@ -109,17 +109,33 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  private final SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-    @Override
-    public String apply(Row input) {
-      return input.getString("y_id") + "|" + input.getString("field0") + "|"
-          + input.getString("field1") + "|" + input.getString("field2") + "|"
-          + input.getString("field3") + "|" + input.getString("field4") + "|"
-          + input.getString("field5") + "|" + input.getString("field6") + "|"
-          + input.getString("field7") + "|" + input.getString("field8") + "|"
-          + input.getString("field9");
-    }
-  };
+  private final SimpleFunction<Row, String> myValueTranslate =
+      new SimpleFunction<Row, String>() {
+        @Override
+        public String apply(Row input) {
+          return input.getString("y_id")
+              + "|"
+              + input.getString("field0")
+              + "|"
+              + input.getString("field1")
+              + "|"
+              + input.getString("field2")
+              + "|"
+              + input.getString("field3")
+              + "|"
+              + input.getString("field4")
+              + "|"
+              + input.getString("field5")
+              + "|"
+              + input.getString("field6")
+              + "|"
+              + input.getString("field7")
+              + "|"
+              + input.getString("field8")
+              + "|"
+              + input.getString("field9");
+        }
+      };
   /**
    * This test reads data from the Cassandra instance based on query and verifies if data is read
    * successfully.
@@ -129,12 +145,19 @@ public class HIFIOCassandraIT implements Serializable {
     String expectedHashCode = "7bead6d6385c5f4dd0524720cd320b49";
     Long expectedNumRows = 1L;
     Configuration conf = getConfiguration(options);
-    conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
-        + " where token(y_id) > ? and token(y_id) <= ? "
-        + "and field0 = 'user48:field0:431531'");
+    conf.set(
+        "cassandra.input.cql",
+        "select * from "
+            + CASSANDRA_KEYSPACE
+            + "."
+            + CASSANDRA_TABLE
+            + " where token(y_id) > ? and token(y_id) <= ? "
+            + "and field0 = 'user48:field0:431531'");
     PCollection<KV<Long, String>> cassandraData =
-        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+        pipeline.apply(
+            HadoopInputFormatIO.<Long, String>read()
+                .withConfiguration(conf)
+                .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.globally()))
         .isEqualTo(expectedNumRows);
     PCollection<String> textValues = cassandraData.apply(Values.create());
@@ -163,8 +186,10 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set(PASSWORD, options.getCassandraPassword());
     conf.set(INPUT_KEYSPACE_USERNAME_CONFIG, options.getCassandraUserName());
     conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getCassandraPassword());
-    conf.setClass("mapreduce.job.inputformat.class",
-        org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
+    conf.setClass(
+        "mapreduce.job.inputformat.class",
+        org.apache.cassandra.hadoop.cql3.CqlInputFormat.class,
+        InputFormat.class);
     conf.setClass("key.class", java.lang.Long.class, Object.class);
     conf.setClass("value.class", Row.class, Object.class);
     return conf;

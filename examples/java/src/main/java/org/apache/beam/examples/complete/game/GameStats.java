@@ -56,10 +56,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is the fourth in a series of four pipelines that tell a story in a 'gaming'
- * domain, following {@link UserScore}, {@link HourlyTeamScore}, and {@link LeaderBoard}.
- * New concepts: session windows and finding session duration; use of both
- * singleton and non-singleton side inputs.
+ * This class is the fourth in a series of four pipelines that tell a story in a 'gaming' domain,
+ * following {@link UserScore}, {@link HourlyTeamScore}, and {@link LeaderBoard}. New concepts:
+ * session windows and finding session duration; use of both singleton and non-singleton side
+ * inputs.
  *
  * <p>This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
  * intelligence" analysis: abuse detection and usage patterns. The pipeline derives the Mean user
@@ -69,32 +69,32 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Additionally, user sessions are tracked: that is, we find bursts of user activity using
  * session windows. Then, the mean session duration information is recorded in the context of
- * subsequent fixed windowing. (This could be used to tell us what games are giving us greater
- * user retention).
+ * subsequent fixed windowing. (This could be used to tell us what games are giving us greater user
+ * retention).
  *
- * <p>Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
- * pubsub data for this pipeline. The {@code Injector} documentation provides more detail.
+ * <p>Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate pubsub data
+ * for this pipeline. The {@code Injector} documentation provides more detail.
  *
  * <p>To execute this pipeline, specify the pipeline configuration like this:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=YOUR_RUNNER
- *   --dataset=YOUR-DATASET
- *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
- * }
- * </pre>
  *
- * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should
- * be the same topic to which the Injector is publishing.
+ * <pre>{@code
+ * --project=YOUR_PROJECT_ID
+ * --tempLocation=gs://YOUR_TEMP_DIRECTORY
+ * --runner=YOUR_RUNNER
+ * --dataset=YOUR-DATASET
+ * --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
+ * }</pre>
+ *
+ * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
+ * the same topic to which the Injector is publishing.
  */
 public class GameStats extends LeaderBoard {
 
   /**
    * Filter out all users but those with a high clickrate, which we will consider as 'spammy' users.
    * We do this by finding the mean total score per user, then using that information as a side
-   * input to filter out all but those user scores that are larger than
-   * {@code (mean * SCORE_WEIGHT)}.
+   * input to filter out all but those user scores that are larger than {@code (mean *
+   * SCORE_WEIGHT)}.
    */
   // [START DocInclude_AbuseDetect]
   public static class CalculateSpammyUsers
@@ -114,68 +114,76 @@ public class GameStats extends LeaderBoard {
           sumScores.apply(Values.create()).apply(Mean.<Integer>globally().asSingletonView());
 
       // Filter the user sums using the global mean.
-      PCollection<KV<String, Integer>> filtered = sumScores
-          .apply("ProcessAndFilter", ParDo
-              // use the derived mean total score as a side input
-              .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
-                private final Counter numSpammerUsers = Metrics.counter("main", "SpammerUsers");
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  Integer score = c.element().getValue();
-                  Double gmc = c.sideInput(globalMeanScore);
-                  if (score > (gmc * SCORE_WEIGHT)) {
-                    LOG.info("user " + c.element().getKey() + " spammer score " + score
-                        + " with mean " + gmc);
-                    numSpammerUsers.inc();
-                    c.output(c.element());
-                  }
-                }
-              }).withSideInputs(globalMeanScore));
+      PCollection<KV<String, Integer>> filtered =
+          sumScores.apply(
+              "ProcessAndFilter",
+              ParDo
+                  // use the derived mean total score as a side input
+                  .of(
+                      new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+                        private final Counter numSpammerUsers =
+                            Metrics.counter("main", "SpammerUsers");
+
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          Integer score = c.element().getValue();
+                          Double gmc = c.sideInput(globalMeanScore);
+                          if (score > (gmc * SCORE_WEIGHT)) {
+                            LOG.info(
+                                "user "
+                                    + c.element().getKey()
+                                    + " spammer score "
+                                    + score
+                                    + " with mean "
+                                    + gmc);
+                            numSpammerUsers.inc();
+                            c.output(c.element());
+                          }
+                        }
+                      })
+                  .withSideInputs(globalMeanScore));
       return filtered;
     }
   }
   // [END DocInclude_AbuseDetect]
 
-  /**
-   * Calculate and output an element's session duration.
-   */
+  /** Calculate and output an element's session duration. */
   private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
       IntervalWindow w = (IntervalWindow) window;
-      int duration = new Duration(
-          w.start(), w.end()).toPeriod().toStandardMinutes().getMinutes();
+      int duration = new Duration(w.start(), w.end()).toPeriod().toStandardMinutes().getMinutes();
       c.output(duration);
     }
   }
 
-
-  /**
-   * Options supported by {@link GameStats}.
-   */
+  /** Options supported by {@link GameStats}. */
   public interface Options extends LeaderBoard.Options {
     @Description("Numeric value of fixed window duration for user analysis, in minutes")
     @Default.Integer(60)
     Integer getFixedWindowDuration();
+
     void setFixedWindowDuration(Integer value);
 
     @Description("Numeric value of gap between user sessions, in minutes")
     @Default.Integer(5)
     Integer getSessionGap();
+
     void setSessionGap(Integer value);
 
-    @Description("Numeric value of fixed window for finding mean of user session duration, "
-        + "in minutes")
+    @Description(
+        "Numeric value of fixed window for finding mean of user session duration, " + "in minutes")
     @Default.Integer(30)
     Integer getUserActivityWindowDuration();
+
     void setUserActivityWindowDuration(Integer value);
 
     @Description("Prefix used for the BigQuery table names")
     @Default.String("game_stats")
     String getGameStatsTablePrefix();
+
     void setGameStatsTablePrefix(String value);
   }
-
 
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
@@ -226,8 +234,6 @@ public class GameStats extends LeaderBoard {
     return tableConfigure;
   }
 
-
-
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -237,18 +243,21 @@ public class GameStats extends LeaderBoard {
     Pipeline pipeline = Pipeline.create(options);
 
     // Read Events from Pub/Sub using custom timestamps
-    PCollection<GameActionInfo> rawEvents = pipeline
-        .apply(PubsubIO.readStrings()
-            .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-            .fromTopic(options.getTopic()))
-        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
+    PCollection<GameActionInfo> rawEvents =
+        pipeline
+            .apply(
+                PubsubIO.readStrings()
+                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
+                    .fromTopic(options.getTopic()))
+            .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
     PCollection<KV<String, Integer>> userEvents =
-        rawEvents.apply("ExtractUserScore",
-          MapElements
-              .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-              .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
+        rawEvents.apply(
+            "ExtractUserScore",
+            MapElements.into(
+                    TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+                .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
@@ -336,7 +345,6 @@ public class GameStats extends LeaderBoard {
                 options.getGameStatsTablePrefix() + "_sessions",
                 configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
-
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.

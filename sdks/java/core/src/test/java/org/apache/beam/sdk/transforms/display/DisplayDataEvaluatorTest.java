@@ -35,29 +35,29 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link DisplayDataEvaluator}.
- */
+/** Unit tests for {@link DisplayDataEvaluator}. */
 @RunWith(JUnit4.class)
 public class DisplayDataEvaluatorTest implements Serializable {
 
   @Test
   public void testCompositeTransform() {
     PTransform<? super PCollection<String>, ? super POutput> myTransform =
-        new PTransform<PCollection<String>, POutput> () {
+        new PTransform<PCollection<String>, POutput>() {
           @Override
           public PCollection<String> expand(PCollection<String> input) {
-            return input.apply(ParDo.of(new DoFn<String, String>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) throws Exception {
-                c.output(c.element());
-              }
+            return input.apply(
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        c.output(c.element());
+                      }
 
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("primitiveKey", "primitiveValue"));
-              }
-            }));
+                      @Override
+                      public void populateDisplayData(DisplayData.Builder builder) {
+                        builder.add(DisplayData.item("primitiveKey", "primitiveValue"));
+                      }
+                    }));
           }
 
           @Override
@@ -75,16 +75,17 @@ public class DisplayDataEvaluatorTest implements Serializable {
 
   @Test
   public void testPrimitiveTransform() {
-    PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform = ParDo.of(
-        new DoFn<Integer, Integer>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {}
+    PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform =
+        ParDo.of(
+            new DoFn<Integer, Integer>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) throws Exception {}
 
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    });
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item("foo", "bar"));
+              }
+            });
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(myTransform);
@@ -94,8 +95,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
 
   @Test
   public void testSourceTransform() {
-    PTransform<? super PBegin, ? extends POutput> myTransform = TextIO.read()
-        .from("foo.*");
+    PTransform<? super PBegin, ? extends POutput> myTransform = TextIO.read().from("foo.*");
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(myTransform);

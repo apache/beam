@@ -44,9 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link Latest} {@link PTransform} and {@link Combine.CombineFn}.
- */
+/** Unit tests for {@link Latest} {@link PTransform} and {@link Combine.CombineFn}. */
 @RunWith(JUnit4.class)
 public class LatestTest implements Serializable {
 
@@ -111,8 +109,8 @@ public class LatestTest implements Serializable {
   public void testPerKeyOutputCoder() {
     p.enableAbandonedNodeEnforcement(false);
 
-    KvCoder<String, Long> inputCoder = KvCoder.of(
-        AvroCoder.of(String.class), AvroCoder.of(Long.class));
+    KvCoder<String, Long> inputCoder =
+        KvCoder.of(AvroCoder.of(String.class), AvroCoder.of(Long.class));
 
     PCollection<KV<String, Long>> output =
         p.apply(Create.of(KV.of("foo", 1L)).withCoder(inputCoder)).apply(Latest.perKey());
@@ -135,5 +133,6 @@ public class LatestTest implements Serializable {
   private static TimestampedValue<Long> timestamped(Instant timestamp) {
     return TimestampedValue.of(uniqueLong.incrementAndGet(), timestamp);
   }
+
   private static final AtomicLong uniqueLong = new AtomicLong();
 }

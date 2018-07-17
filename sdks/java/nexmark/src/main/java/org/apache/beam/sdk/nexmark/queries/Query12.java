@@ -37,8 +37,8 @@ import org.joda.time.Duration;
 /**
  * Query "12", 'Processing time windows' (Not in original suite.)
  *
- * <p>Group bids by the same user into processing time windows of windowSize. Emit the count
- * of bids per window.
+ * <p>Group bids by the same user into processing time windows of windowSize. Emit the count of bids
+ * per window.
  */
 public class Query12 extends NexmarkQuery {
   public Query12(NexmarkConfiguration configuration) {

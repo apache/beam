@@ -50,10 +50,10 @@ include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
 project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
-// These 2 projects will not be published to Maven so they don't get a special
-// dashed name.
-include ":runners:google-cloud-dataflow-java:examples"
-include ":runners:google-cloud-dataflow-java:examples-streaming"
+include ":beam-runners-google-cloud-dataflow-java-examples"
+project(":beam-runners-google-cloud-dataflow-java-examples").dir = file("runners/google-cloud-dataflow-java/examples")
+include ":beam-runners-google-cloud-dataflow-java-examples-streaming"
+project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples")
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
 include "beam-runners-local-java-core"
@@ -152,6 +152,8 @@ include "beam-sdks-java-io-tika"
 project(":beam-sdks-java-io-tika").dir = file("sdks/java/io/tika")
 include "beam-sdks-java-io-xml"
 project(":beam-sdks-java-io-xml").dir = file("sdks/java/io/xml")
+include "beam-sdks-java-io-synthetic"
+project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
 include "beam-sdks-java-javadoc"
 project(":beam-sdks-java-javadoc").dir = file("sdks/java/javadoc")
 include "beam-sdks-java-maven-archetypes-examples"
@@ -164,3 +166,5 @@ include "beam-sdks-python"
 project(":beam-sdks-python").dir = file("sdks/python")
 include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
+include "beam-vendor-sdks-java-extensions-protobuf"
+project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")

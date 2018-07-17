@@ -34,12 +34,10 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Duration;
 
-/**
- * Remove values with duplicate ids.
- */
+/** Remove values with duplicate ids. */
 public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>>
     implements OneInputStreamOperator<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>>,
-    Triggerable<ByteBuffer, VoidNamespace>{
+        Triggerable<ByteBuffer, VoidNamespace> {
 
   private static final long MAX_RETENTION_SINCE_ACCESS = Duration.standardMinutes(10L).getMillis();
 
@@ -55,12 +53,11 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
 
     timerService =
         getInternalTimerService("dedup-cleanup-timer", VoidNamespaceSerializer.INSTANCE, this);
-
   }
 
   @Override
-  public void processElement(
-      StreamRecord<WindowedValue<ValueWithRecordId<T>>> streamRecord) throws Exception {
+  public void processElement(StreamRecord<WindowedValue<ValueWithRecordId<T>>> streamRecord)
+      throws Exception {
 
     ValueState<Long> dedupingState = getPartitionedState(dedupingStateDescriptor);
 

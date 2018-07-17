@@ -37,13 +37,9 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 
-/**
- * A direct implementation of {@link Query4}.
- */
+/** A direct implementation of {@link Query4}. */
 public class Query4Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 4.
-   */
+  /** Simulator for query 4. */
   private class Simulator extends AbstractSimulator<AuctionBid, CategoryPrice> {
     /** The prices and categories for all winning bids in the last window size. */
     private final List<TimestampedValue<CategoryPrice>> winningPricesByCategory;
@@ -66,8 +62,8 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
     }
 
     /**
-     * Calculate the average bid price for each category for all winning bids
-     * which are strictly before {@code end}.
+     * Calculate the average bid price for each category for all winning bids which are strictly
+     * before {@code end}.
      */
     private void averages(Instant end) {
       Map<Long, Long> counts = new TreeMap<>();
@@ -97,16 +93,18 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
         long category = entry.getKey();
         long count = entry.getValue();
         long total = totals.get(category);
-        TimestampedValue<CategoryPrice> result = TimestampedValue.of(
-            new CategoryPrice(category, Math.round((double) total / count), true), lastTimestamp);
+        TimestampedValue<CategoryPrice> result =
+            TimestampedValue.of(
+                new CategoryPrice(category, Math.round((double) total / count), true),
+                lastTimestamp);
         addIntermediateResult(result);
         lastSeenResults.put(category, result);
       }
     }
 
     /**
-     * Calculate averages for any windows which can now be retired. Also prune entries
-     * which can no longer contribute to any future window.
+     * Calculate averages for any windows which can now be retired. Also prune entries which can no
+     * longer contribute to any future window.
      */
     private void prune(Instant newWindowStart) {
       while (!newWindowStart.equals(windowStart)) {
@@ -121,9 +119,7 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
       }
     }
 
-    /**
-     * Capture the winning bid.
-     */
+    /** Capture the winning bid. */
     private void captureWinningBid(Auction auction, Bid bid, Instant timestamp) {
       winningPricesByCategory.add(
           TimestampedValue.of(new CategoryPrice(auction.category, bid.price, false), timestamp));
@@ -141,11 +137,16 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
         return;
       }
       lastTimestamp = timestampedWinningBid.getTimestamp();
-      Instant newWindowStart = windowStart(Duration.standardSeconds(configuration.windowSizeSec),
-          Duration.standardSeconds(configuration.windowPeriodSec), lastTimestamp);
+      Instant newWindowStart =
+          windowStart(
+              Duration.standardSeconds(configuration.windowSizeSec),
+              Duration.standardSeconds(configuration.windowPeriodSec),
+              lastTimestamp);
       prune(newWindowStart);
-      captureWinningBid(timestampedWinningBid.getValue().auction,
-          timestampedWinningBid.getValue().bid, lastTimestamp);
+      captureWinningBid(
+          timestampedWinningBid.getValue().auction,
+          timestampedWinningBid.getValue().bid,
+          lastTimestamp);
     }
   }
 

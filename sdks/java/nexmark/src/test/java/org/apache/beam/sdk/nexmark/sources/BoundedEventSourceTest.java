@@ -26,14 +26,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test {@link BoundedEventSource}.
- */
+/** Test {@link BoundedEventSource}. */
 @RunWith(JUnit4.class)
 public class BoundedEventSourceTest {
   private GeneratorConfig makeConfig(long n) {
-    return new GeneratorConfig(
-        NexmarkConfiguration.DEFAULT, System.currentTimeMillis(), 0, n, 0);
+    return new GeneratorConfig(NexmarkConfiguration.DEFAULT, System.currentTimeMillis(), 0, n, 0);
   }
 
   @Test
@@ -65,7 +62,6 @@ public class BoundedEventSourceTest {
     NexmarkOptions options = PipelineOptionsFactory.as(NexmarkOptions.class);
     long n = 200L;
     BoundedEventSource source = new BoundedEventSource(makeConfig(n), 1);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(10, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(10, options), options);
   }
 }

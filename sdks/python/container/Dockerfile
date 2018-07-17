@@ -70,7 +70,7 @@ RUN \
     # Optional packages
     pip install "cython == 0.28.1" && \
     pip install "guppy == 0.1.10" && \
-    pip install "python-snappy == 0.5.1" && \
+    pip install "python-snappy == 0.5.3" && \
     # These are additional packages likely to be used by customers.
     pip install "numpy == 1.13.3" --no-binary=:all: && \
     pip install "pandas == 0.18.1" && \

@@ -31,36 +31,36 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * {@link KnownSize} implementation to estimate the size of a {@link Row},
- * similar to Java model. NexmarkLauncher/Queries infrastructure expects the events to
- * be able to quickly provide the estimates of their sizes.
+ * {@link KnownSize} implementation to estimate the size of a {@link Row}, similar to Java model.
+ * NexmarkLauncher/Queries infrastructure expects the events to be able to quickly provide the
+ * estimates of their sizes.
  *
  * <p>The {@link Row} size is calculated at creation time.
- *
- *
  */
 public class RowSize implements KnownSize {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
-  public static final Coder<RowSize> CODER = new CustomCoder<RowSize>() {
-    @Override
-    public void encode(RowSize rowSize, OutputStream outStream) throws IOException {
+  public static final Coder<RowSize> CODER =
+      new CustomCoder<RowSize>() {
+        @Override
+        public void encode(RowSize rowSize, OutputStream outStream) throws IOException {
 
-      LONG_CODER.encode(rowSize.sizeInBytes(), outStream);
-    }
+          LONG_CODER.encode(rowSize.sizeInBytes(), outStream);
+        }
 
-    @Override
-    public RowSize decode(InputStream inStream) throws IOException {
-      return new RowSize(LONG_CODER.decode(inStream));
-    }
-  };
+        @Override
+        public RowSize decode(InputStream inStream) throws IOException {
+          return new RowSize(LONG_CODER.decode(inStream));
+        }
+      };
 
   public static ParDo.SingleOutput<Row, RowSize> parDo() {
-    return ParDo.of(new DoFn<Row, RowSize>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        c.output(RowSize.of(c.element()));
-      }
-    });
+    return ParDo.of(
+        new DoFn<Row, RowSize>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            c.output(RowSize.of(c.element()));
+          }
+        });
   }
 
   public static RowSize of(Row row) {

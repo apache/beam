@@ -34,36 +34,31 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
- * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>},
- * groups the values by key and windows, and returns a
- * {@code PCollection<KV<K, Iterable<V>>>} representing a map from
- * each distinct key and window of the input {@code PCollection} to an
- * {@code Iterable} over all the values associated with that key in
- * the input per window.  Absent repeatedly-firing
- * {@link Window#triggering triggering}, each key in the output
- * {@code PCollection} is unique within each window.
+ * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>}, groups the values by key and
+ * windows, and returns a {@code PCollection<KV<K, Iterable<V>>>} representing a map from each
+ * distinct key and window of the input {@code PCollection} to an {@code Iterable} over all the
+ * values associated with that key in the input per window. Absent repeatedly-firing {@link
+ * Window#triggering triggering}, each key in the output {@code PCollection} is unique within each
+ * window.
  *
- * <p>{@code GroupByKey} is analogous to converting a multi-map into
- * a uni-map, and related to {@code GROUP BY} in SQL.  It corresponds
- * to the "shuffle" step between the Mapper and the Reducer in the
- * MapReduce framework.
+ * <p>{@code GroupByKey} is analogous to converting a multi-map into a uni-map, and related to
+ * {@code GROUP BY} in SQL. It corresponds to the "shuffle" step between the Mapper and the Reducer
+ * in the MapReduce framework.
  *
- * <p>Two keys of type {@code K} are compared for equality
- * <b>not</b> by regular Java {@link Object#equals}, but instead by
- * first encoding each of the keys using the {@code Coder} of the
- * keys of the input {@code PCollection}, and then comparing the
- * encoded bytes.  This admits efficient parallel evaluation.  Note that
- * this requires that the {@code Coder} of the keys be deterministic (see
- * {@link Coder#verifyDeterministic()}).  If the key {@code Coder} is not
+ * <p>Two keys of type {@code K} are compared for equality <b>not</b> by regular Java {@link
+ * Object#equals}, but instead by first encoding each of the keys using the {@code Coder} of the
+ * keys of the input {@code PCollection}, and then comparing the encoded bytes. This admits
+ * efficient parallel evaluation. Note that this requires that the {@code Coder} of the keys be
+ * deterministic (see {@link Coder#verifyDeterministic()}). If the key {@code Coder} is not
  * deterministic, an exception is thrown at pipeline construction time.
  *
- * <p>By default, the {@code Coder} of the keys of the output
- * {@code PCollection} is the same as that of the keys of the input,
- * and the {@code Coder} of the elements of the {@code Iterable}
- * values of the output {@code PCollection} is the same as the
- * {@code Coder} of the values of the input.
+ * <p>By default, the {@code Coder} of the keys of the output {@code PCollection} is the same as
+ * that of the keys of the input, and the {@code Coder} of the elements of the {@code Iterable}
+ * values of the output {@code PCollection} is the same as the {@code Coder} of the values of the
+ * input.
  *
  * <p>Example of use:
+ *
  * <pre>{@code
  * PCollection<KV<String, Doc>> urlDocPairs = ...;
  * PCollection<KV<String, Iterable<Doc>>> urlToDocs =
@@ -78,48 +73,39 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  *       }}));
  * }</pre>
  *
- * <p>{@code GroupByKey} is a key primitive in data-parallel
- * processing, since it is the main way to efficiently bring
- * associated data together into one location.  It is also a key
- * determiner of the performance of a data-parallel pipeline.
+ * <p>{@code GroupByKey} is a key primitive in data-parallel processing, since it is the main way to
+ * efficiently bring associated data together into one location. It is also a key determiner of the
+ * performance of a data-parallel pipeline.
  *
- * <p>See {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}
- * for a way to group multiple input PCollections by a common key at once.
+ * <p>See {@link org.apache.beam.sdk.transforms.join.CoGroupByKey} for a way to group multiple input
+ * PCollections by a common key at once.
  *
- * <p>See {@link Combine.PerKey} for a common pattern of
- * {@code GroupByKey} followed by {@link Combine.GroupedValues}.
+ * <p>See {@link Combine.PerKey} for a common pattern of {@code GroupByKey} followed by {@link
+ * Combine.GroupedValues}.
  *
- * <p>When grouping, windows that can be merged according to the {@link WindowFn}
- * of the input {@code PCollection} will be merged together, and a window pane
- * corresponding to the new, merged window will be created. The items in this pane
- * will be emitted when a trigger fires. By default this will be when the input
- * sources estimate there will be no more data for the window. See
- * {@link org.apache.beam.sdk.transforms.windowing.AfterWatermark}
- * for details on the estimation.
+ * <p>When grouping, windows that can be merged according to the {@link WindowFn} of the input
+ * {@code PCollection} will be merged together, and a window pane corresponding to the new, merged
+ * window will be created. The items in this pane will be emitted when a trigger fires. By default
+ * this will be when the input sources estimate there will be no more data for the window. See
+ * {@link org.apache.beam.sdk.transforms.windowing.AfterWatermark} for details on the estimation.
  *
- * <p>The timestamp for each emitted pane is determined by the
- * {@link Window#withTimestampCombiner(TimestampCombiner)} windowing operation}.
- * The output {@code PCollection} will have the same {@link WindowFn}
- * as the input.
+ * <p>The timestamp for each emitted pane is determined by the {@link
+ * Window#withTimestampCombiner(TimestampCombiner)} windowing operation}. The output {@code
+ * PCollection} will have the same {@link WindowFn} as the input.
  *
- * <p>If the input {@code PCollection} contains late data or the
- * {@link Window#triggering requested TriggerFn} can fire before
- * the watermark, then there may be multiple elements
- * output by a {@code GroupByKey} that correspond to the same key and window.
+ * <p>If the input {@code PCollection} contains late data or the {@link Window#triggering requested
+ * TriggerFn} can fire before the watermark, then there may be multiple elements output by a {@code
+ * GroupByKey} that correspond to the same key and window.
  *
- * <p>If the {@link WindowFn} of the input requires merging, it is not
- * valid to apply another {@code GroupByKey} without first applying a new
- * {@link WindowFn} or applying {@link Window#remerge()}.
+ * <p>If the {@link WindowFn} of the input requires merging, it is not valid to apply another {@code
+ * GroupByKey} without first applying a new {@link WindowFn} or applying {@link Window#remerge()}.
  *
- * @param <K> the type of the keys of the input and output
- * {@code PCollection}s
- * @param <V> the type of the values of the input {@code PCollection}
- * and the elements of the {@code Iterable}s in the output
- * {@code PCollection}
+ * @param <K> the type of the keys of the input and output {@code PCollection}s
+ * @param <V> the type of the values of the input {@code PCollection} and the elements of the {@code
+ *     Iterable}s in the output {@code PCollection}
  */
 public class GroupByKey<K, V>
-    extends PTransform<PCollection<KV<K, V>>,
-                       PCollection<KV<K, Iterable<V>>>> {
+    extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
   private final boolean fewKeys;
 
@@ -130,33 +116,27 @@ public class GroupByKey<K, V>
   /**
    * Returns a {@code GroupByKey<K, V>} {@code PTransform}.
    *
-   * @param <K> the type of the keys of the input and output
-   * {@code PCollection}s
-   * @param <V> the type of the values of the input {@code PCollection}
-   * and the elements of the {@code Iterable}s in the output
-   * {@code PCollection}
+   * @param <K> the type of the keys of the input and output {@code PCollection}s
+   * @param <V> the type of the values of the input {@code PCollection} and the elements of the
+   *     {@code Iterable}s in the output {@code PCollection}
    */
   public static <K, V> GroupByKey<K, V> create() {
     return new GroupByKey<>(false);
   }
 
   /**
-   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that assumes it will be grouping
-   * a small number of keys.
+   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that assumes it will be grouping a small
+   * number of keys.
    *
-   * @param <K> the type of the keys of the input and output
-   * {@code PCollection}s
-   * @param <V> the type of the values of the input {@code PCollection}
-   * and the elements of the {@code Iterable}s in the output
-   * {@code PCollection}
+   * @param <K> the type of the keys of the input and output {@code PCollection}s
+   * @param <V> the type of the values of the input {@code PCollection} and the elements of the
+   *     {@code Iterable}s in the output {@code PCollection}
    */
   static <K, V> GroupByKey<K, V> createWithFewKeys() {
     return new GroupByKey<>(true);
   }
 
-  /**
-   * Returns whether it groups just few keys.
-   */
+  /** Returns whether it groups just few keys. */
   public boolean fewKeys() {
     return fewKeys;
   }
@@ -170,17 +150,17 @@ public class GroupByKey<K, V>
     if (windowingStrategy.getWindowFn() instanceof GlobalWindows
         && windowingStrategy.getTrigger() instanceof DefaultTrigger
         && input.isBounded() != IsBounded.BOUNDED) {
-      throw new IllegalStateException("GroupByKey cannot be applied to non-bounded PCollection in "
-          + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
-          + "prior to GroupByKey.");
+      throw new IllegalStateException(
+          "GroupByKey cannot be applied to non-bounded PCollection in "
+              + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
+              + "prior to GroupByKey.");
     }
 
     // Validate the window merge function.
     if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
       String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
       throw new IllegalStateException(
-          "GroupByKey must have a valid Window merge function.  "
-              + "Invalid because: " + cause);
+          "GroupByKey must have a valid Window merge function.  " + "Invalid because: " + cause);
     }
   }
 
@@ -189,8 +169,9 @@ public class GroupByKey<K, V>
     if (!inputWindowFn.isNonMerging()) {
       // Prevent merging windows again, without explicit user
       // involvement, e.g., by Window.into() or Window.remerge().
-      inputWindowFn = new InvalidWindows<>(
-          "WindowFn has already been consumed by previous GroupByKey", inputWindowFn);
+      inputWindowFn =
+          new InvalidWindows<>(
+              "WindowFn has already been consumed by previous GroupByKey", inputWindowFn);
     }
 
     // We also switch to the continuation trigger associated with the current trigger.
@@ -209,8 +190,7 @@ public class GroupByKey<K, V>
     try {
       keyCoder.verifyDeterministic();
     } catch (NonDeterministicException e) {
-      throw new IllegalStateException(
-          "the keyCoder of a GroupByKey must be deterministic", e);
+      throw new IllegalStateException("the keyCoder of a GroupByKey must be deterministic", e);
     }
 
     // This primitive operation groups by the combination of key and window,
@@ -225,14 +205,12 @@ public class GroupByKey<K, V>
   }
 
   /**
-   * Returns the {@code Coder} of the input to this transform, which
-   * should be a {@code KvCoder}.
+   * Returns the {@code Coder} of the input to this transform, which should be a {@code KvCoder}.
    */
   @SuppressWarnings("unchecked")
   static <K, V> KvCoder<K, V> getInputKvCoder(Coder<KV<K, V>> inputCoder) {
     if (!(inputCoder instanceof KvCoder)) {
-      throw new IllegalStateException(
-          "GroupByKey requires its input to use KvCoder");
+      throw new IllegalStateException("GroupByKey requires its input to use KvCoder");
     }
     return (KvCoder<K, V>) inputCoder;
   }
@@ -240,32 +218,24 @@ public class GroupByKey<K, V>
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Returns the {@code Coder} of the keys of the input to this
-   * transform, which is also used as the {@code Coder} of the keys of
-   * the output of this transform.
+   * Returns the {@code Coder} of the keys of the input to this transform, which is also used as the
+   * {@code Coder} of the keys of the output of this transform.
    */
   public static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
     return getInputKvCoder(inputCoder).getKeyCoder();
   }
 
-  /**
-   * Returns the {@code Coder} of the values of the input to this transform.
-   */
+  /** Returns the {@code Coder} of the values of the input to this transform. */
   public static <K, V> Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
     return getInputKvCoder(inputCoder).getValueCoder();
   }
 
-  /**
-   * Returns the {@code Coder} of the {@code Iterable} values of the
-   * output of this transform.
-   */
+  /** Returns the {@code Coder} of the {@code Iterable} values of the output of this transform. */
   static <K, V> Coder<Iterable<V>> getOutputValueCoder(Coder<KV<K, V>> inputCoder) {
     return IterableCoder.of(getInputValueCoder(inputCoder));
   }
 
-  /**
-   * Returns the {@code Coder} of the output of this transform.
-   */
+  /** Returns the {@code Coder} of the output of this transform. */
   public static <K, V> KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
     return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
   }
@@ -274,9 +244,7 @@ public class GroupByKey<K, V>
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     if (fewKeys) {
-      builder.add(DisplayData.item("fewKeys", true)
-        .withLabel("Has Few Keys"));
+      builder.add(DisplayData.item("fewKeys", true).withLabel("Has Few Keys"));
     }
   }
-
 }

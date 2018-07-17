@@ -31,6 +31,7 @@ import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components.Builder;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -75,6 +76,7 @@ public class BundleFactoryOutputReceiverFactoryTest {
     PCollection<Integer> bar = p.apply("bar", Create.of(1, 2, 3));
 
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     String fooId = sdkComponents.registerPCollection(foo);
     String barId = sdkComponents.registerPCollection(bar);
     baseComponents = sdkComponents.toComponents();
@@ -206,8 +208,7 @@ public class BundleFactoryOutputReceiverFactoryTest {
 
     Components.Builder builder = baseComponents.toBuilder();
     String sdkWireCoderId = WireCoders.addSdkWireCoder(fooPC, builder);
-    String barSdkWireCoderId =
-        WireCoders.addSdkWireCoder(barPC, builder);
+    String barSdkWireCoderId = WireCoders.addSdkWireCoder(barPC, builder);
     Components components = builder.build();
 
     Coder<WindowedValue<String>> fooSdkCoder =

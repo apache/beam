@@ -58,12 +58,13 @@ import org.apache.beam.sdk.values.Row;
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to a
  * specific schema. The resulting coder is loaded into the default ClassLoader and returned.
  *
- * <p>When {@link RowCoderGenerator#generate(Schema, UUID)} is called, a new subclass of
- * {@literal Coder<Row>} is generated for the specified schema. This class is generated using
- * low-level bytecode generation, and hardcodes encodings for all fields of the Schema. Empirically,
- * this is 30-40% faster than a coder that introspects the schema.
+ * <p>When {@link RowCoderGenerator#generate(Schema, UUID)} is called, a new subclass of {@literal
+ * Coder<Row>} is generated for the specified schema. This class is generated using low-level
+ * bytecode generation, and hardcodes encodings for all fields of the Schema. Empirically, this is
+ * 30-40% faster than a coder that introspects the schema.
  *
  * <p>The generated class corresponds to the following Java class:
+ *
  * <pre>{@code
  * class SchemaRowCoder extends Coder<Row> {
  *   // Generated array containing a coder for each field in the Schema.
@@ -145,7 +146,7 @@ public abstract class RowCoderGenerator {
   }
 
   private static DynamicType.Builder<Coder> implementMethods(
-      Schema schema, DynamicType.Builder<Coder> builder){
+      Schema schema, DynamicType.Builder<Coder> builder) {
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))

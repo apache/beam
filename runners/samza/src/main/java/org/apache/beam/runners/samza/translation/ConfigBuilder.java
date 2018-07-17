@@ -62,9 +62,7 @@ import org.apache.samza.serializers.ByteSerdeFactory;
 import org.apache.samza.standalone.PassthroughCoordinationUtilsFactory;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
 
-/**
- * Builder class to generate configs for BEAM samza runner during runtime.
- */
+/** Builder class to generate configs for BEAM samza runner during runtime. */
 public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
 
@@ -74,9 +72,8 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
   private final Pipeline pipeline;
   private boolean foundSource = false;
 
-  public static Config buildConfig(Pipeline pipeline,
-                                   SamzaPipelineOptions options,
-                                   Map<PValue, String> idMap) {
+  public static Config buildConfig(
+      Pipeline pipeline, SamzaPipelineOptions options, Map<PValue, String> idMap) {
     try {
       final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
       pipeline.traverseTopologically(builder);
@@ -89,12 +86,16 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
       config.putAll(createUserConfig(options));
 
       config.put(JobConfig.JOB_NAME(), options.getJobName());
-      config.put("beamPipelineOptions",
+      config.put(
+          "beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
       // TODO: remove after SAMZA-1531 is resolved
-      config.put(ApplicationConfig.APP_RUN_ID, String.valueOf(System.currentTimeMillis()) + "-"
-          // use the most significant bits in UUID (8 digits) to avoid collision
-          + UUID.randomUUID().toString().substring(0, 8));
+      config.put(
+          ApplicationConfig.APP_RUN_ID,
+          String.valueOf(System.currentTimeMillis())
+              + "-"
+              // use the most significant bits in UUID (8 digits) to avoid collision
+              + UUID.randomUUID().toString().substring(0, 8));
 
       return new MapConfig(config);
     } catch (Exception e) {
@@ -109,8 +110,7 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
       final File configFile = new File(configFilePath);
-      checkArgument(configFile.exists(),
-          "Config file %s does not exist", configFilePath);
+      checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
       final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
       final URI configUri = configFile.toURI();
       config.putAll(configFactory.getConfig(configUri));
@@ -134,24 +134,28 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     // Default Samza config using local deployment of a single JVM
     return ImmutableMap.<String, String>builder()
         .put(APP_RUNNER_CLASS, LocalApplicationRunner.class.getName())
-        .put(JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
+        .put(
+            JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
             PassthroughJobCoordinatorFactory.class.getName())
-        .put(JobCoordinatorConfig.JOB_COORDINATION_UTILS_FACTORY,
+        .put(
+            JobCoordinatorConfig.JOB_COORDINATION_UTILS_FACTORY,
             PassthroughCoordinationUtilsFactory.class.getName())
         .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
-        .put(TaskConfig.COMMIT_MS(), "-1").put("processor.id", "1").build();
+        .put(TaskConfig.COMMIT_MS(), "-1")
+        .put("processor.id", "1")
+        .build();
   }
 
   private static void createConfigForSystemStore(Map<String, String> config) {
-    config.put("stores.beamStore.factory",
+    config.put(
+        "stores.beamStore.factory",
         "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
     config.put("stores.beamStore.key.serde", "byteSerde");
     config.put("stores.beamStore.msg.serde", "byteSerde");
     config.put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
   }
 
-  private ConfigBuilder(Map<PValue, String> idMap,
-                        Pipeline pipeline) {
+  private ConfigBuilder(Map<PValue, String> idMap, Pipeline pipeline) {
     this.idMap = idMap;
     this.pipeline = pipeline;
   }
@@ -175,8 +179,8 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
 
     @SuppressWarnings("unchecked")
     final PCollection<T> output =
-        (PCollection<T>) Iterables.getOnlyElement(
-            node.toAppliedPTransform(pipeline).getOutputs().values());
+        (PCollection<T>)
+            Iterables.getOnlyElement(node.toAppliedPTransform(pipeline).getOutputs().values());
     final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(BoundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
@@ -188,8 +192,8 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
 
     @SuppressWarnings("unchecked")
     final PCollection<T> output =
-        (PCollection<T>) Iterables.getOnlyElement(
-            node.toAppliedPTransform(pipeline).getOutputs().values());
+        (PCollection<T>)
+            Iterables.getOnlyElement(node.toAppliedPTransform(pipeline).getOutputs().values());
     final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(UnboundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
@@ -201,7 +205,8 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
         String storeId = state.id();
-        config.put("stores." + storeId + ".factory",
+        config.put(
+            "stores." + storeId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
         config.put("stores." + storeId + ".key.serde", "byteSerde");
         config.put("stores." + storeId + ".msg.serde", "byteSerde");

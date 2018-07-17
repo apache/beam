@@ -41,14 +41,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A row result of a {@link CoGroupByKey}.  This is a tuple of {@link Iterable}s produced for
- * a given key, and these can be accessed in different ways.
+ * A row result of a {@link CoGroupByKey}. This is a tuple of {@link Iterable}s produced for a given
+ * key, and these can be accessed in different ways.
  */
 public class CoGbkResult {
   /**
-   * A map of integer union tags to a list of union objects.
-   * Note: the key and the embedded union tag are the same, so it is redundant
-   * to store it multiple times, but for now it makes encoding easier.
+   * A map of integer union tags to a list of union objects. Note: the key and the embedded union
+   * tag are the same, so it is redundant to store it multiple times, but for now it makes encoding
+   * easier.
    */
   private final List<Iterable<?>> valueMap;
 
@@ -59,24 +59,19 @@ public class CoGbkResult {
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResult.class);
 
   /**
-   * A row in the {@link PCollection} resulting from a {@link CoGroupByKey} transform.
-   * Currently, this row must fit into memory.
+   * A row in the {@link PCollection} resulting from a {@link CoGroupByKey} transform. Currently,
+   * this row must fit into memory.
    *
-   * @param schema the set of tuple tags used to refer to input tables and
-   *               result values
+   * @param schema the set of tuple tags used to refer to input tables and result values
    * @param taggedValues the raw results from a group-by-key
    */
-  public CoGbkResult(
-      CoGbkResultSchema schema,
-      Iterable<RawUnionValue> taggedValues) {
+  public CoGbkResult(CoGbkResultSchema schema, Iterable<RawUnionValue> taggedValues) {
     this(schema, taggedValues, DEFAULT_IN_MEMORY_ELEMENT_COUNT);
   }
 
   @SuppressWarnings("unchecked")
   public CoGbkResult(
-      CoGbkResultSchema schema,
-      Iterable<RawUnionValue> taggedValues,
-      int inMemoryElementCount) {
+      CoGbkResultSchema schema, Iterable<RawUnionValue> taggedValues, int inMemoryElementCount) {
     this.schema = schema;
     valueMap = new ArrayList<>();
     for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
@@ -97,8 +92,8 @@ public class CoGbkResult {
       // schema.
       int unionTag = value.getUnionTag();
       if (schema.size() <= unionTag) {
-        throw new IllegalStateException("union tag " + unionTag
-            + " has no corresponding tuple tag in the result schema");
+        throw new IllegalStateException(
+            "union tag " + unionTag + " has no corresponding tuple tag in the result schema");
       }
       List<Object> valueList = (List<Object>) valueMap.get(unionTag);
       valueList.add(value.getValue());
@@ -108,8 +103,11 @@ public class CoGbkResult {
       // If we get here, there were more elements than we can afford to
       // keep in memory, so we copy the re-iterable of remaining items
       // and append filtered views to each of the sorted lists computed earlier.
-      LOG.info("CoGbkResult has more than " + inMemoryElementCount + " elements,"
-               + " reiteration (which may be slow) is required.");
+      LOG.info(
+          "CoGbkResult has more than "
+              + inMemoryElementCount
+              + " elements,"
+              + " reiteration (which may be slow) is required.");
       final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
       // This is a trinary-state array recording whether a given tag is present in the tail. The
       // initial value is null (unknown) for all tags, and the first iteration through the entire
@@ -142,9 +140,7 @@ public class CoGbkResult {
     return true;
   }
 
-  /**
-   * Returns the schema used by this {@link CoGbkResult}.
-   */
+  /** Returns the schema used by this {@link CoGbkResult}. */
   public CoGbkResultSchema getSchema() {
     return schema;
   }
@@ -155,18 +151,16 @@ public class CoGbkResult {
   }
 
   /**
-   * Returns the values from the table represented by the given
-   * {@code TupleTag<V>} as an {@code Iterable<V>} (which may be empty if there
-   * are no results).
+   * Returns the values from the table represented by the given {@code TupleTag<V>} as an {@code
+   * Iterable<V>} (which may be empty if there are no results).
    *
-   * <p>If tag was not part of the original {@link CoGroupByKey},
-   * throws an IllegalArgumentException.
+   * <p>If tag was not part of the original {@link CoGroupByKey}, throws an
+   * IllegalArgumentException.
    */
   public <V> Iterable<V> getAll(TupleTag<V> tag) {
     int index = schema.getIndex(tag);
     if (index < 0) {
-      throw new IllegalArgumentException("TupleTag " + tag
-          + " is not in the schema");
+      throw new IllegalArgumentException("TupleTag " + tag + " is not in the schema");
     }
     @SuppressWarnings("unchecked")
     Iterable<V> unions = (Iterable<V>) valueMap.get(index);
@@ -174,48 +168,40 @@ public class CoGbkResult {
   }
 
   /**
-   * If there is a singleton value for the given tag, returns it.
-   * Otherwise, throws an IllegalArgumentException.
+   * If there is a singleton value for the given tag, returns it. Otherwise, throws an
+   * IllegalArgumentException.
    *
-   * <p>If tag was not part of the original {@link CoGroupByKey},
-   * throws an IllegalArgumentException.
+   * <p>If tag was not part of the original {@link CoGroupByKey}, throws an
+   * IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag) {
     return innerGetOnly(tag, null, false);
   }
 
   /**
-   * If there is a singleton value for the given tag, returns it.  If there is
-   * no value for the given tag, returns the defaultValue.
+   * If there is a singleton value for the given tag, returns it. If there is no value for the given
+   * tag, returns the defaultValue.
    *
-   * <p>If tag was not part of the original {@link CoGroupByKey},
-   * throws an IllegalArgumentException.
+   * <p>If tag was not part of the original {@link CoGroupByKey}, throws an
+   * IllegalArgumentException.
    */
   @Nullable
   public <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
   }
 
-  /**
-   * A {@link Coder} for {@link CoGbkResult}s.
-   */
+  /** A {@link Coder} for {@link CoGbkResult}s. */
   public static class CoGbkResultCoder extends CustomCoder<CoGbkResult> {
 
     private final CoGbkResultSchema schema;
     private final UnionCoder unionCoder;
 
-    /**
-     * Returns a {@link CoGbkResultCoder} for the given schema and {@link UnionCoder}.
-     */
-    public static CoGbkResultCoder of(
-        CoGbkResultSchema schema,
-        UnionCoder unionCoder) {
+    /** Returns a {@link CoGbkResultCoder} for the given schema and {@link UnionCoder}. */
+    public static CoGbkResultCoder of(CoGbkResultSchema schema, UnionCoder unionCoder) {
       return new CoGbkResultCoder(schema, unionCoder);
     }
 
-    private CoGbkResultCoder(
-        CoGbkResultSchema tupleTags,
-        UnionCoder unionCoder) {
+    private CoGbkResultCoder(CoGbkResultSchema tupleTags, UnionCoder unionCoder) {
       this.schema = tupleTags;
       this.unionCoder = unionCoder;
     }
@@ -235,10 +221,8 @@ public class CoGbkResult {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void encode(
-        CoGbkResult value,
-        OutputStream outStream) throws CoderException,
-        IOException {
+    public void encode(CoGbkResult value, OutputStream outStream)
+        throws CoderException, IOException {
       if (!schema.equals(value.getSchema())) {
         throw new CoderException("input schema does not match coder schema");
       }
@@ -251,9 +235,7 @@ public class CoGbkResult {
     }
 
     @Override
-    public CoGbkResult decode(
-        InputStream inStream)
-        throws CoderException, IOException {
+    public CoGbkResult decode(InputStream inStream) throws CoderException, IOException {
       if (schema.size() == 0) {
         return new CoGbkResult(schema, ImmutableList.<Iterable<?>>of());
       }
@@ -293,73 +275,56 @@ public class CoGbkResult {
     }
   }
 
-
   //////////////////////////////////////////////////////////////////////////////
   // Methods for directly constructing a CoGbkResult
   //
   // (for example, creating test data for a transform that consumes a
   // CoGbkResult)
 
-  /**
-   * Returns a new CoGbkResult that contains just the given tag and given data.
-   */
+  /** Returns a new CoGbkResult that contains just the given tag and given data. */
   public static <V> CoGbkResult of(TupleTag<V> tag, List<V> data) {
     return CoGbkResult.empty().and(tag, data);
   }
 
   /**
-   * Returns a new {@link CoGbkResult} based on this, with the given tag and given data
-   * added to it.
+   * Returns a new {@link CoGbkResult} based on this, with the given tag and given data added to it.
    */
   public <V> CoGbkResult and(TupleTag<V> tag, List<V> data) {
     if (nextTestUnionId != schema.size()) {
       throw new IllegalArgumentException(
-          "Attempting to call and() on a CoGbkResult apparently not created by"
-          + " of().");
+          "Attempting to call and() on a CoGbkResult apparently not created by" + " of().");
     }
     List<Iterable<?>> valueMap = new ArrayList<>(this.valueMap);
     valueMap.add(data);
     return new CoGbkResult(
-        new CoGbkResultSchema(schema.getTupleTagList().and(tag)), valueMap,
-        nextTestUnionId + 1);
+        new CoGbkResultSchema(schema.getTupleTagList().and(tag)), valueMap, nextTestUnionId + 1);
   }
 
-  /**
-   * Returns an empty {@link CoGbkResult}.
-   */
+  /** Returns an empty {@link CoGbkResult}. */
   public static <V> CoGbkResult empty() {
-    return new CoGbkResult(new CoGbkResultSchema(TupleTagList.empty()),
-        new ArrayList<Iterable<?>>());
+    return new CoGbkResult(
+        new CoGbkResultSchema(TupleTagList.empty()), new ArrayList<Iterable<?>>());
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
   private int nextTestUnionId = 0;
 
-  private CoGbkResult(
-      CoGbkResultSchema schema,
-      List<Iterable<?>> valueMap,
-      int nextTestUnionId) {
+  private CoGbkResult(CoGbkResultSchema schema, List<Iterable<?>> valueMap, int nextTestUnionId) {
     this(schema, valueMap);
     this.nextTestUnionId = nextTestUnionId;
   }
 
-  private CoGbkResult(
-      CoGbkResultSchema schema,
-      List<Iterable<?>> valueMap) {
+  private CoGbkResult(CoGbkResultSchema schema, List<Iterable<?>> valueMap) {
     this.schema = schema;
     this.valueMap = valueMap;
   }
 
   @Nullable
-  private <V> V innerGetOnly(
-      TupleTag<V> tag,
-      @Nullable V defaultValue,
-      boolean useDefault) {
+  private <V> V innerGetOnly(TupleTag<V> tag, @Nullable V defaultValue, boolean useDefault) {
     int index = schema.getIndex(tag);
     if (index < 0) {
-      throw new IllegalArgumentException("TupleTag " + tag
-          + " is not in the schema");
+      throw new IllegalArgumentException("TupleTag " + tag + " is not in the schema");
     }
     @SuppressWarnings("unchecked")
     Iterator<V> unions = (Iterator<V>) valueMap.get(index).iterator();
@@ -367,21 +332,21 @@ public class CoGbkResult {
       if (useDefault) {
         return defaultValue;
       } else {
-        throw new IllegalArgumentException("TupleTag " + tag
-            + " corresponds to an empty result, and no default was provided");
+        throw new IllegalArgumentException(
+            "TupleTag " + tag + " corresponds to an empty result, and no default was provided");
       }
     }
     V value = unions.next();
     if (unions.hasNext()) {
-      throw new IllegalArgumentException("TupleTag " + tag
-          + " corresponds to a non-singleton result");
+      throw new IllegalArgumentException(
+          "TupleTag " + tag + " corresponds to a non-singleton result");
     }
     return value;
   }
 
   /**
-   * Lazily filters and recasts an {@code Iterator<RawUnionValue>} into an
-   * {@code Iterator<V>}, where V is the type of the raw union value's contents.
+   * Lazily filters and recasts an {@code Iterator<RawUnionValue>} into an {@code Iterator<V>},
+   * where V is the type of the raw union value's contents.
    */
   private static class UnionValueIterator<V> implements Iterator<V> {
 

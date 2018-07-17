@@ -34,9 +34,7 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * A factory able to instantiate an appropriate handler for a given PTransform.
- */
+/** A factory able to instantiate an appropriate handler for a given PTransform. */
 public interface PTransformRunnerFactory<T> {
   /**
    * Creates and returns a handler for a given PTransform. Note that the handler must support
@@ -79,8 +77,8 @@ public interface PTransformRunnerFactory<T> {
       throws IOException;
 
   /**
-   * A registrar which can return a mapping from {@link RunnerApi.FunctionSpec#getUrn()} to
-   * a factory capable of instantiating an appropriate handler.
+   * A registrar which can return a mapping from {@link RunnerApi.FunctionSpec#getUrn()} to a
+   * factory capable of instantiating an appropriate handler.
    */
   interface Registrar {
     /**

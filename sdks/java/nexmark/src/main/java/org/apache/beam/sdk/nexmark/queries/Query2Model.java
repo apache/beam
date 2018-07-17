@@ -27,13 +27,9 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-/**
- * A direct implementation of {@link Query2}.
- */
+/** A direct implementation of {@link Query2}. */
 public class Query2Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 2.
-   */
+  /** Simulator for query 2. */
   private class Simulator extends AbstractSimulator<Event, AuctionPrice> {
     public Simulator(NexmarkConfiguration configuration) {
       super(NexmarkUtils.standardEventIterator(configuration));

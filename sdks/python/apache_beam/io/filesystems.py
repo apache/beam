@@ -17,9 +17,12 @@
 
 """FileSystems interface class for accessing the correct filesystem"""
 
-import re
+from __future__ import absolute_import
 
-from six import string_types
+import re
+from builtins import object
+
+from past.builtins import unicode
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
@@ -46,6 +49,8 @@ try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   pass
+
+
 # pylint: enable=wrong-import-position, unused-import
 
 __all__ = ['FileSystems']
@@ -273,7 +278,7 @@ class FileSystems(object):
     Raises:
       ``BeamIOError`` if any of the delete operations fail
     """
-    if isinstance(paths, string_types):
+    if isinstance(paths, (str, unicode)):
       raise BeamIOError('Delete passed string argument instead of list: %s' %
                         paths)
     if len(paths) == 0:

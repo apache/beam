@@ -22,8 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -50,9 +51,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link WindowIntoTranslation}.
- */
+/** Tests for {@link WindowIntoTranslation}. */
 @RunWith(Parameterized.class)
 public class WindowIntoTranslationTest {
   @Parameters(name = "{index}: {0}")
@@ -70,8 +69,7 @@ public class WindowIntoTranslationTest {
   @Parameter(0)
   public WindowFn<?, ?> windowFn;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testToFromProto() throws InvalidProtocolBufferException {
@@ -92,6 +90,7 @@ public class WindowIntoTranslationTest {
     checkState(assign.get() != null);
 
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     WindowIntoPayload payload =
         WindowIntoTranslation.toProto(assign.get().getTransform(), components);
 

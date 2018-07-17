@@ -18,7 +18,6 @@
 
 package org.apache.beam.fn.harness.data;
 
-import io.grpc.ManagedChannel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +81,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
-    LOG.debug("Registering consumer for instruction {} and target {}",
+    LOG.debug(
+        "Registering consumer for instruction {} and target {}",
         inputLocation.getInstructionId(),
         inputLocation.getTarget());
 
@@ -97,8 +98,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    *
    * <p>The provided coder is used to encode elements on the outbound stream.
    *
-   * <p>On closing the returned consumer, an empty data block is sent as a signal of the
-   * logical data stream finishing.
+   * <p>On closing the returned consumer, an empty data block is sent as a signal of the logical
+   * data stream finishing.
    *
    * <p>The returned closeable consumer is not thread safe.
    */
@@ -123,9 +124,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     }
   }
 
-  /**
-   * Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set.
-   */
+  /** Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set. */
   private static Optional<Integer> getBufferLimit(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {

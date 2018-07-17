@@ -33,9 +33,9 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.joda.time.Duration;
 
 /**
- * A {@link WindowFn} that assigns all elements to a static collection of
- * {@link BoundedWindow BoundedWindows}. Side inputs windowed into static windows only support
- * main input windows in the provided collection of windows.
+ * A {@link WindowFn} that assigns all elements to a static collection of {@link BoundedWindow
+ * BoundedWindows}. Side inputs windowed into static windows only support main input windows in the
+ * provided collection of windows.
  */
 final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
   private final Supplier<Collection<BoundedWindow>> windows;

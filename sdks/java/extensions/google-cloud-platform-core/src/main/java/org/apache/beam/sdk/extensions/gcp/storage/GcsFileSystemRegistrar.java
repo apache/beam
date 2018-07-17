@@ -29,18 +29,14 @@ import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
- */
+/** {@link AutoService} registrar for the {@link GcsFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
 public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
   public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
-    checkNotNull(
-        options,
-        "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
+    checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
     return ImmutableList.of(new GcsFileSystem(options.as(GcsOptions.class)));
   }
 }

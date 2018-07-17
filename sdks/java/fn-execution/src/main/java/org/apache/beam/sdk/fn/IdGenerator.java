@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.fn;
 
-/**
- * A generator of unique IDs.
- */
+/** A generator of unique IDs. */
 public interface IdGenerator {
   String getId();
 }

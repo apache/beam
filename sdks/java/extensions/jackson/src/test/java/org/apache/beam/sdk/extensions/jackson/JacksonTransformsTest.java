@@ -34,57 +34,35 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test Jackson transforms {@link ParseJsons} and {@link AsJsons}.
- */
+/** Test Jackson transforms {@link ParseJsons} and {@link AsJsons}. */
 public class JacksonTransformsTest {
   private static final List<String> VALID_JSONS =
-      Arrays.asList(
-          "{\"myString\":\"abc\",\"myInt\":3}",
-          "{\"myString\":\"def\",\"myInt\":4}"
-      );
+      Arrays.asList("{\"myString\":\"abc\",\"myInt\":3}", "{\"myString\":\"def\",\"myInt\":4}");
 
   private static final List<String> INVALID_JSONS =
-      Arrays.asList(
-          "{myString:\"abc\",\"myInt\":3,\"other\":1}",
-          "{",
-          ""
-      );
+      Arrays.asList("{myString:\"abc\",\"myInt\":3,\"other\":1}", "{", "");
 
-  private static final List<String> EMPTY_JSONS =
-      Arrays.asList(
-          "{}",
-          "{}"
-      );
-
+  private static final List<String> EMPTY_JSONS = Arrays.asList("{}", "{}");
 
   private static final List<String> EXTRA_PROPERTIES_JSONS =
       Arrays.asList(
-          "{\"myString\":\"abc\",\"myInt\":3,\"other\":1}",
-          "{\"myString\":\"def\",\"myInt\":4}"
-      );
+          "{\"myString\":\"abc\",\"myInt\":3,\"other\":1}", "{\"myString\":\"def\",\"myInt\":4}");
 
   private static final List<MyPojo> POJOS =
-      Arrays.asList(
-          new MyPojo("abc", 3),
-          new MyPojo("def", 4)
-      );
+      Arrays.asList(new MyPojo("abc", 3), new MyPojo("def", 4));
 
   private static final List<MyEmptyBean> EMPTY_BEANS =
-      Arrays.asList(
-          new MyEmptyBean("abc", 3),
-          new MyEmptyBean("def", 4)
-      );
+      Arrays.asList(new MyEmptyBean("abc", 3), new MyEmptyBean("def", 4));
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void parseValidJsons() {
     PCollection<MyPojo> output =
         pipeline
             .apply(Create.of(VALID_JSONS))
-            .apply(ParseJsons.of(MyPojo.class)).setCoder(SerializableCoder.of(MyPojo.class));
+            .apply(ParseJsons.of(MyPojo.class))
+            .setCoder(SerializableCoder.of(MyPojo.class));
 
     PAssert.that(output).containsInAnyOrder(POJOS);
 
@@ -96,7 +74,8 @@ public class JacksonTransformsTest {
     PCollection<MyPojo> output =
         pipeline
             .apply(Create.of(Iterables.concat(VALID_JSONS, INVALID_JSONS)))
-            .apply(ParseJsons.of(MyPojo.class)).setCoder(SerializableCoder.of(MyPojo.class));
+            .apply(ParseJsons.of(MyPojo.class))
+            .setCoder(SerializableCoder.of(MyPojo.class));
 
     PAssert.that(output).containsInAnyOrder(POJOS);
 
@@ -108,7 +87,8 @@ public class JacksonTransformsTest {
     PCollection<MyPojo> output =
         pipeline
             .apply(Create.of(EXTRA_PROPERTIES_JSONS))
-            .apply(ParseJsons.of(MyPojo.class)).setCoder(SerializableCoder.of(MyPojo.class));
+            .apply(ParseJsons.of(MyPojo.class))
+            .setCoder(SerializableCoder.of(MyPojo.class));
 
     PAssert.that(output).empty();
 
@@ -123,8 +103,8 @@ public class JacksonTransformsTest {
     PCollection<MyPojo> output =
         pipeline
             .apply(Create.of(EXTRA_PROPERTIES_JSONS))
-            .apply(ParseJsons.of(MyPojo.class)
-                .withMapper(customMapper)).setCoder(SerializableCoder.of(MyPojo.class));
+            .apply(ParseJsons.of(MyPojo.class).withMapper(customMapper))
+            .setCoder(SerializableCoder.of(MyPojo.class));
 
     PAssert.that(output).containsInAnyOrder(POJOS);
 
@@ -136,7 +116,8 @@ public class JacksonTransformsTest {
     PCollection<String> output =
         pipeline
             .apply(Create.of(POJOS))
-            .apply(AsJsons.of(MyPojo.class)).setCoder(StringUtf8Coder.of());
+            .apply(AsJsons.of(MyPojo.class))
+            .setCoder(StringUtf8Coder.of());
 
     PAssert.that(output).containsInAnyOrder(VALID_JSONS);
 
@@ -147,11 +128,11 @@ public class JacksonTransformsTest {
   public void failWritingWithoutCustomMapper() {
     pipeline
         .apply(Create.of(EMPTY_BEANS))
-        .apply(AsJsons.of(MyEmptyBean.class)).setCoder(StringUtf8Coder.of());
+        .apply(AsJsons.of(MyEmptyBean.class))
+        .setCoder(StringUtf8Coder.of());
 
     pipeline.run();
   }
-
 
   @Test
   public void writeUsingCustomMapper() {
@@ -161,24 +142,21 @@ public class JacksonTransformsTest {
     PCollection<String> output =
         pipeline
             .apply(Create.of(EMPTY_BEANS))
-            .apply(AsJsons.of(MyEmptyBean.class)
-                .withMapper(customMapper)).setCoder(StringUtf8Coder.of());
+            .apply(AsJsons.of(MyEmptyBean.class).withMapper(customMapper))
+            .setCoder(StringUtf8Coder.of());
 
     PAssert.that(output).containsInAnyOrder(EMPTY_JSONS);
 
     pipeline.run();
   }
 
-  /**
-   * Pojo for tests.
-   */
+  /** Pojo for tests. */
   @SuppressWarnings({"WeakerAccess", "unused"})
   public static class MyPojo implements Serializable {
     private String myString;
     private int myInt;
 
-    public MyPojo() {
-    }
+    public MyPojo() {}
 
     public MyPojo(String myString, int myInt) {
       this.myString = myString;
@@ -213,8 +191,8 @@ public class JacksonTransformsTest {
 
       MyPojo myPojo = (MyPojo) o;
 
-      return myInt == myPojo.myInt && (myString != null ? myString.equals(myPojo.myString) :
-          myPojo.myString == null);
+      return myInt == myPojo.myInt
+          && (myString != null ? myString.equals(myPojo.myString) : myPojo.myString == null);
     }
 
     @Override
@@ -225,9 +203,7 @@ public class JacksonTransformsTest {
     }
   }
 
-  /**
-   * Pojo for tests.
-   */
+  /** Pojo for tests. */
   @SuppressWarnings({"WeakerAccess", "unused"})
   public static class MyEmptyBean implements Serializable {
     private String myString;

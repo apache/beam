@@ -15,10 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Provides extensions to be used with the runners such as metrics sinks.
- *
- */
+/** Provides extensions to be used with the runners such as metrics sinks. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.extensions.metrics;
 

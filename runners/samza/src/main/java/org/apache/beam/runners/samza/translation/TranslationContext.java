@@ -34,9 +34,9 @@ import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.StreamGraph;
 
 /**
- * Helper that keeps the mapping from BEAM {@link PValue}/{@link PCollectionView} to
- * Samza {@link MessageStream}. It also provides other context data such as input and output
- * of a {@link PTransform}.
+ * Helper that keeps the mapping from BEAM {@link PValue}/{@link PCollectionView} to Samza {@link
+ * MessageStream}. It also provides other context data such as input and output of a {@link
+ * PTransform}.
  */
 class TranslationContext {
   private final StreamGraph streamGraph;
@@ -49,10 +49,11 @@ class TranslationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
   private int topologicalId;
 
-  public TranslationContext(StreamGraph streamGraph,
-                            Map<PValue, String> idMap,
-                            SamzaPipelineOptions options,
-                            PValue dummySource) {
+  public TranslationContext(
+      StreamGraph streamGraph,
+      Map<PValue, String> idMap,
+      SamzaPipelineOptions options,
+      PValue dummySource) {
     this.streamGraph = streamGraph;
     this.idMap = idMap;
     this.options = options;
@@ -66,8 +67,7 @@ class TranslationContext {
     }
   }
 
-  public <OutT> void registerMessageStream(PValue pvalue,
-                                           MessageStream<OpMessage<OutT>> stream) {
+  public <OutT> void registerMessageStream(PValue pvalue, MessageStream<OpMessage<OutT>> stream) {
     if (messsageStreams.containsKey(pvalue)) {
       throw new IllegalArgumentException("Stream already registered for pvalue: " + pvalue);
     }
@@ -93,8 +93,8 @@ class TranslationContext {
     return stream;
   }
 
-  public <ElemT, ViewT> void registerViewStream(PCollectionView<ViewT> view,
-                                         MessageStream<OpMessage<Iterable<ElemT>>> stream) {
+  public <ElemT, ViewT> void registerViewStream(
+      PCollectionView<ViewT> view, MessageStream<OpMessage<Iterable<ElemT>>> stream) {
     if (viewStreams.containsKey(view)) {
       throw new IllegalArgumentException("Stream already registered for view: " + view);
     }
@@ -129,8 +129,9 @@ class TranslationContext {
   }
 
   /**
-   * Uniquely identify a node when doing a topological traversal of the BEAM
-   * {@link org.apache.beam.sdk.Pipeline}. It's changed on a per-node basis.
+   * Uniquely identify a node when doing a topological traversal of the BEAM {@link
+   * org.apache.beam.sdk.Pipeline}. It's changed on a per-node basis.
+   *
    * @param id id for the node.
    */
   public void setCurrentTopologicalId(int id) {
@@ -143,8 +144,8 @@ class TranslationContext {
 
   @SuppressWarnings("unchecked")
   public <InT extends PValue> InT getInput(PTransform<InT, ?> transform) {
-    return (InT) Iterables.getOnlyElement(
-        TransformInputs.nonAdditionalInputs(this.currentTransform));
+    return (InT)
+        Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(this.currentTransform));
   }
 
   @SuppressWarnings("unchecked")
@@ -163,10 +164,11 @@ class TranslationContext {
 
   private <OutT> void doRegisterInputMessageStream(PValue pvalue) {
     @SuppressWarnings("unchecked")
-    final MessageStream<OpMessage<OutT>> typedStream = streamGraph
-        .<org.apache.samza.operators.KV<?, OpMessage<OutT>>>
-            getInputStream(getIdForPValue(pvalue))
-        .map(org.apache.samza.operators.KV::getValue);
+    final MessageStream<OpMessage<OutT>> typedStream =
+        streamGraph
+            .<org.apache.samza.operators.KV<?, OpMessage<OutT>>>getInputStream(
+                getIdForPValue(pvalue))
+            .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(pvalue, typedStream);
   }

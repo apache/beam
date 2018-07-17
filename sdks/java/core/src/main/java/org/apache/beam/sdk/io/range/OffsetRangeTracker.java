@@ -48,15 +48,13 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
    */
   public static final long OFFSET_INFINITY = Long.MAX_VALUE;
 
-  /**
-   * Creates an {@code OffsetRangeTracker} for the specified range.
-   */
+  /** Creates an {@code OffsetRangeTracker} for the specified range. */
   public OffsetRangeTracker(long startOffset, long stopOffset) {
     this.startOffset = startOffset;
     this.stopOffset = stopOffset;
   }
 
-  private OffsetRangeTracker() { }
+  private OffsetRangeTracker() {}
 
   public synchronized boolean isStarted() {
     // done => started: handles the case when the reader was empty.
@@ -91,17 +89,14 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
       throw new IllegalStateException(
           String.format(
               "Trying to return record [starting at %d] which is before the start offset [%d]",
-              recordStart,
-              startOffset));
-
+              recordStart, startOffset));
     }
     if (recordStart < lastRecordStart) {
       throw new IllegalStateException(
           String.format(
               "Trying to return record [starting at %d] "
                   + "which is before the last-returned record [starting at %d]",
-              recordStart,
-              lastRecordStart));
+              recordStart, lastRecordStart));
     }
 
     if (lastRecordStart == -1) {
@@ -163,8 +158,8 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
 
   /**
    * Returns a position {@code P} such that the range {@code [start, P)} represents approximately
-   * the given fraction of the range {@code [start, end)}. Assumes that the density of records
-   * in the range is approximately uniform.
+   * the given fraction of the range {@code [start, end)}. Assumes that the density of records in
+   * the range is approximately uniform.
    */
   public synchronized long getPositionForFractionConsumed(double fraction) {
     if (stopOffset == OFFSET_INFINITY) {
@@ -196,19 +191,18 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
   /**
    * Returns the total number of split points that have been processed.
    *
-   * <p>A split point at a particular offset has been seen if there has been a corresponding call
-   * to {@link #tryReturnRecordAt(boolean, long)} with {@code isAtSplitPoint} true. It has been
-   * processed if there has been a <em>subsequent</em> call to
-   * {@link #tryReturnRecordAt(boolean, long)} with {@code isAtSplitPoint} true and at a larger
-   * offset.
+   * <p>A split point at a particular offset has been seen if there has been a corresponding call to
+   * {@link #tryReturnRecordAt(boolean, long)} with {@code isAtSplitPoint} true. It has been
+   * processed if there has been a <em>subsequent</em> call to {@link #tryReturnRecordAt(boolean,
+   * long)} with {@code isAtSplitPoint} true and at a larger offset.
    *
    * <p>Note that for correctness when implementing {@link BoundedReader#getSplitPointsConsumed()},
-   * if a reader finishes before {@link #tryReturnRecordAt(boolean, long)} returns false,
-   * the reader should add an additional call to {@link #markDone()}. This will indicate that
-   * processing for the last seen split point has been finished.
+   * if a reader finishes before {@link #tryReturnRecordAt(boolean, long)} returns false, the reader
+   * should add an additional call to {@link #markDone()}. This will indicate that processing for
+   * the last seen split point has been finished.
    *
-   * @see org.apache.beam.sdk.io.OffsetBasedSource for a {@link BoundedReader}
-   * implemented using {@link OffsetRangeTracker}.
+   * @see org.apache.beam.sdk.io.OffsetBasedSource for a {@link BoundedReader} implemented using
+   *     {@link OffsetRangeTracker}.
    */
   public synchronized long getSplitPointsProcessed() {
     if (!isStarted()) {
@@ -225,19 +219,19 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
     }
   }
 
-
   /**
    * Marks this range tracker as being done. Specifically, this will mark the current split point,
    * if one exists, as being finished.
    *
-   * <p>Always returns false, so that it can be used in an implementation of
-   * {@link BoundedReader#start()} or {@link BoundedReader#advance()} as follows:
+   * <p>Always returns false, so that it can be used in an implementation of {@link
+   * BoundedReader#start()} or {@link BoundedReader#advance()} as follows:
    *
-   * <pre> {@code
+   * <pre>{@code
    * public boolean start() {
    *   return startImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint, position)
    *       || rangeTracker.markDone();
-   * }} </pre>
+   * }
+   * }</pre>
    */
   public synchronized boolean markDone() {
     done = true;
@@ -250,17 +244,15 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
     if (lastRecordStart >= 0) {
       return String.format(
           "<at [starting at %d] of offset range [%d, %s)>",
-          lastRecordStart,
-          startOffset,
-          stopString);
+          lastRecordStart, startOffset, stopString);
     } else {
       return String.format("<unstarted in offset range [%d, %s)>", startOffset, stopString);
     }
   }
 
   /**
-   * Returns a copy of this tracker for testing purposes (to simplify testing methods with
-   * side effects).
+   * Returns a copy of this tracker for testing purposes (to simplify testing methods with side
+   * effects).
    */
   @VisibleForTesting
   OffsetRangeTracker copy() {

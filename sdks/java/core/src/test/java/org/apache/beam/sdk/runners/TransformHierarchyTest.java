@@ -69,9 +69,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TransformHierarchy}.
- */
+/** Tests for {@link TransformHierarchy}. */
 @RunWith(JUnit4.class)
 public class TransformHierarchyTest implements Serializable {
   @Rule
@@ -296,8 +294,8 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
     hierarchy.setOutput(replacementOutput.get(longs));
 
-    Entry<TupleTag<?>, PValue>
-        replacementLongs = Iterables.getOnlyElement(replacementOutput.expand().entrySet());
+    Entry<TupleTag<?>, PValue> replacementLongs =
+        Iterables.getOnlyElement(replacementOutput.expand().entrySet());
     hierarchy.replaceOutputs(
         Collections.singletonMap(
             replacementOutput.get(longs),
@@ -402,9 +400,9 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   /**
-   * Tests that visiting the {@link TransformHierarchy} after replacing nodes does not visit any
-   * of the original nodes or inaccessible values but does visit all of the replacement nodes,
-   * new inaccessible replacement values, and the original output values.
+   * Tests that visiting the {@link TransformHierarchy} after replacing nodes does not visit any of
+   * the original nodes or inaccessible values but does visit all of the replacement nodes, new
+   * inaccessible replacement values, and the original output values.
    */
   @Test
   public void visitAfterReplace() {
@@ -486,9 +484,9 @@ public class TransformHierarchyTest implements Serializable {
             });
 
     /*
-     Final Graph:
-     Upstream -> Upstream.out -> Composite -> (ReplacementParDo -> OriginalParDo.out)
-     */
+    Final Graph:
+    Upstream -> Upstream.out -> Composite -> (ReplacementParDo -> OriginalParDo.out)
+    */
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(upstreamNode, replacementParNode));
     assertThat(visitedValues, containsInAnyOrder(upstream, output));
@@ -539,9 +537,7 @@ public class TransformHierarchyTest implements Serializable {
             return input.apply(producer);
           }
         });
-    hierarchy.pushNode(
-        "creates_one_and_two",
-        PBegin.in(pipeline), producer);
+    hierarchy.pushNode("creates_one_and_two", PBegin.in(pipeline), producer);
     hierarchy.setOutput(oneAndTwo);
     hierarchy.popNode();
     hierarchy.setOutput(oneAndTwo);
@@ -614,13 +610,10 @@ public class TransformHierarchyTest implements Serializable {
   public void visitDoesNotVisitSkippedNodes() {
     PCollection<String> one =
         PCollection.createPrimitiveOutputInternal(
-                pipeline,
-                WindowingStrategy.globalDefault(),
-                IsBounded.BOUNDED,
-                StringUtf8Coder.of());
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
     final PCollection<Integer> two =
         PCollection.createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED, VarIntCoder.of());
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED, VarIntCoder.of());
     final PDone done = PDone.in(pipeline);
     final TupleTag<String> oneTag = new TupleTag<String>() {};
     final TupleTag<Integer> twoTag = new TupleTag<Integer>() {};

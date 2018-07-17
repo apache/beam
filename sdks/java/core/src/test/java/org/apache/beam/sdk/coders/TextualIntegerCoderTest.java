@@ -31,18 +31,14 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link TextualIntegerCoder}.
- */
+/** Test case for {@link TextualIntegerCoder}. */
 @RunWith(JUnit4.class)
 public class TextualIntegerCoderTest {
 
   private static final Coder<Integer> TEST_CODER = TextualIntegerCoder.of();
 
-  private static final List<Integer> TEST_VALUES = Arrays.asList(
-      -11, -3, -1, 0, 1, 5, 13, 29,
-      Integer.MAX_VALUE,
-      Integer.MIN_VALUE);
+  private static final List<Integer> TEST_VALUES =
+      Arrays.asList(-11, -3, -1, 0, 1, 5, 13, 29, Integer.MAX_VALUE, Integer.MIN_VALUE);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -52,28 +48,28 @@ public class TextualIntegerCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "LTEx",
-      "LTM",
-      "LTE",
-      "MA",
-      "MQ",
-      "NQ",
-      "MTM",
-      "Mjk",
-      "MjE0NzQ4MzY0Nw",
-      "LTIxNDc0ODM2NDg");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "LTEx",
+          "LTM",
+          "LTE",
+          "MA",
+          "MQ",
+          "NQ",
+          "MTM",
+          "Mjk",
+          "MjE0NzQ4MzY0Nw",
+          "LTIxNDc0ODM2NDg");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

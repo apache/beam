@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 /**
- * Defines {@link org.apache.beam.sdk.schemas.Schema} and other classes for
- * representing schema'd data in a {@link org.apache.beam.sdk.Pipeline}.
+ * Defines {@link org.apache.beam.sdk.schemas.Schema} and other classes for representing schema'd
+ * data in a {@link org.apache.beam.sdk.Pipeline}.
  *
  * <p>For further details, see the documentation for each class in this package.
  */

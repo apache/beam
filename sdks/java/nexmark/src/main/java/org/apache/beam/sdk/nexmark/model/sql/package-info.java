@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * org.apache.beam.sdk.nexmark.model.sql.
- */
+/** org.apache.beam.sdk.nexmark.model.sql. */
 
-/**
- * Java model conversion to Beam SQL model.
- */
+/** Java model conversion to Beam SQL model. */
 package org.apache.beam.sdk.nexmark.model.sql;

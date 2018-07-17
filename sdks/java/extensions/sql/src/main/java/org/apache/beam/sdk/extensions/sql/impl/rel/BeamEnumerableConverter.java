@@ -20,19 +20,18 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -42,12 +41,9 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
@@ -71,6 +67,7 @@ import org.apache.calcite.rel.convert.ConverterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.joda.time.Duration;
+import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,38 +133,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
-  enum LimitState {
-    REACHED,
-    NOT_REACHED
-  }
-
-  private static class LimitStateVar implements Serializable {
-    private LimitState state;
-
-    public LimitStateVar() {
-      state = LimitState.NOT_REACHED;
-    }
-
-    public void setReached() {
-      state = LimitState.REACHED;
-    }
-
-    public boolean isReached() {
-      return state == LimitState.REACHED;
-    }
-  }
-
   private static PipelineResult limitRun(
       PipelineOptions options,
       BeamRelNode node,
-      DoFn<Row, KV<String, Row>> collectDoFn,
-      DoFn<KV<String, Row>, Void> limitCounterDoFn,
-      LimitStateVar limitStateVar) {
+      DoFn<Row, Void> doFn,
+      Queue<Object> values,
+      int limitCount) {
     options.as(DirectOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
-    BeamSqlRelUtils.toPCollection(pipeline, node)
-        .apply(ParDo.of(collectDoFn))
-        .apply(ParDo.of(limitCounterDoFn));
+    PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
+    resultCollection.apply(ParDo.of(doFn));
 
     PipelineResult result = pipeline.run();
 
@@ -178,10 +153,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       if (state != null && state.isTerminal()) {
         break;
       }
-      // If state is null, or state is not null and indicates pipeline is not terminated
-      // yet, check continue checking the limit var.
+
       try {
-        if (limitStateVar.isReached()) {
+        if (values.size() >= limitCount) {
           result.cancel();
           break;
         }
@@ -190,6 +164,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         break;
       }
     }
+
     return result;
   }
 
@@ -207,7 +182,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Collector.globalValues.put(id, values);
 
     Pipeline pipeline = Pipeline.create(options);
-    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(new Collector()));
+    PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
+    resultCollection.apply(ParDo.of(new Collector()));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
@@ -227,80 +203,22 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             .equals("org.apache.beam.runners.direct.DirectRunner"),
         "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
-    LimitStateVar limitStateVar = new LimitStateVar();
     int limitCount = getLimitCount(node);
 
-    LimitCanceller.globalLimitArguments.put(id, limitCount);
-    LimitCanceller.globalStates.put(id, limitStateVar);
-    LimitCollector.globalValues.put(id, values);
-    limitRun(options, node, new LimitCollector(), new LimitCanceller(), limitStateVar);
-    LimitCanceller.globalLimitArguments.remove(id);
-    LimitCanceller.globalStates.remove(id);
-    LimitCollector.globalValues.remove(id);
+    Collector.globalValues.put(id, values);
+    limitRun(options, node, new Collector(), values, limitCount);
+    Collector.globalValues.remove(id);
+
+    // remove extra retrieved values
+    while (values.size() > limitCount) {
+      values.remove();
+    }
 
     return Linq4j.asEnumerable(values);
   }
 
-  private static class LimitCanceller extends DoFn<KV<String, Row>, Void> {
-    private static final Map<Long, Integer> globalLimitArguments =
-        new ConcurrentHashMap<Long, Integer>();
-    private static final Map<Long, LimitStateVar> globalStates =
-        new ConcurrentHashMap<Long, LimitStateVar>();
-
-    @Nullable private volatile Integer count;
-    @Nullable private volatile LimitStateVar limitStateVar;
-
-    @StateId("counter")
-    private final StateSpec<ValueState<Integer>> counter = StateSpecs.value(VarIntCoder.of());
-
-    @StartBundle
-    public void startBundle(StartBundleContext context) {
-      long id = context.getPipelineOptions().getOptionsId();
-      count = globalLimitArguments.get(id);
-      limitStateVar = globalStates.get(id);
-    }
-
-    @ProcessElement
-    public void processElement(
-        ProcessContext context, @StateId("counter") ValueState<Integer> counter) {
-      int current = (counter.read() != null ? counter.read() : 0);
-      current += 1;
-      if (current >= count && !limitStateVar.isReached()) {
-        // if current count reaches the limit count but limitStateVar has not been set, flip
-        // the var.
-        limitStateVar.setReached();
-      }
-
-      counter.write(current);
-    }
-  }
-
-  private static class LimitCollector extends DoFn<Row, KV<String, Row>> {
-    // This will only work on the direct runner.
-    private static final Map<Long, Queue<Object>> globalValues =
-        new ConcurrentHashMap<Long, Queue<Object>>();
-
-    @Nullable private volatile Queue<Object> values;
-
-    @StartBundle
-    public void startBundle(StartBundleContext context) {
-      long id = context.getPipelineOptions().getOptionsId();
-      values = globalValues.get(id);
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      Object[] input = context.element().getValues().toArray();
-      if (input.length == 1) {
-        values.add(input[0]);
-      } else {
-        values.add(input);
-      }
-      context.output(KV.of("DummyKey", context.element()));
-    }
-  }
-
   private static class Collector extends DoFn<Row, Void> {
+
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
@@ -315,12 +233,59 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      Object[] input = context.element().getValues().toArray();
-      if (input.length == 1) {
-        values.add(input[0]);
+      Object[] avaticaRow = rowToAvatica(context.element());
+      if (avaticaRow.length == 1) {
+        values.add(avaticaRow[0]);
       } else {
-        values.add(input);
+        values.add(avaticaRow);
       }
+    }
+  }
+
+  private static Object[] rowToAvatica(Row row) {
+    Schema schema = row.getSchema();
+    Object[] convertedColumns = new Object[schema.getFields().size()];
+    int i = 0;
+    for (Schema.Field field : schema.getFields()) {
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      ++i;
+    }
+    return convertedColumns;
+  }
+
+  private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
+    switch (type.getTypeName()) {
+      case DATETIME:
+        return ((ReadableInstant) beamValue).getMillis();
+      case BYTE:
+      case INT16:
+      case INT32:
+      case INT64:
+      case DECIMAL:
+      case FLOAT:
+      case DOUBLE:
+      case STRING:
+      case BOOLEAN:
+        return beamValue;
+      case ARRAY:
+        return ((List<?>) beamValue)
+            .stream()
+            .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
+            .collect(Collectors.toList());
+      case MAP:
+        return ((Map<?, ?>) beamValue)
+            .entrySet()
+            .stream()
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey(),
+                    entry -> fieldToAvatica(type.getCollectionElementType(), entry.getValue())));
+      case ROW:
+        // TODO: needs to be a Struct
+        return beamValue;
+      default:
+        throw new IllegalStateException(
+            String.format("Unreachable case for Beam typename %s", type.getTypeName()));
     }
   }
 

@@ -65,9 +65,7 @@ public class Query10 extends NexmarkQuery {
   private static final int NUM_SHARDS_PER_WORKER = 5;
   private static final Duration LATE_BATCHING_PERIOD = Duration.standardSeconds(10);
 
-  /**
-   * Capture everything we need to know about the records in a single output file.
-   */
+  /** Capture everything we need to know about the records in a single output file. */
   private static class OutputFile implements Serializable {
     /** Maximum possible timestamp of records in file. */
     private final Instant maxTimestamp;
@@ -78,8 +76,7 @@ public class Query10 extends NexmarkQuery {
     /** Timing of records in this file. */
     private final PaneInfo.Timing timing;
     /** Path to file containing records, or {@literal null} if no output required. */
-    @Nullable
-    private final String filename;
+    @Nullable private final String filename;
 
     public OutputFile(
         Instant maxTimestamp,
@@ -100,15 +97,10 @@ public class Query10 extends NexmarkQuery {
     }
   }
 
-  /**
-   * GCS uri prefix for all log and 'finished' files. If null they won't be written.
-   */
-  @Nullable
-  private String outputPath;
+  /** GCS uri prefix for all log and 'finished' files. If null they won't be written. */
+  @Nullable private String outputPath;
 
-  /**
-   * Maximum number of workers, used to determine log sharding factor.
-   */
+  /** Maximum number of workers, used to determine log sharding factor. */
   private int maxNumWorkers;
 
   public Query10(NexmarkConfiguration configuration) {
@@ -123,9 +115,7 @@ public class Query10 extends NexmarkQuery {
     this.maxNumWorkers = maxNumWorkers;
   }
 
-  /**
-   * Return channel for writing bytes to GCS.
-   */
+  /** Return channel for writing bytes to GCS. */
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
     //TODO
@@ -151,20 +141,25 @@ public class Query10 extends NexmarkQuery {
 
   /** Construct an {@link OutputFile} for {@code pane} in {@code window} for {@code shard}. */
   private OutputFile outputFileFor(BoundedWindow window, String shard, PaneInfo pane) {
-    @Nullable String filename =
+    @Nullable
+    String filename =
         outputPath == null
-        ? null
-        : String.format("%s/LOG-%s-%s-%03d-%s-%x",
-            outputPath, window.maxTimestamp(), shard, pane.getIndex(),
-            timingToString(pane.getTiming()),
-            ThreadLocalRandom.current().nextLong());
-    return new OutputFile(window.maxTimestamp(), shard, pane.getIndex(),
-        pane.getTiming(), filename);
+            ? null
+            : String.format(
+                "%s/LOG-%s-%s-%03d-%s-%x",
+                outputPath,
+                window.maxTimestamp(),
+                shard,
+                pane.getIndex(),
+                timingToString(pane.getTiming()),
+                ThreadLocalRandom.current().nextLong());
+    return new OutputFile(
+        window.maxTimestamp(), shard, pane.getIndex(), pane.getTiming(), filename);
   }
 
   /**
-   * Return path to which we should write the index for {@code window}, or {@literal null}
-   * if no output required.
+   * Return path to which we should write the index for {@code window}, or {@literal null} if no
+   * output required.
    */
   @Nullable
   private String indexPathFor(BoundedWindow window) {

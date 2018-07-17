@@ -43,8 +43,7 @@ interface RootInputProvider<T, ShardT, InputT extends PInput> {
    *     greater than or equal to 1.
    */
   Collection<CommittedBundle<ShardT>> getInitialInputs(
-      AppliedPTransform<InputT, PCollection<T>, PTransform<InputT, PCollection<T>>>
-          transform,
+      AppliedPTransform<InputT, PCollection<T>, PTransform<InputT, PCollection<T>>> transform,
       int targetParallelism)
       throws Exception;
 }

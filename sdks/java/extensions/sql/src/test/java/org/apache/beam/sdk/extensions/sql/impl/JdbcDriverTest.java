@@ -19,6 +19,9 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.sdk.values.Row.toRow;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -31,8 +34,13 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
@@ -41,9 +49,14 @@ import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.schema.SchemaPlus;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.ReadableInstant;
+import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -93,6 +106,46 @@ public class JdbcDriverTest {
     Statement statement = connection.createStatement();
     // SELECT 1 is a special case and does not reach the parser
     assertTrue(statement.execute("SELECT 1"));
+  }
+
+  /** Tests that the userAgent is set in the pipeline options of the connection. */
+  @Test
+  public void testDriverManager_defaultUserAgent() throws Exception {
+    Connection connection = DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
+    SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
+    BeamCalciteSchema beamSchema =
+        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.get("userAgent"), containsString("BeamSQL"));
+  }
+
+  /** Tests that userAgent can be overridden on the querystring. */
+  @Test
+  public void testDriverManager_setUserAgent() throws Exception {
+    Connection connection =
+        DriverManager.getConnection(
+            JdbcDriver.CONNECT_STRING_PREFIX + "beam.userAgent=Secret Agent");
+    SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
+    BeamCalciteSchema beamSchema =
+        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.get("userAgent"), equalTo("Secret Agent"));
+  }
+
+  /** Tests that unknown pipeline options are passed verbatim from the JDBC URI. */
+  @Test
+  public void testDriverManager_pipelineOptionsPlumbing() throws Exception {
+    Connection connection =
+        DriverManager.getConnection(
+            JdbcDriver.CONNECT_STRING_PREFIX
+                + "beam.foo=baz;beam.foobizzle=mahshizzle;other=smother");
+    SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
+    BeamCalciteSchema beamSchema =
+        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    assertThat(pipelineOptions.get("foo"), equalTo("baz"));
+    assertThat(pipelineOptions.get("foobizzle"), equalTo("mahshizzle"));
+    assertThat(pipelineOptions.get("other"), nullValue());
   }
 
   @Test
@@ -150,6 +203,91 @@ public class JdbcDriverTest {
             .collect(Collectors.toList());
 
     assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  @Ignore("https://issues.apache.org/jira/browse/CALCITE-2394")
+  public void testTimestampWithDefaultTimezone() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    // A table with one TIMESTAMP column
+    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+
+    ReadableInstant july1 =
+        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery(String.format("SELECT ts FROM test"));
+    selectResult.next();
+    Timestamp ts = selectResult.getTimestamp(1);
+
+    assertThat(
+        String.format(
+            "Wrote %s to a table, but got back %s",
+            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(ts.getTime())),
+        ts.getTime(),
+        equalTo(july1.getMillis()));
+  }
+
+  @Test
+  @Ignore("https://issues.apache.org/jira/browse/CALCITE-2394")
+  public void testTimestampWithNonzeroTimezone() throws Exception {
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"), Locale.ROOT);
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    // A table with one TIMESTAMP column
+    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+
+    ReadableInstant july1 =
+        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery(String.format("SELECT ts FROM test"));
+    selectResult.next();
+    Timestamp ts = selectResult.getTimestamp(1, cal);
+
+    assertThat(
+        String.format(
+            "Wrote %s to a table, but got back %s",
+            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(ts.getTime())),
+        ts.getTime(),
+        equalTo(july1.getMillis()));
+  }
+
+  @Test
+  public void testTimestampWithZeroTimezone() throws Exception {
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    // A table with one TIMESTAMP column
+    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+
+    ReadableInstant july1 =
+        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery(String.format("SELECT ts FROM test"));
+    selectResult.next();
+    Timestamp ts = selectResult.getTimestamp(1, cal);
+
+    assertThat(
+        String.format(
+            "Wrote %s to a table, but got back %s",
+            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(ts.getTime())),
+        ts.getTime(),
+        equalTo(july1.getMillis()));
   }
 
   @Test

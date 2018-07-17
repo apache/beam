@@ -57,5 +57,4 @@ public class CacheTest {
     pipeline.traverseTopologically(cacheVisitor);
     assertEquals(2L, (long) ctxt.getCacheCandidates().get(pCollection));
   }
-
 }

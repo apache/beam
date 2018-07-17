@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.model;
 
-/**
- * Interface for elements which can quickly estimate their encoded byte size.
- */
+/** Interface for elements which can quickly estimate their encoded byte size. */
 public interface KnownSize {
   long sizeInBytes();
 }
-

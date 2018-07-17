@@ -21,14 +21,10 @@ package org.apache.beam.runners.samza.metrics;
 import java.io.Closeable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
-/**
- * This class wraps a {@link java.util.function.Supplier} function call with BEAM metrics.
- */
+/** This class wraps a {@link java.util.function.Supplier} function call with BEAM metrics. */
 public class FnWithMetricsWrapper {
 
-  /**
-   * Interface for functions to be wrapped with metrics.
-   */
+  /** Interface for functions to be wrapped with metrics. */
   public interface SupplierWithException<T> {
     T get() throws Exception;
   }

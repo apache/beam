@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.kinesis;
 
 import com.amazonaws.AmazonClientException;
 
-/**
- * A transient exception thrown by Kinesis.
- */
+/** A transient exception thrown by Kinesis. */
 class TransientKinesisException extends Exception {
 
   public TransientKinesisException(String s, AmazonClientException e) {

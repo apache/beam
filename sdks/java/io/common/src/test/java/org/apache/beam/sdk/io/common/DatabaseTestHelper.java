@@ -25,9 +25,7 @@ import java.util.Date;
 import javax.sql.DataSource;
 import org.postgresql.ds.PGSimpleDataSource;
 
-/**
- * This class contains helper methods to ease database usage in tests.
- */
+/** This class contains helper methods to ease database usage in tests. */
 public class DatabaseTestHelper {
 
   public static PGSimpleDataSource getPostgresDataSource(PostgresIOTestPipelineOptions options) {
@@ -41,18 +39,15 @@ public class DatabaseTestHelper {
     return dataSource;
   }
 
-  public static void createTable(DataSource dataSource, String tableName)
-      throws SQLException {
+  public static void createTable(DataSource dataSource, String tableName) throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
-        statement.execute(
-            String.format("create table %s (id INT, name VARCHAR(500))", tableName));
+        statement.execute(String.format("create table %s (id INT, name VARCHAR(500))", tableName));
       }
     }
   }
 
-  public static void deleteTable(DataSource dataSource, String tableName)
-      throws SQLException {
+  public static void deleteTable(DataSource dataSource, String tableName) throws SQLException {
     if (tableName != null) {
       try (Connection connection = dataSource.getConnection();
           Statement statement = connection.createStatement()) {
@@ -72,7 +67,6 @@ public class DatabaseTestHelper {
         "jdbc:postgresql://%s:%s/%s",
         options.getPostgresServerName(),
         options.getPostgresPort(),
-        options.getPostgresDatabaseName()
-    );
+        options.getPostgresDatabaseName());
   }
 }

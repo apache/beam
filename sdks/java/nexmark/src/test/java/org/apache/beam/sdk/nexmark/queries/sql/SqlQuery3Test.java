@@ -33,65 +33,64 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link SqlQuery3}.
- */
+/** Unit tests for {@link SqlQuery3}. */
 public class SqlQuery3Test {
 
-  private static final List<Person> PEOPLE = ImmutableList.of(
-      newPerson(0L, "WA"),
-      newPerson(1L, "CA"), // matches query
-      newPerson(2L, "OR"), // matches query
-      newPerson(3L, "ID"), // matches query
-      newPerson(4L, "NY"));
+  private static final List<Person> PEOPLE =
+      ImmutableList.of(
+          newPerson(0L, "WA"),
+          newPerson(1L, "CA"), // matches query
+          newPerson(2L, "OR"), // matches query
+          newPerson(3L, "ID"), // matches query
+          newPerson(4L, "NY"));
 
-  private static final List<Auction> AUCTIONS = ImmutableList.of(
-      newAuction(0L, 0L, 5L),
-      newAuction(1L, 1L, 10L), // matches query
-      newAuction(2L, 2L, 5L),
-      newAuction(3L, 3L, 10L), // matches query
-      newAuction(4L, 4L, 5L),
-      newAuction(5L, 0L, 5L),
-      newAuction(6L, 1L, 10L), // matches query
-      newAuction(7L, 2L, 5L),
-      newAuction(8L, 3L, 10L), // matches query
-      newAuction(9L, 4L, 5L));
+  private static final List<Auction> AUCTIONS =
+      ImmutableList.of(
+          newAuction(0L, 0L, 5L),
+          newAuction(1L, 1L, 10L), // matches query
+          newAuction(2L, 2L, 5L),
+          newAuction(3L, 3L, 10L), // matches query
+          newAuction(4L, 4L, 5L),
+          newAuction(5L, 0L, 5L),
+          newAuction(6L, 1L, 10L), // matches query
+          newAuction(7L, 2L, 5L),
+          newAuction(8L, 3L, 10L), // matches query
+          newAuction(9L, 4L, 5L));
 
-  private static final List<Event> PEOPLE_AND_AUCTIONS_EVENTS = ImmutableList.of(
-      new Event(PEOPLE.get(0)),
-      new Event(AUCTIONS.get(0)),
-      new Event(PEOPLE.get(1)),
-      new Event(AUCTIONS.get(1)),
-      new Event(PEOPLE.get(2)),
-      new Event(AUCTIONS.get(2)),
-      new Event(PEOPLE.get(3)),
-      new Event(AUCTIONS.get(3)),
-      new Event(AUCTIONS.get(4)),
-      new Event(AUCTIONS.get(5)),
-      new Event(AUCTIONS.get(6)),
-      new Event(PEOPLE.get(4)),
-      new Event(AUCTIONS.get(2)),
-      new Event(AUCTIONS.get(7)),
-      new Event(AUCTIONS.get(8)),
-      new Event(AUCTIONS.get(9)));
+  private static final List<Event> PEOPLE_AND_AUCTIONS_EVENTS =
+      ImmutableList.of(
+          new Event(PEOPLE.get(0)),
+          new Event(AUCTIONS.get(0)),
+          new Event(PEOPLE.get(1)),
+          new Event(AUCTIONS.get(1)),
+          new Event(PEOPLE.get(2)),
+          new Event(AUCTIONS.get(2)),
+          new Event(PEOPLE.get(3)),
+          new Event(AUCTIONS.get(3)),
+          new Event(AUCTIONS.get(4)),
+          new Event(AUCTIONS.get(5)),
+          new Event(AUCTIONS.get(6)),
+          new Event(PEOPLE.get(4)),
+          new Event(AUCTIONS.get(2)),
+          new Event(AUCTIONS.get(7)),
+          new Event(AUCTIONS.get(8)),
+          new Event(AUCTIONS.get(9)));
 
-  public static final List<NameCityStateId> RESULTS = ImmutableList.of(
-      new NameCityStateId("name_1", "city_1", "CA", 1L),
-      new NameCityStateId("name_3", "city_3", "ID", 3L),
-      new NameCityStateId("name_1", "city_1", "CA", 6L),
-      new NameCityStateId("name_3", "city_3", "ID", 8L));
+  public static final List<NameCityStateId> RESULTS =
+      ImmutableList.of(
+          new NameCityStateId("name_1", "city_1", "CA", 1L),
+          new NameCityStateId("name_3", "city_3", "ID", 3L),
+          new NameCityStateId("name_1", "city_1", "CA", 6L),
+          new NameCityStateId("name_3", "city_3", "ID", 8L));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   @Test
   public void testJoinsPeopleWithAuctions() throws Exception {
     PCollection<Event> events =
-        PBegin
-            .in(testPipeline)
-            .apply(Create.of(PEOPLE_AND_AUCTIONS_EVENTS).withCoder(Event.CODER));
+        PBegin.in(testPipeline).apply(Create.of(PEOPLE_AND_AUCTIONS_EVENTS).withCoder(Event.CODER));
 
-    PAssert
-        .that(events.apply(new SqlQuery3(new NexmarkConfiguration())))
+    PAssert.that(events.apply(new SqlQuery3(new NexmarkConfiguration())))
         .containsInAnyOrder(RESULTS);
 
     testPipeline.run();
@@ -111,15 +110,15 @@ public class SqlQuery3Test {
 
   private static Auction newAuction(long id, long seller, long category) {
     return new Auction(
-      id,
-      "item_" + id,
-      "desc_" + id,
-      123 + id,
-      200 + id,
-      123123L + id,
-      223123 + id,
-      seller,
-      category,
-      "extra_" + id);
+        id,
+        "item_" + id,
+        "desc_" + id,
+        123 + id,
+        200 + id,
+        123123L + id,
+        223123 + id,
+        seller,
+        category,
+        "extra_" + id);
   }
 }

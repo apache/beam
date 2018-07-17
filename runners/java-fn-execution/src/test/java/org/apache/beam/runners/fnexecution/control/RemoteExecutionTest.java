@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
 import java.time.Duration;
@@ -32,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,8 +63,10 @@ import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.BagUserStateHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.BagUserStateHandlerFactory;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -72,6 +77,10 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -84,6 +93,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.hamcrest.collection.IsEmptyIterable;
+import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -132,20 +144,21 @@ public class RemoteExecutionTest implements Serializable {
 
     // Create the SDK harness, and wait until it connects
     sdkHarnessExecutor = Executors.newSingleThreadExecutor(threadFactory);
-    sdkHarnessExecutorFuture = sdkHarnessExecutor.submit(
-        () -> {
-          try {
-            FnHarness.main(
-                "id",
-                PipelineOptionsFactory.create(),
-                loggingServer.getApiServiceDescriptor(),
-                controlServer.getApiServiceDescriptor(),
-                InProcessManagedChannelFactory.create(),
-                OutboundObserverFactory.clientDirect());
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        });
+    sdkHarnessExecutorFuture =
+        sdkHarnessExecutor.submit(
+            () -> {
+              try {
+                FnHarness.main(
+                    "id",
+                    PipelineOptionsFactory.create(),
+                    loggingServer.getApiServiceDescriptor(),
+                    controlServer.getApiServiceDescriptor(),
+                    InProcessManagedChannelFactory.create(),
+                    OutboundObserverFactory.clientDirect());
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
         clientPool.getSource().take("", Duration.ofSeconds(2));
@@ -211,10 +224,10 @@ public class RemoteExecutionTest implements Serializable {
     ExecutableProcessBundleDescriptor descriptor =
         ProcessBundleDescriptors.fromExecutableStage(
             "my_stage", stage, dataServer.getApiServiceDescriptor());
-    // TODO: This cast is nonsense
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
     RemoteInputDestination<WindowedValue<byte[]>> remoteDestination =
-        (RemoteInputDestination<WindowedValue<byte[]>>)
-            (RemoteInputDestination) descriptor.getRemoteInputDestination();
+        (RemoteInputDestination) descriptor.getRemoteInputDestination();
 
     BundleProcessor<byte[]> processor =
         controlClient.getProcessor(descriptor.getProcessBundleDescriptor(), remoteDestination);
@@ -298,10 +311,10 @@ public class RemoteExecutionTest implements Serializable {
             stage,
             dataServer.getApiServiceDescriptor(),
             stateServer.getApiServiceDescriptor());
-    // TODO: This cast is nonsense
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
     RemoteInputDestination<WindowedValue<byte[]>> remoteDestination =
-        (RemoteInputDestination<WindowedValue<byte[]>>)
-            (RemoteInputDestination) descriptor.getRemoteInputDestination();
+        (RemoteInputDestination) descriptor.getRemoteInputDestination();
 
     BundleProcessor<byte[]> processor =
         controlClient.getProcessor(
@@ -323,20 +336,25 @@ public class RemoteExecutionTest implements Serializable {
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
     StateRequestHandler stateRequestHandler =
-        StateRequestHandlers.forMultimapSideInputHandlerFactory(
-            descriptor.getMultimapSideInputSpecs(),
-            new MultimapSideInputHandlerFactory() {
+        StateRequestHandlers.forSideInputHandlerFactory(
+            descriptor.getSideInputSpecs(),
+            new SideInputHandlerFactory() {
               @Override
-              public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
                   String pTransformId,
                   String sideInputId,
-                  Coder<K> keyCoder,
-                  Coder<V> valueCoder,
+                  RunnerApi.FunctionSpec accessPattern,
+                  Coder<T> elementCoder,
                   Coder<W> windowCoder) {
-                return new MultimapSideInputHandler<K, V, W>() {
+                return new SideInputHandler<V, W>() {
                   @Override
-                  public Iterable<V> get(K key, W window) {
+                  public Iterable<V> get(byte[] key, W window) {
                     return (Iterable) sideInputData;
+                  }
+
+                  @Override
+                  public Coder<V> resultCoder() {
+                    return ((KvCoder) elementCoder).getValueCoder();
                   }
                 };
               }
@@ -367,6 +385,161 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "B")),
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "C"))));
     }
+  }
+
+  @Test
+  public void testExecutionWithUserState() throws Exception {
+    Pipeline p = Pipeline.create();
+    final String stateId = "foo";
+    final String stateId2 = "foo2";
+
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {}
+                }))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .apply(
+            "userState",
+            ParDo.of(
+                new DoFn<KV<String, String>, KV<String, String>>() {
+
+                  @StateId(stateId)
+                  private final StateSpec<BagState<String>> bufferState =
+                      StateSpecs.bag(StringUtf8Coder.of());
+
+                  @StateId(stateId2)
+                  private final StateSpec<BagState<String>> bufferState2 =
+                      StateSpecs.bag(StringUtf8Coder.of());
+
+                  @ProcessElement
+                  public void processElement(
+                      @Element KV<String, String> element,
+                      @StateId(stateId) BagState<String> state,
+                      @StateId(stateId2) BagState<String> state2,
+                      OutputReceiver<KV<String, String>> r) {
+                    ReadableState<Boolean> isEmpty = state.isEmpty();
+                    for (String value : state.read()) {
+                      r.output(KV.of(element.getKey(), value));
+                    }
+                    state.add(element.getValue());
+                    state2.clear();
+                  }
+                }))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(
+            fused.getFusedStages(), (ExecutableStage stage) -> !stage.getUserStates().isEmpty());
+    checkState(optionalStage.isPresent(), "Expected a stage with user state.");
+    ExecutableStage stage = optionalStage.get();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "test_stage",
+            stage,
+            dataServer.getApiServiceDescriptor(),
+            stateServer.getApiServiceDescriptor());
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    RemoteInputDestination<WindowedValue<KV<byte[], byte[]>>> remoteDestination =
+        (RemoteInputDestination) descriptor.getRemoteInputDestination();
+
+    BundleProcessor<KV<byte[], byte[]>> processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), remoteDestination, stateDelegator);
+    Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
+    }
+
+    Map<String, List<ByteString>> userStateData =
+        ImmutableMap.of(
+            stateId,
+            new ArrayList(
+                Arrays.asList(
+                    ByteString.copyFrom(
+                        CoderUtils.encodeToByteArray(
+                            StringUtf8Coder.of(), "A", Coder.Context.NESTED)),
+                    ByteString.copyFrom(
+                        CoderUtils.encodeToByteArray(
+                            StringUtf8Coder.of(), "B", Coder.Context.NESTED)),
+                    ByteString.copyFrom(
+                        CoderUtils.encodeToByteArray(
+                            StringUtf8Coder.of(), "C", Coder.Context.NESTED)))),
+            stateId2,
+            new ArrayList(
+                Arrays.asList(
+                    ByteString.copyFrom(
+                        CoderUtils.encodeToByteArray(
+                            StringUtf8Coder.of(), "D", Coder.Context.NESTED)))));
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forBagUserStateHandlerFactory(
+            descriptor,
+            new BagUserStateHandlerFactory() {
+              @Override
+              public <K, V, W extends BoundedWindow> BagUserStateHandler<K, V, W> forUserState(
+                  String pTransformId,
+                  String userStateId,
+                  Coder<K> keyCoder,
+                  Coder<V> valueCoder,
+                  Coder<W> windowCoder) {
+                return new BagUserStateHandler<K, V, W>() {
+                  @Override
+                  public Iterable<V> get(K key, W window) {
+                    return (Iterable) userStateData.get(userStateId);
+                  }
+
+                  @Override
+                  public void append(K key, W window, Iterator<V> values) {
+                    Iterators.addAll(userStateData.get(userStateId), (Iterator) values);
+                  }
+
+                  @Override
+                  public void clear(K key, W window) {
+                    userStateData.get(userStateId).clear();
+                  }
+                };
+              }
+            });
+
+    try (ActiveBundle<KV<byte[], byte[]>> bundle =
+        processor.newBundle(
+            outputReceivers, stateRequestHandler, BundleProgressHandler.unsupported())) {
+      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
+    }
+    for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
+      assertThat(
+          windowedValues,
+          containsInAnyOrder(
+              WindowedValue.valueInGlobalWindow(kvBytes("X", "A")),
+              WindowedValue.valueInGlobalWindow(kvBytes("X", "B")),
+              WindowedValue.valueInGlobalWindow(kvBytes("X", "C"))));
+    }
+    assertThat(
+        userStateData.get(stateId),
+        IsIterableContainingInOrder.contains(
+            ByteString.copyFrom(
+                CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A", Coder.Context.NESTED)),
+            ByteString.copyFrom(
+                CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B", Coder.Context.NESTED)),
+            ByteString.copyFrom(
+                CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C", Coder.Context.NESTED)),
+            ByteString.copyFrom(
+                CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y", Coder.Context.NESTED))));
+    assertThat(userStateData.get(stateId2), IsEmptyIterable.emptyIterable());
   }
 
   private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utilities for computing statistical indicators using probabilistic sketches.
- */
+/** Utilities for computing statistical indicators using probabilistic sketches. */
 package org.apache.beam.sdk.extensions.sketching;

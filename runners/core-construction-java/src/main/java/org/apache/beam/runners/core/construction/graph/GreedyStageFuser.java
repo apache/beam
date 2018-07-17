@@ -38,8 +38,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link PCollectionNode} is fused into a stage if all of its consumers can be fused into the
  * stage. A consumer can be fused into a stage if it is executed within the environment of that
- * {@link ExecutableStage}, and receives only per-element inputs. PTransforms which consume side
- * inputs are always at the root of a stage.
+ * {@link ExecutableStage}, and receives only per-element inputs. To simplify integration for
+ * runners, this fuser specifically does not fuse PTransforms which consume side inputs or have user
+ * state, always making them the root of {@link ExecutableStage}.
  *
  * <p>A {@link PCollectionNode} with consumers that execute in an environment other than a stage is
  * materialized, and its consumers execute in independent stages.
@@ -80,6 +81,7 @@ public class GreedyStageFuser {
     fusedTransforms.addAll(initialNodes);
 
     Set<SideInputReference> sideInputs = new LinkedHashSet<>();
+    Set<UserStateReference> userStates = new LinkedHashSet<>();
     Set<PCollectionNode> fusedCollections = new LinkedHashSet<>();
     Set<PCollectionNode> materializedPCollections = new LinkedHashSet<>();
 
@@ -87,6 +89,7 @@ public class GreedyStageFuser {
     for (PTransformNode initialConsumer : initialNodes) {
       fusionCandidates.addAll(pipeline.getOutputPCollections(initialConsumer));
       sideInputs.addAll(pipeline.getSideInputs(initialConsumer));
+      userStates.addAll(pipeline.getUserStates(initialConsumer));
     }
     while (!fusionCandidates.isEmpty()) {
       PCollectionNode candidate = fusionCandidates.poll();
@@ -130,6 +133,7 @@ public class GreedyStageFuser {
         environment,
         inputPCollection,
         sideInputs,
+        userStates,
         fusedTransforms.build(),
         materializedPCollections);
   }
@@ -172,6 +176,10 @@ public class GreedyStageFuser {
         // of the stages that produce a PCollection it can be fused into all of those stages.
         return PCollectionFusibility.MATERIALIZE;
       }
+    }
+    // The PCollection also has to be materialized if it is used as a side input by any transform.
+    if (!pipeline.getSingletonConsumers(candidate).isEmpty()) {
+      return PCollectionFusibility.MATERIALIZE;
     }
     return PCollectionFusibility.FUSE;
   }

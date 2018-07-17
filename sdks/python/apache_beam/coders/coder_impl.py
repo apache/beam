@@ -37,6 +37,9 @@ from __future__ import division
 from builtins import chr
 from builtins import object
 
+from past.builtins import long
+from past.builtins import unicode
+
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -60,13 +63,6 @@ except ImportError:
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
-
-try:                # Python 2
-  long              # pylint: disable=long-builtin
-  unicode           # pylint: disable=unicode-builtin
-except NameError:   # Python 3
-  long = int
-  unicode = str
 
 
 class CoderImpl(object):

@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 /**
- * Defines {@link org.apache.beam.sdk.transforms.PTransform}s for transforming
- * data in a pipeline.
+ * Defines {@link org.apache.beam.sdk.transforms.PTransform}s for transforming data in a pipeline.
  *
- * <p>A {@link org.apache.beam.sdk.transforms.PTransform} is an operation that takes an
- * {@code InputT} (some subtype of {@link org.apache.beam.sdk.values.PInput})
- * and produces an
- * {@code OutputT} (some subtype of {@link org.apache.beam.sdk.values.POutput}).
+ * <p>A {@link org.apache.beam.sdk.transforms.PTransform} is an operation that takes an {@code
+ * InputT} (some subtype of {@link org.apache.beam.sdk.values.PInput}) and produces an {@code
+ * OutputT} (some subtype of {@link org.apache.beam.sdk.values.POutput}).
  *
- * <p>Common PTransforms include root PTransforms like
- * {@link org.apache.beam.sdk.io.TextIO.Read} and
- * {@link org.apache.beam.sdk.transforms.Create}, processing and
- * conversion operations like {@link org.apache.beam.sdk.transforms.ParDo},
- * {@link org.apache.beam.sdk.transforms.GroupByKey},
- * {@link org.apache.beam.sdk.transforms.join.CoGroupByKey},
- * {@link org.apache.beam.sdk.transforms.Combine}, and
- * {@link org.apache.beam.sdk.transforms.Count}, and outputting
- * PTransforms like
- * {@link org.apache.beam.sdk.io.TextIO.Write}.
+ * <p>Common PTransforms include root PTransforms like {@link org.apache.beam.sdk.io.TextIO.Read}
+ * and {@link org.apache.beam.sdk.transforms.Create}, processing and conversion operations like
+ * {@link org.apache.beam.sdk.transforms.ParDo}, {@link org.apache.beam.sdk.transforms.GroupByKey},
+ * {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}, {@link
+ * org.apache.beam.sdk.transforms.Combine}, and {@link org.apache.beam.sdk.transforms.Count}, and
+ * outputting PTransforms like {@link org.apache.beam.sdk.io.TextIO.Write}.
  *
- * <p>New PTransforms can be created by composing existing PTransforms.
- * Most PTransforms in this package are composites, and users can also create composite PTransforms
- * for their own application-specific logic.
- *
+ * <p>New PTransforms can be created by composing existing PTransforms. Most PTransforms in this
+ * package are composites, and users can also create composite PTransforms for their own
+ * application-specific logic.
  */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms;

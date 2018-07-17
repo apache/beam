@@ -22,17 +22,18 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Spanner;
 
-/**
- * Manages lifecycle of {@link DatabaseClient} and {@link Spanner} instances.
- */
+/** Manages lifecycle of {@link DatabaseClient} and {@link Spanner} instances. */
 public class SpannerAccessor implements AutoCloseable {
   private final Spanner spanner;
   private final DatabaseClient databaseClient;
   private final BatchClient batchClient;
   private final DatabaseAdminClient databaseAdminClient;
 
-  SpannerAccessor(Spanner spanner, DatabaseClient databaseClient,
-      DatabaseAdminClient databaseAdminClient, BatchClient batchClient) {
+  SpannerAccessor(
+      Spanner spanner,
+      DatabaseClient databaseClient,
+      DatabaseAdminClient databaseAdminClient,
+      BatchClient batchClient) {
     this.spanner = spanner;
     this.databaseClient = databaseClient;
     this.databaseAdminClient = databaseAdminClient;
@@ -43,6 +44,7 @@ public class SpannerAccessor implements AutoCloseable {
 
     return databaseClient;
   }
+
   public BatchClient getBatchClient() {
     return batchClient;
   }

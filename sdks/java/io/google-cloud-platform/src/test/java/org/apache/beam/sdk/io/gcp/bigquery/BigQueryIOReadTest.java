@@ -175,31 +175,29 @@ public class BigQueryIOReadTest implements Serializable {
     BigQueryIO.Read read =
         BigQueryIO.read().from("foo.com:project:somedataset.sometable").withoutValidation();
     checkReadTableObjectWithValidate(read, "foo.com:project", "somedataset", "sometable", false);
-
   }
 
   @Test
   public void testBuildQueryBasedSourceWithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
-    BigQueryIO.Read read =
-        BigQueryIO.read().fromQuery("some_query").withoutValidation();
+    BigQueryIO.Read read = BigQueryIO.read().fromQuery("some_query").withoutValidation();
     checkReadQueryObjectWithValidate(read, "some_query", false);
   }
 
   @Test
   public void testBuildTableBasedSourceWithDefaultProject() {
-    BigQueryIO.Read read =
-        BigQueryIO.read().from("somedataset.sometable");
+    BigQueryIO.Read read = BigQueryIO.read().from("somedataset.sometable");
     checkReadTableObject(read, null, "somedataset", "sometable");
   }
 
   @Test
   public void testBuildSourceWithTableReference() {
-    TableReference table = new TableReference()
-        .setProjectId("foo.com:project")
-        .setDatasetId("somedataset")
-        .setTableId("sometable");
+    TableReference table =
+        new TableReference()
+            .setProjectId("foo.com:project")
+            .setDatasetId("somedataset")
+            .setTableId("sometable");
     BigQueryIO.Read read = BigQueryIO.read().from(table);
     checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
   }
@@ -212,40 +210,55 @@ public class BigQueryIOReadTest implements Serializable {
             .setProjectId("project-id")
             .setDatasetId("dataset-id")
             .setTableId(tableId);
-    fakeDatasetService.createTable(new Table()
-        .setTableReference(tableReference)
-        .setSchema(new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")))));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(tableReference)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
 
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(fakeDatasetService);
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(fakeDatasetService);
 
-    List<TableRow> expected = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L),
-        new TableRow().set("name", "d").set("number", 4L),
-        new TableRow().set("name", "e").set("number", 5L),
-        new TableRow().set("name", "f").set("number", 6L));
+    List<TableRow> expected =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
     fakeDatasetService.insertAll(tableReference, expected, null);
 
     TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
 
     PCollection<KV<String, Long>> output =
         p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
-            .apply(ParDo.of(new DoFn<TableRow, KV<String, Long>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) throws Exception {
-                c.output(KV.of((String) c.element().get("name"),
-                    Long.valueOf((String) c.element().get("number"))));
-              }
-            }));
-    PAssert.that(output).containsInAnyOrder(ImmutableList.of(KV.of("a", 1L), KV.of("b", 2L),
-        KV.of("c", 3L), KV.of("d", 4L), KV.of("e", 5L), KV.of("f", 6L)));
+            .apply(
+                ParDo.of(
+                    new DoFn<TableRow, KV<String, Long>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        c.output(
+                            KV.of(
+                                (String) c.element().get("name"),
+                                Long.valueOf((String) c.element().get("number"))));
+                      }
+                    }));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                KV.of("a", 1L),
+                KV.of("b", 2L),
+                KV.of("c", 3L),
+                KV.of("d", 4L),
+                KV.of("e", 5L),
+                KV.of("f", 6L)));
     p.run();
   }
 
@@ -255,10 +268,9 @@ public class BigQueryIOReadTest implements Serializable {
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
             + " which only applies to queries");
-    p.apply("ReadMyTable",
-        BigQueryIO.read()
-            .from("foo.com:project:somedataset.sometable")
-            .withoutResultFlattening());
+    p.apply(
+        "ReadMyTable",
+        BigQueryIO.read().from("foo.com:project:somedataset.sometable").withoutResultFlattening());
     p.run();
   }
 
@@ -282,10 +294,7 @@ public class BigQueryIOReadTest implements Serializable {
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect preference,"
             + " which only applies to queries");
-    p.apply(
-        BigQueryIO.read()
-            .from("foo.com:project:somedataset.sometable")
-            .usingStandardSql());
+    p.apply(BigQueryIO.read().from("foo.com:project:somedataset.sometable").usingStandardSql());
     p.run();
   }
 
@@ -332,15 +341,17 @@ public class BigQueryIOReadTest implements Serializable {
     fakeDatasetService.createDataset("non-executing-project", "somedataset", "", "", null);
     fakeDatasetService.createTable(sometable);
 
-    List<TableRow> records = Lists.newArrayList(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L));
+    List<TableRow> records =
+        Lists.newArrayList(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L));
     fakeDatasetService.insertAll(sometable.getTableReference(), records, null);
 
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(fakeDatasetService);
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(fakeDatasetService);
 
     PTransform<PBegin, PCollection<TableRow>> readTransform;
     if (useReadTableRows) {
@@ -381,11 +392,12 @@ public class BigQueryIOReadTest implements Serializable {
   public void testBuildSourceDisplayDataTable() {
     String tableSpec = "project:dataset.tableid";
 
-    BigQueryIO.Read read = BigQueryIO.read()
-        .from(tableSpec)
-        .withoutResultFlattening()
-        .usingStandardSql()
-        .withoutValidation();
+    BigQueryIO.Read read =
+        BigQueryIO.read()
+            .from(tableSpec)
+            .withoutResultFlattening()
+            .usingStandardSql()
+            .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -397,11 +409,12 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBuildSourceDisplayDataQuery() {
-    BigQueryIO.Read read = BigQueryIO.read()
-        .fromQuery("myQuery")
-        .withoutResultFlattening()
-        .usingStandardSql()
-        .withoutValidation();
+    BigQueryIO.Read read =
+        BigQueryIO.read()
+            .fromQuery("myQuery")
+            .withoutResultFlattening()
+            .usingStandardSql()
+            .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -414,66 +427,78 @@ public class BigQueryIOReadTest implements Serializable {
   @Test
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read = BigQueryIO.read()
-        .from("project:dataset.tableId")
-        .withTestServices(new FakeBigQueryServices()
-            .withDatasetService(new FakeDatasetService())
-            .withJobService(new FakeJobService()))
-        .withoutValidation();
+    BigQueryIO.Read read =
+        BigQueryIO.read()
+            .from("project:dataset.tableId")
+            .withTestServices(
+                new FakeBigQueryServices()
+                    .withDatasetService(new FakeDatasetService())
+                    .withJobService(new FakeJobService()))
+            .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat("BigQueryIO.Read should include the table spec in its primitive display data",
-        displayData, hasItem(hasDisplayItem("table")));
+    assertThat(
+        "BigQueryIO.Read should include the table spec in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("table")));
   }
 
   @Test
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read = BigQueryIO.read()
-        .fromQuery("foobar")
-        .withTestServices(new FakeBigQueryServices()
-            .withDatasetService(new FakeDatasetService())
-            .withJobService(new FakeJobService()))
-        .withoutValidation();
+    BigQueryIO.Read read =
+        BigQueryIO.read()
+            .fromQuery("foobar")
+            .withTestServices(
+                new FakeBigQueryServices()
+                    .withDatasetService(new FakeDatasetService())
+                    .withJobService(new FakeJobService()))
+            .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat("BigQueryIO.Read should include the query in its primitive display data",
-        displayData, hasItem(hasDisplayItem("query")));
+    assertThat(
+        "BigQueryIO.Read should include the query in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("query")));
   }
 
   @Test
   public void testBigQueryIOGetName() {
-    assertEquals("BigQueryIO.Read",
-        BigQueryIO.read().from("somedataset.sometable").getName());
+    assertEquals("BigQueryIO.Read", BigQueryIO.read().from("somedataset.sometable").getName());
   }
 
   @Test
   public void testBigQueryTableSourceInitSplit() throws Exception {
-    List<TableRow> expected = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L),
-        new TableRow().set("name", "d").set("number", 4L),
-        new TableRow().set("name", "e").set("number", 5L),
-        new TableRow().set("name", "f").set("number", 6L));
+    List<TableRow> expected =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
 
     TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     fakeDatasetService.createDataset("project", "data_set", "", "", null);
-    fakeDatasetService.createTable(new Table().setTableReference(table)
-        .setSchema(new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")))));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(table)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
     fakeDatasetService.insertAll(table, expected, null);
 
     String stepUuid = "testStepUuid";
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid,
-        ValueProvider.StaticValueProvider.of(table),
-        fakeBqServices,
-        TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE);
+    BoundedSource<TableRow> bqSource =
+        BigQueryTableSource.create(
+            stepUuid,
+            ValueProvider.StaticValueProvider.of(table),
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -497,31 +522,36 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testEstimatedSizeWithoutStreamingBuffer() throws Exception {
-    List<TableRow> data = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L),
-        new TableRow().set("name", "d").set("number", 4L),
-        new TableRow().set("name", "e").set("number", 5L),
-        new TableRow().set("name", "f").set("number", 6L));
+    List<TableRow> data =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
 
     TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     fakeDatasetService.createDataset("project", "data_set", "", "", null);
-    fakeDatasetService.createTable(new Table().setTableReference(table)
-        .setSchema(new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")))));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(table)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
     fakeDatasetService.insertAll(table, data, null);
 
     String stepUuid = "testStepUuid";
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid,
-        ValueProvider.StaticValueProvider.of(table),
-        fakeBqServices,
-        TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE);
+    BoundedSource<TableRow> bqSource =
+        BigQueryTableSource.create(
+            stepUuid,
+            ValueProvider.StaticValueProvider.of(table),
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     assertEquals(108, bqSource.getEstimatedSizeBytes(options));
@@ -529,32 +559,37 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testEstimatedSizeWithStreamingBuffer() throws Exception {
-    List<TableRow> data = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L),
-        new TableRow().set("name", "d").set("number", 4L),
-        new TableRow().set("name", "e").set("number", 5L),
-        new TableRow().set("name", "f").set("number", 6L));
+    List<TableRow> data =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
 
     TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     fakeDatasetService.createDataset("project", "data_set", "", "", null);
-    fakeDatasetService.createTable(new Table().setTableReference(table)
-        .setSchema(new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))))
-        .setStreamingBuffer(new Streamingbuffer().setEstimatedBytes(BigInteger.valueOf(10))));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(table)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .setStreamingBuffer(new Streamingbuffer().setEstimatedBytes(BigInteger.valueOf(10))));
     fakeDatasetService.insertAll(table, data, null);
 
     String stepUuid = "testStepUuid";
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid,
-        ValueProvider.StaticValueProvider.of(table),
-        fakeBqServices,
-        TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE);
+    BoundedSource<TableRow> bqSource =
+        BigQueryTableSource.create(
+            stepUuid,
+            ValueProvider.StaticValueProvider.of(table),
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     assertEquals(118, bqSource.getEstimatedSizeBytes(options));
@@ -563,10 +598,11 @@ public class BigQueryIOReadTest implements Serializable {
   @Test
   public void testBigQueryQuerySourceEstimatedSize() throws Exception {
 
-    List<TableRow> data = ImmutableList.of(
-        new TableRow().set("name", "A").set("number", 10L),
-        new TableRow().set("name", "B").set("number", 11L),
-        new TableRow().set("name", "C").set("number", 12L));
+    List<TableRow> data =
+        ImmutableList.of(
+            new TableRow().set("name", "A").set("number", 10L),
+            new TableRow().set("name", "B").set("number", 11L),
+            new TableRow().set("name", "C").set("number", 12L));
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
@@ -574,22 +610,22 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
 
     String query = FakeBigQueryServices.encodeQuery(data);
-    BigQueryQuerySource<TableRow> bqSource = BigQueryQuerySource.create(
-        stepUuid,
-        ValueProvider.StaticValueProvider.of(query),
-        true /* flattenResults */,
-        true /* useLegacySql */,
-        fakeBqServices,
-        TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE,
-        QueryPriority.BATCH,
-        null);
+    BigQueryQuerySource<TableRow> bqSource =
+        BigQueryQuerySource.create(
+            stepUuid,
+            ValueProvider.StaticValueProvider.of(query),
+            true /* flattenResults */,
+            true /* useLegacySql */,
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE,
+            QueryPriority.BATCH,
+            null);
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
         query,
-        new JobStatistics().setQuery(
-            new JobStatistics2().setTotalBytesProcessed(100L)));
+        new JobStatistics().setQuery(new JobStatistics2().setTotalBytesProcessed(100L)));
 
     assertEquals(100, bqSource.getEstimatedSizeBytes(bqOptions));
   }
@@ -603,68 +639,76 @@ public class BigQueryIOReadTest implements Serializable {
     JobStatistics2 queryStats = new JobStatistics2();
     queryStats.setReferencedTables(ImmutableList.of(dryRunTable));
     queryJobStats.setQuery(queryStats);
-    queryJob.setStatus(new JobStatus())
-        .setStatistics(queryJobStats);
+    queryJob.setStatus(new JobStatus()).setStatistics(queryJobStats);
 
     Job extractJob = new Job();
     JobStatistics extractJobStats = new JobStatistics();
     JobStatistics4 extractStats = new JobStatistics4();
     extractStats.setDestinationUriFileCounts(ImmutableList.of(1L));
     extractJobStats.setExtract(extractStats);
-    extractJob.setStatus(new JobStatus())
-        .setStatistics(extractJobStats);
+    extractJob.setStatus(new JobStatus()).setStatistics(extractJobStats);
 
-    List<TableRow> expected = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L),
-        new TableRow().set("name", "d").set("number", 4L),
-        new TableRow().set("name", "e").set("number", 5L),
-        new TableRow().set("name", "f").set("number", 6L));
+    List<TableRow> expected =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setProject("project");
     String stepUuid = "testStepUuid";
 
-    TableReference tempTableReference = createTempTableReference(
-        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
+    TableReference tempTableReference =
+        createTempTableReference(
+            bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
     fakeDatasetService.createDataset(
         bqOptions.getProject(), tempTableReference.getDatasetId(), "", "", null);
-    fakeDatasetService.createTable(new Table()
-        .setTableReference(tempTableReference)
-        .setSchema(new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")))));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(tempTableReference)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
 
     String query = FakeBigQueryServices.encodeQuery(expected);
-    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        stepUuid,
-        ValueProvider.StaticValueProvider.of(query),
-        true /* flattenResults */,
-        true /* useLegacySql */,
-        fakeBqServices,
-        TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE,
-        QueryPriority.BATCH,
-        null);
+    BoundedSource<TableRow> bqSource =
+        BigQueryQuerySource.create(
+            stepUuid,
+            ValueProvider.StaticValueProvider.of(query),
+            true /* flattenResults */,
+            true /* useLegacySql */,
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE,
+            QueryPriority.BATCH,
+            null);
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
-    TableReference queryTable = new TableReference()
-        .setProjectId(bqOptions.getProject())
-        .setDatasetId(tempTableReference.getDatasetId())
-        .setTableId(tempTableReference.getTableId());
+    TableReference queryTable =
+        new TableReference()
+            .setProjectId(bqOptions.getProject())
+            .setDatasetId(tempTableReference.getDatasetId())
+            .setTableId(tempTableReference.getTableId());
 
-    fakeJobService.expectDryRunQuery(bqOptions.getProject(), query,
-        new JobStatistics().setQuery(
-            new JobStatistics2()
-                .setTotalBytesProcessed(100L)
-                .setReferencedTables(ImmutableList.of(queryTable))));
+    fakeJobService.expectDryRunQuery(
+        bqOptions.getProject(),
+        query,
+        new JobStatistics()
+            .setQuery(
+                new JobStatistics2()
+                    .setTotalBytesProcessed(100L)
+                    .setReferencedTables(ImmutableList.of(queryTable))));
 
-    List<TableRow> read = convertStringsToLong(
-        SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
+    List<TableRow> read =
+        convertStringsToLong(
+            SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
@@ -680,61 +724,67 @@ public class BigQueryIOReadTest implements Serializable {
     JobStatistics2 queryStats = new JobStatistics2();
     queryStats.setReferencedTables(ImmutableList.of(dryRunTable));
     queryJobStats.setQuery(queryStats);
-    queryJob.setStatus(new JobStatus())
-        .setStatistics(queryJobStats);
+    queryJob.setStatus(new JobStatus()).setStatistics(queryJobStats);
 
     Job extractJob = new Job();
     JobStatistics extractJobStats = new JobStatistics();
     JobStatistics4 extractStats = new JobStatistics4();
     extractStats.setDestinationUriFileCounts(ImmutableList.of(1L));
     extractJobStats.setExtract(extractStats);
-    extractJob.setStatus(new JobStatus())
-        .setStatistics(extractJobStats);
+    extractJob.setStatus(new JobStatus()).setStatistics(extractJobStats);
 
     String stepUuid = "testStepUuid";
 
     TableReference tempTableReference =
         createTempTableReference("project-id", createJobIdToken(options.getJobName(), stepUuid));
-    List<TableRow> expected = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", 1L),
-        new TableRow().set("name", "b").set("number", 2L),
-        new TableRow().set("name", "c").set("number", 3L),
-        new TableRow().set("name", "d").set("number", 4L),
-        new TableRow().set("name", "e").set("number", 5L),
-        new TableRow().set("name", "f").set("number", 6L));
+    List<TableRow> expected =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
     fakeDatasetService.createDataset(
         tempTableReference.getProjectId(), tempTableReference.getDatasetId(), "", "", null);
-    Table table = new Table()
-        .setTableReference(tempTableReference)
-        .setSchema(new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))));
+    Table table =
+        new Table()
+            .setTableReference(tempTableReference)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
     fakeDatasetService.createTable(table);
 
     String query = FakeBigQueryServices.encodeQuery(expected);
-    fakeJobService.expectDryRunQuery("project-id", query,
-        new JobStatistics().setQuery(
-            new JobStatistics2()
-                .setTotalBytesProcessed(100L)
-                .setReferencedTables(ImmutableList.of(table.getTableReference()))));
+    fakeJobService.expectDryRunQuery(
+        "project-id",
+        query,
+        new JobStatistics()
+            .setQuery(
+                new JobStatistics2()
+                    .setTotalBytesProcessed(100L)
+                    .setReferencedTables(ImmutableList.of(table.getTableReference()))));
 
-    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        stepUuid,
-        ValueProvider.StaticValueProvider.of(query),
-        true /* flattenResults */,
-        true /* useLegacySql */,
-        fakeBqServices,
-        TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE,
-        QueryPriority.BATCH,
-        null);
+    BoundedSource<TableRow> bqSource =
+        BigQueryQuerySource.create(
+            stepUuid,
+            ValueProvider.StaticValueProvider.of(query),
+            true /* flattenResults */,
+            true /* useLegacySql */,
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE,
+            QueryPriority.BATCH,
+            null);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
-    List<TableRow> read = convertStringsToLong(
-        SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
+    List<TableRow> read =
+        convertStringsToLong(
+            SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
@@ -783,16 +833,14 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testRuntimeOptionsNotCalledInApplyInputTable() {
-    BigQueryIO.Read read = BigQueryIO.read().from(
-        p.newProvider("")).withoutValidation();
+    BigQueryIO.Read read = BigQueryIO.read().from(p.newProvider("")).withoutValidation();
     // Test that this doesn't throw.
     DisplayData.from(read);
   }
 
   @Test
   public void testRuntimeOptionsNotCalledInApplyInputQuery() {
-    BigQueryIO.Read read = BigQueryIO.read().fromQuery(
-        p.newProvider("")).withoutValidation();
+    BigQueryIO.Read read = BigQueryIO.read().fromQuery(p.newProvider("")).withoutValidation();
     // Test that this doesn't throw.
     DisplayData.from(read);
   }

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import absolute_import
 from __future__ import print_function
 
 import logging
@@ -30,6 +31,8 @@ import unittest
 import grpc
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import fn_api_runner_test
@@ -120,7 +123,13 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     return address
 
   @classmethod
-  def _create_job_service(cls):
+  def _get_job_endpoint(cls):
+    if '_job_endpoint' not in cls.__dict__:
+      cls._job_endpoint = cls._create_job_endpoint()
+    return cls._job_endpoint
+
+  @classmethod
+  def _create_job_endpoint(cls):
     if cls._use_subprocesses:
       return cls._start_local_runner_subprocess_job_service()
     elif cls._use_grpc:
@@ -134,11 +143,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   @classmethod
   def get_runner(cls):
-    # Don't inherit.
-    if '_runner' not in cls.__dict__:
-      cls._runner = portable_runner.PortableRunner(
-          job_service_address=cls._create_job_service())
-    return cls._runner
+    return portable_runner.PortableRunner(is_embedded_fnapi_runner=True)
 
   @classmethod
   def tearDownClass(cls):
@@ -147,7 +152,9 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       time.sleep(0.1)
 
   def create_pipeline(self):
-    return beam.Pipeline(self.get_runner())
+    options = PipelineOptions()
+    options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
+    return beam.Pipeline(self.get_runner(), options)
 
   def test_assert_that(self):
     # TODO: figure out a way for runner to parse and raise the

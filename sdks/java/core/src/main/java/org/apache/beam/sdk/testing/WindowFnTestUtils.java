@@ -43,15 +43,10 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
-/**
- * A utility class for testing {@link WindowFn}s.
- */
+/** A utility class for testing {@link WindowFn}s. */
 public class WindowFnTestUtils {
 
-  /**
-   * Creates a Set of elements to be used as expected output in
-   * {@link #runWindowFn}.
-   */
+  /** Creates a Set of elements to be used as expected output in {@link #runWindowFn}. */
   public static Set<String> set(long... timestamps) {
     Set<String> result = new HashSet<>();
     for (long timestamp : timestamps) {
@@ -61,12 +56,11 @@ public class WindowFnTestUtils {
   }
 
   /**
-   * Runs the {@link WindowFn} over the provided input, returning a map
-   * of windows to the timestamps in those windows.
+   * Runs the {@link WindowFn} over the provided input, returning a map of windows to the timestamps
+   * in those windows.
    */
   public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFn(
-      WindowFn<T, W> windowFn,
-      List<Long> timestamps) throws Exception {
+      WindowFn<T, W> windowFn, List<Long> timestamps) throws Exception {
     List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
     for (Long timestamp : timestamps) {
       timestampedValues.add(TimestampedValue.of((T) null, new Instant(timestamp)));
@@ -75,13 +69,12 @@ public class WindowFnTestUtils {
   }
 
   /**
-   * Runs the {@link WindowFn} over the provided input, returning a map
-   * of windows to the timestamps in those windows. This version allows to pass a list of
-   * {@link TimestampedValue} in case the values are used to assign windows.
+   * Runs the {@link WindowFn} over the provided input, returning a map of windows to the timestamps
+   * in those windows. This version allows to pass a list of {@link TimestampedValue} in case the
+   * values are used to assign windows.
    */
   public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFnWithValue(
-      WindowFn<T, W> windowFn,
-      List<TimestampedValue<T>> timestampedValues) throws Exception {
+      WindowFn<T, W> windowFn, List<TimestampedValue<T>> timestampedValues) throws Exception {
 
     final TestWindowSet<W, String> windowSet = new TestWindowSet<>();
     for (final TimestampedValue<T> element : timestampedValues) {
@@ -98,18 +91,16 @@ public class WindowFnTestUtils {
     return actual;
   }
 
-  /**
-  * runs {@link WindowFn#assignWindows(WindowFn.AssignContext)}.
-   */
+  /** runs {@link WindowFn#assignWindows(WindowFn.AssignContext)}. */
   public static <T, W extends BoundedWindow> Collection<W> assignedWindows(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    return assignedWindowsWithValue(windowFn,
-        TimestampedValue.of((T) null, new Instant(timestamp)));
+    return assignedWindowsWithValue(
+        windowFn, TimestampedValue.of((T) null, new Instant(timestamp)));
   }
 
   /**
-   * runs {@link WindowFn#assignWindows(WindowFn.AssignContext)}. This version allows passing
-   * a {@link TimestampedValue} in case the value is needed to assign windows.
+   * runs {@link WindowFn#assignWindows(WindowFn.AssignContext)}. This version allows passing a
+   * {@link TimestampedValue} in case the value is needed to assign windows.
    */
   public static <T, W extends BoundedWindow> Collection<W> assignedWindowsWithValue(
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
@@ -121,9 +112,7 @@ public class WindowFnTestUtils {
     return "T" + new Instant(timestamp);
   }
 
-  /**
-   * Test implementation of AssignContext.
-   */
+  /** Test implementation of AssignContext. */
   private static class TestAssignContext<T, W extends BoundedWindow>
       extends WindowFn<T, W>.AssignContext {
     private TimestampedValue<T> timestampedValue;
@@ -149,15 +138,12 @@ public class WindowFnTestUtils {
     }
   }
 
-  /**
-   * Test implementation of MergeContext.
-   */
+  /** Test implementation of MergeContext. */
   private static class TestMergeContext<T, W extends BoundedWindow>
-    extends WindowFn<T, W>.MergeContext {
+      extends WindowFn<T, W>.MergeContext {
     private TestWindowSet<W, ?> windowSet;
 
-    public TestMergeContext(
-        TestWindowSet<W, ?> windowSet, WindowFn<T, W> windowFn) {
+    public TestMergeContext(TestWindowSet<W, ?> windowSet, WindowFn<T, W> windowFn) {
       windowFn.super();
       this.windowSet = windowSet;
     }
@@ -174,8 +160,8 @@ public class WindowFnTestUtils {
   }
 
   /**
-   * A WindowSet useful for testing WindowFns that simply
-   * collects the placed elements into multisets.
+   * A WindowSet useful for testing WindowFns that simply collects the placed elements into
+   * multisets.
    */
   private static class TestWindowSet<W extends BoundedWindow, V> {
 
@@ -222,14 +208,14 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimes(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    validateNonInterferingOutputTimesWithValue(windowFn,
-        TimestampedValue.of((T) null, new Instant(timestamp)));
+    validateNonInterferingOutputTimesWithValue(
+        windowFn, TimestampedValue.of((T) null, new Instant(timestamp)));
   }
   /**
    * Assigns the given {@code timestampedValue} to windows using the specified {@code windowFn}, and
    * verifies that result of {@code windowFn.getOutputTimestamp} for each window is within the
-   * proper bound. This version allows passing a {@link TimestampedValue}
-   * in case the value is needed to assign windows.
+   * proper bound. This version allows passing a {@link TimestampedValue} in case the value is
+   * needed to assign windows.
    */
   public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimesWithValue(
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
@@ -238,13 +224,14 @@ public class WindowFnTestUtils {
     Instant instant = timestampedValue.getTimestamp();
     for (W window : windows) {
       Instant outputTimestamp = windowFn.getOutputTime(instant, window);
-      assertFalse("getOutputTime must be greater than or equal to input timestamp",
+      assertFalse(
+          "getOutputTime must be greater than or equal to input timestamp",
           outputTimestamp.isBefore(instant));
-      assertFalse("getOutputTime must be less than or equal to the max timestamp",
+      assertFalse(
+          "getOutputTime must be less than or equal to the max timestamp",
           outputTimestamp.isAfter(window.maxTimestamp()));
     }
   }
-
 
   /**
    * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
@@ -252,15 +239,14 @@ public class WindowFnTestUtils {
    * (as defined by {@code maxTimestamp} won't prevent the watermark from passing the end of earlier
    * windows.
    *
-   * <p>This verifies that overlapping windows don't interfere at all. Depending on the
-   * {@code windowFn} this may be stricter than desired.
+   * <p>This verifies that overlapping windows don't interfere at all. Depending on the {@code
+   * windowFn} this may be stricter than desired.
    */
   public static <T, W extends BoundedWindow> void validateGetOutputTimestamp(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    validateGetOutputTimestampWithValue(windowFn,
-        TimestampedValue.of((T) null, new Instant(timestamp)));
+    validateGetOutputTimestampWithValue(
+        windowFn, TimestampedValue.of((T) null, new Instant(timestamp)));
   }
-
 
   /**
    * Assigns the given {@code timestampedValue} to windows using the specified {@code windowFn}, and
@@ -268,9 +254,9 @@ public class WindowFnTestUtils {
    * (as defined by {@code maxTimestamp} won't prevent the watermark from passing the end of earlier
    * windows.
    *
-   * <p>This verifies that overlapping windows don't interfere at all. Depending on the
-   * {@code windowFn} this may be stricter than desired. This version allows passing
-   * a {@link TimestampedValue} in case the value is needed to assign windows.
+   * <p>This verifies that overlapping windows don't interfere at all. Depending on the {@code
+   * windowFn} this may be stricter than desired. This version allows passing a {@link
+   * TimestampedValue} in case the value is needed to assign windows.
    */
   public static <T, W extends BoundedWindow> void validateGetOutputTimestampWithValue(
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
@@ -285,22 +271,25 @@ public class WindowFnTestUtils {
       if (endOfPrevious == null) {
         // If this is the first window, the output timestamp can be anything, as long as it is in
         // the valid range.
-        assertFalse("getOutputTime must be greater than or equal to input timestamp",
+        assertFalse(
+            "getOutputTime must be greater than or equal to input timestamp",
             outputTimestamp.isBefore(instant));
-        assertFalse("getOutputTime must be less than or equal to the max timestamp",
+        assertFalse(
+            "getOutputTime must be less than or equal to the max timestamp",
             outputTimestamp.isAfter(window.maxTimestamp()));
       } else {
         // If this is a later window, the output timestamp must be after the end of the previous
         // window
-        assertTrue("getOutputTime must be greater than the end of the previous window",
+        assertTrue(
+            "getOutputTime must be greater than the end of the previous window",
             outputTimestamp.isAfter(endOfPrevious));
-        assertFalse("getOutputTime must be less than or equal to the max timestamp",
+        assertFalse(
+            "getOutputTime must be less than or equal to the max timestamp",
             outputTimestamp.isAfter(window.maxTimestamp()));
       }
       endOfPrevious = window.maxTimestamp();
     }
   }
-
 
   /**
    * Verifies that later-ending merged windows from any of the timestamps hold up output of
@@ -313,11 +302,11 @@ public class WindowFnTestUtils {
    *
    * <p>Verifies that a overlapping windows do not hold each other up via the watermark.
    */
-  public static <T, W extends IntervalWindow>
-  void validateGetOutputTimestamps(
+  public static <T, W extends IntervalWindow> void validateGetOutputTimestamps(
       WindowFn<T, W> windowFn,
       TimestampCombiner timestampCombiner,
-      List<List<Long>> timestampsPerWindow) throws Exception {
+      List<List<Long>> timestampsPerWindow)
+      throws Exception {
 
     List<List<TimestampedValue<T>>> timestampValuesPerWindow = new ArrayList<>();
     for (List<Long> timestamps : timestampsPerWindow) {
@@ -340,15 +329,14 @@ public class WindowFnTestUtils {
    * each were a separate key/user session). Then combines each timestamp in the list according to
    * the provided {@link TimestampCombiner}.
    *
-   * <p>Verifies that a overlapping windows do not hold each other up via the watermark.
-   * This version allows passing {@link TimestampedValue} in case
-   * the value is needed to assign windows.
+   * <p>Verifies that a overlapping windows do not hold each other up via the watermark. This
+   * version allows passing {@link TimestampedValue} in case the value is needed to assign windows.
    */
-  public static <T, W extends IntervalWindow>
-  void validateGetOutputTimestampsWithValue(
+  public static <T, W extends IntervalWindow> void validateGetOutputTimestampsWithValue(
       WindowFn<T, W> windowFn,
       TimestampCombiner timestampCombiner,
-      List<List<TimestampedValue<T>>> timestampValuesPerWindow) throws Exception {
+      List<List<TimestampedValue<T>>> timestampValuesPerWindow)
+      throws Exception {
 
     // Assign windows to each timestamp, then merge them, storing the merged windows in
     // a list in corresponding order to timestampValuesPerWindow
@@ -360,17 +348,18 @@ public class WindowFnTestUtils {
         windowsToMerge.addAll(assignedWindowsWithValue(windowFn, element));
       }
 
-      windowFn.mergeWindows(windowFn.new MergeContext() {
-        @Override
-        public Collection<W> windows() {
-          return windowsToMerge;
-        }
+      windowFn.mergeWindows(
+          windowFn.new MergeContext() {
+            @Override
+            public Collection<W> windows() {
+              return windowsToMerge;
+            }
 
-        @Override
-        public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-          windows.add(mergeResult);
-        }
-      });
+            @Override
+            public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+              windows.add(mergeResult);
+            }
+          });
     }
 
     // Map every list of input timestampValues timestamps to an output timestamp
@@ -396,8 +385,8 @@ public class WindowFnTestUtils {
       ReadableInstant outputTimestamp = combinedOutputTimestamps.get(i);
 
       if (earlierEndingWindow != null) {
-        assertThat(outputTimestamp,
-            greaterThan((ReadableInstant) earlierEndingWindow.maxTimestamp()));
+        assertThat(
+            outputTimestamp, greaterThan((ReadableInstant) earlierEndingWindow.maxTimestamp()));
       }
 
       earlierEndingWindow = window;
@@ -424,7 +413,7 @@ public class WindowFnTestUtils {
         !Iterables.isEmpty(outputInstants),
         "Cannot combine zero instants with %s",
         timestampCombiner);
-    switch(timestampCombiner) {
+    switch (timestampCombiner) {
       case EARLIEST:
         return Ordering.natural().min(outputInstants);
       case LATEST:

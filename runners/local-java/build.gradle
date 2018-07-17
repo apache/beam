@@ -30,7 +30,6 @@ dependencies {
   */
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest library.java.junit

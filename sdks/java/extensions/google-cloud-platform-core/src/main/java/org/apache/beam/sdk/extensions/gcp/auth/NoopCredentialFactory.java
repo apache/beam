@@ -25,8 +25,8 @@ import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Construct an oauth credential to be used by the SDK and the SDK workers.
- * Always returns a null Credential object.
+ * Construct an oauth credential to be used by the SDK and the SDK workers. Always returns a null
+ * Credential object.
  */
 public class NoopCredentialFactory implements CredentialFactory {
   private static final NoopCredentialFactory INSTANCE = new NoopCredentialFactory();

@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link AfterFirst}.
- */
+/** Tests for {@link AfterFirst}. */
 @RunWith(JUnit4.class)
 public class AfterFirstTest {
 
@@ -35,10 +33,12 @@ public class AfterFirstTest {
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    assertEquals(new Instant(9),
+    assertEquals(
+        new Instant(9),
         AfterFirst.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(4))
             .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterFirst.of(AfterPane.elementCountAtLeast(2), AfterPane.elementCountAtLeast(1))
             .getWatermarkThatGuaranteesFiring(window));
   }

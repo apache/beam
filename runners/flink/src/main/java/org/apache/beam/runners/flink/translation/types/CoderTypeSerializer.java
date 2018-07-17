@@ -32,8 +32,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
- * Dataflow {@link org.apache.beam.sdk.coders.Coder Coders}.
+ * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Dataflow {@link
+ * org.apache.beam.sdk.coders.Coder Coders}.
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
@@ -104,9 +104,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   }
 
   @Override
-  public void copy(
-      DataInputView dataInputView,
-      DataOutputView dataOutputView) throws IOException {
+  public void copy(DataInputView dataInputView, DataOutputView dataOutputView) throws IOException {
     serialize(deserialize(dataInputView), dataOutputView);
   }
 
@@ -147,9 +145,9 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   }
 
   /**
-   *  TypeSerializerConfigSnapshot of CoderTypeSerializer. This uses the class name of the
-   *  {@link Coder} to determine compatibility. This is a bit crude but better than using
-   *  Java Serialization to (de)serialize the {@link Coder}.
+   * TypeSerializerConfigSnapshot of CoderTypeSerializer. This uses the class name of the {@link
+   * Coder} to determine compatibility. This is a bit crude but better than using Java Serialization
+   * to (de)serialize the {@link Coder}.
    */
   public static class CoderTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot {
 
@@ -203,8 +201,6 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public String toString() {
-    return "CoderTypeSerializer{"
-        + "coder=" + coder
-        + '}';
+    return "CoderTypeSerializer{" + "coder=" + coder + '}';
   }
 }

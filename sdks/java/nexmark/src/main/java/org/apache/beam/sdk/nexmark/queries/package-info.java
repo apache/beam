@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Nexmark Queries.
- */
+/** Nexmark Queries. */
 package org.apache.beam.sdk.nexmark.queries;

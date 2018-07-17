@@ -21,17 +21,13 @@ package org.apache.beam.runners.fnexecution.artifact;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.ByteStreams;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.util.JsonFormat;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
@@ -46,6 +42,11 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +71,12 @@ public class BeamFileSystemArtifactRetrievalService
   public void getManifest(
       ArtifactApi.GetManifestRequest request,
       StreamObserver<ArtifactApi.GetManifestResponse> responseObserver) {
-    String token = request.getRetrievalToken();
+    final String token = request.getRetrievalToken();
+    if (Strings.isNullOrEmpty(token)) {
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription("Empty artifact token"));
+    }
+
     LOG.info("GetManifest for {}", token);
     try {
       ArtifactApi.ProxyManifest proxyManifest = MANIFEST_CACHE.get(token);

@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-/**
- * Copied from package com.google.cloud.bigquery, see BEAM-4248.
- */
+/** Copied from package com.google.cloud.bigquery, see BEAM-4248. */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 /**
- * A type used in standard SQL contexts. For example, these types are used in queries
- * with query parameters, which requires usage of standard SQL.
+ * A type used in standard SQL contexts. For example, these types are used in queries with query
+ * parameters, which requires usage of standard SQL.
  *
- * @see <a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types">https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types</a>
+ * @see <a
+ *     href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types">https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types</a>
  */
 enum StandardSQLTypeName {
   /** A Boolean value (true or false). */
@@ -32,6 +31,8 @@ enum StandardSQLTypeName {
   INT64,
   /** A 64-bit IEEE binary floating-point value. */
   FLOAT64,
+  /** A decimal value with 38 digits of precision and 9 digits of scale. */
+  NUMERIC,
   /** Variable-length character (Unicode) data. */
   STRING,
   /** Variable-length binary data. */

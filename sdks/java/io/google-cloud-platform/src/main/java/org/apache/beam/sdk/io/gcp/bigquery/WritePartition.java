@@ -129,7 +129,9 @@ class WritePartition<DestinationT>
       // Return a null destination in this case - the constant DynamicDestinations class will
       // resolve it to the singleton output table.
       results.add(
-          new Result<>(writerResult.resourceId.toString(), writerResult.byteSize,
+          new Result<>(
+              writerResult.resourceId.toString(),
+              writerResult.byteSize,
               dynamicDestinations.getDestination(null)));
     }
 
@@ -162,8 +164,7 @@ class WritePartition<DestinationT>
           (destinationData.getPartitions().size() == 1) ? singlePartitionTag : multiPartitionsTag;
       for (int i = 0; i < destinationData.getPartitions().size(); ++i) {
         PartitionData partitionData = destinationData.getPartitions().get(i);
-        c.output(
-            outputTag, KV.of(ShardedKey.of(destination, i + 1), partitionData.getFilenames()));
+        c.output(outputTag, KV.of(ShardedKey.of(destination, i + 1), partitionData.getFilenames()));
       }
     }
   }

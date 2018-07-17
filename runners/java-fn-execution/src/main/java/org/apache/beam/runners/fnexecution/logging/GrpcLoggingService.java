@@ -19,7 +19,6 @@
 package org.apache.beam.runners.fnexecution.logging;
 
 import com.google.common.collect.ImmutableSet;
-import io.grpc.stub.StreamObserver;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,6 +26,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

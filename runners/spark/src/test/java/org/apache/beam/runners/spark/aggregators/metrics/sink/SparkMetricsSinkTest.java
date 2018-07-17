@@ -45,8 +45,8 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExternalResource;
 
 /**
- * A test that verifies Beam metrics are reported to Spark's metrics sink in both batch
- * and streaming modes.
+ * A test that verifies Beam metrics are reported to Spark's metrics sink in both batch and
+ * streaming modes.
  */
 public class SparkMetricsSinkTest {
   @Rule public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
@@ -64,9 +64,9 @@ public class SparkMetricsSinkTest {
 
     final PCollection<String> output =
         pipeline
-        .apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()))
-        .apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+            .apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()))
+            .apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNTS);
     pipeline.run();
 
@@ -80,8 +80,11 @@ public class SparkMetricsSinkTest {
 
     Instant instant = new Instant(0);
     CreateStream<String> source =
-        CreateStream.of(StringUtf8Coder.of(), Duration.millis(
-            (pipeline.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis()))
+        CreateStream.of(
+                StringUtf8Coder.of(),
+                Duration.millis(
+                    (pipeline.getOptions().as(SparkPipelineOptions.class))
+                        .getBatchIntervalMillis()))
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant)
             .nextBatch(
@@ -94,16 +97,17 @@ public class SparkMetricsSinkTest {
                 TimestampedValue.of(WORDS.get(4), instant.plus(Duration.standardSeconds(1L))),
                 TimestampedValue.of(WORDS.get(5), instant.plus(Duration.standardSeconds(1L))))
             .advanceNextBatchWatermarkToInfinity();
-    PCollection<String> output = pipeline
-        .apply(source)
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(3L)))
-            .withAllowedLateness(Duration.ZERO))
-        .apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    PCollection<String> output =
+        pipeline
+            .apply(source)
+            .apply(
+                Window.<String>into(FixedWindows.of(Duration.standardSeconds(3L)))
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNTS);
     pipeline.run();
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
   }
-
 }

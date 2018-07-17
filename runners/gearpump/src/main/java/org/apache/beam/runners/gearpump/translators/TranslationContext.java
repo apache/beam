@@ -35,9 +35,7 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
 import org.apache.gearpump.streaming.source.DataSource;
 
-/**
- * Maintains context data for {@link TransformTranslator}s.
- */
+/** Maintains context data for {@link TransformTranslator}s. */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class TranslationContext {
 
@@ -88,15 +86,12 @@ public class TranslationContext {
   }
 
   private AppliedPTransform<?, ?, ?> getCurrentTransform() {
-    checkArgument(
-        currentTransform != null,
-        "current transform not set");
+    checkArgument(currentTransform != null, "current transform not set");
     return currentTransform;
   }
 
   public <T> JavaStream<T> getSourceStream(DataSource dataSource) {
-    return streamApp.source(dataSource, pipelineOptions.getParallelism(),
-        UserConfig.empty(), "source");
+    return streamApp.source(
+        dataSource, pipelineOptions.getParallelism(), UserConfig.empty(), "source");
   }
-
 }

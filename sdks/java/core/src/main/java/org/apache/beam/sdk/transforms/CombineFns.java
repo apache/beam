@@ -47,18 +47,16 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * Static utility methods that create combine function instances.
- */
+/** Static utility methods that create combine function instances. */
 public class CombineFns {
 
   /**
-   * Returns a {@link ComposeCombineFnBuilder} to construct a composed
-   * {@link GlobalCombineFn}.
+   * Returns a {@link ComposeCombineFnBuilder} to construct a composed {@link GlobalCombineFn}.
    *
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
+   *
    * <pre>{@code
    * PCollection<Integer> globalLatencies = ...;
    *
@@ -97,35 +95,30 @@ public class CombineFns {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A builder class to construct a composed {@link GlobalCombineFn}.
-   */
+  /** A builder class to construct a composed {@link GlobalCombineFn}. */
   public static class ComposeCombineFnBuilder {
     /**
-     * Returns a {@link ComposedCombineFn} that can take additional
-     * {@link GlobalCombineFn GlobalCombineFns} and apply them as a single combine function.
+     * Returns a {@link ComposedCombineFn} that can take additional {@link GlobalCombineFn
+     * GlobalCombineFns} and apply them as a single combine function.
      *
-     * <p>The {@link ComposedCombineFn} extracts inputs from {@code DataT} with
-     * the {@code extractInputFn} and combines them with the {@code combineFn},
-     * and then it outputs each combined value with a {@link TupleTag} to a
-     * {@link CoCombineResult}.
+     * <p>The {@link ComposedCombineFn} extracts inputs from {@code DataT} with the {@code
+     * extractInputFn} and combines them with the {@code combineFn}, and then it outputs each
+     * combined value with a {@link TupleTag} to a {@link CoCombineResult}.
      */
     public <DataT, InputT, OutputT> ComposedCombineFn<DataT> with(
         SimpleFunction<DataT, InputT> extractInputFn,
         CombineFn<InputT, ?, OutputT> combineFn,
         TupleTag<OutputT> outputTag) {
-      return new ComposedCombineFn<DataT>()
-          .with(extractInputFn, combineFn, outputTag);
+      return new ComposedCombineFn<DataT>().with(extractInputFn, combineFn, outputTag);
     }
 
     /**
-     * Returns a {@link ComposedCombineFnWithContext} that can take additional
-     * {@link GlobalCombineFn GlobalCombineFns} and apply them as a single combine function.
+     * Returns a {@link ComposedCombineFnWithContext} that can take additional {@link
+     * GlobalCombineFn GlobalCombineFns} and apply them as a single combine function.
      *
-     * <p>The {@link ComposedCombineFnWithContext} extracts inputs from {@code DataT} with
-     * the {@code extractInputFn} and combines them with the {@code combineFnWithContext},
-     * and then it outputs each combined value with a {@link TupleTag} to a
-     * {@link CoCombineResult}.
+     * <p>The {@link ComposedCombineFnWithContext} extracts inputs from {@code DataT} with the
+     * {@code extractInputFn} and combines them with the {@code combineFnWithContext}, and then it
+     * outputs each combined value with a {@link TupleTag} to a {@link CoCombineResult}.
      */
     public <DataT, InputT, OutputT> ComposedCombineFnWithContext<DataT> with(
         SimpleFunction<DataT, InputT> extractInputFn,
@@ -154,9 +147,8 @@ public class CombineFns {
     /**
      * The constructor of {@link CoCombineResult}.
      *
-     * <p>Null values should have been filtered out from the {@code valuesMap}.
-     * {@link TupleTag TupleTags} that associate with null values doesn't exist in the key set of
-     * {@code valuesMap}.
+     * <p>Null values should have been filtered out from the {@code valuesMap}. {@link TupleTag
+     * TupleTags} that associate with null values doesn't exist in the key set of {@code valuesMap}.
      *
      * @throws NullPointerException if any key or value in {@code valuesMap} is null
      */
@@ -213,10 +205,9 @@ public class CombineFns {
   /**
    * A composed {@link CombineFn} that applies multiple {@link CombineFn CombineFns}.
    *
-   * <p>For each {@link CombineFn} it extracts inputs from {@code DataT} with
-   * the {@code extractInputFn} and combines them,
-   * and then it outputs each combined value with a {@link TupleTag} to a
-   * {@link CoCombineResult}.
+   * <p>For each {@link CombineFn} it extracts inputs from {@code DataT} with the {@code
+   * extractInputFn} and combines them, and then it outputs each combined value with a {@link
+   * TupleTag} to a {@link CoCombineResult}.
    */
   public static class ComposedCombineFn<DataT> extends CombineFn<DataT, Object[], CoCombineResult> {
 
@@ -248,9 +239,7 @@ public class CombineFns {
       this.combineFnCount = this.combineFns.size();
     }
 
-    /**
-     * Returns a {@link ComposedCombineFn} with an additional {@link CombineFn}.
-     */
+    /** Returns a {@link ComposedCombineFn} with an additional {@link CombineFn}. */
     public <InputT, OutputT> ComposedCombineFn<DataT> with(
         SimpleFunction<DataT, InputT> extractInputFn,
         CombineFn<InputT, ?, OutputT> combineFn,
@@ -261,19 +250,13 @@ public class CombineFns {
               .addAll(extractInputFns)
               .add(extractInputFn)
               .build(),
-          ImmutableList.<CombineFn<?, ?, ?>>builder()
-              .addAll(combineFns)
-              .add(combineFn)
-              .build(),
-          ImmutableList.<TupleTag<?>>builder()
-              .addAll(outputTags)
-              .add(outputTag)
-              .build());
+          ImmutableList.<CombineFn<?, ?, ?>>builder().addAll(combineFns).add(combineFn).build(),
+          ImmutableList.<TupleTag<?>>builder().addAll(outputTags).add(outputTag).build());
     }
 
     /**
-     * Returns a {@link ComposedCombineFnWithContext} with an additional
-     * {@link CombineFnWithContext}.
+     * Returns a {@link ComposedCombineFnWithContext} with an additional {@link
+     * CombineFnWithContext}.
      */
     public <InputT, OutputT> ComposedCombineFnWithContext<DataT> with(
         SimpleFunction<DataT, InputT> extractInputFn,
@@ -293,10 +276,7 @@ public class CombineFns {
               .addAll(fnsWithContext)
               .add(combineFn)
               .build(),
-          ImmutableList.<TupleTag<?>>builder()
-              .addAll(outputTags)
-              .add(outputTag)
-              .build());
+          ImmutableList.<TupleTag<?>>builder().addAll(outputTags).add(outputTag).build());
     }
 
     @Override
@@ -338,9 +318,7 @@ public class CombineFns {
     public CoCombineResult extractOutput(Object[] accumulator) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
-        valuesMap.put(
-            outputTags.get(i),
-            combineFns.get(i).extractOutput(accumulator[i]));
+        valuesMap.put(outputTags.get(i), combineFns.get(i).extractOutput(accumulator[i]));
       }
       return new CoCombineResult(valuesMap);
     }
@@ -358,8 +336,7 @@ public class CombineFns {
         throws CannotProvideCoderException {
       List<Coder<Object>> coders = Lists.newArrayList();
       for (int i = 0; i < combineFnCount; ++i) {
-        Coder<Object> inputCoder =
-            registry.getOutputCoder(extractInputFns.get(i), dataCoder);
+        Coder<Object> inputCoder = registry.getOutputCoder(extractInputFns.get(i), dataCoder);
         coders.add(combineFns.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
@@ -373,13 +350,12 @@ public class CombineFns {
   }
 
   /**
-   * A composed {@link CombineFnWithContext} that applies multiple
-   * {@link CombineFnWithContext CombineFnWithContexts}.
+   * A composed {@link CombineFnWithContext} that applies multiple {@link CombineFnWithContext
+   * CombineFnWithContexts}.
    *
-   * <p>For each {@link CombineFnWithContext} it extracts inputs from {@code DataT} with
-   * the {@code extractInputFn} and combines them,
-   * and then it outputs each combined value with a {@link TupleTag} to a
-   * {@link CoCombineResult}.
+   * <p>For each {@link CombineFnWithContext} it extracts inputs from {@code DataT} with the {@code
+   * extractInputFn} and combines them, and then it outputs each combined value with a {@link
+   * TupleTag} to a {@link CoCombineResult}.
    */
   public static class ComposedCombineFnWithContext<DataT>
       extends CombineFnWithContext<DataT, Object[], CoCombineResult> {
@@ -401,8 +377,7 @@ public class CombineFns {
         ImmutableList<CombineFnWithContext<?, ?, ?>> combineFnWithContexts,
         ImmutableList<TupleTag<?>> outputTags) {
       @SuppressWarnings({"unchecked", "rawtypes"})
-      List<SerializableFunction<DataT, Object>> castedExtractInputFns =
-          (List) extractInputFns;
+      List<SerializableFunction<DataT, Object>> castedExtractInputFns = (List) extractInputFns;
       this.extractInputFns = castedExtractInputFns;
 
       @SuppressWarnings({"rawtypes", "unchecked"})
@@ -431,10 +406,7 @@ public class CombineFns {
               .addAll(combineFnWithContexts)
               .add(CombineFnUtil.toFnWithContext(globalCombineFn))
               .build(),
-          ImmutableList.<TupleTag<?>>builder()
-              .addAll(outputTags)
-              .add(outputTag)
-              .build());
+          ImmutableList.<TupleTag<?>>builder().addAll(outputTags).add(outputTag).build());
     }
 
     @Override
@@ -466,8 +438,10 @@ public class CombineFns {
         // the i-th component of each accumulator.
         Object[] accum = iter.next();
         for (int i = 0; i < combineFnCount; ++i) {
-          accum[i] = combineFnWithContexts.get(i).mergeAccumulators(
-              new ProjectionIterable(accumulators, i), c);
+          accum[i] =
+              combineFnWithContexts
+                  .get(i)
+                  .mergeAccumulators(new ProjectionIterable(accumulators, i), c);
         }
         return accum;
       }
@@ -478,8 +452,7 @@ public class CombineFns {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
         valuesMap.put(
-            outputTags.get(i),
-            combineFnWithContexts.get(i).extractOutput(accumulator[i], c));
+            outputTags.get(i), combineFnWithContexts.get(i).extractOutput(accumulator[i], c));
       }
       return new CoCombineResult(valuesMap);
     }
@@ -497,8 +470,7 @@ public class CombineFns {
         throws CannotProvideCoderException {
       List<Coder<Object>> coders = Lists.newArrayList();
       for (int i = 0; i < combineFnCount; ++i) {
-        Coder<Object> inputCoder =
-            registry.getOutputCoder(extractInputFns.get(i), dataCoder);
+        Coder<Object> inputCoder = registry.getOutputCoder(extractInputFns.get(i), dataCoder);
         coders.add(combineFnWithContexts.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
@@ -538,7 +510,7 @@ public class CombineFns {
 
         @Override
         public void remove() {
-            throw new UnsupportedOperationException();
+          throw new UnsupportedOperationException();
         }
       };
     }
@@ -554,8 +526,7 @@ public class CombineFns {
     }
 
     @Override
-    public void encode(Object[] value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(Object[] value, OutputStream outStream) throws CoderException, IOException {
       encode(value, outStream, Context.NESTED);
     }
 
@@ -625,8 +596,7 @@ public class CombineFns {
     for (int i = 0; i < combineFns.size(); i++) {
       HasDisplayData combineFn = combineFns.get(i);
       String token = "combineFn" + (i + 1);
-      builder.add(DisplayData.item(token, combineFn.getClass())
-        .withLabel("Combine Function"));
+      builder.add(DisplayData.item(token, combineFn.getClass()).withLabel("Combine Function"));
       builder.include(token, combineFn);
     }
   }

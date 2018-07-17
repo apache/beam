@@ -227,15 +227,6 @@ public final class TranslationUtils {
     }
   }
 
-  public static void rejectSplittable(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not support splittable DoFn: %s", SparkRunner.class.getSimpleName(), doFn));
-    }
-  }
   /**
    * Reject state and timers {@link DoFn}.
    *
@@ -331,6 +322,7 @@ public final class TranslationUtils {
 
   /**
    * Utility to get mapping between TupleTag and a coder.
+   *
    * @param outputs - A map of tuple tags and pcollections
    * @return mapping between TupleTag and a coder
    */
@@ -354,6 +346,7 @@ public final class TranslationUtils {
 
   /**
    * Returns a pair function to convert value to bytes via coder.
+   *
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert value to bytes via coder
    */
@@ -369,9 +362,10 @@ public final class TranslationUtils {
 
   /**
    * Returns a pair function to convert bytes to value via coder.
+   *
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert bytes to value via coder
-   * */
+   */
   public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
@@ -384,6 +378,7 @@ public final class TranslationUtils {
 
   /**
    * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
+   *
    * @param level StorageLevel required
    * @return true if the level is memory only
    */

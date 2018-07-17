@@ -112,8 +112,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       CommittedBundle<KeyedWorkItem<K, KV<K, InputT>>> inputBundle)
       throws Exception {
 
-    final DoFn<KV<K, InputT>, OutputT> doFn =
-        application.getTransform().getDoFn();
+    final DoFn<KV<K, InputT>, OutputT> doFn = application.getTransform().getDoFn();
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     // If the DoFn is stateful, schedule state clearing.
@@ -161,16 +160,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         taggedValues.put(pv.getKey(), (PCollection<?>) pv.getValue());
       }
       PCollection<?> pc =
-          taggedValues
-              .get(
-                  transformOutputWindow
-                      .getTransform()
-                      .getTransform()
-                      .getMainOutputTag());
+          taggedValues.get(transformOutputWindow.getTransform().getTransform().getMainOutputTag());
       WindowingStrategy<?, ?> windowingStrategy = pc.getWindowingStrategy();
       BoundedWindow window = transformOutputWindow.getWindow();
-      final DoFn<?, ?> doFn =
-          transformOutputWindow.getTransform().getTransform().getDoFn();
+      final DoFn<?, ?> doFn = transformOutputWindow.getTransform().getTransform().getDoFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
       final DirectStepContext stepContext =

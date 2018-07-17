@@ -24,13 +24,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * Implementation of {@link FieldValueGetter} backed by relfection-based getter invocation,
- * as opposed to a code-generated version produced by {@link GeneratedGetterFactory}.
+ * Implementation of {@link FieldValueGetter} backed by relfection-based getter invocation, as
+ * opposed to a code-generated version produced by {@link GeneratedGetterFactory}.
  */
 class ReflectionGetter implements FieldValueGetter {
   private String name;
   private Class type;
-  private Method getter;
+  private transient Method getter;
 
   ReflectionGetter(Method getter) {
     this.getter = getter;

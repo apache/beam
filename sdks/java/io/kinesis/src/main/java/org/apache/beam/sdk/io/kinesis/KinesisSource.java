@@ -29,9 +29,7 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Represents source for single stream in Kinesis.
- */
+/** Represents source for single stream in Kinesis. */
 class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisSource.class);
@@ -42,14 +40,25 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   private CheckpointGenerator initialCheckpointGenerator;
   private final Integer limit;
 
-  KinesisSource(AWSClientsProvider awsClientsProvider, String streamName,
-      StartingPoint startingPoint, Duration upToDateThreshold, Integer limit) {
-    this(awsClientsProvider, new DynamicCheckpointGenerator(streamName, startingPoint), streamName,
-        upToDateThreshold, limit);
+  KinesisSource(
+      AWSClientsProvider awsClientsProvider,
+      String streamName,
+      StartingPoint startingPoint,
+      Duration upToDateThreshold,
+      Integer limit) {
+    this(
+        awsClientsProvider,
+        new DynamicCheckpointGenerator(streamName, startingPoint),
+        streamName,
+        upToDateThreshold,
+        limit);
   }
 
-  private KinesisSource(AWSClientsProvider awsClientsProvider,
-      CheckpointGenerator initialCheckpoint, String streamName, Duration upToDateThreshold,
+  private KinesisSource(
+      AWSClientsProvider awsClientsProvider,
+      CheckpointGenerator initialCheckpoint,
+      String streamName,
+      Duration upToDateThreshold,
       Integer limit) {
     this.awsClientsProvider = awsClientsProvider;
     this.initialCheckpointGenerator = initialCheckpoint;
@@ -60,37 +69,37 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   }
 
   /**
-   * Generate splits for reading from the stream.
-   * Basically, it'll try to evenly split set of shards in the stream into
-   * {@code desiredNumSplits} partitions. Each partition is then a split.
+   * Generate splits for reading from the stream. Basically, it'll try to evenly split set of shards
+   * in the stream into {@code desiredNumSplits} partitions. Each partition is then a split.
    */
   @Override
-  public List<KinesisSource> split(int desiredNumSplits,
-      PipelineOptions options) throws Exception {
-    KinesisReaderCheckpoint checkpoint = initialCheckpointGenerator
-        .generate(SimplifiedKinesisClient.from(awsClientsProvider, limit));
+  public List<KinesisSource> split(int desiredNumSplits, PipelineOptions options) throws Exception {
+    KinesisReaderCheckpoint checkpoint =
+        initialCheckpointGenerator.generate(
+            SimplifiedKinesisClient.from(awsClientsProvider, limit));
 
     List<KinesisSource> sources = newArrayList();
 
     for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
-      sources.add(new KinesisSource(
-          awsClientsProvider,
-          new StaticCheckpointGenerator(partition),
-          streamName,
-          upToDateThreshold,
-          limit));
+      sources.add(
+          new KinesisSource(
+              awsClientsProvider,
+              new StaticCheckpointGenerator(partition),
+              streamName,
+              upToDateThreshold,
+              limit));
     }
     return sources;
   }
 
   /**
-   * Creates reader based on given {@link KinesisReaderCheckpoint}.
-   * If {@link KinesisReaderCheckpoint} is not given, then we use
-   * {@code initialCheckpointGenerator} to generate new checkpoint.
+   * Creates reader based on given {@link KinesisReaderCheckpoint}. If {@link
+   * KinesisReaderCheckpoint} is not given, then we use {@code initialCheckpointGenerator} to
+   * generate new checkpoint.
    */
   @Override
-  public UnboundedReader<KinesisRecord> createReader(PipelineOptions options,
-      KinesisReaderCheckpoint checkpointMark) {
+  public UnboundedReader<KinesisRecord> createReader(
+      PipelineOptions options, KinesisReaderCheckpoint checkpointMark) {
 
     CheckpointGenerator checkpointGenerator = initialCheckpointGenerator;
 

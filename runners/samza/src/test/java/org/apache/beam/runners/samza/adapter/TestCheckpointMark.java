@@ -22,9 +22,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.UnboundedSource;
 
-/**
- * A integer CheckpointMark for testing.
- */
+/** A integer CheckpointMark for testing. */
 public class TestCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
   final int checkpoint;
 

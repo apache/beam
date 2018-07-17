@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the CoGbkResult.
- */
+/** Tests the CoGbkResult. */
 @RunWith(JUnit4.class)
 public class CoGbkResultTest {
 
@@ -73,17 +71,14 @@ public class CoGbkResultTest {
     int maxPos = 0;
 
     /**
-     * This will create a list of RawUnionValues whose tags are as given and
-     * values are increasing starting at 0 (i.e. the index in the constructor).
+     * This will create a list of RawUnionValues whose tags are as given and values are increasing
+     * starting at 0 (i.e. the index in the constructor).
      */
     public TestUnionValues(int... tags) {
       this.tags = tags;
     }
 
-    /**
-     * Returns the highest position iterated to so far, useful for ensuring
-     * laziness.
-     */
+    /** Returns the highest position iterated to so far, useful for ensuring laziness. */
     public int maxPos() {
       return maxPos;
     }

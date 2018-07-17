@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Job management services for use in beam runners.
- */
+/** Job management services for use in beam runners. */
 package org.apache.beam.runners.fnexecution.jobsubmission;

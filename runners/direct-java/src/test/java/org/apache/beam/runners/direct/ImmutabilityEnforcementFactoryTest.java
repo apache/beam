@@ -38,13 +38,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ImmutabilityEnforcementFactory}.
- */
+/** Tests for {@link ImmutabilityEnforcementFactory}. */
 @RunWith(JUnit4.class)
 public class ImmutabilityEnforcementFactoryTest implements Serializable {
-  @Rule public transient TestPipeline p =
-      TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule
+  public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   private transient ImmutabilityEnforcementFactory factory;
   private transient BundleFactory bundleFactory;
@@ -61,8 +60,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
                 ParDo.of(
                     new DoFn<byte[], byte[]>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c)
-                          throws Exception {
+                      public void processElement(ProcessContext c) throws Exception {
                         c.element()[0] = 'b';
                       }
                     }));

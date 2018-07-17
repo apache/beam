@@ -24,6 +24,7 @@ import io
 import logging
 import posixpath
 import re
+from builtins import zip
 
 import hdfs
 

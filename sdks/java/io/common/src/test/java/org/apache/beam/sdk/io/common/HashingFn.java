@@ -29,15 +29,10 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
-/**
- * Custom Function for Hashing. The combiner is combineUnordered, and accumulator is a
- * HashCode.
- */
+/** Custom Function for Hashing. The combiner is combineUnordered, and accumulator is a HashCode. */
 public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
 
-  /**
-   * Serializable Class to store the HashCode of input String.
-   */
+  /** Serializable Class to store the HashCode of input String. */
   public static class Accum implements Serializable {
     HashCode hashCode = null;
 
@@ -76,7 +71,7 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
   @Override
   public Accum addInput(Accum accum, String input) {
     List<HashCode> elementHashes = Lists.newArrayList();
-     if (accum.hashCode != null) {
+    if (accum.hashCode != null) {
       elementHashes.add(accum.hashCode);
     }
     HashCode inputHashCode = Hashing.murmur3_128().hashString(input, StandardCharsets.UTF_8);

@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link NeverStateMachine}.
- */
+/** Tests for {@link NeverStateMachine}. */
 @RunWith(JUnit4.class)
 public class NeverStateMachineTest {
   private SimpleTriggerStateMachineTester<IntervalWindow> triggerTester;

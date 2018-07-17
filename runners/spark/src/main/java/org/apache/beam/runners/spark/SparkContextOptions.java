@@ -28,30 +28,30 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 
-
-
 /**
  * A custom {@link PipelineOptions} to work with properties related to {@link JavaSparkContext}.
  *
- * <p>This can only be used programmatically (as opposed to passing command line arguments),
- * since the properties here are context-aware and should not be propagated to workers.
+ * <p>This can only be used programmatically (as opposed to passing command line arguments), since
+ * the properties here are context-aware and should not be propagated to workers.
  *
  * <p>Separating this from {@link SparkPipelineOptions} is needed so the context-aware properties,
- * which link to Spark dependencies, won't be scanned by {@link PipelineOptions}
- * reflective instantiation.
- * Note that {@link SparkContextOptions} is not registered with {@link SparkRunnerRegistrar}.
+ * which link to Spark dependencies, won't be scanned by {@link PipelineOptions} reflective
+ * instantiation. Note that {@link SparkContextOptions} is not registered with {@link
+ * SparkRunnerRegistrar}.
  */
 public interface SparkContextOptions extends SparkPipelineOptions {
 
   @Description("Provided Java Spark Context")
   @JsonIgnore
   JavaSparkContext getProvidedSparkContext();
+
   void setProvidedSparkContext(JavaSparkContext jsc);
 
   @Description("Spark streaming listeners")
   @Default.InstanceFactory(EmptyListenersList.class)
   @JsonIgnore
   List<JavaStreamingListener> getListeners();
+
   void setListeners(List<JavaStreamingListener> listeners);
 
   /** Returns an empty list, to avoid handling null. */

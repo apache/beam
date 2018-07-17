@@ -22,9 +22,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 
-/**
- * Serializable {@link StepContext} that does nothing.
- */
+/** Serializable {@link StepContext} that does nothing. */
 public class NoOpStepContext implements StepContext, Serializable {
   private static final long serialVersionUID = 1L;
 

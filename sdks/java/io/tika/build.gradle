@@ -29,7 +29,6 @@ dependencies {
   compile library.java.guava
   compileOnly "biz.aQute:bndlib:$bndlib_version"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow "org.apache.tika:tika-core:$tika_version"
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")

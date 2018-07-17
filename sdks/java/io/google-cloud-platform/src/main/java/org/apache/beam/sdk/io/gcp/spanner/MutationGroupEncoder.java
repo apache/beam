@@ -46,9 +46,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.MutableDateTime;
 
-/**
- * Given the Spanner Schema, efficiently encodes the mutation group.
- */
+/** Given the Spanner Schema, efficiently encodes the mutation group. */
 class MutationGroupEncoder {
   private static final DateTime MIN_DATE = new DateTime(1, 1, 1, 0, 0);
 
@@ -115,8 +113,7 @@ class MutationGroupEncoder {
     return result;
   }
 
-  private Mutation decodeDelete(ByteArrayInputStream bis)
-      throws IOException {
+  private Mutation decodeDelete(ByteArrayInputStream bis) throws IOException {
     int tableIndex = VarInt.decodeInt(bis);
     String tableName = tables.get(tableIndex);
 
@@ -166,8 +163,8 @@ class MutationGroupEncoder {
       Value value = map.remove(column.getName());
       encodeValue(bos, value);
     }
-    checkArgument(map.isEmpty(), "Columns %s were not defined in table %s", map.keySet(),
-        m.getTable());
+    checkArgument(
+        map.isEmpty(), "Columns %s were not defined in table %s", map.keySet(), m.getTable());
   }
 
   private void encodeValue(ByteArrayOutputStream bos, Value value) throws IOException {
@@ -184,34 +181,41 @@ class MutationGroupEncoder {
     // TODO: avoid using Java serialization here.
     ObjectOutputStream out = new ObjectOutputStream(bos);
     switch (value.getType().getArrayElementType().getCode()) {
-      case BOOL: {
-        out.writeObject(new ArrayList<>(value.getBoolArray()));
-        break;
-      }
-      case INT64: {
-        out.writeObject(new ArrayList<>(value.getInt64Array()));
-        break;
-      }
-      case FLOAT64: {
-        out.writeObject(new ArrayList<>(value.getFloat64Array()));
-        break;
-      }
-      case STRING: {
-        out.writeObject(new ArrayList<>(value.getStringArray()));
-        break;
-      }
-      case BYTES: {
-        out.writeObject(new ArrayList<>(value.getBytesArray()));
-        break;
-      }
-      case TIMESTAMP: {
-        out.writeObject(new ArrayList<>(value.getTimestampArray()));
-        break;
-      }
-      case DATE: {
-        out.writeObject(new ArrayList<>(value.getDateArray()));
-        break;
-      }
+      case BOOL:
+        {
+          out.writeObject(new ArrayList<>(value.getBoolArray()));
+          break;
+        }
+      case INT64:
+        {
+          out.writeObject(new ArrayList<>(value.getInt64Array()));
+          break;
+        }
+      case FLOAT64:
+        {
+          out.writeObject(new ArrayList<>(value.getFloat64Array()));
+          break;
+        }
+      case STRING:
+        {
+          out.writeObject(new ArrayList<>(value.getStringArray()));
+          break;
+        }
+      case BYTES:
+        {
+          out.writeObject(new ArrayList<>(value.getBytesArray()));
+          break;
+        }
+      case TIMESTAMP:
+        {
+          out.writeObject(new ArrayList<>(value.getTimestampArray()));
+          break;
+        }
+      case DATE:
+        {
+          out.writeObject(new ArrayList<>(value.getDateArray()));
+          break;
+        }
       default:
         throw new IllegalArgumentException("Unknown type " + value.getType());
     }
@@ -228,30 +232,34 @@ class MutationGroupEncoder {
       case FLOAT64:
         new DataOutputStream(bos).writeDouble(value.getFloat64());
         break;
-      case STRING: {
-        String str = value.getString();
-        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        VarInt.encode(bytes.length, bos);
-        bos.write(bytes);
-        break;
-      }
-      case BYTES: {
-        ByteArray bytes = value.getBytes();
-        VarInt.encode(bytes.length(), bos);
-        bos.write(bytes.toByteArray());
-        break;
-      }
-      case TIMESTAMP: {
-        Timestamp timestamp = value.getTimestamp();
-        VarInt.encode(timestamp.getSeconds(), bos);
-        VarInt.encode(timestamp.getNanos(), bos);
-        break;
-      }
-      case DATE: {
-        Date date = value.getDate();
-        VarInt.encode(encodeDate(date), bos);
-        break;
-      }
+      case STRING:
+        {
+          String str = value.getString();
+          byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+          VarInt.encode(bytes.length, bos);
+          bos.write(bytes);
+          break;
+        }
+      case BYTES:
+        {
+          ByteArray bytes = value.getBytes();
+          VarInt.encode(bytes.length(), bos);
+          bos.write(bytes.toByteArray());
+          break;
+        }
+      case TIMESTAMP:
+        {
+          Timestamp timestamp = value.getTimestamp();
+          VarInt.encode(timestamp.getSeconds(), bos);
+          VarInt.encode(timestamp.getNanos(), bos);
+          break;
+        }
+      case DATE:
+        {
+          Date date = value.getDate();
+          VarInt.encode(encodeDate(date), bos);
+          break;
+        }
       default:
         throw new IllegalArgumentException("Unknown type " + value.getType());
     }
@@ -326,85 +334,101 @@ class MutationGroupEncoder {
         default:
           decodePrimitive(bis, fieldName, type, isNull, m);
       }
-
     }
     return m.build();
   }
 
-  private void decodeArray(ByteArrayInputStream bis, String fieldName, Type type, boolean isNull,
-      Mutation.WriteBuilder m) throws IOException, ClassNotFoundException {
+  private void decodeArray(
+      ByteArrayInputStream bis,
+      String fieldName,
+      Type type,
+      boolean isNull,
+      Mutation.WriteBuilder m)
+      throws IOException, ClassNotFoundException {
     // TODO: avoid using Java serialization here.
     switch (type.getArrayElementType().getCode()) {
-      case BOOL: {
-        if (isNull) {
-          m.set(fieldName).toBoolArray((Iterable<Boolean>) null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toBoolArray((List<Boolean>) out.readObject());
+      case BOOL:
+        {
+          if (isNull) {
+            m.set(fieldName).toBoolArray((Iterable<Boolean>) null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toBoolArray((List<Boolean>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
-      case INT64: {
-        if (isNull) {
-          m.set(fieldName).toInt64Array((Iterable<Long>) null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toInt64Array((List<Long>) out.readObject());
+      case INT64:
+        {
+          if (isNull) {
+            m.set(fieldName).toInt64Array((Iterable<Long>) null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toInt64Array((List<Long>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
-      case FLOAT64: {
-        if (isNull) {
-          m.set(fieldName).toFloat64Array((Iterable<Double>) null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toFloat64Array((List<Double>) out.readObject());
+      case FLOAT64:
+        {
+          if (isNull) {
+            m.set(fieldName).toFloat64Array((Iterable<Double>) null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toFloat64Array((List<Double>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
-      case STRING: {
-        if (isNull) {
-          m.set(fieldName).toStringArray(null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toStringArray((List<String>) out.readObject());
+      case STRING:
+        {
+          if (isNull) {
+            m.set(fieldName).toStringArray(null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toStringArray((List<String>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
-      case BYTES: {
-        if (isNull) {
-          m.set(fieldName).toBytesArray(null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toBytesArray((List<ByteArray>) out.readObject());
+      case BYTES:
+        {
+          if (isNull) {
+            m.set(fieldName).toBytesArray(null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toBytesArray((List<ByteArray>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
-      case TIMESTAMP: {
-        if (isNull) {
-          m.set(fieldName).toTimestampArray(null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toTimestampArray((List<Timestamp>) out.readObject());
+      case TIMESTAMP:
+        {
+          if (isNull) {
+            m.set(fieldName).toTimestampArray(null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toTimestampArray((List<Timestamp>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
-      case DATE: {
-        if (isNull) {
-          m.set(fieldName).toDateArray(null);
-        } else {
-          ObjectInputStream out = new ObjectInputStream(bis);
-          m.set(fieldName).toDateArray((List<Date>) out.readObject());
+      case DATE:
+        {
+          if (isNull) {
+            m.set(fieldName).toDateArray(null);
+          } else {
+            ObjectInputStream out = new ObjectInputStream(bis);
+            m.set(fieldName).toDateArray((List<Date>) out.readObject());
+          }
+          break;
         }
-        break;
-      }
       default:
         throw new IllegalArgumentException("Unknown type " + type);
     }
   }
 
-  private void decodePrimitive(ByteArrayInputStream bis, String fieldName, Type type,
-      boolean isNull, Mutation.WriteBuilder m) throws IOException {
+  private void decodePrimitive(
+      ByteArrayInputStream bis,
+      String fieldName,
+      Type type,
+      boolean isNull,
+      Mutation.WriteBuilder m)
+      throws IOException {
     switch (type.getCode()) {
       case BOOL:
         if (isNull) {
@@ -427,45 +451,49 @@ class MutationGroupEncoder {
           m.set(fieldName).to(new DataInputStream(bis).readDouble());
         }
         break;
-      case STRING: {
-        if (isNull) {
-          m.set(fieldName).to((String) null);
-        } else {
-          int len = VarInt.decodeInt(bis);
-          byte[] bytes = readBytes(bis, len);
-          m.set(fieldName).to(new String(bytes, StandardCharsets.UTF_8));
+      case STRING:
+        {
+          if (isNull) {
+            m.set(fieldName).to((String) null);
+          } else {
+            int len = VarInt.decodeInt(bis);
+            byte[] bytes = readBytes(bis, len);
+            m.set(fieldName).to(new String(bytes, StandardCharsets.UTF_8));
+          }
+          break;
         }
-        break;
-      }
-      case BYTES: {
-        if (isNull) {
-          m.set(fieldName).to((ByteArray) null);
-        } else {
-          int len = VarInt.decodeInt(bis);
-          byte[] bytes = readBytes(bis, len);
-          m.set(fieldName).to(ByteArray.copyFrom(bytes));
+      case BYTES:
+        {
+          if (isNull) {
+            m.set(fieldName).to((ByteArray) null);
+          } else {
+            int len = VarInt.decodeInt(bis);
+            byte[] bytes = readBytes(bis, len);
+            m.set(fieldName).to(ByteArray.copyFrom(bytes));
+          }
+          break;
         }
-        break;
-      }
-      case TIMESTAMP: {
-        if (isNull) {
-          m.set(fieldName).to((Timestamp) null);
-        } else {
-          int seconds = VarInt.decodeInt(bis);
-          int nanoseconds = VarInt.decodeInt(bis);
-          m.set(fieldName).to(Timestamp.ofTimeSecondsAndNanos(seconds, nanoseconds));
+      case TIMESTAMP:
+        {
+          if (isNull) {
+            m.set(fieldName).to((Timestamp) null);
+          } else {
+            int seconds = VarInt.decodeInt(bis);
+            int nanoseconds = VarInt.decodeInt(bis);
+            m.set(fieldName).to(Timestamp.ofTimeSecondsAndNanos(seconds, nanoseconds));
+          }
+          break;
         }
-        break;
-      }
-      case DATE: {
-        if (isNull) {
-          m.set(fieldName).to((Date) null);
-        } else {
-          int days = VarInt.decodeInt(bis);
-          m.set(fieldName).to(decodeDate(days));
+      case DATE:
+        {
+          if (isNull) {
+            m.set(fieldName).to((Date) null);
+          } else {
+            int days = VarInt.decodeInt(bis);
+            m.set(fieldName).to(decodeDate(days));
+          }
+          break;
         }
-        break;
-      }
       default:
         throw new IllegalArgumentException("Unknown type " + type);
     }
@@ -479,6 +507,7 @@ class MutationGroupEncoder {
 
   /**
    * Builds a lexicographically sortable binary key based on a primary key descriptor.
+   *
    * @param m a spanner mutation.
    * @return a binary string that preserves the ordering of the primary key.
    */
@@ -532,17 +561,18 @@ class MutationGroupEncoder {
               orderedCode.writeBytes(val.getBytes().toByteArray());
             }
             break;
-          case TIMESTAMP: {
-            Timestamp value = val.getTimestamp();
-            if (part.isDesc()) {
-              orderedCode.writeNumDecreasing(value.getSeconds());
-              orderedCode.writeNumDecreasing(value.getNanos());
-            } else {
-              orderedCode.writeNumIncreasing(value.getSeconds());
-              orderedCode.writeNumIncreasing(value.getNanos());
+          case TIMESTAMP:
+            {
+              Timestamp value = val.getTimestamp();
+              if (part.isDesc()) {
+                orderedCode.writeNumDecreasing(value.getSeconds());
+                orderedCode.writeNumDecreasing(value.getNanos());
+              } else {
+                orderedCode.writeNumIncreasing(value.getSeconds());
+                orderedCode.writeNumIncreasing(value.getNanos());
+              }
+              break;
             }
-            break;
-          }
           case DATE:
             Date value = val.getDate();
             if (part.isDesc()) {
@@ -655,7 +685,7 @@ class MutationGroupEncoder {
 
     DateTime jodaDate = MIN_DATE.plusDays(daysSinceEpoch);
 
-    return Date
-        .fromYearMonthDay(jodaDate.getYear(), jodaDate.getMonthOfYear(), jodaDate.getDayOfMonth());
+    return Date.fromYearMonthDay(
+        jodaDate.getYear(), jodaDate.getMonthOfYear(), jodaDate.getDayOfMonth());
   }
 }

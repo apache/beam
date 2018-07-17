@@ -36,25 +36,23 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * An {@link UnboundedSource} to read from Kafka, used by {@link Read} transform in KafkaIO.
- * See {@link KafkaIO} for user visible documentation and example usage.
+ * An {@link UnboundedSource} to read from Kafka, used by {@link Read} transform in KafkaIO. See
+ * {@link KafkaIO} for user visible documentation and example usage.
  */
 class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> {
 
   /**
-   * The partitions are evenly distributed among the splits. The number of splits returned is
-   * {@code min(desiredNumSplits, totalNumPartitions)}, though better not to depend on the exact
-   * count.
+   * The partitions are evenly distributed among the splits. The number of splits returned is {@code
+   * min(desiredNumSplits, totalNumPartitions)}, though better not to depend on the exact count.
    *
-   * <p>It is important to assign the partitions deterministically so that we can support
-   * resuming a split from last checkpoint. The Kafka partitions are sorted by
-   * {@code <topic, partition>} and then assigned to splits in round-robin order.
+   * <p>It is important to assign the partitions deterministically so that we can support resuming a
+   * split from last checkpoint. The Kafka partitions are sorted by {@code <topic, partition>} and
+   * then assigned to splits in round-robin order.
    */
   @Override
-  public List<KafkaUnboundedSource<K, V>> split(
-      int desiredNumSplits, PipelineOptions options) throws Exception {
+  public List<KafkaUnboundedSource<K, V>> split(int desiredNumSplits, PipelineOptions options)
+      throws Exception {
 
     List<TopicPartition> partitions = new ArrayList<>(spec.getTopicPartitions());
 
@@ -63,8 +61,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     // (c) round-robin assign the partitions to splits
 
     if (partitions.isEmpty()) {
-      try (Consumer<?, ?> consumer =
-          spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
+      try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
         for (String topic : spec.getTopics()) {
           for (PartitionInfo p : consumer.partitionsFor(topic)) {
             partitions.add(new TopicPartition(p.topic(), p.partition()));
@@ -74,11 +71,12 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     }
 
     partitions.sort(
-      Comparator.comparing(TopicPartition::topic)
-        .thenComparing(Comparator.comparingInt(TopicPartition::partition)));
+        Comparator.comparing(TopicPartition::topic)
+            .thenComparing(Comparator.comparingInt(TopicPartition::partition)));
 
     checkArgument(desiredNumSplits > 0);
-    checkState(partitions.size() > 0,
+    checkState(
+        partitions.size() > 0,
         "Could not find any partitions. Please check Kafka configuration and topic names");
 
     int numSplits = Math.min(desiredNumSplits, partitions.size());
@@ -96,8 +94,11 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     for (int i = 0; i < numSplits; i++) {
       List<TopicPartition> assignedToSplit = assignments.get(i);
 
-      LOG.info("Partitions assigned to split {} (total {}): {}",
-          i, assignedToSplit.size(), Joiner.on(",").join(assignedToSplit));
+      LOG.info(
+          "Partitions assigned to split {} (total {}): {}",
+          i,
+          assignedToSplit.size(),
+          Joiner.on(",").join(assignedToSplit));
 
       result.add(
           new KafkaUnboundedSource<>(
@@ -112,8 +113,8 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
   }
 
   @Override
-  public KafkaUnboundedReader<K, V> createReader(PipelineOptions options,
-                                                 KafkaCheckpointMark checkpointMark) {
+  public KafkaUnboundedReader<K, V> createReader(
+      PipelineOptions options, KafkaCheckpointMark checkpointMark) {
     if (spec.getTopicPartitions().isEmpty()) {
       LOG.warn("Looks like generateSplits() is not called. Generate single split.");
       try {
@@ -162,4 +163,3 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     return id;
   }
 }
-

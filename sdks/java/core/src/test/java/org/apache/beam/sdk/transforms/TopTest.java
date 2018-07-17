@@ -50,44 +50,43 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class TopTest {
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
+  @Rule public ExpectedException expectedEx = ExpectedException.none();
 
   @SuppressWarnings("unchecked")
-  static final String[] COLLECTION = new String[] {
-    "a", "bb", "c", "c", "z"
-  };
+  static final String[] COLLECTION = new String[] {"a", "bb", "c", "c", "z"};
 
   @SuppressWarnings("unchecked")
-  static final String[] EMPTY_COLLECTION = new String[] {
-  };
+  static final String[] EMPTY_COLLECTION = new String[] {};
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  static final KV<String, Integer>[] TABLE = new KV[] {
-    KV.of("a", 1),
-    KV.of("a", 2),
-    KV.of("a", 3),
-    KV.of("b", 1),
-    KV.of("b", 10),
-    KV.of("b", 10),
-    KV.of("b", 100),
-  };
+  static final KV<String, Integer>[] TABLE =
+      new KV[] {
+        KV.of("a", 1),
+        KV.of("a", 2),
+        KV.of("a", 3),
+        KV.of("b", 1),
+        KV.of("b", 10),
+        KV.of("b", 10),
+        KV.of("b", 100),
+      };
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
-  };
+  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};
 
   public PCollection<KV<String, Integer>> createInputTable(Pipeline p) {
-    return p.apply("CreateInputTable", Create.of(Arrays.asList(TABLE)).withCoder(
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+    return p.apply(
+        "CreateInputTable",
+        Create.of(Arrays.asList(TABLE))
+            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   public PCollection<KV<String, Integer>> createEmptyInputTable(Pipeline p) {
-    return p.apply("CreateEmptyInputTable", Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+    return p.apply(
+        "CreateEmptyInputTable",
+        Create.of(Arrays.asList(EMPTY_TABLE))
+            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   @Test
@@ -95,8 +94,7 @@ public class TopTest {
   @SuppressWarnings("unchecked")
   public void testTop() {
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))
-                 .withCoder(StringUtf8Coder.of()));
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(1, new OrderByLength()));
     PCollection<List<String>> top2 = input.apply(Top.largest(2));
@@ -109,12 +107,10 @@ public class TopTest {
     PAssert.thatSingletonIterable(top1).containsInAnyOrder(Arrays.asList("bb"));
     PAssert.thatSingletonIterable(top2).containsInAnyOrder("z", "c");
     PAssert.thatSingletonIterable(top3).containsInAnyOrder("a", "bb", "c");
-    PAssert.that(largestPerKey).containsInAnyOrder(
-        KV.of("a", Arrays.asList(3, 2)),
-        KV.of("b", Arrays.asList(100, 10)));
-    PAssert.that(smallestPerKey).containsInAnyOrder(
-        KV.of("a", Arrays.asList(1, 2)),
-        KV.of("b", Arrays.asList(1, 10)));
+    PAssert.that(largestPerKey)
+        .containsInAnyOrder(KV.of("a", Arrays.asList(3, 2)), KV.of("b", Arrays.asList(100, 10)));
+    PAssert.that(smallestPerKey)
+        .containsInAnyOrder(KV.of("a", Arrays.asList(1, 2)), KV.of("b", Arrays.asList(1, 10)));
 
     p.run();
   }
@@ -124,8 +120,7 @@ public class TopTest {
   @SuppressWarnings("unchecked")
   public void testTopEmpty() {
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_COLLECTION))
-                 .withCoder(StringUtf8Coder.of()));
+        p.apply(Create.of(Arrays.asList(EMPTY_COLLECTION)).withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(1, new OrderByLength()));
     PCollection<List<String>> top2 = input.apply(Top.largest(2));
@@ -165,8 +160,7 @@ public class TopTest {
   @SuppressWarnings("unchecked")
   public void testTopZero() {
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))
-                 .withCoder(StringUtf8Coder.of()));
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(0, new OrderByLength()));
     PCollection<List<String>> top2 = input.apply(Top.largest(0));
@@ -193,8 +187,8 @@ public class TopTest {
   public void testPerKeySerializabilityRequirement() {
     p.enableAbandonedNodeEnforcement(false);
 
-    p.apply("CreateCollection", Create.of(Arrays.asList(COLLECTION))
-        .withCoder(StringUtf8Coder.of()));
+    p.apply(
+        "CreateCollection", Create.of(Arrays.asList(COLLECTION)).withCoder(StringUtf8Coder.of()));
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
     inputTable.apply(Top.perKey(1, new IntegerComparator()));
@@ -207,8 +201,7 @@ public class TopTest {
     p.enableAbandonedNodeEnforcement(false);
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))
-            .withCoder(StringUtf8Coder.of()));
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(StringUtf8Coder.of()));
 
     expectedEx.expect(IllegalArgumentException.class);
     expectedEx.expectMessage(Matchers.containsString(">= 0"));
@@ -221,8 +214,8 @@ public class TopTest {
     assertEquals("Combine.globally(Top(OrderByLength))", Top.of(1, new OrderByLength()).getName());
     assertEquals("Combine.globally(Top(Reversed))", Top.smallest(1).getName());
     assertEquals("Combine.globally(Top(Natural))", Top.largest(2).getName());
-    assertEquals("Combine.perKey(Top(IntegerComparator))",
-        Top.perKey(1, new IntegerComparator()).getName());
+    assertEquals(
+        "Combine.perKey(Top(IntegerComparator))", Top.perKey(1, new IntegerComparator()).getName());
     assertEquals("Combine.perKey(Top(Reversed))", Top.<String, Integer>smallestPerKey(1).getName());
     assertEquals("Combine.perKey(Top(Natural))", Top.<String, Integer>largestPerKey(2).getName());
   }

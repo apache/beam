@@ -270,7 +270,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
           // arithmetic operators
         case "+":
-          ret = new BeamSqlPlusExpression(subExps);
+          if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
+            ret = new BeamSqlPlusExpression(subExps);
+          } else {
+            ret = new BeamSqlDatetimePlusExpression(subExps);
+          }
           break;
         case "-":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {

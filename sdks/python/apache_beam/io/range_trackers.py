@@ -17,12 +17,14 @@
 
 """iobase.RangeTracker implementations provided with Apache Beam.
 """
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import math
 import threading
 
-from six import integer_types
+from past.builtins import long
 
 from apache_beam.io import iobase
 
@@ -47,9 +49,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError('Start offset must not be \'None\'')
     if end is None:
       raise ValueError('End offset must not be \'None\'')
-    assert isinstance(start, integer_types)
+    assert isinstance(start, (int, long))
     if end != self.OFFSET_INFINITY:
-      assert isinstance(end, integer_types)
+      assert isinstance(end, (int, long))
 
     assert start <= end
 
@@ -123,7 +125,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
-    assert isinstance(split_offset, integer_types)
+    assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
         logging.debug('refusing to split %r at %d: stop position unspecified',

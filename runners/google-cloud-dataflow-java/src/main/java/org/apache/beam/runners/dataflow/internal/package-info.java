@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Implementation of the {@link org.apache.beam.runners.dataflow.DataflowRunner}.
- */
+/** Implementation of the {@link org.apache.beam.runners.dataflow.DataflowRunner}. */
 package org.apache.beam.runners.dataflow.internal;

@@ -18,23 +18,29 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -46,8 +52,10 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -80,6 +88,14 @@ public class PubsubJsonIT implements Serializable {
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+  /**
+   * HACK: we need an objectmapper to turn pipelineoptions back into a map. We need to use
+   * ReflectHelpers to get the extra PipelineOptions.
+   */
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   @Test
   public void testSelectsPayloadContent() throws Exception {
@@ -120,9 +136,13 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(signal.signalStart());
     pipeline.run();
+    start.get();
+
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardMinutes(5));
+    signal.waitForSuccess(Duration.standardSeconds(60));
   }
 
   @Test
@@ -163,7 +183,8 @@ public class PubsubJsonIT implements Serializable {
     sqlEnv.executeDdl(createTableString);
     query(sqlEnv, pipeline, queryString);
     PCollection<PubsubMessage> dlq =
-        pipeline.apply(PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath()));
+        pipeline.apply(
+            PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath().getPath()));
 
     dlq.apply(
         "waitForDlq",
@@ -172,14 +193,17 @@ public class PubsubJsonIT implements Serializable {
             dlqMessages ->
                 containsAll(dlqMessages, message(ts(4), "{ - }"), message(ts(5), "{ + }"))));
 
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(signal.signalStart());
     pipeline.run();
+    start.get();
 
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardMinutes(5));
+    signal.waitForSuccess(Duration.standardSeconds(60));
   }
 
   @Test
-  public void testSQLLimit() throws SQLException, IOException, InterruptedException {
+  public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
@@ -211,7 +235,8 @@ public class PubsubJsonIT implements Serializable {
             message(ts(6), 13, "ba4"),
             message(ts(7), 15, "ba5"));
 
-    CalciteConnection connection = connect(new PubsubJsonTableProvider());
+    // We need the default options on the schema to include the project passed in for the integration test
+    CalciteConnection connection = connect(pipeline.getOptions(), new PubsubJsonTableProvider());
 
     Statement statement = connection.createStatement();
     statement.execute(createTableString);
@@ -221,42 +246,62 @@ public class PubsubJsonIT implements Serializable {
     // However, because statement.executeQuery is a blocking call, it has to be put into a
     // seperate thread to execute.
     ExecutorService pool = Executors.newFixedThreadPool(1);
-    pool.execute(
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              ResultSet resultSet =
-                  statement.executeQuery("SELECT message.payload.id FROM message LIMIT 3");
-              assertTrue(resultSet.next());
-              assertTrue(resultSet.next());
-              assertTrue(resultSet.next());
-              assertFalse(resultSet.next());
-              checked = true;
-            } catch (SQLException e) {
-              LOG.warn(e.toString());
-            }
-          }
-        });
+    Future<List<String>> queryResult =
+        pool.submit(
+            (Callable)
+                () -> {
+                  ResultSet resultSet =
+                      statement.executeQuery("SELECT message.payload.id FROM message LIMIT 3");
+                  ImmutableList.Builder<String> result = ImmutableList.builder();
+                  while (resultSet.next()) {
+                    result.add(resultSet.getString(1));
+                  }
+                  return result.build();
+                });
 
     // wait one minute to allow subscription creation.
     Thread.sleep(60 * 1000);
     eventsTopic.publish(messages);
-    // Wait one minute to allow the thread finishes checks.
-    Thread.sleep(60 * 1000);
-    // verify if the thread has checked returned value from LIMIT query.
-    assertTrue(checked);
+    assertThat(queryResult.get().size(), equalTo(3));
     pool.shutdown();
   }
 
-  private CalciteConnection connect(TableProvider... tableProviders) throws SQLException {
+  private static String toArg(Object o) {
+    try {
+      String jsonRepr = MAPPER.writeValueAsString(o);
+
+      // String and enums are expected to be unquoted on the command line
+      if (jsonRepr.startsWith("\"") && jsonRepr.endsWith("\"")) {
+        return jsonRepr.substring(1, jsonRepr.length() - 1);
+      } else {
+        return jsonRepr;
+      }
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private CalciteConnection connect(PipelineOptions options, TableProvider... tableProviders)
+      throws SQLException {
+    // HACK: PipelineOptions should expose a prominent method to do this reliably
+    // The actual options are in the "options" field of the converted map
+    Map<String, Object> optionsMap =
+        (Map<String, Object>) MAPPER.convertValue(pipeline.getOptions(), Map.class).get("options");
+    Map<String, String> argsMap =
+        optionsMap
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(entry -> entry.getKey(), entry -> toArg(entry.getValue())));
+
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
     for (TableProvider tableProvider : tableProviders) {
       inMemoryMetaStore.registerProvider(tableProvider);
     }
 
     Properties info = new Properties();
-    info.put(BEAM_CALCITE_SCHEMA, new BeamCalciteSchema(inMemoryMetaStore));
+    BeamCalciteSchema dbSchema = new BeamCalciteSchema(inMemoryMetaStore);
+    dbSchema.getPipelineOptions().putAll(argsMap);
+    info.put(BEAM_CALCITE_SCHEMA, dbSchema);
     return (CalciteConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, info);
   }
 

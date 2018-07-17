@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * State client and state caching.
- */
+/** State client and state caching. */
 package org.apache.beam.fn.harness.state;

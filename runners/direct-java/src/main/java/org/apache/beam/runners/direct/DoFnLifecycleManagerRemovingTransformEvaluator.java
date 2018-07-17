@@ -89,5 +89,4 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
       e.addSuppressed(removalException);
     }
   }
-
 }

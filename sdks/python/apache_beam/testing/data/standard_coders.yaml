@@ -37,7 +37,6 @@
 # If a coder is marked non-deterministic in the coder spec, then only the decoding should be validated.
 
 
-
 coder:
   urn: "beam:coder:bytes:v1"
 nested: false

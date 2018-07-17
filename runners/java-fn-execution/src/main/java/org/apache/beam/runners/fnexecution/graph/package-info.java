@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utilities for a Beam runner to interact with the pipeline proto representation.
- */
+/** Utilities for a Beam runner to interact with the pipeline proto representation. */
 package org.apache.beam.runners.fnexecution.graph;

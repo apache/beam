@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,9 +50,7 @@ public class PerfsToBigQueryTest {
       new FakeBigQueryServices()
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
-  @Rule
-  public transient TemporaryFolder testFolder = new TemporaryFolder();
-
+  @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
 
   @Before
   public void before() throws IOException, InterruptedException {
@@ -64,7 +63,6 @@ public class PerfsToBigQueryTest {
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
     options.setResourceNameMode(NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE);
     FakeDatasetService.setUp();
-    //    BigQueryIO.clearCreatedTables();
     fakeDatasetService.createDataset(
         options.getProject(), options.getBigQueryDataset(), "", "", null);
   }
@@ -93,7 +91,12 @@ public class PerfsToBigQueryTest {
     HashMap<NexmarkConfiguration, NexmarkPerf> perfs = new HashMap<>(2);
     perfs.put(nexmarkConfiguration1, nexmarkPerf1);
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
-    Main.savePerfsToBigQuery(options, perfs, fakeBqServices);
+
+    // cast to int due to BEAM-4734. To avoid overflow on int capacity,
+    // set the instant to a fixed date (and not Instant.now())
+    int startTimestampSeconds = 1454284800;
+    Main.savePerfsToBigQuery(
+        options, perfs, fakeBqServices, new Instant(startTimestampSeconds * 1000L));
 
     String tableSpec = NexmarkUtils.tableSpec(options, String.valueOf(QUERY), 0L, null);
     List<TableRow> actualRows =
@@ -103,19 +106,22 @@ public class PerfsToBigQueryTest {
             BigQueryHelpers.parseTableSpec(tableSpec).getTableId());
     assertEquals("Wrong number of rows inserted", 2, actualRows.size());
     List<TableRow> expectedRows = new ArrayList<>();
-    TableRow row1 = new TableRow()
-        .set("runtimeSec", nexmarkPerf1.runtimeSec).set("eventsPerSec", nexmarkPerf1.eventsPerSec)
-        // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
-        // to for bowing into Integer in the expectedRows.
-        .set("numResults", (int) nexmarkPerf1.numResults);
+    TableRow row1 =
+        new TableRow()
+            .set("timestamp", startTimestampSeconds)
+            .set("runtimeSec", nexmarkPerf1.runtimeSec)
+            .set("eventsPerSec", nexmarkPerf1.eventsPerSec)
+            // cast to int due to BEAM-4734.
+            .set("numResults", (int) nexmarkPerf1.numResults);
     expectedRows.add(row1);
-    TableRow row2 = new TableRow()
-        .set("runtimeSec", nexmarkPerf2.runtimeSec).set("eventsPerSec", nexmarkPerf2.eventsPerSec)
-        // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
-        // to for bowing into Integer in the expectedRows.
-        .set("numResults", (int) nexmarkPerf2.numResults);
+    TableRow row2 =
+        new TableRow()
+            .set("timestamp", startTimestampSeconds)
+            .set("runtimeSec", nexmarkPerf2.runtimeSec)
+            .set("eventsPerSec", nexmarkPerf2.eventsPerSec)
+            // cast to int  due to BEAM-4734.
+            .set("numResults", (int) nexmarkPerf2.numResults);
     expectedRows.add(row2);
     assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
-
   }
 }

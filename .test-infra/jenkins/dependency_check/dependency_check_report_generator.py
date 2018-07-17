@@ -56,7 +56,7 @@ def extract_results(file_path):
           see_oudated_deps = True
     raw_report.close()
     return outdated_deps
-  except Exception, e:
+  except Exception as e:
     raise
 
 
@@ -266,7 +266,7 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
     for dep in high_priority_deps:
       report.write("%s" % dep)
     report.write("</table>\n")
-  except Exception, e:
+  except Exception as e:
     report.write('<p> {0} </p>'.format(str(e)))
 
   report.close()

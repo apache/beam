@@ -28,9 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.junit.Assert;
 
-/**
- * Test for {@link EncodedValueComparator}.
- */
+/** Test for {@link EncodedValueComparator}. */
 public class EncodedValueComparatorTest extends ComparatorTestBase<byte[]> {
 
   @Override
@@ -53,15 +51,15 @@ public class EncodedValueComparatorTest extends ComparatorTestBase<byte[]> {
     StringUtf8Coder coder = StringUtf8Coder.of();
 
     try {
-      return new byte[][]{
-          CoderUtils.encodeToByteArray(coder, ""),
-          CoderUtils.encodeToByteArray(coder, "Lorem Ipsum Dolor Omit Longer"),
-          CoderUtils.encodeToByteArray(coder, "aaaa"),
-          CoderUtils.encodeToByteArray(coder, "abcd"),
-          CoderUtils.encodeToByteArray(coder, "abce"),
-          CoderUtils.encodeToByteArray(coder, "abdd"),
-          CoderUtils.encodeToByteArray(coder, "accd"),
-          CoderUtils.encodeToByteArray(coder, "bbcd")
+      return new byte[][] {
+        CoderUtils.encodeToByteArray(coder, ""),
+        CoderUtils.encodeToByteArray(coder, "Lorem Ipsum Dolor Omit Longer"),
+        CoderUtils.encodeToByteArray(coder, "aaaa"),
+        CoderUtils.encodeToByteArray(coder, "abcd"),
+        CoderUtils.encodeToByteArray(coder, "abce"),
+        CoderUtils.encodeToByteArray(coder, "abdd"),
+        CoderUtils.encodeToByteArray(coder, "accd"),
+        CoderUtils.encodeToByteArray(coder, "bbcd")
       };
     } catch (CoderException e) {
       throw new RuntimeException("Could not encode values.", e);

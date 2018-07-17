@@ -31,13 +31,9 @@ import javax.annotation.Nullable;
  * ownership from the original resource. This allows resources to be safely constructed and
  * transferred within a try-with-resources block. For example:
  *
- * {@code try (CloseableResource<Foo> resource = CloseableResource.of(...)) {
- *   // Do something with resource.
- *   ...
- *   // Then transfer ownership to some consumer.
- *   resourceConsumer(resource.transfer());
- * }
- * }
+ * <p>{@code try (CloseableResource<Foo> resource = CloseableResource.of(...)) { // Do something
+ * with resource. ... // Then transfer ownership to some consumer.
+ * resourceConsumer(resource.transfer()); } }
  *
  * <p>Not thread-safe.
  */

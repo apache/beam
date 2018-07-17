@@ -30,8 +30,6 @@ public interface CoderTranslatorRegistrar {
    */
   Map<Class<? extends Coder>, String> getCoderURNs();
 
-  /**
-   * Returns a mapping of URN to {@link CoderTranslator}.
-   */
+  /** Returns a mapping of URN to {@link CoderTranslator}. */
   Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators();
 }

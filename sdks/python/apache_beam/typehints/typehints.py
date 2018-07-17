@@ -63,12 +63,16 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+from __future__ import absolute_import
+
 import collections
 import copy
 import sys
 import types
+from builtins import next
+from builtins import zip
 
-import six
+from future.utils import with_metaclass
 
 __all__ = [
     'Any',
@@ -411,17 +415,25 @@ class AnyTypeConstraint(TypeConstraint):
   def __repr__(self):
     return 'Any'
 
+  def __hash__(self):
+    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    return hash(id(self))
+
   def type_check(self, instance):
     pass
 
 
 class TypeVariable(AnyTypeConstraint):
 
+  def __init__(self, name):
+    self.name = name
+
   def __eq__(self, other):
     return type(self) == type(other) and self.name == other.name
 
-  def __init__(self, name):
-    self.name = name
+  def __hash__(self):
+    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    return hash(id(self))
 
   def __repr__(self):
     return 'TypeVariable[%s]' % self.name
@@ -992,8 +1004,8 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-@six.add_metaclass(GetitemConstructor)
-class WindowedTypeConstraint(TypeConstraint):
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
+                                            TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.

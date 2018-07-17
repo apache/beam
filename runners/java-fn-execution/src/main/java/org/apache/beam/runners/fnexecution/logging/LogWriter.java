@@ -20,12 +20,8 @@ package org.apache.beam.runners.fnexecution.logging;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
-/**
- * A consumer of {@link BeamFnApi.LogEntry Beam Log Entries}.
- */
+/** A consumer of {@link BeamFnApi.LogEntry Beam Log Entries}. */
 public interface LogWriter {
-  /**
-   * Write the contents of the Log Entry to some logging backend.
-   */
+  /** Write the contents of the Log Entry to some logging backend. */
   void log(BeamFnApi.LogEntry entry);
 }

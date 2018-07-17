@@ -22,8 +22,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 
 /**
- * The {@link BeamFnStateClient} is able to forward state requests to a handler which returns
- * a corresponding response or error if completed unsuccessfully.
+ * The {@link BeamFnStateClient} is able to forward state requests to a handler which returns a
+ * corresponding response or error if completed unsuccessfully.
  */
 public interface BeamFnStateClient {
 
@@ -32,8 +32,8 @@ public interface BeamFnStateClient {
    *
    * @param requestBuilder A partially completed state request. The id will be populated the client.
    * @param response A future containing a corresponding {@link StateResponse} for the supplied
-   * request.
+   *     request.
    */
-  void handle(BeamFnApi.StateRequest.Builder requestBuilder,
-      CompletableFuture<StateResponse> response);
+  void handle(
+      BeamFnApi.StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response);
 }

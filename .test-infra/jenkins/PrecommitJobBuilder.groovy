@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 /** This class defines PrecommitJobBuilder.build() helper for defining pre-comit jobs. */
 class PrecommitJobBuilder {
@@ -51,7 +51,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Cron'
     job.with {
       description buildDescription('on a daily schedule.')
-      common_job_properties.setAutoJob delegate
+      commonJobProperties.setAutoJob delegate
     }
     job.with additionalCustomization
   }
@@ -61,7 +61,7 @@ class PrecommitJobBuilder {
     def job = createBaseJob 'Commit', true
     def defaultPathTriggers = [
       '^build.gradle$',
-      '^build_rules.gradle$',
+      '^buildSrc/.*$',
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',
@@ -71,7 +71,7 @@ class PrecommitJobBuilder {
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()
-      common_job_properties.setPullRequestBuildTrigger(delegate,
+      commonJobProperties.setPullRequestBuildTrigger(delegate,
         githubUiHint(),
         '',
         false,
@@ -85,7 +85,7 @@ class PrecommitJobBuilder {
     job.with {
       description buildDescription("on trigger phrase '${buildTriggerPhrase()}'.")
       concurrentBuild()
-      common_job_properties.setPullRequestBuildTrigger delegate, githubUiHint(), buildTriggerPhrase()
+      commonJobProperties.setPullRequestBuildTrigger delegate, githubUiHint(), buildTriggerPhrase()
     }
     job.with additionalCustomization
   }
@@ -93,15 +93,15 @@ class PrecommitJobBuilder {
   private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
     def allowRemotePoll = !usesRegionFilter
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
-      common_job_properties.setTopLevelMainJobProperties(delegate,
+      commonJobProperties.setTopLevelMainJobProperties(delegate,
       'master',
       timeoutMins,
       allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
-          rootBuildScriptDir(common_job_properties.checkoutDir)
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
-          common_job_properties.setGradleSwitches(delegate)
+          commonJobProperties.setGradleSwitches(delegate)
         }
       }
     }

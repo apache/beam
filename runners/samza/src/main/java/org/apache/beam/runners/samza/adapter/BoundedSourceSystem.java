@@ -63,26 +63,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Samza system that supports reading from a Beam {@link BoundedSource}. The source is treated
- * as though it has a single partition and does not support checkpointing via a changelog stream.
- * If the job is restarted the bounded source will be consumed from the beginning.
+ * A Samza system that supports reading from a Beam {@link BoundedSource}. The source is treated as
+ * though it has a single partition and does not support checkpointing via a changelog stream. If
+ * the job is restarted the bounded source will be consumed from the beginning.
  */
 // TODO: instrumentation for the consumer
 public class BoundedSourceSystem {
   /**
-   * Returns the configuration required to instantiate a consumer for the given
-   * {@link BoundedSource}.
+   * Returns the configuration required to instantiate a consumer for the given {@link
+   * BoundedSource}.
    *
    * @param id a unique id for the source. Must use only valid characters for a system name in
-   *           Samza.
+   *     Samza.
    * @param source the source
    * @param coder a coder to deserialize messages received by the source's consumer
    * @param <T> the type of object produced by the source consumer
    */
-  public static <T> Map<String, String> createConfigFor(String id,
-                                                         BoundedSource<T> source,
-                                                         Coder<WindowedValue<T>> coder,
-                                                         String stepName) {
+  public static <T> Map<String, String> createConfigFor(
+      String id, BoundedSource<T> source, Coder<WindowedValue<T>> coder, String stepName) {
     final Map<String, String> config = new HashMap<>();
     final String streamPrefix = "systems." + id;
     config.put(streamPrefix + ".samza.factory", BoundedSourceSystem.Factory.class.getName());
@@ -94,16 +92,16 @@ public class BoundedSourceSystem {
     return config;
   }
 
-  private static <T> List<BoundedSource<T>> split(BoundedSource<T> source,
-      SamzaPipelineOptions pipelineOptions) throws Exception {
+  private static <T> List<BoundedSource<T>> split(
+      BoundedSource<T> source, SamzaPipelineOptions pipelineOptions) throws Exception {
     final int numSplits = pipelineOptions.getMaxSourceParallelism();
     if (numSplits > 1) {
       final long estimatedSize = source.getEstimatedSizeBytes(pipelineOptions);
       // calculate the size of each split, rounded up to the ceiling.
       final long bundleSize = (estimatedSize + numSplits - 1) / numSplits;
       @SuppressWarnings("unchecked")
-      final List<BoundedSource<T>> splits = (List<BoundedSource<T>>)
-          source.split(bundleSize, pipelineOptions);
+      final List<BoundedSource<T>> splits =
+          (List<BoundedSource<T>>) source.split(bundleSize, pipelineOptions);
       // Need the empty check here because Samza doesn't handle empty partition well
       if (!splits.isEmpty()) {
         return splits;
@@ -112,9 +110,7 @@ public class BoundedSourceSystem {
     return Collections.singletonList(source);
   }
 
-  /**
-   * A {@link SystemAdmin} for {@link BoundedSourceSystem}.
-   */
+  /** A {@link SystemAdmin} for {@link BoundedSourceSystem}. */
   public static class Admin<T> implements SystemAdmin {
     private final BoundedSource<T> source;
     private final SamzaPipelineOptions pipelineOptions;
@@ -125,34 +121,35 @@ public class BoundedSourceSystem {
     }
 
     @Override
-    public Map<SystemStreamPartition, String>
-    getOffsetsAfter(Map<SystemStreamPartition, String> offsets) {
-      return offsets.entrySet().stream()
-          .collect(Collectors.toMap(Map.Entry::getKey, null));
+    public Map<SystemStreamPartition, String> getOffsetsAfter(
+        Map<SystemStreamPartition, String> offsets) {
+      return offsets.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, null));
     }
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames.stream()
-          .collect(Collectors.toMap(
-              Function.<String>identity(),
-              streamName -> {
-                try {
-                  List<BoundedSource<T>> splits = split(source, pipelineOptions);
-                  final Map<Partition, SystemStreamPartitionMetadata> partitionMetaData =
-                      new HashMap<>();
-                  // we assume that the generated splits are stable,
-                  // this is necessary so that the mapping of partition to source is correct
-                  // in each container.
-                  for (int i = 0; i < splits.size(); i++) {
-                    partitionMetaData.put(new Partition(i),
-                        new SystemStreamPartitionMetadata(null, null, null));
-                  }
-                  return new SystemStreamMetadata(streamName, partitionMetaData);
-                } catch (Exception e) {
-                  throw new SamzaException("Fail to read stream metadata", e);
-                }
-              }));
+      return streamNames
+          .stream()
+          .collect(
+              Collectors.toMap(
+                  Function.<String>identity(),
+                  streamName -> {
+                    try {
+                      List<BoundedSource<T>> splits = split(source, pipelineOptions);
+                      final Map<Partition, SystemStreamPartitionMetadata> partitionMetaData =
+                          new HashMap<>();
+                      // we assume that the generated splits are stable,
+                      // this is necessary so that the mapping of partition to source is correct
+                      // in each container.
+                      for (int i = 0; i < splits.size(); i++) {
+                        partitionMetaData.put(
+                            new Partition(i), new SystemStreamPartitionMetadata(null, null, null));
+                      }
+                      return new SystemStreamMetadata(streamName, partitionMetaData);
+                    } catch (Exception e) {
+                      throw new SamzaException("Fail to read stream metadata", e);
+                    }
+                  }));
     }
 
     @Override
@@ -170,8 +167,8 @@ public class BoundedSourceSystem {
   }
 
   /**
-   * A {@link SystemConsumer} for a {@link BoundedSource}. See {@link BoundedSourceSystem} for
-   * more details.
+   * A {@link SystemConsumer} for a {@link BoundedSource}. See {@link BoundedSourceSystem} for more
+   * details.
    */
   public static class Consumer<T> implements SystemConsumer {
     private static final Logger LOG = LoggerFactory.getLogger(Consumer.class);
@@ -185,10 +182,11 @@ public class BoundedSourceSystem {
 
     private ReaderTask<T> readerTask;
 
-    Consumer(BoundedSource<T> source,
-             SamzaPipelineOptions pipelineOptions,
-             SamzaMetricsContainer metricsContainer,
-             String stepName) {
+    Consumer(
+        BoundedSource<T> source,
+        SamzaPipelineOptions pipelineOptions,
+        SamzaMetricsContainer metricsContainer,
+        String stepName) {
       try {
         splits = split(source, pipelineOptions);
       } catch (Exception e) {
@@ -207,11 +205,11 @@ public class BoundedSourceSystem {
       }
 
       int capacity = pipelineOptions.getSystemBufferSize();
-      readerTask = new ReaderTask<>(readerToSsp, capacity,
-          new FnWithMetricsWrapper(metricsContainer, stepName));
-      final Thread thread = new Thread(
-          readerTask,
-          "bounded-source-system-consumer-" + NEXT_ID.getAndIncrement());
+      readerTask =
+          new ReaderTask<>(
+              readerToSsp, capacity, new FnWithMetricsWrapper(metricsContainer, stepName));
+      final Thread thread =
+          new Thread(readerTask, "bounded-source-system-consumer-" + NEXT_ID.getAndIncrement());
       thread.start();
     }
 
@@ -236,8 +234,8 @@ public class BoundedSourceSystem {
 
     @Override
     public Map<SystemStreamPartition, List<IncomingMessageEnvelope>> poll(
-        Set<SystemStreamPartition> systemStreamPartitions,
-        long timeout) throws InterruptedException {
+        Set<SystemStreamPartition> systemStreamPartitions, long timeout)
+        throws InterruptedException {
       assert !readerToSsp.isEmpty(); // start should be called before poll
 
       final Map<SystemStreamPartition, List<IncomingMessageEnvelope>> envelopes = new HashMap<>();
@@ -260,9 +258,10 @@ public class BoundedSourceSystem {
       private volatile boolean stopInvoked = false;
       private volatile Exception lastException;
 
-      private ReaderTask(Map<BoundedReader<T>, SystemStreamPartition> readerToSsp,
-                         int capacity,
-                         FnWithMetricsWrapper metricsWrapper) {
+      private ReaderTask(
+          Map<BoundedReader<T>, SystemStreamPartition> readerToSsp,
+          int capacity,
+          FnWithMetricsWrapper metricsWrapper) {
         this.readerToSsp = readerToSsp;
         this.available = new Semaphore(capacity);
         this.metricsWrapper = metricsWrapper;
@@ -310,28 +309,26 @@ public class BoundedSourceSystem {
         } catch (Exception e) {
           setError(e);
         } finally {
-          availableReaders.forEach(reader -> {
-            try {
-              reader.close();
-            } catch (IOException e) {
-              LOG.error("Reader task failed to close reader for ssp {}",
-                  readerToSsp.get(reader), e);
-            }
-          });
+          availableReaders.forEach(
+              reader -> {
+                try {
+                  reader.close();
+                } catch (IOException e) {
+                  LOG.error(
+                      "Reader task failed to close reader for ssp {}", readerToSsp.get(reader), e);
+                }
+              });
         }
       }
 
       private void enqueueMessage(BoundedReader<T> reader) throws InterruptedException {
         final T value = reader.getCurrent();
-        final WindowedValue<T> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
-            value,
-            reader.getCurrentTimestamp());
+        final WindowedValue<T> windowedValue =
+            WindowedValue.timestampedValueInGlobalWindow(value, reader.getCurrentTimestamp());
         final SystemStreamPartition ssp = readerToSsp.get(reader);
-        final IncomingMessageEnvelope envelope = new IncomingMessageEnvelope(
-            ssp,
-            Long.toString(offset++),
-            null,
-            OpMessage.ofElement(windowedValue));
+        final IncomingMessageEnvelope envelope =
+            new IncomingMessageEnvelope(
+                ssp, Long.toString(offset++), null, OpMessage.ofElement(windowedValue));
 
         available.acquire();
         queues.get(ssp).put(envelope);
@@ -340,8 +337,9 @@ public class BoundedSourceSystem {
       private void enqueueMaxWatermarkAndEndOfStream(BoundedReader<T> reader) {
         final SystemStreamPartition ssp = readerToSsp.get(reader);
         // Send the max watermark to force completion of any open windows.
-        final IncomingMessageEnvelope watermarkEnvelope = IncomingMessageEnvelope
-            .buildWatermarkEnvelope(ssp, BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+        final IncomingMessageEnvelope watermarkEnvelope =
+            IncomingMessageEnvelope.buildWatermarkEnvelope(
+                ssp, BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
         enqueueUninterruptibly(watermarkEnvelope);
 
         final IncomingMessageEnvelope endOfStreamEnvelope =
@@ -359,9 +357,7 @@ public class BoundedSourceSystem {
       }
 
       private List<IncomingMessageEnvelope> getNextMessages(
-          SystemStreamPartition ssp,
-          long timeoutMillis)
-          throws InterruptedException {
+          SystemStreamPartition ssp, long timeoutMillis) throws InterruptedException {
         if (lastException != null) {
           throw new RuntimeException(lastException);
         }
@@ -388,11 +384,14 @@ public class BoundedSourceSystem {
         this.lastException = exception;
         // A dummy message used to force the consumer to wake up immediately and check the
         // lastException field, which will be populated.
-        readerToSsp.values().forEach(ssp -> {
-          final IncomingMessageEnvelope checkLastExceptionEvelope =
-              new IncomingMessageEnvelope(ssp, null, null, null);
-          enqueueUninterruptibly(checkLastExceptionEvelope);
-        });
+        readerToSsp
+            .values()
+            .forEach(
+                ssp -> {
+                  final IncomingMessageEnvelope checkLastExceptionEvelope =
+                      new IncomingMessageEnvelope(ssp, null, null, null);
+                  enqueueUninterruptibly(checkLastExceptionEvelope);
+                });
       }
 
       private void enqueueUninterruptibly(IncomingMessageEnvelope envelope) {
@@ -414,9 +413,9 @@ public class BoundedSourceSystem {
   }
 
   /**
-   * A {@link SystemFactory} that produces a {@link BoundedSourceSystem} for a particular
-   * {@link BoundedSource} registered in {@link Config} via
-   * {@link #createConfigFor(String, BoundedSource, Coder, String)}.
+   * A {@link SystemFactory} that produces a {@link BoundedSourceSystem} for a particular {@link
+   * BoundedSource} registered in {@link Config} via {@link #createConfigFor(String, BoundedSource,
+   * Coder, String)}.
    */
   public static class Factory<T> implements SystemFactory {
     @Override
@@ -439,30 +438,26 @@ public class BoundedSourceSystem {
     @Override
     public SystemAdmin getAdmin(String systemName, Config config) {
       final Config scopedConfig = config.subset("systems." + systemName + ".", true);
-      return new Admin<T>(
-          getBoundedSource(scopedConfig),
-          getPipelineOptions(config));
+      return new Admin<T>(getBoundedSource(scopedConfig), getPipelineOptions(config));
     }
 
     private static <T> BoundedSource<T> getBoundedSource(Config config) {
       @SuppressWarnings("unchecked")
-      final BoundedSource<T> source = Base64Serializer.deserializeUnchecked(
-          config.get("source"),
-          BoundedSource.class);
+      final BoundedSource<T> source =
+          Base64Serializer.deserializeUnchecked(config.get("source"), BoundedSource.class);
       return source;
     }
 
     @SuppressWarnings("unchecked")
     private static <T> Coder<WindowedValue<T>> getCoder(Config config) {
-      return Base64Serializer.deserializeUnchecked(
-          config.get("coder"),
-          Coder.class);
+      return Base64Serializer.deserializeUnchecked(config.get("coder"), Coder.class);
     }
 
     private static SamzaPipelineOptions getPipelineOptions(Config config) {
       return Base64Serializer.deserializeUnchecked(
-          config.get("beamPipelineOptions"),
-          SerializablePipelineOptions.class).get().as(SamzaPipelineOptions.class);
+              config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
+          .get()
+          .as(SamzaPipelineOptions.class);
     }
   }
 }

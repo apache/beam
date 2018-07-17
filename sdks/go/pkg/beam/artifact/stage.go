@@ -163,7 +163,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 		stream.CloseAndRecv() // ignore error
 		return nil, fmt.Errorf("failed to send chunks for %v: %v", filename, err)
 	}
-	if _, err := stream.CloseAndRecv(); err != nil {
+	if _, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to close stream for %v: %v", filename, err)
 	}
 	if hash != stagedHash {

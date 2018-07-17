@@ -31,6 +31,8 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
@@ -80,6 +82,9 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
+    // Register standard file systems.
+    // TODO Use actual pipeline options.
+    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
     // TODO: Wire this into the distributed cache and make it pluggable.

@@ -35,9 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TypeDescriptors}.
- */
+/** Tests for {@link TypeDescriptors}. */
 @RunWith(JUnit4.class)
 public class TypeDescriptorsTest {
   @Test
@@ -54,8 +52,7 @@ public class TypeDescriptorsTest {
 
   @Test
   public void testTypeDescriptorsKV() throws Exception {
-    TypeDescriptor<KV<String, Integer>> descriptor =
-        kvs(strings(), integers());
+    TypeDescriptor<KV<String, Integer>> descriptor = kvs(strings(), integers());
     assertEquals(descriptor, new TypeDescriptor<KV<String, Integer>>() {});
   }
 

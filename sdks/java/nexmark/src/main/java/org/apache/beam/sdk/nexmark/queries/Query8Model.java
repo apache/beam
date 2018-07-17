@@ -34,13 +34,9 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * A direct implementation of {@link Query8}.
- */
+/** A direct implementation of {@link Query8}. */
 public class Query8Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 8.
-   */
+  /** Simulator for query 8. */
   private class Simulator extends AbstractSimulator<Event, IdNameReserve> {
     /** New persons seen in the current window, indexed by id. */
     private final Map<Long, Person> newPersons;
@@ -58,9 +54,7 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
       windowStart = NexmarkUtils.BEGINNING_OF_TIME;
     }
 
-    /**
-     * Retire all persons added in last window.
-     */
+    /** Retire all persons added in last window. */
     private void retirePersons() {
       for (Map.Entry<Long, Person> entry : newPersons.entrySet()) {
         NexmarkUtils.info("retire: %s", entry.getValue());
@@ -68,9 +62,7 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
       newPersons.clear();
     }
 
-    /**
-     * Retire all auctions added in last window.
-     */
+    /** Retire all auctions added in last window. */
     private void retireAuctions() {
       for (Map.Entry<Long, Auction> entry : newAuctions.entries()) {
         NexmarkUtils.info("retire: %s", entry.getValue());
@@ -78,12 +70,11 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
       newAuctions.clear();
     }
 
-    /**
-     * Capture new result.
-     */
+    /** Capture new result. */
     private void addResult(Auction auction, Person person, Instant timestamp) {
-      addResult(TimestampedValue.of(
-          new IdNameReserve(person.id, person.name, auction.reserve), timestamp));
+      addResult(
+          TimestampedValue.of(
+              new IdNameReserve(person.id, person.name, auction.reserve), timestamp));
     }
 
     @Override
@@ -101,8 +92,11 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
         return;
       }
       Instant timestamp = timestampedEvent.getTimestamp();
-      Instant newWindowStart = windowStart(Duration.standardSeconds(configuration.windowSizeSec),
-          Duration.standardSeconds(configuration.windowSizeSec), timestamp);
+      Instant newWindowStart =
+          windowStart(
+              Duration.standardSeconds(configuration.windowSizeSec),
+              Duration.standardSeconds(configuration.windowSizeSec),
+              timestamp);
       if (!newWindowStart.equals(windowStart)) {
         // Retire this window.
         retirePersons();

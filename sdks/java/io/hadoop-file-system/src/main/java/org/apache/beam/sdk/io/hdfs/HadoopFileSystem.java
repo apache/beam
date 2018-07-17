@@ -43,31 +43,32 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 
 /**
- * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as
- * Apache Beam {@link FileSystem FileSystems}.
+ * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as Apache Beam {@link
+ * FileSystem FileSystems}.
  *
  * <p>The following HDFS FileSystem(s) are known to be unsupported:
+ *
  * <ul>
- *   <li>FTPFileSystem: Missing seek support within FTPInputStream</li>
+ *   <li>FTPFileSystem: Missing seek support within FTPInputStream
  * </ul>
  *
- * <p>This implementation assumes that the underlying Hadoop {@link FileSystem} is seek
- * efficient when reading. The source code for the following {@link FSInputStream} implementations
- * (as of Hadoop 2.7.1) do provide seek implementations:
+ * <p>This implementation assumes that the underlying Hadoop {@link FileSystem} is seek efficient
+ * when reading. The source code for the following {@link FSInputStream} implementations (as of
+ * Hadoop 2.7.1) do provide seek implementations:
+ *
  * <ul>
- *   <li>HarFsInputStream</li>
- *   <li>S3InputStream</li>
- *   <li>DFSInputStream</li>
- *   <li>SwiftNativeInputStream</li>
- *   <li>NativeS3FsInputStream</li>
- *   <li>LocalFSFileInputStream</li>
- *   <li>NativeAzureFsInputStream</li>
- *   <li>S3AInputStream</li>
+ *   <li>HarFsInputStream
+ *   <li>S3InputStream
+ *   <li>DFSInputStream
+ *   <li>SwiftNativeInputStream
+ *   <li>NativeS3FsInputStream
+ *   <li>LocalFSFileInputStream
+ *   <li>NativeAzureFsInputStream
+ *   <li>S3AInputStream
  * </ul>
  */
 class HadoopFileSystem extends FileSystem<HadoopResourceId> {
-  @VisibleForTesting
-  final org.apache.hadoop.fs.FileSystem fileSystem;
+  @VisibleForTesting final org.apache.hadoop.fs.FileSystem fileSystem;
 
   HadoopFileSystem(Configuration configuration) throws IOException {
     this.fileSystem = org.apache.hadoop.fs.FileSystem.newInstance(configuration);
@@ -88,11 +89,12 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         for (FileStatus fileStatus : fileStatuses) {
           if (fileStatus.isFile()) {
             URI uri = dropEmptyAuthority(fileStatus.getPath().toUri().toString());
-            metadata.add(Metadata.builder()
-                .setResourceId(new HadoopResourceId(uri))
-                .setIsReadSeekEfficient(true)
-                .setSizeBytes(fileStatus.getLen())
-                .build());
+            metadata.add(
+                Metadata.builder()
+                    .setResourceId(new HadoopResourceId(uri))
+                    .setIsReadSeekEfficient(true)
+                    .setSizeBytes(fileStatus.getLen())
+                    .build());
           }
         }
         resultsBuilder.add(MatchResult.create(Status.OK, metadata));
@@ -116,9 +118,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   }
 
   @Override
-  protected void copy(
-      List<HadoopResourceId> srcResourceIds,
-      List<HadoopResourceId> destResourceIds) throws IOException {
+  protected void copy(List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
+      throws IOException {
     for (int i = 0; i < srcResourceIds.size(); ++i) {
       // Unfortunately HDFS FileSystems don't support a native copy operation so we are forced
       // to use the inefficient implementation found in FileUtil which copies all the bytes through
@@ -129,8 +130,10 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       // is not what we want. Also, all the other FileSystem implementations I saw threw
       // UnsupportedOperationException within concat.
       FileUtil.copy(
-          fileSystem, srcResourceIds.get(i).toPath(),
-          fileSystem, destResourceIds.get(i).toPath(),
+          fileSystem,
+          srcResourceIds.get(i).toPath(),
+          fileSystem,
+          destResourceIds.get(i).toPath(),
           false,
           true,
           fileSystem.getConf());
@@ -139,12 +142,10 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   @Override
   protected void rename(
-      List<HadoopResourceId> srcResourceIds,
-      List<HadoopResourceId> destResourceIds) throws IOException {
+      List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
+      throws IOException {
     for (int i = 0; i < srcResourceIds.size(); ++i) {
-      fileSystem.rename(
-          srcResourceIds.get(i).toPath(),
-          destResourceIds.get(i).toPath());
+      fileSystem.rename(srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath());
     }
   }
 
@@ -158,8 +159,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   @Override
   protected HadoopResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
     if (singleResourceSpec.endsWith("/") && !isDirectory) {
-      throw new IllegalArgumentException(String.format(
-          "Expected file path but received directory path %s", singleResourceSpec));
+      throw new IllegalArgumentException(
+          String.format("Expected file path but received directory path %s", singleResourceSpec));
     }
     return !singleResourceSpec.endsWith("/") && isDirectory
         ? new HadoopResourceId(dropEmptyAuthority(singleResourceSpec + "/"))

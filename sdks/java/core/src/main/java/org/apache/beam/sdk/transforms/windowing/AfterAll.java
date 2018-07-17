@@ -36,16 +36,12 @@ public class AfterAll extends OnceTrigger {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterAll} {@code Trigger} with the given subtriggers. */
   public static AfterAll of(OnceTrigger... triggers) {
     return new AfterAll(Arrays.asList(triggers));
   }
 
-  /**
-   * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterAll} {@code Trigger} with the given subtriggers. */
   public static AfterAll of(List<Trigger> triggers) {
     return new AfterAll(triggers);
   }

@@ -26,13 +26,13 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.NullValue;
-import com.google.protobuf.Struct;
-import com.google.protobuf.Value;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.NullValue;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Value;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -128,9 +128,12 @@ public class PipelineOptionsTranslationTest {
 
     @Test
     public void structWithNullOptionsDeserializes() throws Exception {
-      Struct serialized = Struct.newBuilder()
-          .putFields("options", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
-          .build();
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields(
+                  "beam:option:option_key:v1",
+                  Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+              .build();
       PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
 
       assertThat(deserialized, notNullValue());

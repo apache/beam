@@ -34,18 +34,12 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class Monitor<T extends KnownSize> implements Serializable {
   private class MonitorDoFn extends DoFn<T, T> {
-    final Counter elementCounter =
-      Metrics.counter(name , prefix + ".elements");
-    final Counter bytesCounter =
-      Metrics.counter(name , prefix + ".bytes");
-    final Distribution startTime =
-      Metrics.distribution(name , prefix + ".startTime");
-    final Distribution endTime =
-      Metrics.distribution(name , prefix + ".endTime");
-    final Distribution startTimestamp =
-      Metrics.distribution(name , prefix + ".startTimestamp");
-    final Distribution endTimestamp =
-      Metrics.distribution(name , prefix + ".endTimestamp");
+    final Counter elementCounter = Metrics.counter(name, prefix + ".elements");
+    final Counter bytesCounter = Metrics.counter(name, prefix + ".bytes");
+    final Distribution startTime = Metrics.distribution(name, prefix + ".startTime");
+    final Distribution endTime = Metrics.distribution(name, prefix + ".endTime");
+    final Distribution startTimestamp = Metrics.distribution(name, prefix + ".startTimestamp");
+    final Distribution endTimestamp = Metrics.distribution(name, prefix + ".endTimestamp");
 
     @ProcessElement
     public void processElement(ProcessContext c) {

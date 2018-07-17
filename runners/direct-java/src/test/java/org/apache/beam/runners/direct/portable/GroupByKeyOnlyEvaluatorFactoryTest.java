@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
@@ -61,6 +62,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
   public void testInMemoryEvaluator() throws Exception {
     KvCoder<String, Integer> javaCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     String windowingStrategyId =
         sdkComponents.registerWindowingStrategy(WindowingStrategy.globalDefault());
     String coderId = sdkComponents.registerCoder(javaCoder);
@@ -94,10 +96,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
                 .build());
     PCollectionNode groupedKvs =
         PipelineNode.pCollection(
-            "groupedKvs",
-            RunnerApi.PCollection.newBuilder()
-                .setUniqueName("groupedKvs")
-                .build());
+            "groupedKvs", RunnerApi.PCollection.newBuilder().setUniqueName("groupedKvs").build());
     PTransformNode groupByKeyOnly =
         PipelineNode.pTransform(
             "gbko",

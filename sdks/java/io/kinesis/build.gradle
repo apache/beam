@@ -36,7 +36,6 @@ dependencies {
   shadow library.java.guava
   shadow library.java.slf4j_api
   shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
   shadow library.java.jackson_dataformat_cbor
   shadow "com.amazonaws:aws-java-sdk-core:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"

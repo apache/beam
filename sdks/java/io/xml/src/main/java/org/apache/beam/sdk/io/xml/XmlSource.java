@@ -88,11 +88,11 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   /**
-   * A {@link Source.Reader} for reading JAXB annotated Java objects from an XML file. The XML
-   * file should be of the form defined at {@link XmlSource}.
+   * A {@link Source.Reader} for reading JAXB annotated Java objects from an XML file. The XML file
+   * should be of the form defined at {@link XmlSource}.
    *
-   * <p>Timestamped values are currently unsupported - all values implicitly have the timestamp
-   * of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
+   * <p>Timestamped values are currently unsupported - all values implicitly have the timestamp of
+   * {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    *
    * @param <T> Type of objects that will be read by the reader.
    */
@@ -181,7 +181,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
                   "<?xml version=\"%s\" encoding=\""
                       + getCurrentSource().configuration.getCharset()
                       + "\"?><%s>",
-                  XML_VERSION, getCurrentSource().configuration.getRootElement()))
+                  XML_VERSION,
+                  getCurrentSource().configuration.getRootElement()))
               .getBytes(Charset.forName(getCurrentSource().configuration.getCharset()));
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
@@ -233,7 +234,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
           ("<" + getCurrentSource().configuration.getRecordElement())
               .getBytes(StandardCharsets.UTF_8);
 
-      outer: while (channel.read(buf) > 0) {
+      outer:
+      while (channel.read(buf) > 0) {
         buf.flip();
         while (buf.hasRemaining()) {
           offsetInFileOfCurrentByte++;
@@ -248,8 +250,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
             if (charBytesFound == charBytes.length) {
               CharBuffer charBuf = CharBuffer.allocate(1);
               InputStream charBufStream = new ByteArrayInputStream(charBytes);
-              java.io.Reader reader =
-                  new InputStreamReader(charBufStream, StandardCharsets.UTF_8);
+              java.io.Reader reader = new InputStreamReader(charBufStream, StandardCharsets.UTF_8);
               int read = reader.read();
               if (read <= 0) {
                 return -1;
@@ -332,10 +333,11 @@ public class XmlSource<T> extends FileBasedSource<T> {
         // character locations incorrectly. Note that Woodstox still currently reports *byte*
         // locations incorrectly when parsing documents that contain multi-byte characters.
         XMLInputFactory2 xmlInputFactory = (XMLInputFactory2) XMLInputFactory.newInstance();
-        this.parser = xmlInputFactory.createXMLStreamReader(
-            new SequenceInputStream(
-                new ByteArrayInputStream(lookAhead), Channels.newInputStream(channel)),
-            getCurrentSource().configuration.getCharset());
+        this.parser =
+            xmlInputFactory.createXMLStreamReader(
+                new SequenceInputStream(
+                    new ByteArrayInputStream(lookAhead), Channels.newInputStream(channel)),
+                getCurrentSource().configuration.getCharset());
 
         // Current offset should be the offset before reading the record element.
         while (true) {

@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

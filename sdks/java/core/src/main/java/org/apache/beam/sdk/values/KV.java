@@ -53,7 +53,6 @@ public class KV<K, V> implements Serializable {
     return value;
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
 
   final @Nullable K key;
@@ -83,8 +82,8 @@ public class KV<K, V> implements Serializable {
    *
    * <p>A {@code null} key is less than any non-{@code null} key.
    */
-  public static class OrderByKey<K extends Comparable<? super K>, V> implements
-      SerializableComparator<KV<K, V>> {
+  public static class OrderByKey<K extends Comparable<? super K>, V>
+      implements SerializableComparator<KV<K, V>> {
     @Override
     public int compare(KV<K, V> a, KV<K, V> b) {
       if (a.key == null) {
@@ -119,14 +118,11 @@ public class KV<K, V> implements Serializable {
   @Override
   public int hashCode() {
     // Objects.deepEquals requires Arrays.deepHashCode for correctness
-    return Arrays.deepHashCode(new Object[]{key, value});
+    return Arrays.deepHashCode(new Object[] {key, value});
   }
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .addValue(key)
-        .addValue(value)
-        .toString();
+    return MoreObjects.toStringHelper(this).addValue(key).addValue(value).toString();
   }
 }

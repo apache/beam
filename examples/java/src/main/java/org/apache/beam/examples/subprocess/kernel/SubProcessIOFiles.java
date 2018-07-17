@@ -28,7 +28,6 @@ import org.apache.beam.examples.subprocess.utils.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * All information generated from the process will be stored in output files. The local working
  * directory is used to generate three files with extension .err for standard error output .out for
@@ -56,9 +55,7 @@ public class SubProcessIOFiles implements Closeable {
     return outFileLocation;
   }
 
-  /**
-   * @param workerWorkingDirectory
-   */
+  /** @param workerWorkingDirectory */
   public SubProcessIOFiles(String workerWorkingDirectory) {
 
     this.uuid = UUID.randomUUID().toString();
@@ -68,7 +65,6 @@ public class SubProcessIOFiles implements Closeable {
     errFile = Paths.get(base.toString(), uuid + ".err");
     outFile = Paths.get(base.toString(), uuid + ".out");
     resultFile = Paths.get(base.toString(), uuid + ".res");
-
   }
 
   public Path getErrFile() {
@@ -84,8 +80,8 @@ public class SubProcessIOFiles implements Closeable {
   }
 
   /**
-   * Clean up the files that have been created on the local worker file system.
-   * Without this expect both performance issues and eventual failure
+   * Clean up the files that have been created on the local worker file system. Without this expect
+   * both performance issues and eventual failure
    */
   @Override
   public void close() throws IOException {
@@ -105,6 +101,7 @@ public class SubProcessIOFiles implements Closeable {
 
   /**
    * Will copy the output files to the GCS path setup via the configuration.
+   *
    * @param configuration
    * @param params
    */
@@ -122,8 +119,10 @@ public class SubProcessIOFiles implements Closeable {
         LOG.error("Error uploading log file to storage ", ex);
       }
 
-      LOG.info(String.format("Log Files for process: %s outFile was: %s errFile was: %s", params,
-          outFileLocation, errFileLocation));
+      LOG.info(
+          String.format(
+              "Log Files for process: %s outFile was: %s errFile was: %s",
+              params, outFileLocation, errFileLocation));
     } else {
       LOG.error(String.format("There was no output file or err file for process %s", params));
     }

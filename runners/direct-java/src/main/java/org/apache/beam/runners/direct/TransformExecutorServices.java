@@ -27,9 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Static factory methods for constructing instances of {@link TransformExecutorService}.
- */
+/** Static factory methods for constructing instances of {@link TransformExecutorService}. */
 final class TransformExecutorServices {
   private TransformExecutorServices() {
     // Do not instantiate
@@ -94,8 +92,7 @@ final class TransformExecutorServices {
     }
 
     @Override
-    public void complete(TransformExecutor completed) {
-    }
+    public void complete(TransformExecutor completed) {}
 
     @Override
     public void shutdown() {
@@ -108,8 +105,8 @@ final class TransformExecutorServices {
    * scheduled will be placed on the work queue. Only one item of work will be submitted to the
    * {@link ExecutorService} at any time.
    *
-   * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair.
-   * Keyed computations are processed serially per step.
+   * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair. Keyed
+   * computations are processed serially per step.
    */
   private static class SerialTransformExecutor implements TransformExecutorService {
     private final ExecutorService executor;

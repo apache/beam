@@ -22,13 +22,12 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * {@link TestPipelineOptions} for {@link TestBigQuery}.
- */
+/** {@link TestPipelineOptions} for {@link TestBigQuery}. */
 public interface TestBigQueryOptions extends TestPipelineOptions, BigQueryOptions, GcpOptions {
 
   @Description("Dataset used in the integration tests. Default is integ_test")
   @Default.String("integ_test")
   String getTargetDataset();
+
   void setTargetDataset(String value);
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 job('beam_PostRelease_Python_Candidate') {
     description('Runs verification of the Python release candidate.')
@@ -25,17 +25,17 @@ job('beam_PostRelease_Python_Candidate') {
     concurrentBuild()
 
     // Set common parameters.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Allows triggering this build against pull requests.
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
+    commonJobProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
             'Python SDK Release Candidates Validation',
             'Run Python ReleaseCandidate')
 
     // Execute shell command to test Python SDK.
     steps {
-        shell('cd ' + common_job_properties.checkoutDir +
+        shell('cd ' + commonJobProperties.checkoutDir +
                 ' && bash release/src/main/groovy/run_release_candidate_python_quickstart.sh' +
                 ' && bash release/src/main/groovy/run_release_candidate_python_mobile_gaming.sh')
     }

@@ -22,7 +22,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Metrics}.
- * Tests tagged with {@link UsesCommittedMetrics} should be run for runners which support
- * {@link MetricResult#getCommitted()}.
+ * Tests tagged with {@link UsesCommittedMetrics} should be run for runners which support {@link
+ * MetricResult#getCommitted()}.
  */
 public interface UsesCommittedMetrics {}

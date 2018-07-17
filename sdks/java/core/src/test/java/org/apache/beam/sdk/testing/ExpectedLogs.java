@@ -197,14 +197,13 @@ public class ExpectedLogs extends ExternalResource {
     return new TypeSafeMatcher<LogRecord>() {
       @Override
       public void describeTo(Description description) {
-        description.appendText(String.format(
-            "log message of level [%s] containing message [%s]", level, substring));
+        description.appendText(
+            String.format("log message of level [%s] containing message [%s]", level, substring));
       }
 
       @Override
       protected boolean matchesSafely(LogRecord item) {
-        return level.equals(item.getLevel())
-            && item.getMessage().contains(substring);
+        return level.equals(item.getLevel()) && item.getMessage().contains(substring);
       }
     };
   }
@@ -222,10 +221,11 @@ public class ExpectedLogs extends ExternalResource {
     return new TypeSafeMatcher<LogRecord>() {
       @Override
       public void describeTo(Description description) {
-        description.appendText(String.format(
-            "log message of level [%s] containg message [%s] with exception [%s] "
-            + "containing message [%s]",
-            level, substring, throwable.getClass(), throwable.getMessage()));
+        description.appendText(
+            String.format(
+                "log message of level [%s] containg message [%s] with exception [%s] "
+                    + "containing message [%s]",
+                level, substring, throwable.getClass(), throwable.getMessage()));
       }
 
       @Override
@@ -281,9 +281,7 @@ public class ExpectedLogs extends ExternalResource {
     logSaver = new LogSaver();
   }
 
-  /**
-   * A JUL logging {@link Handler} that records all logging events that are passed to it.
-   */
+  /** A JUL logging {@link Handler} that records all logging events that are passed to it. */
   @ThreadSafe
   private static class LogSaver extends Handler {
     private final Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();

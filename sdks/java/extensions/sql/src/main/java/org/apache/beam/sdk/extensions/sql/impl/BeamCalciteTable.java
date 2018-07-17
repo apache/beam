@@ -91,6 +91,7 @@ class BeamCalciteTable extends AbstractQueryableTable
         updateColumnList,
         sourceExpressionList,
         flattened,
-        beamTable);
+        beamTable,
+        pipelineOptions);
   }
 }

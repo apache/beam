@@ -50,8 +50,8 @@ public class AfterProcessingTimeStateMachine extends AfterDelayFromFirstElementS
   }
 
   /**
-   * Creates a trigger that fires when the current processing time passes the processing time
-   * at which this trigger saw the first element in a pane.
+   * Creates a trigger that fires when the current processing time passes the processing time at
+   * which this trigger saw the first element in a pane.
    */
   public static AfterProcessingTimeStateMachine pastFirstElementInPane() {
     return new AfterProcessingTimeStateMachine(IDENTITY);
@@ -67,10 +67,7 @@ public class AfterProcessingTimeStateMachine extends AfterDelayFromFirstElementS
   public String toString() {
     StringBuilder builder = new StringBuilder("AfterProcessingTime.pastFirstElementInPane()");
     for (SerializableFunction<Instant, Instant> delayFn : timestampMappers) {
-      builder
-          .append(".plusDelayOf(")
-          .append(delayFn)
-          .append(")");
+      builder.append(".plusDelayOf(").append(delayFn).append(")");
     }
 
     return builder.toString();

@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 /**
- * Exception thrown by {@link WindowFn#verifyCompatibility(WindowFn)} if two compared
- * WindowFns are not compatible, including the explanation of incompatibility.
+ * Exception thrown by {@link WindowFn#verifyCompatibility(WindowFn)} if two compared WindowFns are
+ * not compatible, including the explanation of incompatibility.
  */
 public class IncompatibleWindowException extends Exception {
   private WindowFn<?, ?> givenWindowFn;

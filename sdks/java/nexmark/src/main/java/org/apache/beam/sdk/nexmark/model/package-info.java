@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Nexmark Benchmark Model.
- */
+/** Nexmark Benchmark Model. */
 package org.apache.beam.sdk.nexmark.model;

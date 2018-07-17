@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -31,14 +30,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
-/**
- * Utilities for interacting with portability {@link Environment environments}.
- */
+/** Utilities for interacting with portability {@link Environment environments}. */
 public class Environments {
   private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
-          .put(PTransformTranslation.COMBINE_TRANSFORM_URN, Environments::combineExtractor)
+          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
           .put(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN, Environments::parDoExtractor)
           .put(PTransformTranslation.READ_TRANSFORM_URN, Environments::readExtractor)
@@ -61,8 +59,14 @@ public class Environments {
 
   private Environments() {}
 
-  public static Optional<Environment> getEnvironment(
-      String ptransformId, Components components) {
+  public static Environment createOrGetDefaultEnvironment(String url) {
+    if (Strings.isNullOrEmpty(url)) {
+      return JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
+    return Environment.newBuilder().setUrl(url).build();
+  }
+
+  public static Optional<Environment> getEnvironment(String ptransformId, Components components) {
     try {
       PTransform ptransform = components.getTransformsOrThrow(ptransformId);
       String envId =
@@ -119,8 +123,7 @@ public class Environments {
         .getEnvironmentId();
   }
 
-  private static String readExtractor(PTransform transform)
-      throws InvalidProtocolBufferException {
+  private static String readExtractor(PTransform transform) throws InvalidProtocolBufferException {
     return ReadPayload.parseFrom(transform.getSpec().getPayload()).getSource().getEnvironmentId();
   }
 

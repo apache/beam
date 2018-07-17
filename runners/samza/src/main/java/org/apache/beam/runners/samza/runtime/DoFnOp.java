@@ -56,10 +56,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * Samza operator for {@link DoFn}.
- */
+/** Samza operator for {@link DoFn}. */
 public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOp.class);
 
@@ -83,8 +80,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // This is derivable from pushbackValues which is persisted to a store.
   // TODO: eagerly initialize the hold in init
   @edu.umd.cs.findbugs.annotations.SuppressWarnings(
-      justification = "No bug",
-      value = "SE_TRANSIENT_FIELD_NOT_RESTORED")
+    justification = "No bug",
+    value = "SE_TRANSIENT_FIELD_NOT_RESTORED"
+  )
   private transient Instant pushbackWatermarkHold;
 
   // TODO: add this to checkpointable state
@@ -95,15 +93,16 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient TaskContext context;
   private transient SamzaPipelineOptions pipelineOptions;
 
-  public DoFnOp(TupleTag<FnOutT> mainOutputTag,
-                DoFn<InT, FnOutT> doFn,
-                Coder<?> keyCoder,
-                Collection<PCollectionView<?>> sideInputs,
-                List<TupleTag<?>> sideOutputTags,
-                WindowingStrategy windowingStrategy,
-                Map<String, PCollectionView<?>> idToViewMap,
-                OutputManagerFactory<OutT> outputManagerFactory,
-                String stepName) {
+  public DoFnOp(
+      TupleTag<FnOutT> mainOutputTag,
+      DoFn<InT, FnOutT> doFn,
+      Coder<?> keyCoder,
+      Collection<PCollectionView<?>> sideInputs,
+      List<TupleTag<?>> sideOutputTags,
+      WindowingStrategy windowingStrategy,
+      Map<String, PCollectionView<?>> idToViewMap,
+      OutputManagerFactory<OutT> outputManagerFactory,
+      String stepName) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -116,13 +115,16 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @Override
-  public void open(Config config,
-                   TaskContext context,
-                   TimerRegistry<TimerKey<Void>> timerRegistry,
-                   OpEmitter<OutT> emitter) {
-    this.pipelineOptions = Base64Serializer.deserializeUnchecked(
-        config.get("beamPipelineOptions"),
-        SerializablePipelineOptions.class).get().as(SamzaPipelineOptions.class);
+  public void open(
+      Config config,
+      TaskContext context,
+      TimerRegistry<TimerKey<Void>> timerRegistry,
+      OpEmitter<OutT> emitter) {
+    this.pipelineOptions =
+        Base64Serializer.deserializeUnchecked(
+                config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
+            .get()
+            .as(SamzaPipelineOptions.class);
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
@@ -133,30 +135,29 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     // use non-keyed StateInternals for side input
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         createStateInternalFactory(null);
-    this.sideInputHandler = new SideInputHandler(sideInputs,
-        nonKeyedStateInternalsFactory.stateInternalsForKey(null));
+    this.sideInputHandler =
+        new SideInputHandler(sideInputs, nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
     final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
         createStateInternalFactory(keyCoder);
 
-    this.fnRunner = DoFnRunnerWithKeyedInternals.of(
-        pipelineOptions,
-        doFn,
-        sideInputHandler,
-        outputManagerFactory.create(emitter),
-        mainOutputTag,
-        sideOutputTags,
-        stateInternalsFactory,
-        timerInternalsFactory,
-        windowingStrategy,
-        executionContext.getMetricsContainer(),
-        stepName);
+    this.fnRunner =
+        DoFnRunnerWithKeyedInternals.of(
+            pipelineOptions,
+            doFn,
+            sideInputHandler,
+            outputManagerFactory.create(emitter),
+            mainOutputTag,
+            sideOutputTags,
+            stateInternalsFactory,
+            timerInternalsFactory,
+            windowingStrategy,
+            executionContext.getMetricsContainer(),
+            stepName);
 
-    this.pushbackFnRunner = SimplePushbackSideInputDoFnRunner.create(
-        fnRunner,
-        sideInputs,
-        sideInputHandler);
+    this.pushbackFnRunner =
+        SimplePushbackSideInputDoFnRunner.create(fnRunner, sideInputs, sideInputHandler);
 
     this.pushbackValues = new ArrayList<>();
 
@@ -190,9 +191,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       emitAllPushbackValues();
     }
 
-    final Instant actualInputWatermark = pushbackWatermarkHold.isBefore(inputWatermark)
-        ? pushbackWatermarkHold
-        : inputWatermark;
+    final Instant actualInputWatermark =
+        pushbackWatermarkHold.isBefore(inputWatermark) ? pushbackWatermarkHold : inputWatermark;
 
     timerInternalsFactory.setInputWatermark(actualInputWatermark);
 
@@ -210,9 +210,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @Override
-  public void processSideInput(String id,
-                               WindowedValue<? extends Iterable<?>> elements,
-                               OpEmitter<OutT> emitter) {
+  public void processSideInput(
+      String id, WindowedValue<? extends Iterable<?>> elements, OpEmitter<OutT> emitter) {
     @SuppressWarnings("unchecked")
     final WindowedValue<Iterable<?>> retypedElements = (WindowedValue<Iterable<?>>) elements;
 
@@ -261,28 +260,28 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @SuppressWarnings("unchecked")
   private SamzaStoreStateInternals.Factory createStateInternalFactory(Coder<?> keyCoder) {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
-    final Map<String, KeyValueStore<byte[], byte[]>> stores = new HashMap<>(
-        SamzaStoreStateInternals.getBeamStore(context)
-    );
+    final Map<String, KeyValueStore<byte[], byte[]>> stores =
+        new HashMap<>(SamzaStoreStateInternals.getBeamStore(context));
 
     final Coder stateKeyCoder;
     if (keyCoder != null) {
-      signature.stateDeclarations().keySet().forEach(stateId -> stores
-          .put(stateId, (KeyValueStore<byte[], byte[]>) context.getStore(stateId)));
+      signature
+          .stateDeclarations()
+          .keySet()
+          .forEach(
+              stateId ->
+                  stores.put(stateId, (KeyValueStore<byte[], byte[]>) context.getStore(stateId)));
       stateKeyCoder = keyCoder;
     } else {
       stateKeyCoder = VoidCoder.of();
     }
     return new SamzaStoreStateInternals.Factory<>(
-            mainOutputTag.getId(),
-            stores,
-            stateKeyCoder,
-            batchGetSize);
+        mainOutputTag.getId(), stores, stateKeyCoder, batchGetSize);
   }
 
   @SuppressWarnings("unchecked")
-  private SamzaTimerInternalsFactory createTimerInternalsFactory(Coder<?> keyCoder,
-      TimerRegistry timerRegistry) {
+  private SamzaTimerInternalsFactory createTimerInternalsFactory(
+      Coder<?> keyCoder, TimerRegistry timerRegistry) {
     return new SamzaTimerInternalsFactory<>(keyCoder, timerRegistry);
   }
 
@@ -319,9 +318,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   /**
-   * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager}
-   * that emits values to the main output only, which is a single
-   * {@link org.apache.beam.sdk.values.PCollection}.
+   * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager} that
+   * emits values to the main output only, which is a single {@link
+   * org.apache.beam.sdk.values.PCollection}.
+   *
    * @param <OutT> type of the output element.
    */
   public static class SingleOutputManagerFactory<OutT> implements OutputManagerFactory<OutT> {
@@ -340,9 +340,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   /**
-   * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager}
-   * that emits values to the main output as well as the side outputs via union type
-   * {@link RawUnionValue}.
+   * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager} that
+   * emits values to the main output as well as the side outputs via union type {@link
+   * RawUnionValue}.
    */
   public static class MultiOutputManagerFactory implements OutputManagerFactory<RawUnionValue> {
     private final Map<TupleTag<?>, Integer> tagToIdMap;

@@ -23,19 +23,13 @@ package org.apache.beam.runners.dataflow.util;
  * to the original object.
  */
 public interface CloudObjectTranslator<T> {
-  /**
-   * Converts the provided object into an equivalent {@link CloudObject}.
-   */
+  /** Converts the provided object into an equivalent {@link CloudObject}. */
   CloudObject toCloudObject(T target);
 
-  /**
-   * Converts back into the original object from a provided {@link CloudObject}.
-   */
+  /** Converts back into the original object from a provided {@link CloudObject}. */
   T fromCloudObject(CloudObject cloudObject);
 
-  /**
-   * Gets the class this {@link CloudObjectTranslator} is capable of converting.
-   */
+  /** Gets the class this {@link CloudObjectTranslator} is capable of converting. */
   Class<? extends T> getSupportedClass();
 
   /**

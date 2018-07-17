@@ -37,20 +37,16 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * Test for GroupByNullKey.
- */
+/** Test for GroupByNullKey. */
 public class GroupByNullKeyTest extends StreamingProgramTestBase implements Serializable {
 
   protected String resultDir;
   protected String resultPath;
 
-  static final String[] EXPECTED_RESULT = new String[] {
-      "k: null v: user1 user1 user1 user2 user2 user2 user2 user3"
-  };
+  static final String[] EXPECTED_RESULT =
+      new String[] {"k: null v: user1 user1 user1 user2 user2 user2 user2 user3"};
 
-  public GroupByNullKeyTest() {
-  }
+  public GroupByNullKeyTest() {}
 
   @Override
   protected void preSubmit() throws Exception {
@@ -66,9 +62,7 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
-  /**
-   * DoFn extracting user and timestamp.
-   */
+  /** DoFn extracting user and timestamp. */
   private static class ExtractUserAndTimestamp extends DoFn<KV<Integer, String>, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {

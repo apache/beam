@@ -27,9 +27,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * Convert Java model object to Row.
- */
+/** Convert Java model object to Row. */
 public class ToRow {
 
   static final ToRow INSTANCE = new ToRow(ModelAdaptersMapping.ADAPTERS);
@@ -55,10 +53,7 @@ public class ToRow {
 
     ModelFieldsAdapter adapter = modelTypeAdapters.get(modelClass);
 
-    return Row
-        .withSchema(adapter.getSchema())
-        .addValues(adapter.getFieldsValues(model))
-        .build();
+    return Row.withSchema(adapter.getSchema()).addValues(adapter.getFieldsValues(model)).build();
   }
 
   private KnownSize getModel(Event event) {
@@ -74,12 +69,13 @@ public class ToRow {
   }
 
   public static ParDo.SingleOutput<Event, Row> parDo() {
-    return ParDo.of(new DoFn<Event, Row>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        Row row = INSTANCE.toRow(c.element());
-        c.output(row);
-      }
-    });
+    return ParDo.of(
+        new DoFn<Event, Row>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            Row row = INSTANCE.toRow(c.element());
+            c.output(row);
+          }
+        });
   }
 }

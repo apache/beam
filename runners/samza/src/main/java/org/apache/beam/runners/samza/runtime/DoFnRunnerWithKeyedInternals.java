@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.runtime;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -45,9 +46,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
-/**
- * This class wraps a DoFnRunner with keyed StateInternals and TimerInternals access.
- */
+/** This class wraps a DoFnRunner with keyed StateInternals and TimerInternals access. */
 public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> underlying;
   private final KeyedInternals keyedInternals;
@@ -80,26 +79,31 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       timerInternals = timerInternalsFactory.timerInternalsForKey(null);
     }
 
-    final DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        options,
-        doFn,
-        sideInputReader,
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        createStepContext(stateInternals, timerInternals),
-        windowingStrategy);
+    final DoFnRunner<InputT, OutputT> doFnRunner =
+        DoFnRunners.simpleRunner(
+            options,
+            doFn,
+            sideInputReader,
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            createStepContext(stateInternals, timerInternals),
+            // TODO: fix.
+            null,
+            Collections.emptyMap(),
+            windowingStrategy);
 
-    final DoFnRunner<InputT, OutputT> doFnRunnerWithMetrics = DoFnRunnerWithMetrics
-        .wrap(doFnRunner, metricsContainer, stepName);
+    final DoFnRunner<InputT, OutputT> doFnRunnerWithMetrics =
+        DoFnRunnerWithMetrics.wrap(doFnRunner, metricsContainer, stepName);
 
     if (keyedInternals != null) {
-      final DoFnRunner<InputT, OutputT> statefulDoFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-          doFn,
-          doFnRunnerWithMetrics,
-          windowingStrategy,
-          new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
-          createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
+      final DoFnRunner<InputT, OutputT> statefulDoFnRunner =
+          DoFnRunners.defaultStatefulDoFnRunner(
+              doFn,
+              doFnRunnerWithMetrics,
+              windowingStrategy,
+              new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
+              createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
 
       return new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
     } else {
@@ -107,9 +111,7 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     }
   }
 
-  /**
-   * Creates a {@link StepContext} that allows accessing state and timer internals.
-   */
+  /** Creates a {@link StepContext} that allows accessing state and timer internals. */
   private static StepContext createStepContext(
       StateInternals stateInternals, TimerInternals timerInternals) {
     return new StepContext() {
@@ -117,6 +119,7 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       public StateInternals stateInternals() {
         return stateInternals;
       }
+
       @Override
       public TimerInternals timerInternals() {
         return timerInternals;
@@ -133,15 +136,14 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     if (windowType.isSubtypeOf(TypeDescriptor.of(BoundedWindow.class))) {
       final Coder<? extends BoundedWindow> windowCoder =
           windowingStrategy.getWindowFn().windowCoder();
-      return new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-          doFn, stateInternals, windowCoder);
+      return new StatefulDoFnRunner.StateInternalsStateCleaner<>(doFn, stateInternals, windowCoder);
     } else {
       return null;
     }
   }
 
-  private DoFnRunnerWithKeyedInternals(DoFnRunner<InputT, OutputT> doFnRunner,
-                                       KeyedInternals keyedInternals) {
+  private DoFnRunnerWithKeyedInternals(
+      DoFnRunner<InputT, OutputT> doFnRunner, KeyedInternals keyedInternals) {
     this.underlying = doFnRunner;
     this.keyedInternals = keyedInternals;
   }
@@ -161,7 +163,6 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     } finally {
       clearKeyedInternals();
     }
-
   }
 
   public void onTimer(KeyedTimerData keyedTimerData, BoundedWindow window) {
@@ -176,10 +177,9 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-      TimeDomain timeDomain) {
-    checkState(keyedInternals.getKey() != null,
-        "Key is not set for timer");
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    checkState(keyedInternals.getKey() != null, "Key is not set for timer");
 
     underlying.onTimer(timerId, window, timestamp, timeDomain);
   }

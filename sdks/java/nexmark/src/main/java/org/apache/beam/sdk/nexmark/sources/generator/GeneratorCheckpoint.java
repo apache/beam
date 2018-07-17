@@ -29,29 +29,29 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 
-/**
- * Just enough state to be able to restore a generator back to where it was checkpointed.
- */
+/** Just enough state to be able to restore a generator back to where it was checkpointed. */
 public class GeneratorCheckpoint implements UnboundedSource.CheckpointMark {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
 
   /** Coder for this class. */
   public static final Coder<GeneratorCheckpoint> CODER_INSTANCE =
       new CustomCoder<GeneratorCheckpoint>() {
-        @Override public void encode(GeneratorCheckpoint value, OutputStream outStream)
+        @Override
+        public void encode(GeneratorCheckpoint value, OutputStream outStream)
             throws CoderException, IOException {
           LONG_CODER.encode(value.numEvents, outStream);
           LONG_CODER.encode(value.wallclockBaseTime, outStream);
         }
 
         @Override
-        public GeneratorCheckpoint decode(InputStream inStream)
-            throws CoderException, IOException {
+        public GeneratorCheckpoint decode(InputStream inStream) throws CoderException, IOException {
           long numEvents = LONG_CODER.decode(inStream);
           long wallclockBaseTime = LONG_CODER.decode(inStream);
           return new GeneratorCheckpoint(numEvents, wallclockBaseTime);
         }
-        @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
       };
 
   private final long numEvents;

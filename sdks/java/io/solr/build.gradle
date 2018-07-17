@@ -25,7 +25,6 @@ ext.summary = "IO to read and write from/to Solr."
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow library.java.commons_compress
   shadow "org.apache.solr:solr-solrj:5.5.4"
   compileOnly "org.apache.httpcomponents:httpclient:4.4.1"

@@ -34,8 +34,12 @@ import redis.clients.jedis.Protocol;
 public abstract class RedisConnectionConfiguration implements Serializable {
 
   abstract String host();
+
   abstract int port();
-  @Nullable abstract String auth();
+
+  @Nullable
+  abstract String auth();
+
   abstract int timeout();
 
   abstract Builder builder();
@@ -43,9 +47,13 @@ public abstract class RedisConnectionConfiguration implements Serializable {
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setHost(String host);
+
     abstract Builder setPort(int port);
+
     abstract Builder setAuth(String auth);
+
     abstract Builder setTimeout(int timeout);
+
     abstract RedisConnectionConfiguration build();
   }
 
@@ -53,35 +61,31 @@ public abstract class RedisConnectionConfiguration implements Serializable {
     return new AutoValue_RedisConnectionConfiguration.Builder()
         .setHost(Protocol.DEFAULT_HOST)
         .setPort(Protocol.DEFAULT_PORT)
-        .setTimeout(Protocol.DEFAULT_TIMEOUT).build();
+        .setTimeout(Protocol.DEFAULT_TIMEOUT)
+        .build();
   }
 
   public static RedisConnectionConfiguration create(String host, int port) {
     return new AutoValue_RedisConnectionConfiguration.Builder()
         .setHost(host)
         .setPort(port)
-        .setTimeout(Protocol.DEFAULT_TIMEOUT).build();
+        .setTimeout(Protocol.DEFAULT_TIMEOUT)
+        .build();
   }
 
-  /**
-   * Define the host name of the Redis server.
-   */
+  /** Define the host name of the Redis server. */
   public RedisConnectionConfiguration withHost(String host) {
     checkArgument(host != null, "host can not be null");
     return builder().setHost(host).build();
   }
 
-  /**
-   * Define the port number of the Redis server.
-   */
+  /** Define the port number of the Redis server. */
   public RedisConnectionConfiguration withPort(int port) {
     checkArgument(port > 0, "port can not be negative or 0");
     return builder().setPort(port).build();
   }
 
-  /**
-   * Define the password to authenticate on the Redis server.
-   */
+  /** Define the password to authenticate on the Redis server. */
   public RedisConnectionConfiguration withAuth(String auth) {
     checkArgument(auth != null, "auth can not be null");
     return builder().setAuth(auth).build();
@@ -95,9 +99,7 @@ public abstract class RedisConnectionConfiguration implements Serializable {
     return builder().setTimeout(timeout).build();
   }
 
-  /**
-   * Connect to the Redis instance.
-   */
+  /** Connect to the Redis instance. */
   public Jedis connect() {
     Jedis jedis = new Jedis(host(), port(), timeout());
     if (auth() != null) {
@@ -106,13 +108,10 @@ public abstract class RedisConnectionConfiguration implements Serializable {
     return jedis;
   }
 
-  /**
-   * Populate the display data with connectionConfiguration details.
-   */
+  /** Populate the display data with connectionConfiguration details. */
   public void populateDisplayData(DisplayData.Builder builder) {
     builder.add(DisplayData.item("host", host()));
     builder.add(DisplayData.item("port", port()));
     builder.addIfNotNull(DisplayData.item("timeout", timeout()));
   }
-
 }

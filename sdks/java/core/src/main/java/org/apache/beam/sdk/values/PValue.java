@@ -29,16 +29,14 @@ import org.apache.beam.sdk.transforms.PTransform;
 @Internal
 public interface PValue extends POutput, PInput {
 
-  /**
-   * Returns the name of this {@link PValue}.
-   */
+  /** Returns the name of this {@link PValue}. */
   String getName();
 
   /**
    * {@inheritDoc}.
    *
    * @deprecated A {@link PValue} always expands into itself. Calling {@link #expand()} on a PValue
-   * is almost never appropriate.
+   *     is almost never appropriate.
    */
   @Deprecated
   @Override

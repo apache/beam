@@ -43,8 +43,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SortValuesTest {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void testSecondaryKeySorting() {

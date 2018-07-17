@@ -20,9 +20,7 @@ package org.apache.beam.sdk.nexmark.sources.generator.model;
 
 import java.util.Random;
 
-/**
- * LongGenerator.
- */
+/** LongGenerator. */
 public class LongGenerator {
 
   /** Return a random long from {@code [0, n)}. */

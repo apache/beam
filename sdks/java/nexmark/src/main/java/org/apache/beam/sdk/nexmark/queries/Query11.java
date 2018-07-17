@@ -37,9 +37,8 @@ import org.joda.time.Duration;
 /**
  * Query "11", 'User sessions' (Not in original suite.)
  *
- * <p>Group bids by the same user into sessions with {@code windowSizeSec} max gap.
- * However limit the session to at most {@code maxLogEvents}. Emit the number of
- * bids per session.
+ * <p>Group bids by the same user into sessions with {@code windowSizeSec} max gap. However limit
+ * the session to at most {@code maxLogEvents}. Emit the number of bids per session.
  */
 public class Query11 extends NexmarkQuery {
   public Query11(NexmarkConfiguration configuration) {
@@ -47,22 +46,30 @@ public class Query11 extends NexmarkQuery {
   }
 
   private PCollection<BidsPerSession> applyTyped(PCollection<Event> events) {
-    PCollection<Long> bidders = events.apply(JUST_BIDS).apply(name + ".Rekey",
-        ParDo.of(new DoFn<Bid, Long>() {
+    PCollection<Long> bidders =
+        events
+            .apply(JUST_BIDS)
+            .apply(
+                name + ".Rekey",
+                ParDo.of(
+                    new DoFn<Bid, Long>() {
 
-          @ProcessElement public void processElement(ProcessContext c) {
-            Bid bid = c.element();
-            c.output(bid.bidder);
-          }
-        }));
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        Bid bid = c.element();
+                        c.output(bid.bidder);
+                      }
+                    }));
 
-    PCollection<Long> biddersWindowed = bidders.apply(
-        Window.<Long>into(
-          Sessions.withGapDuration(Duration.standardSeconds(configuration.windowSizeSec)))
-            .triggering(
-                Repeatedly.forever(AfterPane.elementCountAtLeast(configuration.maxLogEvents)))
-            .discardingFiredPanes()
-            .withAllowedLateness(Duration.standardSeconds(configuration.occasionalDelaySec / 2)));
+    PCollection<Long> biddersWindowed =
+        bidders.apply(
+            Window.<Long>into(
+                    Sessions.withGapDuration(Duration.standardSeconds(configuration.windowSizeSec)))
+                .triggering(
+                    Repeatedly.forever(AfterPane.elementCountAtLeast(configuration.maxLogEvents)))
+                .discardingFiredPanes()
+                .withAllowedLateness(
+                    Duration.standardSeconds(configuration.occasionalDelaySec / 2)));
     return biddersWindowed
         .apply(Count.perElement())
         .apply(

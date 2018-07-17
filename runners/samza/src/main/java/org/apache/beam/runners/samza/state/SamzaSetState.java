@@ -23,19 +23,15 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 
-/**
- * Samza's extended SetState, allowing extra access methods to the state.
- *
- */
+/** Samza's extended SetState, allowing extra access methods to the state. */
 @Experimental(Experimental.Kind.STATE)
 public interface SamzaSetState<T> extends SetState<T> {
 
   /**
-   * Returns an iterator from the current set state.
-   * Note this is different from the iterable implementation in {@link SetState#read()},
-   * where we load the entries into memory and return iterable from that. To handle
-   * large state that doesn't fit in memory, we also need this method so it's possible
-   * to iterate on large data set and close the iterator when not needed.
+   * Returns an iterator from the current set state. Note this is different from the iterable
+   * implementation in {@link SetState#read()}, where we load the entries into memory and return
+   * iterable from that. To handle large state that doesn't fit in memory, we also need this method
+   * so it's possible to iterate on large data set and close the iterator when not needed.
    *
    * @return a {@link ReadableState} of an iterator
    */

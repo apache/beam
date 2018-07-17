@@ -36,13 +36,14 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GoogleApiDebugOptions}. */
 @RunWith(JUnit4.class)
 public class GoogleApiDebugOptionsTest {
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   private static final String STORAGE_GET_TRACE =
       "--googleApiTrace={\"Objects.Get\":\"GetTraceDestination\"}";
   private static final String STORAGE_GET_AND_LIST_TRACE =
       "--googleApiTrace={\"Objects.Get\":\"GetTraceDestination\","
-      + "\"Objects.List\":\"ListTraceDestination\"}";
+          + "\"Objects.List\":\"ListTraceDestination\"}";
   private static final String STORAGE_TRACE = "--googleApiTrace={\"Storage\":\"TraceDestination\"}";
 
   @Test
@@ -90,8 +91,7 @@ public class GoogleApiDebugOptionsTest {
   @Test
   public void testMatchingAllCalls() throws Exception {
     String[] args = new String[] {STORAGE_TRACE};
-    GcsOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(GcsOptions.class);
+    GcsOptions options = PipelineOptionsFactory.fromArgs(args).as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
 
     assertNotNull(options.getGoogleApiTrace());
@@ -109,16 +109,20 @@ public class GoogleApiDebugOptionsTest {
   public void testMatchingAgainstClient() throws Exception {
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
-    options.setGoogleApiTrace(new GoogleApiTracer().addTraceFor(
-        Transport.newStorageClient(options).build(), "TraceDestination"));
+    options.setGoogleApiTrace(
+        new GoogleApiTracer()
+            .addTraceFor(Transport.newStorageClient(options).build(), "TraceDestination"));
 
     Storage.Objects.Get getRequest =
         Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("TraceDestination", getRequest.get("$trace"));
 
-    Delete deleteRequest = GcpOptions.GcpTempLocationFactory.newCloudResourceManagerClient(
-        options.as(CloudResourceManagerOptions.class))
-        .build().projects().delete("testProjectId");
+    Delete deleteRequest =
+        GcpOptions.GcpTempLocationFactory.newCloudResourceManagerClient(
+                options.as(CloudResourceManagerOptions.class))
+            .build()
+            .projects()
+            .delete("testProjectId");
     assertNull(deleteRequest.get("$trace"));
   }
 
@@ -126,9 +130,14 @@ public class GoogleApiDebugOptionsTest {
   public void testMatchingAgainstRequestType() throws Exception {
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
-    options.setGoogleApiTrace(new GoogleApiTracer().addTraceFor(
-        Transport.newStorageClient(options).build().objects()
-            .get("aProjectId", "aObjectId"), "TraceDestination"));
+    options.setGoogleApiTrace(
+        new GoogleApiTracer()
+            .addTraceFor(
+                Transport.newStorageClient(options)
+                    .build()
+                    .objects()
+                    .get("aProjectId", "aObjectId"),
+                "TraceDestination"));
 
     Storage.Objects.Get getRequest =
         Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
@@ -142,8 +151,8 @@ public class GoogleApiDebugOptionsTest {
   @Test
   public void testDeserializationAndSerializationOfGoogleApiTracer() throws Exception {
     String serializedValue = "{\"Api\":\"Token\"}";
-    assertEquals(serializedValue,
-        MAPPER.writeValueAsString(
-            MAPPER.readValue(serializedValue, GoogleApiTracer.class)));
+    assertEquals(
+        serializedValue,
+        MAPPER.writeValueAsString(MAPPER.readValue(serializedValue, GoogleApiTracer.class)));
   }
 }

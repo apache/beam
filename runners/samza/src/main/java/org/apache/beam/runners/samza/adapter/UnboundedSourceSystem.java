@@ -78,19 +78,17 @@ public class UnboundedSourceSystem {
       new IncomingMessageEnvelope(null, null, null, null);
 
   /**
-   * Returns the configuration required to instantiate a consumer for the given
-   * {@link UnboundedSource}.
+   * Returns the configuration required to instantiate a consumer for the given {@link
+   * UnboundedSource}.
    *
    * @param id a unique id for the source. Must use only valid characters for a system name in
-   *           Samza.
+   *     Samza.
    * @param source the source
    * @param coder a coder to deserialize messages received by the source's consumer
    * @param <T> the type of object produced by the source consumer
    */
-  public static  <T> Map<String, String> createConfigFor(String id,
-                                                         UnboundedSource<T, ?> source,
-                                                         Coder<WindowedValue<T>> coder,
-                                                         String stepName) {
+  public static <T> Map<String, String> createConfigFor(
+      String id, UnboundedSource<T, ?> source, Coder<WindowedValue<T>> coder, String stepName) {
     final Map<String, String> config = new HashMap<>();
     final String streamPrefix = "systems." + id;
     config.put(streamPrefix + ".samza.factory", UnboundedSourceSystem.Factory.class.getName());
@@ -102,14 +100,15 @@ public class UnboundedSourceSystem {
   }
 
   /**
-   *  For better parallelism in Samza, we need to configure a large split number for
-   *  {@link UnboundedSource} like Kafka. This will most likely make each split
-   *  contain a single partition, and be assigned to a Samza task. A large split number
-   *  is safe since the actual split is bounded by the number of source partitions.
+   * For better parallelism in Samza, we need to configure a large split number for {@link
+   * UnboundedSource} like Kafka. This will most likely make each split contain a single partition,
+   * and be assigned to a Samza task. A large split number is safe since the actual split is bounded
+   * by the number of source partitions.
    */
   private static <T, CheckpointMarkT extends CheckpointMark>
-  List<UnboundedSource<T, CheckpointMarkT>> split(UnboundedSource<T, CheckpointMarkT> source,
-      SamzaPipelineOptions pipelineOptions) throws Exception {
+      List<UnboundedSource<T, CheckpointMarkT>> split(
+          UnboundedSource<T, CheckpointMarkT> source, SamzaPipelineOptions pipelineOptions)
+          throws Exception {
     final int numSplits = pipelineOptions.getMaxSourceParallelism();
     if (numSplits > 1) {
       @SuppressWarnings("unchecked")
@@ -123,9 +122,7 @@ public class UnboundedSourceSystem {
     return Collections.singletonList(source);
   }
 
-  /**
-   * A {@link SystemAdmin} for {@link UnboundedSourceSystem}.
-   */
+  /** A {@link SystemAdmin} for {@link UnboundedSourceSystem}. */
   public static class Admin<T, CheckpointMarkT extends CheckpointMark> implements SystemAdmin {
     private final UnboundedSource<T, CheckpointMarkT> source;
     private final SamzaPipelineOptions pipelineOptions;
@@ -144,27 +141,29 @@ public class UnboundedSourceSystem {
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames.stream()
-          .collect(Collectors.toMap(
-              Function.<String>identity(),
-              streamName -> {
-                try {
-                  final List<UnboundedSource<T, CheckpointMarkT>> splits =
-                      split(source, pipelineOptions);
-                  final Map<Partition, SystemStreamPartitionMetadata> partitionMetaData =
-                      new HashMap<>();
-                  // we assume that the generated splits are stable,
-                  // this is necessary so that the mapping of partition to source is correct
-                  // in each container.
-                  for (int i = 0; i < splits.size(); i++) {
-                    partitionMetaData.put(new Partition(i),
-                        new SystemStreamPartitionMetadata(null, null, null));
-                  }
-                  return new SystemStreamMetadata(streamName, partitionMetaData);
-                } catch (Exception e) {
-                  throw new SamzaException("Fail to read stream metadata", e);
-                }
-              }));
+      return streamNames
+          .stream()
+          .collect(
+              Collectors.toMap(
+                  Function.<String>identity(),
+                  streamName -> {
+                    try {
+                      final List<UnboundedSource<T, CheckpointMarkT>> splits =
+                          split(source, pipelineOptions);
+                      final Map<Partition, SystemStreamPartitionMetadata> partitionMetaData =
+                          new HashMap<>();
+                      // we assume that the generated splits are stable,
+                      // this is necessary so that the mapping of partition to source is correct
+                      // in each container.
+                      for (int i = 0; i < splits.size(); i++) {
+                        partitionMetaData.put(
+                            new Partition(i), new SystemStreamPartitionMetadata(null, null, null));
+                      }
+                      return new SystemStreamMetadata(streamName, partitionMetaData);
+                    } catch (Exception e) {
+                      throw new SamzaException("Fail to read stream metadata", e);
+                    }
+                  }));
     }
 
     @Override
@@ -194,10 +193,11 @@ public class UnboundedSourceSystem {
 
     private ReaderTask<T, CheckpointMarkT> readerTask;
 
-    Consumer(UnboundedSource<T, CheckpointMarkT> source,
-             SamzaPipelineOptions pipelineOptions,
-             SamzaMetricsContainer metricsContainer,
-             String stepName) {
+    Consumer(
+        UnboundedSource<T, CheckpointMarkT> source,
+        SamzaPipelineOptions pipelineOptions,
+        SamzaMetricsContainer metricsContainer,
+        String stepName) {
       try {
         this.splits = split(source, pipelineOptions);
       } catch (Exception e) {
@@ -216,14 +216,15 @@ public class UnboundedSourceSystem {
             "Attempted to call start without assigned system stream partitions");
       }
 
-      readerTask = new ReaderTask<>(readerToSsp,
-          checkpointMarkCoder,
-          pipelineOptions.getSystemBufferSize(),
-          pipelineOptions.getWatermarkInterval(),
-          new FnWithMetricsWrapper(metricsContainer, stepName));
-      final Thread thread = new Thread(
-          readerTask,
-          "unbounded-source-system-consumer-" + NEXT_ID.getAndIncrement());
+      readerTask =
+          new ReaderTask<>(
+              readerToSsp,
+              checkpointMarkCoder,
+              pipelineOptions.getSystemBufferSize(),
+              pipelineOptions.getWatermarkInterval(),
+              new FnWithMetricsWrapper(metricsContainer, stepName));
+      final Thread thread =
+          new Thread(readerTask, "unbounded-source-system-consumer-" + NEXT_ID.getAndIncrement());
       thread.start();
     }
 
@@ -249,8 +250,8 @@ public class UnboundedSourceSystem {
       // Create unbounded reader with checkpoint
       final int partitionId = ssp.getPartition().getPartitionId();
       try {
-        final UnboundedReader reader = splits.get(partitionId)
-            .createReader(pipelineOptions, checkpoint);
+        final UnboundedReader reader =
+            splits.get(partitionId).createReader(pipelineOptions, checkpoint);
         readerToSsp.put(reader, ssp);
       } catch (Exception e) {
         throw new SamzaException("Error while creating source reader for ssp: " + ssp, e);
@@ -259,8 +260,8 @@ public class UnboundedSourceSystem {
 
     @Override
     public Map<SystemStreamPartition, List<IncomingMessageEnvelope>> poll(
-        Set<SystemStreamPartition> systemStreamPartitions,
-        long timeout) throws InterruptedException {
+        Set<SystemStreamPartition> systemStreamPartitions, long timeout)
+        throws InterruptedException {
       assert !readerToSsp.isEmpty(); // start should be called before poll
 
       final Map<SystemStreamPartition, List<IncomingMessageEnvelope>> envelopes = new HashMap<>();
@@ -284,11 +285,12 @@ public class UnboundedSourceSystem {
       private volatile Exception lastException;
       private long lastWatermarkTime = 0L;
 
-      private ReaderTask(Map<UnboundedReader, SystemStreamPartition> readerToSsp,
-                         Coder<CheckpointMarkT> checkpointMarkCoder,
-                         int capacity,
-                         long watermarkInterval,
-                         FnWithMetricsWrapper metricsWrapper) {
+      private ReaderTask(
+          Map<UnboundedReader, SystemStreamPartition> readerToSsp,
+          Coder<CheckpointMarkT> checkpointMarkCoder,
+          int capacity,
+          long watermarkInterval,
+          FnWithMetricsWrapper metricsWrapper) {
         this.readerToSsp = readerToSsp;
         this.checkpointMarkCoder = checkpointMarkCoder;
         this.readers = ImmutableList.copyOf(readerToSsp.keySet());
@@ -320,7 +322,8 @@ public class UnboundedSourceSystem {
             for (UnboundedReader reader : readers) {
               final boolean hasData = metricsWrapper.wrap(reader::advance);
               if (hasData) {
-                while (!available.tryAcquire(1,
+                while (!available.tryAcquire(
+                    1,
                     Math.max(lastWatermarkTime + watermarkInterval - System.currentTimeMillis(), 1),
                     TimeUnit.MILLISECONDS)) {
                   updateWatermark();
@@ -341,21 +344,25 @@ public class UnboundedSourceSystem {
           lastException = e;
           running = false;
         } finally {
-          readers.forEach(reader -> {
-            try {
-              reader.close();
-            } catch (IOException e) {
-              LOG.error("Reader task failed to close reader", e);
-            }
-          });
+          readers.forEach(
+              reader -> {
+                try {
+                  reader.close();
+                } catch (IOException e) {
+                  LOG.error("Reader task failed to close reader", e);
+                }
+              });
         }
 
         if (lastException != null) {
           // Force any pollers to wake up
-          queues.values().forEach(queue -> {
-            queue.clear();
-            queue.add(CHECK_LAST_EXCEPTION_ENVELOPE);
-          });
+          queues
+              .values()
+              .forEach(
+                  queue -> {
+                    queue.clear();
+                    queue.add(CHECK_LAST_EXCEPTION_ENVELOPE);
+                  });
         }
       }
 
@@ -364,9 +371,10 @@ public class UnboundedSourceSystem {
         if (time - lastWatermarkTime > watermarkInterval) {
           for (UnboundedReader reader : readers) {
             final SystemStreamPartition ssp = readerToSsp.get(reader);
-            final Instant currentWatermark = currentWatermarks.containsKey(ssp)
-                ? currentWatermarks.get(ssp) :
-                BoundedWindow.TIMESTAMP_MIN_VALUE;
+            final Instant currentWatermark =
+                currentWatermarks.containsKey(ssp)
+                    ? currentWatermarks.get(ssp)
+                    : BoundedWindow.TIMESTAMP_MIN_VALUE;
             final Instant nextWatermark = reader.getWatermark();
             if (currentWatermark.isBefore(nextWatermark)) {
               currentWatermarks.put(ssp, nextWatermark);
@@ -380,8 +388,8 @@ public class UnboundedSourceSystem {
 
       private void enqueueWatermark(UnboundedReader reader) throws InterruptedException {
         final SystemStreamPartition ssp = readerToSsp.get(reader);
-        final IncomingMessageEnvelope envelope = IncomingMessageEnvelope
-            .buildWatermarkEnvelope(ssp, reader.getWatermark().getMillis());
+        final IncomingMessageEnvelope envelope =
+            IncomingMessageEnvelope.buildWatermarkEnvelope(ssp, reader.getWatermark().getMillis());
 
         queues.get(ssp).put(envelope);
       }
@@ -391,16 +399,12 @@ public class UnboundedSourceSystem {
         final T value = (T) reader.getCurrent();
         final Instant time = reader.getCurrentTimestamp();
         final SystemStreamPartition ssp = readerToSsp.get(reader);
-        final WindowedValue<T> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
-            value,
-            time);
+        final WindowedValue<T> windowedValue =
+            WindowedValue.timestampedValueInGlobalWindow(value, time);
 
         final OpMessage<T> opMessage = OpMessage.ofElement(windowedValue);
-        final IncomingMessageEnvelope envelope = new IncomingMessageEnvelope(
-            ssp,
-            getOffset(reader),
-            null,
-            opMessage);
+        final IncomingMessageEnvelope envelope =
+            new IncomingMessageEnvelope(ssp, getOffset(reader), null, opMessage);
 
         queues.get(ssp).put(envelope);
       }
@@ -424,9 +428,8 @@ public class UnboundedSourceSystem {
           queue.drainTo(envelopes);
         }
 
-        final int numElements = (int) envelopes.stream()
-            .filter(ev -> (ev.getMessage() instanceof OpMessage))
-            .count();
+        final int numElements =
+            (int) envelopes.stream().filter(ev -> (ev.getMessage() instanceof OpMessage)).count();
         available.release(numElements);
 
         if (lastException != null) {
@@ -440,8 +443,8 @@ public class UnboundedSourceSystem {
         try {
           final ByteArrayOutputStream baos = new ByteArrayOutputStream();
           @SuppressWarnings("unchecked")
-          final CheckpointMarkT checkpointMark = (CheckpointMarkT) metricsWrapper
-              .wrap(reader::getCheckpointMark);
+          final CheckpointMarkT checkpointMark =
+              (CheckpointMarkT) metricsWrapper.wrap(reader::getCheckpointMark);
           checkpointMarkCoder.encode(checkpointMark, baos);
           return Base64.getEncoder().encodeToString(baos.toByteArray());
         } catch (Exception e) {
@@ -452,9 +455,9 @@ public class UnboundedSourceSystem {
   }
 
   /**
-   * A {@link SystemFactory} that produces a {@link UnboundedSourceSystem} for a particular
-   * {@link UnboundedSource} registered in {@link Config} via
-   * {@link #createConfigFor(String, UnboundedSource, Coder, String)}.
+   * A {@link SystemFactory} that produces a {@link UnboundedSourceSystem} for a particular {@link
+   * UnboundedSource} registered in {@link Config} via {@link #createConfigFor(String,
+   * UnboundedSource, Coder, String)}.
    */
   public static class Factory<T, CheckpointMarkT extends CheckpointMark> implements SystemFactory {
     @Override
@@ -477,29 +480,27 @@ public class UnboundedSourceSystem {
     public SystemAdmin getAdmin(String systemName, Config config) {
       final Config scopedConfig = config.subset("systems." + systemName + ".", true);
       return new Admin<T, CheckpointMarkT>(
-          getUnboundedSource(scopedConfig),
-          getPipelineOptions(config));
+          getUnboundedSource(scopedConfig), getPipelineOptions(config));
     }
 
-    private static <T, CheckpointMarkT extends CheckpointMark> UnboundedSource<T, CheckpointMarkT>
-    getUnboundedSource(Config config) {
+    private static <T, CheckpointMarkT extends CheckpointMark>
+        UnboundedSource<T, CheckpointMarkT> getUnboundedSource(Config config) {
       @SuppressWarnings("unchecked")
-      final UnboundedSource<T, CheckpointMarkT> source = Base64Serializer.deserializeUnchecked(
-          config.get("source"), UnboundedSource.class);
+      final UnboundedSource<T, CheckpointMarkT> source =
+          Base64Serializer.deserializeUnchecked(config.get("source"), UnboundedSource.class);
       return source;
     }
 
     @SuppressWarnings("unchecked")
     private static <T> Coder<WindowedValue<T>> getCoder(Config config) {
-      return Base64Serializer.deserializeUnchecked(
-          config.get("coder"),
-          Coder.class);
+      return Base64Serializer.deserializeUnchecked(config.get("coder"), Coder.class);
     }
 
     private static SamzaPipelineOptions getPipelineOptions(Config config) {
       return Base64Serializer.deserializeUnchecked(
-          config.get("beamPipelineOptions"),
-          SerializablePipelineOptions.class).get().as(SamzaPipelineOptions.class);
+              config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
+          .get()
+          .as(SamzaPipelineOptions.class);
     }
   }
 }

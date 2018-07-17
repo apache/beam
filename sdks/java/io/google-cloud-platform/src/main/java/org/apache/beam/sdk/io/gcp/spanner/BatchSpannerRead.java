@@ -42,30 +42,38 @@ import org.apache.beam.sdk.values.PCollectionView;
 abstract class BatchSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
 
-  public static BatchSpannerRead create(SpannerConfig spannerConfig,
-      PCollectionView<Transaction> txView, TimestampBound timestampBound) {
+  public static BatchSpannerRead create(
+      SpannerConfig spannerConfig,
+      PCollectionView<Transaction> txView,
+      TimestampBound timestampBound) {
     return new AutoValue_BatchSpannerRead(spannerConfig, txView, timestampBound);
   }
 
   abstract SpannerConfig getSpannerConfig();
 
-  @Nullable abstract PCollectionView<Transaction> getTxView();
+  @Nullable
+  abstract PCollectionView<Transaction> getTxView();
 
   abstract TimestampBound getTimestampBound();
 
-  @Override public PCollection<Struct> expand(PCollection<ReadOperation> input) {
+  @Override
+  public PCollection<Struct> expand(PCollection<ReadOperation> input) {
     PCollectionView<Transaction> txView = getTxView();
     if (txView == null) {
       Pipeline begin = input.getPipeline();
-      SpannerIO.CreateTransaction createTx = SpannerIO.createTransaction()
-          .withSpannerConfig(getSpannerConfig())
-          .withTimestampBound(getTimestampBound());
+      SpannerIO.CreateTransaction createTx =
+          SpannerIO.createTransaction()
+              .withSpannerConfig(getSpannerConfig())
+              .withTimestampBound(getTimestampBound());
       txView = begin.apply(createTx);
     }
-    return input.apply("Generate Partitions",
-        ParDo.of(new GeneratePartitionsFn(getSpannerConfig(), txView)).withSideInputs(txView))
+    return input
+        .apply(
+            "Generate Partitions",
+            ParDo.of(new GeneratePartitionsFn(getSpannerConfig(), txView)).withSideInputs(txView))
         .apply("Shuffle partitions", Reshuffle.<Partition>viaRandomKey())
-        .apply("Read from Partitions",
+        .apply(
+            "Read from Partitions",
             ParDo.of(new ReadFromPartitionFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
@@ -77,8 +85,8 @@ abstract class BatchSpannerRead
 
     private transient SpannerAccessor spannerAccessor;
 
-    public GeneratePartitionsFn(SpannerConfig config,
-        PCollectionView<? extends Transaction> txView) {
+    public GeneratePartitionsFn(
+        SpannerConfig config, PCollectionView<? extends Transaction> txView) {
       this.config = config;
       this.txView = txView;
     }
@@ -96,8 +104,8 @@ abstract class BatchSpannerRead
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
-      BatchReadOnlyTransaction context = spannerAccessor.getBatchClient()
-          .batchReadOnlyTransaction(tx.transactionId());
+      BatchReadOnlyTransaction context =
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       for (Partition p : execute(c.element(), context)) {
         c.output(p);
       }
@@ -110,12 +118,16 @@ abstract class BatchSpannerRead
       }
       // Read with index was selected.
       if (op.getIndex() != null) {
-        return tx.partitionReadUsingIndex(op.getPartitionOptions(), op.getTable(), op.getIndex(),
-            op.getKeySet(), op.getColumns());
+        return tx.partitionReadUsingIndex(
+            op.getPartitionOptions(),
+            op.getTable(),
+            op.getIndex(),
+            op.getKeySet(),
+            op.getColumns());
       }
       // Read from table was selected.
-      return tx
-          .partitionRead(op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
+      return tx.partitionRead(
+          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
     }
   }
 
@@ -126,8 +138,8 @@ abstract class BatchSpannerRead
 
     private transient SpannerAccessor spannerAccessor;
 
-    public ReadFromPartitionFn(SpannerConfig config,
-        PCollectionView<? extends Transaction> txView) {
+    public ReadFromPartitionFn(
+        SpannerConfig config, PCollectionView<? extends Transaction> txView) {
       this.config = config;
       this.txView = txView;
     }
@@ -146,8 +158,8 @@ abstract class BatchSpannerRead
     public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
 
-      BatchReadOnlyTransaction batchTx = spannerAccessor.getBatchClient()
-          .batchReadOnlyTransaction(tx.transactionId());
+      BatchReadOnlyTransaction batchTx =
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
       Partition p = c.element();
       try (ResultSet resultSet = batchTx.execute(p)) {

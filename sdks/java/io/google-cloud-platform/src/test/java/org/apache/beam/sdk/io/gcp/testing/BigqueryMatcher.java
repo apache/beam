@@ -59,10 +59,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A matcher to verify data in BigQuery by processing given query
- * and comparing with content's checksum.
+ * A matcher to verify data in BigQuery by processing given query and comparing with content's
+ * checksum.
  *
  * <p>Example:
+ *
  * <pre>{@code [
  *   assertThat(job, new BigqueryMatcher(appName, projectId, queryString, expectedChecksum));
  * ]}</pre>
@@ -83,9 +84,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
   // The backoff factory with initial configs
   static final FluentBackoff BACKOFF_FACTORY =
-      FluentBackoff.DEFAULT
-          .withMaxRetries(MAX_QUERY_RETRIES)
-          .withInitialBackoff(INITIAL_BACKOFF);
+      FluentBackoff.DEFAULT.withMaxRetries(MAX_QUERY_RETRIES).withInitialBackoff(INITIAL_BACKOFF);
 
   private final String applicationName;
   private final String projectId;
@@ -118,9 +117,12 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       QueryRequest queryContent = new QueryRequest();
       queryContent.setQuery(query);
 
-      response = queryWithRetries(
-          bigqueryClient, queryContent, Sleeper.DEFAULT,
-          BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff()));
+      response =
+          queryWithRetries(
+              bigqueryClient,
+              queryContent,
+              Sleeper.DEFAULT,
+              BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff()));
     } catch (IOException | InterruptedException e) {
       if (e instanceof InterruptedIOException) {
         Thread.currentThread().interrupt();
@@ -153,8 +155,8 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
   @Nonnull
   @VisibleForTesting
-  QueryResponse queryWithRetries(Bigquery bigqueryClient, QueryRequest queryContent,
-                                 Sleeper sleeper, BackOff backOff)
+  QueryResponse queryWithRetries(
+      Bigquery bigqueryClient, QueryRequest queryContent, Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
     IOException lastException = null;
     do {
@@ -173,19 +175,17 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         // ignore and retry
         lastException = e;
       }
-    } while(BackOffUtils.next(sleeper, backOff));
+    } while (BackOffUtils.next(sleeper, backOff));
 
     throw new RuntimeException(
         String.format(
             "Unable to get BigQuery response after retrying %d times using query (%s)",
-            MAX_QUERY_RETRIES,
-            queryContent.getQuery()),
+            MAX_QUERY_RETRIES, queryContent.getQuery()),
         lastException);
   }
 
   private void validateArgument(String name, String value) {
-    checkArgument(
-        !Strings.isNullOrEmpty(value), "Expected valid %s, but was %s", name, value);
+    checkArgument(!Strings.isNullOrEmpty(value), "Expected valid %s, but was %s", name, value);
   }
 
   private Credentials getDefaultCredential() {
@@ -212,18 +212,14 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         cellsInOneRow.add(Objects.toString(cell.getV()));
         Collections.sort(cellsInOneRow);
       }
-      rowHashes.add(
-          Hashing.sha1().hashString(cellsInOneRow.toString(), StandardCharsets.UTF_8));
+      rowHashes.add(Hashing.sha1().hashString(cellsInOneRow.toString(), StandardCharsets.UTF_8));
     }
     return Hashing.combineUnordered(rowHashes).toString();
   }
 
   @Override
   public void describeTo(Description description) {
-    description
-        .appendText("Expected checksum is (")
-        .appendText(expectedChecksum)
-        .appendText(")");
+    description.appendText("Expected checksum is (").appendText(expectedChecksum).appendText(")");
   }
 
   @Override
@@ -234,10 +230,10 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       info = String.format("The query job hasn't completed. Got response: %s", response);
     } else {
       // checksum mismatch
-      info = String.format("was (%s).%n"
-          + "\tTotal number of rows are: %d.%n"
-          + "\tQueried data details:%s",
-          actualChecksum, response.getTotalRows(), formatRows(TOTAL_FORMATTED_ROWS));
+      info =
+          String.format(
+              "was (%s).%n" + "\tTotal number of rows are: %d.%n" + "\tQueried data details:%s",
+              actualChecksum, response.getTotalRows(), formatRows(TOTAL_FORMATTED_ROWS));
     }
     description.appendText(info);
   }

@@ -132,7 +132,6 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       case VARCHAR:
         return value instanceof String || value instanceof NlsString;
       case TIME:
-        return value instanceof ReadableInstant;
       case TIMESTAMP:
       case DATE:
         return value instanceof ReadableInstant;

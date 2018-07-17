@@ -21,9 +21,7 @@ import com.google.auth.Credentials;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-/**
- * Construct an oauth credential to be used by the SDK and the SDK workers.
- */
+/** Construct an oauth credential to be used by the SDK and the SDK workers. */
 public interface CredentialFactory {
   Credentials getCredential() throws IOException, GeneralSecurityException;
 }

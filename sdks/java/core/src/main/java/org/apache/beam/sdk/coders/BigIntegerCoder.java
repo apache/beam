@@ -42,8 +42,7 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   private BigIntegerCoder() {}
 
   @Override
-  public void encode(BigInteger value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(BigInteger value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 

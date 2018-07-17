@@ -114,8 +114,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
         enforcements.add(enforcement);
       }
-      TransformEvaluator<T> evaluator =
-          evaluatorRegistry.forApplication(transform, inputBundle);
+      TransformEvaluator<T> evaluator = evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {
         onComplete.handleEmpty(transform);
         // Nothing to do
@@ -175,14 +174,14 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   }
 
   /**
-   * Finishes processing the input bundle and commit the result using the
-   * {@link CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
+   * Finishes processing the input bundle and commit the result using the {@link
+   * CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
    *
-   * @return the {@link TransformResult} produced by
-   *         {@link TransformEvaluator#finishBundle()}
+   * @return the {@link TransformResult} produced by {@link TransformEvaluator#finishBundle()}
    */
   private TransformResult<T> finishBundle(
-      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer,
+      TransformEvaluator<T> evaluator,
+      MetricsContainerImpl metricsContainer,
       Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
     TransformResult<T> result =

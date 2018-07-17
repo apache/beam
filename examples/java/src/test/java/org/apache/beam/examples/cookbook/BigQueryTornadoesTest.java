@@ -29,44 +29,32 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link BigQueryTornadoes}.
- */
+/** Test case for {@link BigQueryTornadoes}. */
 @RunWith(JUnit4.class)
 public class BigQueryTornadoesTest {
 
   @Test
   public void testExtractTornadoes() throws Exception {
-    TableRow row = new TableRow()
-          .set("month", "6")
-          .set("tornado", true);
-    DoFnTester<TableRow, Integer> extractWordsFn =
-        DoFnTester.of(new ExtractTornadoesFn());
-    Assert.assertThat(extractWordsFn.processBundle(row),
-                      CoreMatchers.hasItems(6));
+    TableRow row = new TableRow().set("month", "6").set("tornado", true);
+    DoFnTester<TableRow, Integer> extractWordsFn = DoFnTester.of(new ExtractTornadoesFn());
+    Assert.assertThat(extractWordsFn.processBundle(row), CoreMatchers.hasItems(6));
   }
 
   @Test
   public void testNoTornadoes() throws Exception {
-    TableRow row = new TableRow()
-          .set("month", 6)
-          .set("tornado", false);
-    DoFnTester<TableRow, Integer> extractWordsFn =
-        DoFnTester.of(new ExtractTornadoesFn());
+    TableRow row = new TableRow().set("month", 6).set("tornado", false);
+    DoFnTester<TableRow, Integer> extractWordsFn = DoFnTester.of(new ExtractTornadoesFn());
     Assert.assertTrue(extractWordsFn.processBundle(row).isEmpty());
   }
 
   @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testFormatCounts() throws Exception {
-    DoFnTester<KV<Integer, Long>, TableRow> formatCountsFn =
-        DoFnTester.of(new FormatCountsFn());
+    DoFnTester<KV<Integer, Long>, TableRow> formatCountsFn = DoFnTester.of(new FormatCountsFn());
     KV empty[] = {};
     List<TableRow> results = formatCountsFn.processBundle(empty);
     Assert.assertTrue(results.isEmpty());
-    KV input[] = { KV.of(3, 0L),
-                   KV.of(4, Long.MAX_VALUE),
-                   KV.of(5, Long.MIN_VALUE) };
+    KV input[] = {KV.of(3, 0L), KV.of(4, Long.MAX_VALUE), KV.of(5, Long.MIN_VALUE)};
     results = formatCountsFn.processBundle(input);
     Assert.assertEquals(3, results.size());
     Assert.assertEquals(3, results.get(0).get("month"));

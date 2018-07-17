@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Apache Beam FileSystem interfaces and their default implementations.
- */
+/** Apache Beam FileSystem interfaces and their default implementations. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.io.fs;
 

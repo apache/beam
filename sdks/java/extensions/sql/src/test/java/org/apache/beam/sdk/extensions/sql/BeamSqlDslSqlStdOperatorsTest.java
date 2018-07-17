@@ -32,6 +32,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -53,6 +55,13 @@ import org.junit.rules.ExpectedException;
  * org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+  private static final BigDecimal ZERO = BigDecimal.valueOf(0.0);
+  private static final BigDecimal ONE = BigDecimal.valueOf(1.0);
+  private static final BigDecimal ONE2 = BigDecimal.valueOf(1.0).multiply(BigDecimal.valueOf(1.0));
+  private static final BigDecimal ONE10 =
+      BigDecimal.ONE.divide(BigDecimal.ONE, 10, RoundingMode.HALF_EVEN);
+  private static final BigDecimal TWO = BigDecimal.valueOf(2.0);
+  private static final BigDecimal TWO0 = BigDecimal.ONE.add(BigDecimal.ONE);
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -259,6 +268,97 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
+  @SqlOperatorTest(name = "+", kind = "PLUS")
+  @SqlOperatorTest(name = "-", kind = "MINUS")
+  @SqlOperatorTest(name = "*", kind = "TIMES")
+  @SqlOperatorTest(name = "/", kind = "DIVIDE")
+  @SqlOperatorTest(name = "MOD", kind = "MOD")
+  public void testArithmeticOperator() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("1 + 1", 2)
+            .addExpr("1.0 + 1", TWO)
+            .addExpr("1 + 1.0", TWO)
+            .addExpr("1.0 + 1.0", TWO)
+            .addExpr("c_tinyint + c_tinyint", (byte) 2)
+            .addExpr("c_smallint + c_smallint", (short) 2)
+            .addExpr("c_bigint + c_bigint", 2L)
+            .addExpr("c_decimal + c_decimal", TWO0)
+            .addExpr("c_tinyint + c_decimal", TWO0)
+            .addExpr("c_float + c_decimal", 2.0)
+            .addExpr("c_double + c_decimal", 2.0)
+            .addExpr("c_float + c_float", 2.0f)
+            .addExpr("c_double + c_float", 2.0)
+            .addExpr("c_double + c_double", 2.0)
+            .addExpr("c_float + c_bigint", 2.0f)
+            .addExpr("c_double + c_bigint", 2.0)
+            .addExpr("1 - 1", 0)
+            .addExpr("1.0 - 1", ZERO)
+            .addExpr("1 - 0.0", ONE)
+            .addExpr("1.0 - 1.0", ZERO)
+            .addExpr("c_tinyint - c_tinyint", (byte) 0)
+            .addExpr("c_smallint - c_smallint", (short) 0)
+            .addExpr("c_bigint - c_bigint", 0L)
+            .addExpr("c_decimal - c_decimal", BigDecimal.ZERO)
+            .addExpr("c_tinyint - c_decimal", BigDecimal.ZERO)
+            .addExpr("c_float - c_decimal", 0.0)
+            .addExpr("c_double - c_decimal", 0.0)
+            .addExpr("c_float - c_float", 0.0f)
+            .addExpr("c_double - c_float", 0.0)
+            .addExpr("c_double - c_double", 0.0)
+            .addExpr("c_float - c_bigint", 0.0f)
+            .addExpr("c_double - c_bigint", 0.0)
+            .addExpr("1 * 1", 1)
+            .addExpr("1.0 * 1", ONE)
+            .addExpr("1 * 1.0", ONE)
+            .addExpr("1.0 * 1.0", ONE2)
+            .addExpr("c_tinyint * c_tinyint", (byte) 1)
+            .addExpr("c_smallint * c_smallint", (short) 1)
+            .addExpr("c_bigint * c_bigint", 1L)
+            .addExpr("c_decimal * c_decimal", BigDecimal.ONE)
+            .addExpr("c_tinyint * c_decimal", BigDecimal.ONE)
+            .addExpr("c_float * c_decimal", 1.0)
+            .addExpr("c_double * c_decimal", 1.0)
+            .addExpr("c_float * c_float", 1.0f)
+            .addExpr("c_double * c_float", 1.0)
+            .addExpr("c_double * c_double", 1.0)
+            .addExpr("c_float * c_bigint", 1.0f)
+            .addExpr("c_double * c_bigint", 1.0)
+            .addExpr("1 / 1", 1)
+            .addExpr("1.0 / 1", ONE10)
+            .addExpr("1 / 1.0", ONE10)
+            .addExpr("1.0 / 1.0", ONE10)
+            .addExpr("c_tinyint / c_tinyint", (byte) 1)
+            .addExpr("c_smallint / c_smallint", (short) 1)
+            .addExpr("c_bigint / c_bigint", 1L)
+            .addExpr("c_decimal / c_decimal", ONE10)
+            .addExpr("c_tinyint / c_decimal", ONE10)
+            .addExpr("c_float / c_decimal", 1.0)
+            .addExpr("c_double / c_decimal", 1.0)
+            .addExpr("c_float / c_float", 1.0f)
+            .addExpr("c_double / c_float", 1.0)
+            .addExpr("c_double / c_double", 1.0)
+            .addExpr("c_float / c_bigint", 1.0f)
+            .addExpr("c_double / c_bigint", 1.0)
+            .addExpr("mod(1, 1)", 0)
+            .addExpr("mod(1.0, 1)", 0)
+            .addExpr("mod(1, 1.0)", ZERO)
+            .addExpr("mod(1.0, 1.0)", ZERO)
+            .addExpr("mod(c_tinyint, c_tinyint)", (byte) 0)
+            .addExpr("mod(c_smallint, c_smallint)", (short) 0)
+            .addExpr("mod(c_bigint, c_bigint)", 0L)
+            .addExpr("mod(c_decimal, c_decimal)", ZERO)
+            .addExpr("mod(c_tinyint, c_decimal)", ZERO)
+            // Test overflow
+            .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
+            .addExpr("c_smallint_max + c_smallint_max", (short) -2)
+            .addExpr("c_integer_max + c_integer_max", -2)
+            .addExpr("c_bigint_max + c_bigint_max", -2L);
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
   @SqlOperatorTest(name = "<", kind = "LESS_THAN")
   @SqlOperatorTest(name = ">", kind = "GREATER_THAN")
   @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL")
@@ -425,34 +525,36 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "TRIM", kind = "TRIM")
   @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION")
-  public void testStringFunctions() {
-    ExpressionChecker checker =
-        new ExpressionChecker()
-            .addExpr("'hello' || ' world'", "hello world")
-            .addExpr("CHAR_LENGTH('hello')", 5)
-            .addExpr("CHARACTER_LENGTH('hello')", 5)
-            .addExpr("INITCAP('hello world')", "Hello World")
-            .addExpr("LOWER('HELLO')", "hello")
-            .addExpr("POSITION('world' IN 'helloworld')", 6)
-            .addExpr("POSITION('world' IN 'helloworldworld' FROM 7)", 11)
-            .addExpr("POSITION('world' IN 'hello')", 0)
-            .addExpr("TRIM(' hello ')", "hello")
-            .addExpr("TRIM(LEADING 'eh' FROM 'hehe__hehe')", "__hehe")
-            .addExpr("TRIM(TRAILING 'eh' FROM 'hehe__hehe')", "hehe__")
-            .addExpr("TRIM(BOTH 'eh' FROM 'hehe__hehe')", "__")
-            .addExpr("TRIM(BOTH ' ' FROM ' hello ')", "hello")
-            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3)", "w3resou3rce")
-            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 4)", "w3resou33rce")
-            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 5)", "w3resou3rce")
-            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 7)", "w3resouce")
-            .addExpr("SUBSTRING('hello' FROM 2)", "ello")
-            .addExpr("SUBSTRING('hello' FROM -1)", "o")
-            .addExpr("SUBSTRING('hello' FROM 2 FOR 2)", "el")
-            .addExpr("SUBSTRING('hello' FROM 2 FOR 100)", "ello")
-            .addExpr("SUBSTRING('hello' FROM -3 for 2)", "ll")
-            .addExpr("UPPER('hello')", "HELLO");
+  public void testStringFunctions() throws Exception {
+    SqlExpressionChecker checker =
+        new SqlExpressionChecker()
+            .addExpr("'hello' || ' world' = 'hello world'")
+            .addExpr("CHAR_LENGTH('hello') = 5")
+            .addExpr("CHARACTER_LENGTH('hello') = 5")
+            .addExpr("INITCAP('hello world') = 'Hello World'")
+            .addExpr("LOWER('HELLO') = 'hello'")
+            .addExpr("POSITION('world' IN 'helloworld') = 6")
+            .addExpr("POSITION('world' IN 'helloworldworld' FROM 7) = 11")
+            .addExpr("POSITION('world' IN 'hello') = 0")
+            .addExpr("TRIM(' hello ') = 'hello'")
+            // https://issues.apache.org/jira/browse/BEAM-4704
+            .addExpr("TRIM(LEADING 'eh' FROM 'hehe__hehe') = '__hehe'")
+            .addExpr("TRIM(TRAILING 'eh' FROM 'hehe__hehe') = 'hehe__'")
+            .addExpr("TRIM(BOTH 'eh' FROM 'hehe__hehe') = '__'")
+            .addExpr("TRIM(BOTH ' ' FROM ' hello ') = 'hello'")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3) = 'w3resou3rce'")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 4) = 'w3resou33rce'")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 5) = 'w3resou3rce'")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 7) = 'w3resouce'")
+            .addExpr("SUBSTRING('hello' FROM 2) = 'ello'")
+            .addExpr("SUBSTRING('hello' FROM -1) = 'o'")
+            .addExpr("SUBSTRING('hello' FROM 2 FOR 2) = 'el'")
+            .addExpr("SUBSTRING('hello' FROM 2 FOR 100) = 'ello'")
+            .addExpr("SUBSTRING('hello' FROM -3 for 2) = 'll'")
+            .addExpr("UPPER('hello') = 'HELLO'");
 
-    checker.buildRunAndCheck();
+    checker.check(pipeline);
+    pipeline.run();
   }
 
   @Test

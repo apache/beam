@@ -24,9 +24,7 @@ import java.util.Objects;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * Static utility methods that provide {@link KeyedWorkItem} implementations.
- */
+/** Static utility methods that provide {@link KeyedWorkItem} implementations. */
 public class KeyedWorkItems {
   /**
    * Returns an implementation of {@link KeyedWorkItem} that wraps around an elements iterable.
@@ -52,8 +50,8 @@ public class KeyedWorkItems {
   }
 
   /**
-   * Returns an implementation of {@link KeyedWorkItem} that wraps around
-   * an timers iterable and an elements iterable.
+   * Returns an implementation of {@link KeyedWorkItem} that wraps around an timers iterable and an
+   * elements iterable.
    *
    * @param <K> the key type
    * @param <ElemT> the element type

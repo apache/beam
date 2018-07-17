@@ -256,7 +256,6 @@ def run(argv=None):
 
   parser.add_argument('--topic',
                       type=str,
-                      required=True,
                       help='Pub/Sub topic to read from')
   parser.add_argument('--subscription',
                       type=str,
@@ -280,6 +279,11 @@ def run(argv=None):
                       help='Numeric value of allowed data lateness, in minutes')
 
   args, pipeline_args = parser.parse_known_args(argv)
+
+  if args.topic is None and args.subscription is None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: one of --topic or --subscription is required')
+    sys.exit(1)
 
   options = PipelineOptions(pipeline_args)
 

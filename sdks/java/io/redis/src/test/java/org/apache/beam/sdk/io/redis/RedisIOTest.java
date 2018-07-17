@@ -33,9 +33,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import redis.embedded.RedisServer;
 
-/**
- * Test on the Redis IO.
- */
+/** Test on the Redis IO. */
 public class RedisIOTest {
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
@@ -65,14 +63,16 @@ public class RedisIOTest {
 
     writePipeline.run();
 
-    PCollection<KV<String, String>> read = readPipeline.apply("Read",
-        RedisIO.read().withEndpoint("::1", embeddedRedis.getPort())
-            .withKeyPattern("key*"));
+    PCollection<KV<String, String>> read =
+        readPipeline.apply(
+            "Read",
+            RedisIO.read().withEndpoint("::1", embeddedRedis.getPort()).withKeyPattern("key*"));
     PAssert.that(read).containsInAnyOrder(data);
 
-    PCollection<KV<String,  String>> readNotMatch = readPipeline.apply("ReadNotMatch",
-        RedisIO.read().withEndpoint("::1", embeddedRedis.getPort())
-            .withKeyPattern("foobar*"));
+    PCollection<KV<String, String>> readNotMatch =
+        readPipeline.apply(
+            "ReadNotMatch",
+            RedisIO.read().withEndpoint("::1", embeddedRedis.getPort()).withKeyPattern("foobar*"));
     PAssert.thatSingleton(readNotMatch.apply(Count.globally())).isEqualTo(0L);
 
     readPipeline.run();
@@ -96,9 +96,7 @@ public class RedisIOTest {
     Assert.assertEquals(5, write.connectionConfiguration().timeout());
   }
 
-  /**
-   * Simple embedded Redis instance wrapper to control Redis server.
-   */
+  /** Simple embedded Redis instance wrapper to control Redis server. */
   private static class EmbeddedRedis implements AutoCloseable {
 
     private final int port;
@@ -120,7 +118,5 @@ public class RedisIOTest {
     public void close() {
       redisServer.stop();
     }
-
   }
-
 }

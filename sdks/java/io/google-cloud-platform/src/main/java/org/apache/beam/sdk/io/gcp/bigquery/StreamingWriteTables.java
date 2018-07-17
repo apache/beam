@@ -35,15 +35,15 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * This transform takes in key-value pairs of {@link TableRow} entries and the
- * {@link TableDestination} it should be written to. The BigQuery streaming-write service is used
- * to stream these writes to the appropriate table.
+ * This transform takes in key-value pairs of {@link TableRow} entries and the {@link
+ * TableDestination} it should be written to. The BigQuery streaming-write service is used to stream
+ * these writes to the appropriate table.
  *
  * <p>This transform assumes that all destination tables already exist by the time it sees a write
  * for that table.
  */
-public class StreamingWriteTables extends PTransform<
-    PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+public class StreamingWriteTables
+    extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
   private BigQueryServices bigQueryServices;
   private InsertRetryPolicy retryPolicy;
 

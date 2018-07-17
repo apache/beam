@@ -30,33 +30,31 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * Result of Query5.
- */
+/** Result of Query5. */
 public class AuctionCount implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
 
-  public static final Coder<AuctionCount> CODER = new CustomCoder<AuctionCount>() {
-    @Override
-    public void encode(AuctionCount value, OutputStream outStream)
-        throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream);
-      LONG_CODER.encode(value.num, outStream);
-    }
+  public static final Coder<AuctionCount> CODER =
+      new CustomCoder<AuctionCount>() {
+        @Override
+        public void encode(AuctionCount value, OutputStream outStream)
+            throws CoderException, IOException {
+          LONG_CODER.encode(value.auction, outStream);
+          LONG_CODER.encode(value.num, outStream);
+        }
 
-    @Override
-    public AuctionCount decode(InputStream inStream)
-        throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream);
-      long num = LONG_CODER.decode(inStream);
-      return new AuctionCount(auction, num);
-    }
+        @Override
+        public AuctionCount decode(InputStream inStream) throws CoderException, IOException {
+          long auction = LONG_CODER.decode(inStream);
+          long num = LONG_CODER.decode(inStream);
+          return new AuctionCount(auction, num);
+        }
 
-    @Override
-    public Object structuralValue(AuctionCount v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(AuctionCount v) {
+          return v;
+        }
+      };
 
   @JsonProperty public final long auction;
 
@@ -84,8 +82,7 @@ public class AuctionCount implements KnownSize, Serializable {
     }
 
     AuctionCount other = (AuctionCount) otherObject;
-    return Objects.equals(auction, other.auction)
-        && Objects.equals(num, other.num);
+    return Objects.equals(auction, other.auction) && Objects.equals(num, other.num);
   }
 
   @Override

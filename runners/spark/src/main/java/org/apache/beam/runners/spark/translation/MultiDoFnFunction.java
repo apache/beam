@@ -39,7 +39,9 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -61,6 +63,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final Accumulator<MetricsContainerStepMap> metricsAccum;
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
+  private transient boolean wasSetupCalled;
   private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> additionalOutputTags;
@@ -69,14 +72,14 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final boolean stateful;
 
   /**
-   * @param metricsAccum       The Spark {@link Accumulator} that backs the Beam metrics.
-   * @param doFn              The {@link DoFn} to be wrapped.
-   * @param options    The {@link SerializablePipelineOptions}.
-   * @param mainOutputTag     The main output {@link TupleTag}.
+   * @param metricsAccum The Spark {@link Accumulator} that backs the Beam metrics.
+   * @param doFn The {@link DoFn} to be wrapped.
+   * @param options The {@link SerializablePipelineOptions}.
+   * @param mainOutputTag The main output {@link TupleTag}.
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
-   * @param sideInputs        Side inputs used in this {@link DoFn}.
+   * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
-   * @param stateful          Stateful {@link DoFn}.
+   * @param stateful Stateful {@link DoFn}.
    */
   public MultiDoFnFunction(
       Accumulator<MetricsContainerStepMap> metricsAccum,
@@ -90,7 +93,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       boolean stateful) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
-    this.doFn = doFn;
+    this.doFn = SerializableUtils.clone(doFn);
     this.options = options;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
@@ -100,8 +103,12 @@ public class MultiDoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(
-      Iterator<WindowedValue<InputT>> iter) throws Exception {
+  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
+      throws Exception {
+    if (!wasSetupCalled) {
+      DoFnInvokers.invokerFor(doFn).invokeSetup();
+      wasSetupCalled = true;
+    }
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
@@ -117,17 +124,18 @@ public class MultiDoFnFunction<InputT, OutputT>
       }
       final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
       timerInternals = new InMemoryTimerInternals();
-      context = new StepContext() {
-        @Override
-        public StateInternals stateInternals() {
-          return stateInternals;
-        }
+      context =
+          new StepContext() {
+            @Override
+            public StateInternals stateInternals() {
+              return stateInternals;
+            }
 
-        @Override
-        public TimerInternals timerInternals() {
-          return timerInternals;
-        }
-      };
+            @Override
+            public TimerInternals timerInternals() {
+              return timerInternals;
+            }
+          };
     } else {
       timerInternals = null;
       context = new SparkProcessContext.NoOpStepContext();
@@ -142,6 +150,8 @@ public class MultiDoFnFunction<InputT, OutputT>
             mainOutputTag,
             additionalOutputTags,
             context,
+            null,
+            Collections.emptyMap(),
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
@@ -176,8 +186,7 @@ public class MultiDoFnFunction<InputT, OutputT>
           timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
           // Finally, advance the processing time to infinity to fire any timers.
           timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
-          timerInternals.advanceSynchronizedProcessingTime(
-              BoundedWindow.TIMESTAMP_MAX_VALUE);
+          timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
@@ -203,7 +212,6 @@ public class MultiDoFnFunction<InputT, OutputT>
     public void remove() {
       throw new RuntimeException("TimerDataIterator not support remove!");
     }
-
   }
 
   private class DoFnOutputManager

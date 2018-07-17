@@ -27,18 +27,15 @@ import org.apache.beam.sdk.schemas.Schema;
  *
  * <p>Interface for factories used to create record types based on getters.
  *
- * <p>Different implementations can have different ways of mapping getter types to coders.
- * For example Beam SQL uses custom mapping via java.sql.Types.
+ * <p>Different implementations can have different ways of mapping getter types to coders. For
+ * example Beam SQL uses custom mapping via java.sql.Types.
  *
- * <p>Default implementation is {@link DefaultSchemaFactory}.
- * It returns instances of {@link Schema}, mapping {@link FieldValueGetter#type()}
- * to known coders.
+ * <p>Default implementation is {@link DefaultSchemaFactory}. It returns instances of {@link
+ * Schema}, mapping {@link FieldValueGetter#type()} to known coders.
  */
 @Internal
 public interface SchemaFactory extends Serializable {
 
-  /**
-   * Create a {@link Schema} for the list of the pojo field getters.
-   */
+  /** Create a {@link Schema} for the list of the pojo field getters. */
   Schema createSchema(Iterable<FieldValueGetter> getters);
 }

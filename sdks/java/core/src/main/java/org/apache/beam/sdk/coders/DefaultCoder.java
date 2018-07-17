@@ -37,13 +37,14 @@ import org.slf4j.LoggerFactory;
  * decoding instances of the annotated class.
  *
  * <p>The specified {@link Coder} must have the following method:
+ *
  * <pre>
  * {@code public static CoderProvider getCoderProvider()}.
  * </pre>
  *
  * <p>Coders specified explicitly via {@link PCollection#setCoder} take precedence, followed by
- * Coders found at runtime via {@link CoderRegistry#getCoder}.
- * See {@link CoderRegistry} for a more detailed discussion of the precedence rules.
+ * Coders found at runtime via {@link CoderRegistry#getCoder}. See {@link CoderRegistry} for a more
+ * detailed discussion of the precedence rules.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
@@ -54,9 +55,9 @@ public @interface DefaultCoder {
   Class<? extends Coder> value();
 
   /**
-   * A {@link CoderProviderRegistrar} that registers a {@link CoderProvider} which can use
-   * the {@code @DefaultCoder} annotation to provide {@link CoderProvider coder providers} that
-   * creates {@link Coder}s.
+   * A {@link CoderProviderRegistrar} that registers a {@link CoderProvider} which can use the
+   * {@code @DefaultCoder} annotation to provide {@link CoderProvider coder providers} that creates
+   * {@link Coder}s.
    */
   class DefaultCoderProviderRegistrar implements CoderProviderRegistrar {
 
@@ -66,26 +67,26 @@ public @interface DefaultCoder {
     }
 
     /**
-     * A {@link CoderProvider} that uses the {@code @DefaultCoder} annotation to provide
-     * {@link CoderProvider coder providers} that create {@link Coder}s.
+     * A {@link CoderProvider} that uses the {@code @DefaultCoder} annotation to provide {@link
+     * CoderProvider coder providers} that create {@link Coder}s.
      */
     static class DefaultCoderProvider extends CoderProvider {
       private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderProvider.class);
 
       /**
-       * Returns the {@link Coder} returned according to the {@link CoderProvider} from any
-       * {@link DefaultCoder} annotation on the given class.
+       * Returns the {@link Coder} returned according to the {@link CoderProvider} from any {@link
+       * DefaultCoder} annotation on the given class.
        */
       @Override
-      public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
-          List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      public <T> Coder<T> coderFor(
+          TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+          throws CannotProvideCoderException {
 
         Class<?> clazz = typeDescriptor.getRawType();
         DefaultCoder defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
         if (defaultAnnotation == null) {
           throw new CannotProvideCoderException(
-              String.format("Class %s does not have a @DefaultCoder annotation.",
-                  clazz.getName()));
+              String.format("Class %s does not have a @DefaultCoder annotation.", clazz.getName()));
         }
 
         Class<? extends Coder> defaultAnnotationValue = defaultAnnotation.value();
@@ -95,16 +96,17 @@ public @interface DefaultCoder {
                   "Class %s has a @DefaultCoder annotation with a null value.", clazz.getName()));
         }
 
-        LOG.debug("DefaultCoder annotation found for {} with value {}",
-            clazz, defaultAnnotationValue);
+        LOG.debug(
+            "DefaultCoder annotation found for {} with value {}", clazz, defaultAnnotationValue);
 
         Method coderProviderMethod;
         try {
           coderProviderMethod = defaultAnnotationValue.getMethod("getCoderProvider");
         } catch (NoSuchMethodException e) {
-          throw new CannotProvideCoderException(String.format(
-              "Unable to find 'public static CoderProvider getCoderProvider()' on %s",
-              defaultAnnotationValue),
+          throw new CannotProvideCoderException(
+              String.format(
+                  "Unable to find 'public static CoderProvider getCoderProvider()' on %s",
+                  defaultAnnotationValue),
               e);
         }
 
@@ -116,9 +118,10 @@ public @interface DefaultCoder {
             | InvocationTargetException
             | NullPointerException
             | ExceptionInInitializerError e) {
-          throw new CannotProvideCoderException(String.format(
-              "Unable to invoke 'public static CoderProvider getCoderProvider()' on %s",
-              defaultAnnotationValue),
+          throw new CannotProvideCoderException(
+              String.format(
+                  "Unable to invoke 'public static CoderProvider getCoderProvider()' on %s",
+                  defaultAnnotationValue),
               e);
         }
         return coderProvider.coderFor(typeDescriptor, componentCoders);

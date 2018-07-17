@@ -108,9 +108,8 @@ public abstract class NexmarkQueryModel implements Serializable {
       @Override
       @Nullable
       public Void apply(Iterable<TimestampedValue<KnownSize>> actual) {
-      Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
-        Assert.assertThat("wrong pipeline output", actualStrings,
-          IsEqual.equalTo(expectedStrings));
+        Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
+        Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
         return null;
       }
     };

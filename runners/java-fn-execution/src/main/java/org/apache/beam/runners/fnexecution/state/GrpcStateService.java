@@ -19,7 +19,6 @@ package org.apache.beam.runners.fnexecution.state;
 
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
-import io.grpc.stub.StreamObserver;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,13 +28,12 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
-  /**
-   * Create a new {@link GrpcStateService}.
-   */
+  /** Create a new {@link GrpcStateService}. */
   public static GrpcStateService create() {
     return new GrpcStateService();
   }

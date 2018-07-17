@@ -27,8 +27,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} that encodes {@link Integer Integers} using between 1 and 5 bytes. Negative
- * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
- * integers that are known to often be large or negative.
+ * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for integers that
+ * are known to often be large or negative.
  */
 public class VarIntCoder extends AtomicCoder<Integer> {
 
@@ -44,8 +44,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   private VarIntCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Integer value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
@@ -53,8 +52,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  public Integer decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Integer decode(InputStream inStream) throws IOException, CoderException {
     try {
       return VarInt.decodeInt(inStream);
     } catch (EOFException | UTFDataFormatException exn) {
@@ -93,8 +91,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Integer value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }

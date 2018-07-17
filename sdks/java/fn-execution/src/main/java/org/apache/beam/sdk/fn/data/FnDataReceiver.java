@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-/**
- * A receiver of streamed data.
- */
+/** A receiver of streamed data. */
 public interface FnDataReceiver<T> {
   void accept(T input) throws Exception;
 }

@@ -23,24 +23,20 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link Coder} that wraps a {@code Coder<String>}
- * and encodes/decodes values via string representations.
+ * A {@link Coder} that wraps a {@code Coder<String>} and encodes/decodes values via string
+ * representations.
  *
- * <p>To decode, the input byte stream is decoded to
- * a {@link String}, and this is passed to the single-argument
- * constructor for {@code T}.
+ * <p>To decode, the input byte stream is decoded to a {@link String}, and this is passed to the
+ * single-argument constructor for {@code T}.
  *
- * <p>To encode, the input value is converted via {@code toString()},
- * and this string is encoded.
+ * <p>To encode, the input value is converted via {@code toString()}, and this string is encoded.
  *
- * <p>In order for this to operate correctly for a class {@code Clazz},
- * it must be the case for any instance {@code x} that
- * {@code x.equals(new Clazz(x.toString()))}.
+ * <p>In order for this to operate correctly for a class {@code Clazz}, it must be the case for any
+ * instance {@code x} that {@code x.equals(new Clazz(x.toString()))}.
  *
- * <p>This method of encoding is not designed for ease of evolution of {@code Clazz};
- * it should only be used in cases where the class is stable or the encoding is not
- * important. If evolution of the class is important, see {@link AvroCoder} or any other
- * evolution safe encoding.
+ * <p>This method of encoding is not designed for ease of evolution of {@code Clazz}; it should only
+ * be used in cases where the class is stable or the encoding is not important. If evolution of the
+ * class is important, see {@link AvroCoder} or any other evolution safe encoding.
  *
  * @param <T> The type of objects coded.
  */
@@ -87,8 +83,7 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream) throws CoderException, IOException {
     encode(value, outStream, Context.NESTED);
   }
 

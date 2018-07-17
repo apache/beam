@@ -23,43 +23,41 @@ import org.joda.time.Instant;
 /**
  * A timestamp policy to assign event time for messages in a Kafka partition and watermark for it.
  * KafkaIO reader creates one policy using {@link TimestampPolicyFactory} for each each of the
- * partitions it reads from. See @{@link TimestampPolicyFactory.LogAppendTimePolicy} for example
- * of a policy.
+ * partitions it reads from. See @{@link TimestampPolicyFactory.LogAppendTimePolicy} for example of
+ * a policy.
  */
 public abstract class TimestampPolicy<K, V> {
 
   /**
-   * The context contains state maintained in the reader for the partition. Available with
-   * each of the methods in @{@link TimestampPolicy}.
+   * The context contains state maintained in the reader for the partition. Available with each of
+   * the methods in @{@link TimestampPolicy}.
    */
   public abstract static class PartitionContext {
     /**
-     * Current backlog in messages
-     * (latest offset of the partition - last processed record offset).
+     * Current backlog in messages (latest offset of the partition - last processed record offset).
      */
     public abstract long getMessageBacklog();
 
     /**
-     * The time at which latest offset for the partition was fetched in order to calculate
-     * backlog. The reader periodically polls for latest offsets. This timestamp
-     * is useful in advancing watermark for idle partitions as in
-     * {@link TimestampPolicyFactory.LogAppendTimePolicy}.
+     * The time at which latest offset for the partition was fetched in order to calculate backlog.
+     * The reader periodically polls for latest offsets. This timestamp is useful in advancing
+     * watermark for idle partitions as in {@link TimestampPolicyFactory.LogAppendTimePolicy}.
      */
     public abstract Instant getBacklogCheckTime();
   }
 
   /**
-   * Returns record timestamp (aka event time). This is often based on the timestamp
-   * of the Kafka record. This is invoked for each record when it is processed in the reader.
+   * Returns record timestamp (aka event time). This is often based on the timestamp of the Kafka
+   * record. This is invoked for each record when it is processed in the reader.
    */
   public abstract Instant getTimestampForRecord(PartitionContext ctx, KafkaRecord<K, V> record);
 
   /**
    * Returns watermark for the partition. It is the timestamp before or at the timestamps of all
-   * future records consumed from the partition.
-   * See {@link UnboundedSource.UnboundedReader#getWatermark()} for more guidance on watermarks.
-   * E.g. if the record timestamp is 'LogAppendTime', watermark would be the timestamp of the last
-   * record since 'LogAppendTime' monotonically increases within a partition.
+   * future records consumed from the partition. See {@link
+   * UnboundedSource.UnboundedReader#getWatermark()} for more guidance on watermarks. E.g. if the
+   * record timestamp is 'LogAppendTime', watermark would be the timestamp of the last record since
+   * 'LogAppendTime' monotonically increases within a partition.
    */
   public abstract Instant getWatermark(PartitionContext ctx);
 

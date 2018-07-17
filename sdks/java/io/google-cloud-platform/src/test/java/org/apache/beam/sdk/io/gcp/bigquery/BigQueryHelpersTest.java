@@ -41,13 +41,11 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BigQueryHelpers}. */
 @RunWith(JUnit4.class)
 public class BigQueryHelpersTest {
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testTableParsing() {
-    TableReference ref = BigQueryHelpers
-        .parseTableSpec("my-project:data_set.table_name");
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:data_set.table_name");
     assertEquals("my-project", ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
@@ -62,8 +60,7 @@ public class BigQueryHelpersTest {
 
   @Test
   public void testTableParsing_noProjectId() {
-    TableReference ref = BigQueryHelpers
-        .parseTableSpec("data_set.table_name");
+    TableReference ref = BigQueryHelpers.parseTableSpec("data_set.table_name");
     assertEquals(null, ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
@@ -95,10 +92,11 @@ public class BigQueryHelpersTest {
 
   @Test
   public void testTableDecoratorStripping() {
-    assertEquals("project:dataset.table",
+    assertEquals(
+        "project:dataset.table",
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table$20171127"));
-    assertEquals("project:dataset.table",
-        BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
+    assertEquals(
+        "project:dataset.table", BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
   }
 
   // Test that BigQuery's special null placeholder objects can be encoded.
@@ -116,7 +114,6 @@ public class BigQueryHelpersTest {
     Assert.assertArrayEquals(bytes, newBytes);
   }
 
-
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
@@ -131,9 +128,7 @@ public class BigQueryHelpersTest {
   public void testComplexCoderSerializable() {
     CoderProperties.coderSerializable(
         WindowedValue.getFullCoder(
-            KvCoder.of(
-                ShardedKeyCoder.of(StringUtf8Coder.of()),
-                TableRowInfoCoder.of()),
+            KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()),
             IntervalWindow.getCoder()));
   }
 }

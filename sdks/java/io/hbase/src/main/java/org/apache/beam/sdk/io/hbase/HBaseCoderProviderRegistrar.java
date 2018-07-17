@@ -33,6 +33,7 @@ public class HBaseCoderProviderRegistrar implements CoderProviderRegistrar {
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
         HBaseMutationCoder.getCoderProvider(),
-        CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()));
+        CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()),
+        CoderProviders.forCoder(TypeDescriptor.of(HBaseQuery.class), HBaseQueryCoder.of()));
   }
 }

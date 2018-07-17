@@ -71,16 +71,19 @@ public class SpannerWriteIT {
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
+
     void setInstanceId(String value);
 
     @Description("Database ID prefix to write to in Spanner")
     @Default.String("beam-testdb")
     String getDatabaseIdPrefix();
+
     void setDatabaseIdPrefix(String value);
 
     @Description("Table name")
     @Default.String("users")
     String getTable();
+
     void setTable(String value);
   }
 
@@ -121,8 +124,9 @@ public class SpannerWriteIT {
   }
 
   private String generateDatabaseName() {
-    String random = RandomUtils
-        .randomAlphaNumeric(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
+    String random =
+        RandomUtils.randomAlphaNumeric(
+            MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 
@@ -147,18 +151,20 @@ public class SpannerWriteIT {
   public void testSequentialWrite() throws Exception {
     int numRecords = 100;
 
-    SpannerWriteResult stepOne = p.apply("first step", GenerateSequence.from(0).to(numRecords))
-        .apply(ParDo.of(new GenerateMutations(options.getTable())))
-        .apply(
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(databaseName));
+    SpannerWriteResult stepOne =
+        p.apply("first step", GenerateSequence.from(0).to(numRecords))
+            .apply(ParDo.of(new GenerateMutations(options.getTable())))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId(project)
+                    .withInstanceId(options.getInstanceId())
+                    .withDatabaseId(databaseName));
 
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(Wait.on(stepOne.getOutput()))
-        .apply("write to table2",
+        .apply(
+            "write to table2",
             SpannerIO.write()
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
@@ -276,5 +282,4 @@ public class SpannerWriteIT {
       return stacktrace.contains(str);
     }
   }
-
 }

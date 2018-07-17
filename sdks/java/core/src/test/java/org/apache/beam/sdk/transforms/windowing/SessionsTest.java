@@ -42,13 +42,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Sessions WindowFn.
- */
+/** Tests for Sessions WindowFn. */
 @RunWith(JUnit4.class)
 public class SessionsTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSimple() throws Exception {
@@ -58,9 +55,7 @@ public class SessionsTest {
     expected.put(new IntervalWindow(new Instant(101), new Instant(111)), set(101));
     assertEquals(
         expected,
-        runWindowFn(
-            Sessions.withGapDuration(new Duration(10)),
-            Arrays.asList(0L, 10L, 101L)));
+        runWindowFn(Sessions.withGapDuration(new Duration(10)), Arrays.asList(0L, 10L, 101L)));
   }
 
   @Test
@@ -71,8 +66,7 @@ public class SessionsTest {
     assertEquals(
         expected,
         runWindowFn(
-            Sessions.withGapDuration(new Duration(10)),
-            Arrays.asList(1L, 2L, 5L, 9L, 100L, 101L)));
+            Sessions.withGapDuration(new Duration(10)), Arrays.asList(1L, 2L, 5L, 9L, 100L, 101L)));
   }
 
   @Test
@@ -103,11 +97,11 @@ public class SessionsTest {
   @Test
   public void testEquality() {
     assertTrue(
-        Sessions.withGapDuration(new Duration(10)).isCompatible(
-            Sessions.withGapDuration(new Duration(10))));
+        Sessions.withGapDuration(new Duration(10))
+            .isCompatible(Sessions.withGapDuration(new Duration(10))));
     assertTrue(
-        Sessions.withGapDuration(new Duration(10)).isCompatible(
-            Sessions.withGapDuration(new Duration(20))));
+        Sessions.withGapDuration(new Duration(10))
+            .isCompatible(Sessions.withGapDuration(new Duration(20))));
   }
 
   @Test
@@ -120,9 +114,7 @@ public class SessionsTest {
         .verifyCompatibility(FixedWindows.of(new Duration(10)));
   }
 
-  /**
-   * Validates that the output timestamp for aggregate data falls within the acceptable range.
-   */
+  /** Validates that the output timestamp for aggregate data falls within the acceptable range. */
   @Test
   public void testValidOutputTimes() throws Exception {
     for (long timestamp : Arrays.asList(200, 800, 700)) {
@@ -154,9 +146,9 @@ public class SessionsTest {
   }
 
   /**
-   * When a user explicitly requests per-key aggregate values have their derived timestamp to be
-   * the end of the window (instead of the earliest possible), the session here should not hold
-   * each other up, even though they overlap.
+   * When a user explicitly requests per-key aggregate values have their derived timestamp to be the
+   * end of the window (instead of the earliest possible), the session here should not hold each
+   * other up, even though they overlap.
    */
   @Test
   public void testValidOutputAtEndTimes() throws Exception {
@@ -172,7 +164,6 @@ public class SessionsTest {
   public void testDisplayData() {
     Duration gapDuration = Duration.standardMinutes(234);
     Sessions session = Sessions.withGapDuration(gapDuration);
-    assertThat(DisplayData.from(session),
-        hasDisplayItem("gapDuration", gapDuration));
+    assertThat(DisplayData.from(session), hasDisplayItem("gapDuration", gapDuration));
   }
 }

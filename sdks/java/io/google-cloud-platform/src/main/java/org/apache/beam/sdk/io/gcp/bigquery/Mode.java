@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-/**
- * Copied from package com.google.cloud.bigquery, see BEAM-4248.
- */
+/** Copied from package com.google.cloud.bigquery, see BEAM-4248. */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 /**
- * Mode for a BigQuery Table field. {@link Mode#NULLABLE} fields can be set to {@code null},
- * {@link Mode#REQUIRED} fields must be provided. {@link Mode#REPEATED} fields can contain more
- * than one value.
+ * Mode for a BigQuery Table field. {@link Mode#NULLABLE} fields can be set to {@code null}, {@link
+ * Mode#REQUIRED} fields must be provided. {@link Mode#REPEATED} fields can contain more than one
+ * value.
  */
 enum Mode {
-  NULLABLE, REQUIRED, REPEATED
+  NULLABLE,
+  REQUIRED,
+  REPEATED
 }

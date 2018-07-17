@@ -37,9 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link DisplayDataMatchers}.
- */
+/** Unit tests for {@link DisplayDataMatchers}. */
 @RunWith(JUnit4.class)
 public class DisplayDataMatchersTest {
   @Test
@@ -76,17 +74,19 @@ public class DisplayDataMatchersTest {
   public void testHasType() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasType(DisplayData.Type.JAVA_CLASS));
 
-    DisplayData data = DisplayData.from(new PTransform<PCollection<String>, PCollection<String>>() {
-      @Override
-      public PCollection<String> expand(PCollection<String> input) {
-        throw new IllegalArgumentException("Should never be applied");
-      }
+    DisplayData data =
+        DisplayData.from(
+            new PTransform<PCollection<String>, PCollection<String>>() {
+              @Override
+              public PCollection<String> expand(PCollection<String> input) {
+                throw new IllegalArgumentException("Should never be applied");
+              }
 
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
-      }
-    });
+              @Override
+              public void populateDisplayData(Builder builder) {
+                builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
+              }
+            });
 
     assertFalse(matcher.matches(createDisplayDataWithItem("fooz", "bar")));
     assertThat(data, matcher);
@@ -122,13 +122,15 @@ public class DisplayDataMatchersTest {
   public void testHasNamespace() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasNamespace(SampleTransform.class));
 
-    assertFalse(matcher.matches(DisplayData.from(
-        new PTransform<PCollection<String>, PCollection<String>>() {
-          @Override
-          public PCollection<String> expand(PCollection<String> input) {
-            throw new IllegalArgumentException("Should never be applied");
-          }
-        })));
+    assertFalse(
+        matcher.matches(
+            DisplayData.from(
+                new PTransform<PCollection<String>, PCollection<String>>() {
+                  @Override
+                  public PCollection<String> expand(PCollection<String> input) {
+                    throw new IllegalArgumentException("Should never be applied");
+                  }
+                })));
     assertThat(createDisplayDataWithItem("foo", "bar"), matcher);
   }
 
@@ -147,11 +149,14 @@ public class DisplayDataMatchersTest {
 
     Matcher<DisplayData> matcher = includesDisplayDataFor("p", subComponent);
 
-    assertFalse("should not match sub-component at different path",
+    assertFalse(
+        "should not match sub-component at different path",
         matcher.matches(DisplayData.from(wrongPath)));
-    assertFalse("should not match deeply nested sub-component",
+    assertFalse(
+        "should not match deeply nested sub-component",
         matcher.matches(DisplayData.from(deeplyNested)));
-    assertFalse("should not match identical display data from different component",
+    assertFalse(
+        "should not match identical display data from different component",
         matcher.matches(DisplayData.from(sameDisplayItemDifferentComponent)));
     assertThat(DisplayData.from(hasSubcomponent), matcher);
   }

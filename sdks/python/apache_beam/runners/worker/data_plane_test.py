@@ -28,11 +28,14 @@ import unittest
 from concurrent import futures
 
 import grpc
-import six
+from future import standard_library
+from future.utils import raise_
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
+
+standard_library.install_aliases()
 
 
 def timeout(timeout_secs):
@@ -51,7 +54,7 @@ def timeout(timeout_secs):
       thread.join(timeout_secs)
       if exc_info:
         t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
-        six.reraise(t, v, tb)
+        raise_(t, v, tb)
       assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
     return wrapper
   return decorate

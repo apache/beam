@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -35,9 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link RowJsonDeserializer}.
- */
+/** Unit tests for {@link RowJsonDeserializer}. */
 public class RowJsonDeserializerTest {
   private static final Boolean BOOLEAN_TRUE_VALUE = true;
   private static final String BOOLEAN_TRUE_STRING = "true";
@@ -54,14 +53,12 @@ public class RowJsonDeserializerTest {
   private static final Double DOUBLE_VALUE = 1.02d;
   private static final String DOUBLE_STRING = "1.02";
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testParsesFlatRow() throws Exception {
     Schema schema =
-        Schema
-            .builder()
+        Schema.builder()
             .addByteField("f_byte")
             .addInt16Field("f_int16")
             .addInt32Field("f_int32")
@@ -70,27 +67,38 @@ public class RowJsonDeserializerTest {
             .addDoubleField("f_double")
             .addBooleanField("f_boolean")
             .addStringField("f_string")
+            .addDecimalField("f_decimal")
             .build();
 
-    String rowString = "{\n"
-                       + "\"f_byte\" : 12,\n"
-                       + "\"f_int16\" : 22,\n"
-                       + "\"f_int32\" : 32,\n"
-                       + "\"f_int64\" : 42,\n"
-                       + "\"f_float\" : 1.02E5,\n"
-                       + "\"f_double\" : 62.2,\n"
-                       + "\"f_boolean\" : true,\n"
-                       + "\"f_string\" : \"hello\"\n"
-                       + "}";
+    String rowString =
+        "{\n"
+            + "\"f_byte\" : 12,\n"
+            + "\"f_int16\" : 22,\n"
+            + "\"f_int32\" : 32,\n"
+            + "\"f_int64\" : 42,\n"
+            + "\"f_float\" : 1.02E5,\n"
+            + "\"f_double\" : 62.2,\n"
+            + "\"f_boolean\" : true,\n"
+            + "\"f_string\" : \"hello\",\n"
+            + "\"f_decimal\" : 123.12\n"
+            + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
     Row parsedRow = newObjectMapperWith(deserializer).readValue(rowString, Row.class);
 
     Row expectedRow =
-        Row
-            .withSchema(schema)
-            .addValues((byte) 12, (short) 22, 32, (long) 42, 1.02E5f, 62.2d, true, "hello")
+        Row.withSchema(schema)
+            .addValues(
+                (byte) 12,
+                (short) 22,
+                32,
+                (long) 42,
+                1.02E5f,
+                62.2d,
+                true,
+                "hello",
+                new BigDecimal("123.12"))
             .build();
 
     assertEquals(expectedRow, parsedRow);
@@ -99,26 +107,18 @@ public class RowJsonDeserializerTest {
   @Test
   public void testParsesArrayField() throws Exception {
     Schema schema =
-        Schema
-            .builder()
+        Schema.builder()
             .addInt32Field("f_int32")
             .addArrayField("f_intArray", FieldType.INT32)
             .build();
 
-    String rowString = "{\n"
-                       + "\"f_int32\" : 32,\n"
-                       + "\"f_intArray\" : [ 1, 2, 3, 4, 5]\n"
-                       + "}";
+    String rowString = "{\n" + "\"f_int32\" : 32,\n" + "\"f_intArray\" : [ 1, 2, 3, 4, 5]\n" + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
     Row parsedRow = newObjectMapperWith(deserializer).readValue(rowString, Row.class);
 
-    Row expectedRow =
-        Row
-            .withSchema(schema)
-            .addValues(32, Arrays.asList(1, 2, 3, 4, 5))
-            .build();
+    Row expectedRow = Row.withSchema(schema).addValues(32, Arrays.asList(1, 2, 3, 4, 5)).build();
 
     assertEquals(expectedRow, parsedRow);
   }
@@ -127,26 +127,19 @@ public class RowJsonDeserializerTest {
   public void testParsesArrayOfArrays() throws Exception {
 
     Schema schema =
-        Schema
-            .builder()
+        Schema.builder()
             .addArrayField("f_arrayOfIntArrays", FieldType.array(FieldType.INT32))
             .build();
 
-    String rowString = "{\n"
-                       + "\"f_arrayOfIntArrays\" : [ [1, 2], [3, 4], [5]]\n"
-                       + "}";
+    String rowString = "{\n" + "\"f_arrayOfIntArrays\" : [ [1, 2], [3, 4], [5]]\n" + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
     Row parsedRow = newObjectMapperWith(deserializer).readValue(rowString, Row.class);
 
     Row expectedRow =
-        Row
-            .withSchema(schema)
-            .addArray(
-                Arrays.asList(1, 2),
-                Arrays.asList(3, 4),
-                Arrays.asList(5))
+        Row.withSchema(schema)
+            .addArray(Arrays.asList(1, 2), Arrays.asList(3, 4), Arrays.asList(5))
             .build();
 
     assertEquals(expectedRow, parsedRow);
@@ -156,14 +149,14 @@ public class RowJsonDeserializerTest {
   public void testThrowsForMismatchedArrayField() throws Exception {
 
     Schema schema =
-        Schema
-            .builder()
+        Schema.builder()
             .addArrayField("f_arrayOfIntArrays", FieldType.array(FieldType.INT32))
             .build();
 
-    String rowString = "{\n"
-                       + "\"f_arrayOfIntArrays\" : { }\n" // expect array, get object
-                       + "}";
+    String rowString =
+        "{\n"
+            + "\"f_arrayOfIntArrays\" : { }\n" // expect array, get object
+            + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
@@ -176,34 +169,26 @@ public class RowJsonDeserializerTest {
   @Test
   public void testParsesRowField() throws Exception {
     Schema nestedRowSchema =
-        Schema
-            .builder()
-            .addInt32Field("f_nestedInt32")
-            .addStringField("f_nestedString")
-            .build();
+        Schema.builder().addInt32Field("f_nestedInt32").addStringField("f_nestedString").build();
 
     Schema schema =
-        Schema
-            .builder()
-            .addInt32Field("f_int32")
-            .addRowField("f_row", nestedRowSchema)
-            .build();
+        Schema.builder().addInt32Field("f_int32").addRowField("f_row", nestedRowSchema).build();
 
-    String rowString = "{\n"
-                       + "\"f_int32\" : 32,\n"
-                       + "\"f_row\" : {\n"
-                       + "             \"f_nestedInt32\" : 54,\n"
-                       + "             \"f_nestedString\" : \"foo\"\n"
-                       + "            }\n"
-                       + "}";
+    String rowString =
+        "{\n"
+            + "\"f_int32\" : 32,\n"
+            + "\"f_row\" : {\n"
+            + "             \"f_nestedInt32\" : 54,\n"
+            + "             \"f_nestedString\" : \"foo\"\n"
+            + "            }\n"
+            + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
     Row parsedRow = newObjectMapperWith(deserializer).readValue(rowString, Row.class);
 
     Row expectedRow =
-        Row
-            .withSchema(schema)
+        Row.withSchema(schema)
             .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, "foo").build())
             .build();
 
@@ -213,23 +198,16 @@ public class RowJsonDeserializerTest {
   @Test
   public void testThrowsForMismatchedRowField() throws Exception {
     Schema nestedRowSchema =
-        Schema
-            .builder()
-            .addInt32Field("f_nestedInt32")
-            .addStringField("f_nestedString")
-            .build();
+        Schema.builder().addInt32Field("f_nestedInt32").addStringField("f_nestedString").build();
 
     Schema schema =
-        Schema
-            .builder()
-            .addInt32Field("f_int32")
-            .addRowField("f_row", nestedRowSchema)
-            .build();
+        Schema.builder().addInt32Field("f_int32").addRowField("f_row", nestedRowSchema).build();
 
-    String rowString = "{\n"
-                       + "\"f_int32\" : 32,\n"
-                       + "\"f_row\" : []\n" // expect object, get array
-                       + "}";
+    String rowString =
+        "{\n"
+            + "\"f_int32\" : 32,\n"
+            + "\"f_row\" : []\n" // expect object, get array
+            + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
@@ -242,47 +220,31 @@ public class RowJsonDeserializerTest {
   @Test
   public void testParsesNestedRowField() throws Exception {
 
-    Schema doubleNestedRowSchema =
-        Schema
-            .builder()
-            .addStringField("f_doubleNestedString")
-            .build();
+    Schema doubleNestedRowSchema = Schema.builder().addStringField("f_doubleNestedString").build();
 
     Schema nestedRowSchema =
-        Schema
-            .builder()
-            .addRowField("f_nestedRow", doubleNestedRowSchema)
-            .build();
+        Schema.builder().addRowField("f_nestedRow", doubleNestedRowSchema).build();
 
-    Schema schema =
-        Schema
-            .builder()
-            .addRowField("f_row", nestedRowSchema)
-            .build();
+    Schema schema = Schema.builder().addRowField("f_row", nestedRowSchema).build();
 
-    String rowString = "{\n"
-                       + "\"f_row\" : {\n"
-                       + "             \"f_nestedRow\" : {\n"
-                       + "                                \"f_doubleNestedString\":\"foo\"\n"
-                       + "                               }\n"
-                       + "            }\n"
-                       + "}";
+    String rowString =
+        "{\n"
+            + "\"f_row\" : {\n"
+            + "             \"f_nestedRow\" : {\n"
+            + "                                \"f_doubleNestedString\":\"foo\"\n"
+            + "                               }\n"
+            + "            }\n"
+            + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
     Row parsedRow = newObjectMapperWith(deserializer).readValue(rowString, Row.class);
 
     Row expectedRow =
-        Row
-            .withSchema(schema)
+        Row.withSchema(schema)
             .addValues(
-                Row
-                    .withSchema(nestedRowSchema)
-                    .addValues(
-                        Row
-                            .withSchema(doubleNestedRowSchema)
-                            .addValues("foo")
-                            .build())
+                Row.withSchema(nestedRowSchema)
+                    .addValues(Row.withSchema(doubleNestedRowSchema).addValues("foo").build())
                     .build())
             .build();
 
@@ -291,11 +253,7 @@ public class RowJsonDeserializerTest {
 
   @Test
   public void testThrowsForUnsupportedType() throws Exception {
-    Schema schema =
-        Schema
-            .builder()
-            .addDateTimeField("f_dateTime")
-            .build();
+    Schema schema = Schema.builder().addDateTimeField("f_dateTime").build();
 
     thrown.expect(UnsupportedRowJsonException.class);
     thrown.expectMessage("DATETIME is not supported");
@@ -305,11 +263,7 @@ public class RowJsonDeserializerTest {
 
   @Test
   public void testThrowsForUnsupportedArrayElementType() throws Exception {
-    Schema schema =
-        Schema
-            .builder()
-            .addArrayField("f_dateTimeArray", FieldType.DATETIME)
-            .build();
+    Schema schema = Schema.builder().addArrayField("f_dateTimeArray", FieldType.DATETIME).build();
 
     thrown.expect(UnsupportedRowJsonException.class);
     thrown.expectMessage("DATETIME is not supported");
@@ -320,16 +274,9 @@ public class RowJsonDeserializerTest {
   @Test
   public void testThrowsForUnsupportedNestedFieldType() throws Exception {
     Schema nestedSchema =
-        Schema
-            .builder()
-            .addArrayField("f_dateTimeArray", FieldType.DATETIME)
-            .build();
+        Schema.builder().addArrayField("f_dateTimeArray", FieldType.DATETIME).build();
 
-    Schema schema =
-        Schema
-            .builder()
-            .addRowField("f_nestedRow", nestedSchema)
-            .build();
+    Schema schema = Schema.builder().addRowField("f_nestedRow", nestedSchema).build();
 
     thrown.expect(UnsupportedRowJsonException.class);
     thrown.expectMessage("DATETIME is not supported");
@@ -340,42 +287,27 @@ public class RowJsonDeserializerTest {
   @Test
   public void testParsesNulls() throws Exception {
     Schema schema =
-        Schema
-            .builder()
+        Schema.builder()
             .addByteField("f_byte")
             .addNullableField("f_string", FieldType.STRING)
             .build();
 
-    String rowString = "{\n"
-                       + "\"f_byte\" : 12,\n"
-                       + "\"f_string\" : null\n"
-                       + "}";
+    String rowString = "{\n" + "\"f_byte\" : 12,\n" + "\"f_string\" : null\n" + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
     Row parsedRow = newObjectMapperWith(deserializer).readValue(rowString, Row.class);
 
-    Row expectedRow =
-        Row
-            .withSchema(schema)
-            .addValues((byte) 12, null)
-            .build();
+    Row expectedRow = Row.withSchema(schema).addValues((byte) 12, null).build();
 
     assertEquals(expectedRow, parsedRow);
   }
 
   @Test
   public void testThrowsForMissingNotNullableField() throws Exception {
-    Schema schema =
-        Schema
-            .builder()
-            .addByteField("f_byte")
-            .addStringField("f_string")
-            .build();
+    Schema schema = Schema.builder().addByteField("f_byte").addStringField("f_string").build();
 
-    String rowString = "{\n"
-                       + "\"f_byte\" : 12\n"
-                       + "}";
+    String rowString = "{\n" + "\"f_byte\" : 12\n" + "}";
 
     RowJsonDeserializer deserializer = RowJsonDeserializer.forSchema(schema);
 
@@ -435,9 +367,7 @@ public class RowJsonDeserializerTest {
   }
 
   private void testSupportedConversion(
-      FieldType fieldType,
-      String jsonFieldValue,
-      Object expectedRowFieldValue) throws Exception {
+      FieldType fieldType, String jsonFieldValue, Object expectedRowFieldValue) throws Exception {
 
     String fieldName = "f_" + fieldType.getTypeName().name().toLowerCase();
     Schema schema = schemaWithField(fieldName, fieldType);
@@ -524,16 +454,13 @@ public class RowJsonDeserializerTest {
     testUnsupportedConversion(FieldType.DOUBLE, LONG_STRING); // too large to fit
   }
 
-  private void testUnsupportedConversion(
-      FieldType fieldType,
-      String jsonFieldValue) throws Exception {
+  private void testUnsupportedConversion(FieldType fieldType, String jsonFieldValue)
+      throws Exception {
 
     String fieldName = "f_" + fieldType.getTypeName().name().toLowerCase();
 
     ObjectMapper jsonParser =
-        newObjectMapperWith(RowJsonDeserializer
-                                .forSchema(
-                                    schemaWithField(fieldName, fieldType)));
+        newObjectMapperWith(RowJsonDeserializer.forSchema(schemaWithField(fieldName, fieldType)));
 
     thrown.expectMessage(fieldName);
     thrown.expectCause(unsupportedWithMessage(jsonFieldValue, "out of range"));
@@ -546,26 +473,17 @@ public class RowJsonDeserializerTest {
   }
 
   private Schema schemaWithField(String fieldName, FieldType fieldType) {
-    return
-        Schema
-            .builder()
-            .addField(fieldName, fieldType)
-            .build();
+    return Schema.builder().addField(fieldName, fieldType).build();
   }
 
   private String jsonObjectWith(String fieldName, String fieldValue) {
-    return
-        "{\n"
-        + "\"" + fieldName + "\" : " + fieldValue + "\n"
-        + "}";
+    return "{\n" + "\"" + fieldName + "\" : " + fieldValue + "\n" + "}";
   }
 
-  private Matcher<UnsupportedRowJsonException> unsupportedWithMessage(String ... message) {
+  private Matcher<UnsupportedRowJsonException> unsupportedWithMessage(String... message) {
     return allOf(
         Matchers.isA(UnsupportedRowJsonException.class),
-        hasProperty("message",
-                    stringContainsInOrder(
-                        Arrays.asList(message))));
+        hasProperty("message", stringContainsInOrder(Arrays.asList(message))));
   }
 
   private ObjectMapper newObjectMapperWith(RowJsonDeserializer deserializer) {

@@ -49,10 +49,6 @@ var (
 
 	// Async determines whether to wait for job completion.
 	Async = flag.Bool("async", false, "Do not wait for job completion.")
-
-	// InternalJavaRunner is the java class needed at this time for Java runners.
-	// To be removed.
-	InternalJavaRunner = flag.String("internal_java_runner", "", "Internal java runner class.")
 )
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners

@@ -23,7 +23,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -68,9 +68,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
 
   static class Factory<InputT, RestrictionT, OutputT>
       extends DoFnPTransformRunnerFactory<
-          KV<InputT, RestrictionT>,
-          InputT,
-          OutputT,
+          KV<InputT, RestrictionT>, InputT, OutputT,
           SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>> {
 
     @Override

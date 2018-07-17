@@ -54,5 +54,4 @@ class TagWithUniqueIds
         KV.of(
             context.element().getKey(), new TableRowInfo(context.element().getValue(), uniqueId)));
   }
-
 }

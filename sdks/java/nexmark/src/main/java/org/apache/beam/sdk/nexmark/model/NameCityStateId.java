@@ -31,52 +31,47 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 
-/**
- * Result of Query3.
- */
+/** Result of Query3. */
 public class NameCityStateId implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  public static final Coder<NameCityStateId> CODER = new CustomCoder<NameCityStateId>() {
-    @Override
-    public void encode(NameCityStateId value, OutputStream outStream)
-        throws CoderException, IOException {
-      STRING_CODER.encode(value.name, outStream);
-      STRING_CODER.encode(value.city, outStream);
-      STRING_CODER.encode(value.state, outStream);
-      LONG_CODER.encode(value.id, outStream);
-    }
+  public static final Coder<NameCityStateId> CODER =
+      new CustomCoder<NameCityStateId>() {
+        @Override
+        public void encode(NameCityStateId value, OutputStream outStream)
+            throws CoderException, IOException {
+          STRING_CODER.encode(value.name, outStream);
+          STRING_CODER.encode(value.city, outStream);
+          STRING_CODER.encode(value.state, outStream);
+          LONG_CODER.encode(value.id, outStream);
+        }
 
-    @Override
-    public NameCityStateId decode(InputStream inStream)
-        throws CoderException, IOException {
-      String name = STRING_CODER.decode(inStream);
-      String city = STRING_CODER.decode(inStream);
-      String state = STRING_CODER.decode(inStream);
-      long id = LONG_CODER.decode(inStream);
-      return new NameCityStateId(name, city, state, id);
-    }
+        @Override
+        public NameCityStateId decode(InputStream inStream) throws CoderException, IOException {
+          String name = STRING_CODER.decode(inStream);
+          String city = STRING_CODER.decode(inStream);
+          String state = STRING_CODER.decode(inStream);
+          long id = LONG_CODER.decode(inStream);
+          return new NameCityStateId(name, city, state, id);
+        }
 
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
 
-    @Override
-    public Object structuralValue(NameCityStateId v) {
-      return v;
-    }
-  };
+        @Override
+        public Object structuralValue(NameCityStateId v) {
+          return v;
+        }
+      };
 
-  @JsonProperty
-  public final String name;
+  @JsonProperty public final String name;
 
-  @JsonProperty
-  public final String city;
+  @JsonProperty public final String city;
 
-  @JsonProperty
-  public final String state;
+  @JsonProperty public final String state;
 
-  @JsonProperty
-  public final long id;
+  @JsonProperty public final long id;
 
   // For Avro only.
   @SuppressWarnings("unused")

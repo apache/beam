@@ -20,9 +20,7 @@ package org.apache.beam.examples.subprocess.kernel;
 import com.google.common.collect.Lists;
 import java.util.List;
 
-/**
- * Parameters to the sub-process, has tuple of ordinal position and the value.
- */
+/** Parameters to the sub-process, has tuple of ordinal position and the value. */
 public class SubProcessCommandLineArgs {
 
   // Parameters to pass to the sub-process
@@ -40,9 +38,7 @@ public class SubProcessCommandLineArgs {
     return parameters;
   }
 
-  /**
-   * Class used to store the SubProcces parameters.
-   */
+  /** Class used to store the SubProcces parameters. */
   public static class Command {
 
     // The ordinal position of the command to pass to the sub-process
@@ -50,7 +46,7 @@ public class SubProcessCommandLineArgs {
     String value;
 
     @SuppressWarnings("unused")
-    private Command(){}
+    private Command() {}
 
     public Command(int ordinalPosition, String value) {
       this.ordinalPosition = ordinalPosition;

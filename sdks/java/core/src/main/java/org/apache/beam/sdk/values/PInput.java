@@ -21,24 +21,20 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 
 /**
- * The interface for things that might be input to a
- * {@link org.apache.beam.sdk.transforms.PTransform}.
+ * The interface for things that might be input to a {@link
+ * org.apache.beam.sdk.transforms.PTransform}.
  */
 public interface PInput {
-  /**
-   * Returns the owning {@link Pipeline} of this {@link PInput}.
-   */
+  /** Returns the owning {@link Pipeline} of this {@link PInput}. */
   Pipeline getPipeline();
 
   /**
-   * Expands this {@link PInput} into a list of its component output
-   * {@link PValue PValues}.
+   * Expands this {@link PInput} into a list of its component output {@link PValue PValues}.
    *
    * <ul>
-   *   <li>A {@link PValue} expands to itself.</li>
-   *   <li>A tuple or list of {@link PValue PValues} (such as
-   *     {@link PCollectionTuple} or {@link PCollectionList})
-   *     expands to its component {@code PValue PValues}.</li>
+   *   <li>A {@link PValue} expands to itself.
+   *   <li>A tuple or list of {@link PValue PValues} (such as {@link PCollectionTuple} or {@link
+   *       PCollectionList}) expands to its component {@code PValue PValues}.
    * </ul>
    *
    * <p>Not intended to be invoked directly by user code.

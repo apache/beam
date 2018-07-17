@@ -18,12 +18,15 @@
 
 """Unit tests for file sinks."""
 
+from __future__ import absolute_import
+
 import glob
 import logging
 import os
 import shutil
 import tempfile
 import unittest
+from builtins import range
 
 import hamcrest as hc
 import mock

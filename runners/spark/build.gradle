@@ -57,7 +57,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow library.java.guava
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
@@ -123,12 +122,13 @@ task validatesRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
   }
 }
 
@@ -148,6 +148,7 @@ task validatesRunnerStreaming(type: Test) {
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
   }
 }
 

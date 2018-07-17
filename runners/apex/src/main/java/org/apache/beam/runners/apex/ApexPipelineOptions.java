@@ -22,9 +22,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * Options that configure the Apex pipeline.
- */
+/** Options that configure the Apex pipeline. */
 public interface ApexPipelineOptions extends PipelineOptions {
 
   @Description("set unique application name for Apex runner")

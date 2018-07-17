@@ -32,19 +32,17 @@ public interface StateDelegator {
   Registration registerForProcessBundleInstructionId(
       String processBundleInstructionId, StateRequestHandler handler);
 
-  /**
-   * Allows callers to deregister from receiving further state requests.
-   */
+  /** Allows callers to deregister from receiving further state requests. */
   interface Registration {
     /**
-     * De-registers the handler for all future requests for state for the registered process
-     * bundle instruction id.
+     * De-registers the handler for all future requests for state for the registered process bundle
+     * instruction id.
      */
     void deregister();
 
     /**
-     * De-registers the handler for all future requests for state for the registered process
-     * bundle instruction id. Aborts all in-flight state requests.
+     * De-registers the handler for all future requests for state for the registered process bundle
+     * instruction id. Aborts all in-flight state requests.
      */
     void abort();
   }

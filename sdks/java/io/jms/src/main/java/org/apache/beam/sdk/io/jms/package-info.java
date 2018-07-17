@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from JMS (Java Messaging Service).
- */
+/** Transforms for reading and writing from JMS (Java Messaging Service). */
 package org.apache.beam.sdk.io.jms;

@@ -30,9 +30,7 @@ final class StepAndKey {
   private final PTransformNode step;
   private final StructuralKey<?> key;
 
-  /**
-   * Create a new {@link StepAndKey} with the provided step and key.
-   */
+  /** Create a new {@link StepAndKey} with the provided step and key. */
   public static StepAndKey of(PTransformNode step, StructuralKey<?> key) {
     return new StepAndKey(step, key);
   }
@@ -63,8 +61,7 @@ final class StepAndKey {
       return false;
     } else {
       StepAndKey that = (StepAndKey) other;
-      return Objects.equals(this.step, that.step)
-          && Objects.equals(this.key, that.key);
+      return Objects.equals(this.step, that.step) && Objects.equals(this.key, that.key);
     }
   }
 }

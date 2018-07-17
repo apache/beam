@@ -26,18 +26,15 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 /**
- * AutoService registrar - will register FlinkRunner and FlinkOptions
- * as possible pipeline runner services.
+ * AutoService registrar - will register FlinkRunner and FlinkOptions as possible pipeline runner
+ * services.
  *
  * <p>It ends up in META-INF/services and gets picked up by Beam.
- *
  */
 public class FlinkRunnerRegistrar {
-  private FlinkRunnerRegistrar() { }
+  private FlinkRunnerRegistrar() {}
 
-  /**
-   * Pipeline runner registrar.
-   */
+  /** Pipeline runner registrar. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -46,9 +43,7 @@ public class FlinkRunnerRegistrar {
     }
   }
 
-  /**
-   * Pipeline options registrar.
-   */
+  /** Pipeline options registrar. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

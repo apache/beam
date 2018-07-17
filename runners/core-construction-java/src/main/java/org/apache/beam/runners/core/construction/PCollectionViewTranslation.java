@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,7 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Utilities for interacting with PCollection view protos. */
 public class PCollectionViewTranslation {
@@ -74,8 +73,8 @@ public class PCollectionViewTranslation {
   }
 
   /**
-   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into
-   * a {@link ViewFn} using the URN.
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into a {@link
+   * ViewFn} using the URN.
    */
   public static ViewFn<?, ?> viewFnFromProto(RunnerApi.SdkFunctionSpec viewFn)
       throws InvalidProtocolBufferException {
@@ -91,12 +90,11 @@ public class PCollectionViewTranslation {
   }
 
   /**
-   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into
-   * a {@link WindowMappingFn} using the URN.
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into a {@link
+   * WindowMappingFn} using the URN.
    */
   public static WindowMappingFn<?> windowMappingFnFromProto(
-      RunnerApi.SdkFunctionSpec windowMappingFn)
-      throws InvalidProtocolBufferException {
+      RunnerApi.SdkFunctionSpec windowMappingFn) throws InvalidProtocolBufferException {
     RunnerApi.FunctionSpec spec = windowMappingFn.getSpec();
     checkArgument(
         spec.getUrn().equals(ParDoTranslation.CUSTOM_JAVA_WINDOW_MAPPING_FN_URN),

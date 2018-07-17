@@ -20,9 +20,7 @@ package org.apache.beam.sdk.nexmark.sources.generator.model;
 
 import java.util.Random;
 
-/**
- * Generates strings which are used for different field in other model objects.
- */
+/** Generates strings which are used for different field in other model objects. */
 public class StringsGenerator {
 
   /** Smallest random string size. */
@@ -46,11 +44,11 @@ public class StringsGenerator {
   public static String nextExactString(Random random, int length) {
     StringBuilder sb = new StringBuilder();
     int rnd = 0;
-    int n = 0;  // number of random characters left in rnd
+    int n = 0; // number of random characters left in rnd
     while (length-- > 0) {
       if (n == 0) {
         rnd = random.nextInt();
-        n = 6;  // log_26(2^31)
+        n = 6; // log_26(2^31)
       }
       sb.append((char) ('a' + rnd % 26));
       rnd /= 26;

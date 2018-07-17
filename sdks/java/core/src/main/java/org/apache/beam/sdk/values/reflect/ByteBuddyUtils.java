@@ -21,6 +21,7 @@ package org.apache.beam.sdk.values.reflect;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -28,84 +29,68 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 
-/**
- * Utilities to help with code generation for implementing {@link FieldValueGetter}s.
- */
+/** Utilities to help with code generation for implementing {@link FieldValueGetter}s. */
 class ByteBuddyUtils {
 
   /**
-   * Creates an instance of the {@link DynamicType.Builder}
-   * to start implementation of the {@link FieldValueGetter}.
+   * Creates an instance of the {@link DynamicType.Builder} to start implementation of the {@link
+   * FieldValueGetter}.
    */
   static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
-      ByteBuddy byteBuddy, Class clazz) {
+      ByteBuddy byteBuddy, Class clazz, Type fieldType) {
 
     TypeDescription.Generic getterGenericType =
-        TypeDescription.Generic.Builder.parameterizedType(FieldValueGetter.class, clazz).build();
+        TypeDescription.Generic.Builder.parameterizedType(FieldValueGetter.class, clazz, fieldType)
+            .build();
 
     return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
   }
 
-  /**
-   * Implements {@link FieldValueGetter#name()}.
-   */
+  /** Implements {@link FieldValueGetter#name()}. */
   static DynamicType.Builder<FieldValueGetter> implementNameGetter(
-      DynamicType.Builder<FieldValueGetter> getterClassBuilder,
-      String fieldName) {
+      DynamicType.Builder<FieldValueGetter> getterClassBuilder, String fieldName) {
 
-    return getterClassBuilder
-        .method(named("name"))
-        .intercept(FixedValue.reference(fieldName));
+    return getterClassBuilder.method(named("name")).intercept(FixedValue.reference(fieldName));
   }
 
-  /**
-   * Implements {@link FieldValueGetter#type()}.
-   */
+  /** Implements {@link FieldValueGetter#type()}. */
   static DynamicType.Builder<FieldValueGetter> implementTypeGetter(
-      DynamicType.Builder<FieldValueGetter> getterClassBuilder,
-      Class fieldType) {
+      DynamicType.Builder<FieldValueGetter> getterClassBuilder, Class fieldType) {
 
-    return getterClassBuilder
-        .method(named("type"))
-        .intercept(FixedValue.reference(fieldType));
+    return getterClassBuilder.method(named("type")).intercept(FixedValue.reference(fieldType));
   }
 
-  /**
-   * Implements {@link FieldValueGetter#get(Object)} for getting public fields from pojos.
-   */
+  /** Implements {@link FieldValueGetter#get(Object)} for getting public fields from pojos. */
   static DynamicType.Builder<FieldValueGetter> implementValueGetter(
       DynamicType.Builder<FieldValueGetter> getterClassBuilder,
       Implementation fieldAccessImplementation) {
 
-    return getterClassBuilder
-        .method(named("get"))
-        .intercept(fieldAccessImplementation);
+    return getterClassBuilder.method(named("get")).intercept(fieldAccessImplementation);
   }
 
   /**
    * Finish the {@link FieldValueGetter} implementation and return its new instance.
    *
-   * <p>Wraps underlying {@link InstantiationException} and {@link IllegalAccessException}
-   * into {@link RuntimeException}.
+   * <p>Wraps underlying {@link InstantiationException} and {@link IllegalAccessException} into
+   * {@link RuntimeException}.
    *
    * <p>Does no validations of whether everything has been implemented correctly.
    */
   static FieldValueGetter makeNewGetterInstance(
-      String fieldName,
-      DynamicType.Builder<FieldValueGetter> getterBuilder) {
+      String fieldName, DynamicType.Builder<FieldValueGetter> getterBuilder) {
 
     try {
       return getterBuilder
           .make()
-          .load(
-              ByteBuddyUtils.class.getClassLoader(),
-              ClassLoadingStrategy.Default.INJECTION)
+          .load(ByteBuddyUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
-          .getDeclaredConstructor().newInstance();
-    } catch (InstantiationException | IllegalAccessException
-        | NoSuchMethodException | InvocationTargetException e) {
-      throw new RuntimeException(
-          "Unable to generate a getter for field '" + fieldName + "'.", e);
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException("Unable to generate a getter for field '" + fieldName + "'.", e);
     }
   }
 }

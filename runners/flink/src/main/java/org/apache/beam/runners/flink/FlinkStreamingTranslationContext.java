@@ -39,8 +39,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
- * Helper for keeping track of which {@link DataStream DataStreams} map
- * to which {@link PTransform PTransforms}.
+ * Helper for keeping track of which {@link DataStream DataStreams} map to which {@link PTransform
+ * PTransforms}.
  */
 class FlinkStreamingTranslationContext {
 
@@ -48,10 +48,10 @@ class FlinkStreamingTranslationContext {
   private final PipelineOptions options;
 
   /**
-   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the
-   * Flink Operator that produced it, after the translation of the correspondinf PTransform
-   * to its Flink equivalent.
-   * */
+   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the Flink Operator
+   * that produced it, after the translation of the correspondinf PTransform to its Flink
+   * equivalent.
+   */
   private final Map<PValue, DataStream<?>> dataStreams;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
@@ -83,6 +83,7 @@ class FlinkStreamingTranslationContext {
 
   /**
    * Sets the AppliedPTransform which carries input/output.
+   *
    * @param currentTransform
    */
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -93,8 +94,7 @@ class FlinkStreamingTranslationContext {
     Coder<T> valueCoder = collection.getCoder();
 
     return WindowedValue.getFullCoder(
-        valueCoder,
-        collection.getWindowingStrategy().getWindowFn().windowCoder());
+        valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
   }
 
   @SuppressWarnings("unchecked")
@@ -102,8 +102,7 @@ class FlinkStreamingTranslationContext {
     Coder<T> valueCoder = collection.getCoder();
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
         WindowedValue.getFullCoder(
-            valueCoder,
-            collection.getWindowingStrategy().getWindowFn().windowCoder());
+            valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder);
   }
@@ -130,5 +129,4 @@ class FlinkStreamingTranslationContext {
       PTransform<?, OutputT> transform) {
     return currentTransform.getOutputs();
   }
-
 }

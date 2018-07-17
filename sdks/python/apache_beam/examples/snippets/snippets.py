@@ -36,6 +36,8 @@ import argparse
 from builtins import object
 from builtins import range
 
+from past.builtins import unicode
+
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -54,11 +56,6 @@ from apache_beam.transforms.core import PTransform
 # pylint:disable=reimported
 # pylint:disable=unused-variable
 # pylint:disable=wrong-import-order, wrong-import-position
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 
 class SnippetUtils(object):

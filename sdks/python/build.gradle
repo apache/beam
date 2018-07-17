@@ -197,6 +197,32 @@ task localWordCount(dependsOn: 'installGcpTest') {
   }
 }
 
+// Before running this, you need to:
+//
+// 1. build the SDK container:
+//
+//    ./gradlew -p sdks/python/container docker
+//
+// 2. start a local JobService, for example, the Portable Flink runner
+//    (in a separate shell since it continues to run):
+//
+//    ./gradlew :beam-runners-flink_2.11-job-server:runShadow
+//
+// Then you can run this example:
+//
+//    ./gradlew :beam-sdks-python:portableWordCount
+//
+task portableWordCount(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      // TODO: Figure out GCS credentials and use real GCS input and output.
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --input /etc/profile --output /tmp/py-wordcount-direct --experiments=beam_fn_api --runner=PortableRunner --job_endpoint=localhost:8099 --sdk_location=container"
+      // TODO: Check that the output file is generated and runs.
+    }
+  }
+}
+
 task postCommitVRTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {

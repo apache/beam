@@ -29,21 +29,20 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 
 /**
- * A default implementation of the {@link SchemaFactory} interface. The purpose of
- * the factory is to create a row types given a list of getters.
+ * A default implementation of the {@link SchemaFactory} interface. The purpose of the factory is to
+ * create a row types given a list of getters.
  *
- * <p>Row type is represented by {@link Schema} which essentially is a
- * {@code List<Pair<FieldName, Coder>>}.
+ * <p>Row type is represented by {@link Schema} which essentially is a {@code List<Pair<FieldName,
+ * Coder>>}.
  *
- * <p>Getters (e.g. pojo field getters) are represented by {@link FieldValueGetter} interface,
- * which exposes the field's name (see {@link FieldValueGetter#name()})
- * and java type (see {@link FieldValueGetter#type()}).
+ * <p>Getters (e.g. pojo field getters) are represented by {@link FieldValueGetter} interface, which
+ * exposes the field's name (see {@link FieldValueGetter#name()}) and java type (see {@link
+ * FieldValueGetter#type()}).
  *
  * <p>This is the default factory implementation used in {@link RowFactory}.
  *
- * <p>In other cases, when mapping requires extra logic, another implentation of the
- * {@link SchemaFactory} should be used instead of this class.
- *
+ * <p>In other cases, when mapping requires extra logic, another implentation of the {@link
+ * SchemaFactory} should be used instead of this class.
  */
 public class DefaultSchemaFactory implements SchemaFactory {
   private static final ImmutableMap<Class, TypeName> SUPPORTED_TYPES =
@@ -70,8 +69,8 @@ public class DefaultSchemaFactory implements SchemaFactory {
           .build();
 
   /**
-   * Uses {@link FieldValueGetter#name()} as field names.
-   * Uses {@link CoderRegistry#createDefault()} to get coders for {@link FieldValueGetter#type()}.
+   * Uses {@link FieldValueGetter#name()} as field names. Uses {@link CoderRegistry#createDefault()}
+   * to get coders for {@link FieldValueGetter#type()}.
    */
   @Override
   public Schema createSchema(Iterable<FieldValueGetter> fieldValueGetters) {

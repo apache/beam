@@ -63,15 +63,14 @@ import org.joda.time.Instant;
  * messages. An address has the following form: {@code
  * [amqp[s]://][user[:password]@]domain[/[name]]} where {@code domain} can be one of {@code
  * host | host:port | ip | ip:port | name}. NB: the {@code ~} character allows to bind a AMQP
- * listener instead of connecting to a remote broker. For instance {@code amqp://~0.0.0.0:1234}
- * will bind a AMQP listener on any network interface on the 1234 port number.
+ * listener instead of connecting to a remote broker. For instance {@code amqp://~0.0.0.0:1234} will
+ * bind a AMQP listener on any network interface on the 1234 port number.
  *
  * <p>The following example illustrates how to configure a AMQP source:
  *
  * <pre>{@code
- *
- *  pipeline.apply(AmqpIO.read()
- *    .withAddresses(Collections.singletonList("amqp://host:1234")))
+ * pipeline.apply(AmqpIO.read()
+ *   .withAddresses(Collections.singletonList("amqp://host:1234")))
  *
  * }</pre>
  *
@@ -80,14 +79,13 @@ import org.joda.time.Instant;
  * <p>{@link AmqpIO} provides a sink to send {@link PCollection} elements as messages.
  *
  * <p>As for the {@link Read}, {@link AmqpIO} {@link Write} requires a list of addresses where to
- * send messages. The following example illustrates how to configure the {@link AmqpIO}
- * {@link Write}:
+ * send messages. The following example illustrates how to configure the {@link AmqpIO} {@link
+ * Write}:
  *
  * <pre>{@code
- *
- *  pipeline
- *    .apply(...) // provide PCollection<Message>
- *    .apply(AmqpIO.write());
+ * pipeline
+ *   .apply(...) // provide PCollection<Message>
+ *   .apply(AmqpIO.write());
  *
  * }</pre>
  */
@@ -102,32 +100,34 @@ public class AmqpIO {
     return new AutoValue_AmqpIO_Write();
   }
 
-  private AmqpIO() {
-  }
+  private AmqpIO() {}
 
-  /**
-   * A {@link PTransform} to read/receive messages using AMQP 1.0 protocol.
-   */
+  /** A {@link PTransform} to read/receive messages using AMQP 1.0 protocol. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
 
-    @Nullable abstract List<String> addresses();
+    @Nullable
+    abstract List<String> addresses();
+
     abstract long maxNumRecords();
-    @Nullable abstract Duration maxReadTime();
+
+    @Nullable
+    abstract Duration maxReadTime();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setAddresses(List<String> addresses);
+
       abstract Builder setMaxNumRecords(long maxNumRecords);
+
       abstract Builder setMaxReadTime(Duration maxReadTime);
+
       abstract Read build();
     }
 
-    /**
-     * Define the AMQP addresses where to receive messages.
-     */
+    /** Define the AMQP addresses where to receive messages. */
     public Read withAddresses(List<String> addresses) {
       checkArgument(addresses != null, "addresses can not be null");
       checkArgument(!addresses.isEmpty(), "addresses can not be empty");
@@ -135,18 +135,17 @@ public class AmqpIO {
     }
 
     /**
-     * Define the max number of records received by the {@link Read}.
-     * When the max number of records is lower than {@code Long.MAX_VALUE}, the {@link Read} will
-     * provide a bounded {@link PCollection}.
+     * Define the max number of records received by the {@link Read}. When the max number of records
+     * is lower than {@code Long.MAX_VALUE}, the {@link Read} will provide a bounded {@link
+     * PCollection}.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
     /**
-     * Define the max read time (duration) while the {@link Read} will receive messages.
-     * When this max read time is not null, the {@link Read} will provide a bounded
-     * {@link PCollection}.
+     * Define the max read time (duration) while the {@link Read} will receive messages. When this
+     * max read time is not null, the {@link Read} will provide a bounded {@link PCollection}.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
       return builder().setMaxReadTime(maxReadTime).build();
@@ -172,7 +171,6 @@ public class AmqpIO {
 
       return input.getPipeline().apply(transform);
     }
-
   }
 
   private static class AmqpCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
@@ -180,8 +178,7 @@ public class AmqpIO {
     private transient Messenger messenger;
     private transient List<Tracker> trackers = new ArrayList<>();
 
-    public AmqpCheckpointMark() {
-    }
+    public AmqpCheckpointMark() {}
 
     @Override
     public void finalizeCheckpoint() {
@@ -197,11 +194,9 @@ public class AmqpIO {
         throws IOException, ClassNotFoundException {
       trackers = new ArrayList<>();
     }
-
   }
 
-  private static class UnboundedAmqpSource
-      extends UnboundedSource<Message, AmqpCheckpointMark> {
+  private static class UnboundedAmqpSource extends UnboundedSource<Message, AmqpCheckpointMark> {
 
     private final Read spec;
 
@@ -210,8 +205,7 @@ public class AmqpIO {
     }
 
     @Override
-    public List<UnboundedAmqpSource> split(int desiredNumSplits,
-                                                           PipelineOptions pipelineOptions) {
+    public List<UnboundedAmqpSource> split(int desiredNumSplits, PipelineOptions pipelineOptions) {
       // amqp is a queue system, so, it's possible to have multiple concurrent sources, even if
       // they bind the listener
       List<UnboundedAmqpSource> sources = new ArrayList<>();
@@ -222,8 +216,8 @@ public class AmqpIO {
     }
 
     @Override
-    public UnboundedReader<Message> createReader(PipelineOptions pipelineOptions,
-                                                AmqpCheckpointMark checkpointMark) {
+    public UnboundedReader<Message> createReader(
+        PipelineOptions pipelineOptions, AmqpCheckpointMark checkpointMark) {
       return new UnboundedAmqpReader(this, checkpointMark);
     }
 
@@ -323,12 +317,9 @@ public class AmqpIO {
         messenger.stop();
       }
     }
-
   }
 
-  /**
-   * A {@link PTransform} to send messages using AMQP 1.0 protocol.
-   */
+  /** A {@link PTransform} to send messages using AMQP 1.0 protocol. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Message>, PDone> {
 
@@ -367,9 +358,6 @@ public class AmqpIO {
           messenger.stop();
         }
       }
-
     }
-
   }
-
 }

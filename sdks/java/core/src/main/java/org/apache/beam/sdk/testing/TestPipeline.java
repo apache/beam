@@ -67,15 +67,15 @@ import org.junit.runners.model.Statement;
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
  *
  * <ul>
- * <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
- *     options. For example:
- *     <pre>{@code [
+ *   <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
+ *       options. For example:
+ *       <pre>{@code [
  *     "--runner=TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
  *     ]}</pre>
- *     Note that the set of pipeline options required is pipeline runner specific.
- * <li>Jars containing the SDK and test classes must be available on the classpath.
+ *       Note that the set of pipeline options required is pipeline runner specific.
+ *   <li>Jars containing the SDK and test classes must be available on the classpath.
  * </ul>
  *
  * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
@@ -95,9 +95,10 @@ import org.junit.runners.model.Statement;
  * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
- * the message from the {@link PAssert} that failed.</p>
+ * the message from the {@link PAssert} that failed.
+ *
  * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
- * section.</p>
+ * section.
  */
 public class TestPipeline extends Pipeline implements TestRule {
 
@@ -243,8 +244,9 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
 
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
@@ -268,6 +270,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     this.options = options;
   }
 
+  @Override
   public PipelineOptions getOptions() {
     return this.options;
   }
@@ -285,8 +288,7 @@ public class TestPipeline extends Pipeline implements TestRule {
                   .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
                   .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
 
-          final boolean crashingRunner =
-              CrashingRunner.class.isAssignableFrom(options.getRunner());
+          final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
 
           checkState(
               !(annotatedWithNeedsRunner && crashingRunner),
@@ -366,6 +368,7 @@ public class TestPipeline extends Pipeline implements TestRule {
   @Internal
   public interface TestValueProviderOptions extends PipelineOptions {
     ValueProvider<Map<String, Object>> getProviderRuntimeValues();
+
     void setProviderRuntimeValues(ValueProvider<Map<String, Object>> runtimeValues);
   }
 
@@ -401,10 +404,12 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Enables the abandoned node detection. Abandoned nodes are <code>PTransforms</code>, <code>
    * PAsserts</code> included, that were not executed by the pipeline runner. Abandoned nodes are
    * most likely to occur due to the one of the following scenarios:
+   *
    * <ul>
-   * <li>Lack of a <code>pipeline.run()</code> statement at the end of a test.
-   * <li>Addition of PTransforms after the pipeline has already run.
+   *   <li>Lack of a <code>pipeline.run()</code> statement at the end of a test.
+   *   <li>Addition of PTransforms after the pipeline has already run.
    * </ul>
+   *
    * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
    * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link ValidatesRunner} annotation
    * are detected.
@@ -442,8 +447,8 @@ public class TestPipeline extends Pipeline implements TestRule {
           Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
-              MAPPER.readValue(beamTestPipelineOptions, String[].class))
-              .as(TestPipelineOptions.class);
+                      MAPPER.readValue(beamTestPipelineOptions, String[].class))
+                  .as(TestPipelineOptions.class);
 
       // If no options were specified, set some reasonable defaults
       if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
@@ -484,7 +489,7 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Verifies all {{@link PAssert PAsserts}} in the pipeline have been executed and were successful.
    *
    * <p>Note this only runs for runners which support Metrics. Runners which do not should verify
-   * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001</p>
+   * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001
    */
   public static void verifyPAssertsSucceeded(Pipeline pipeline, PipelineResult pipelineResult) {
     if (MetricsEnvironment.isMetricsSupported()) {
@@ -492,10 +497,12 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       long successfulAssertions = 0;
       Iterable<MetricResult<Long>> successCounterResults =
-          pipelineResult.metrics().queryMetrics(
-              MetricsFilter.builder()
-                  .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
-                  .build())
+          pipelineResult
+              .metrics()
+              .queryMetrics(
+                  MetricsFilter.builder()
+                      .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+                      .build())
               .getCounters();
       for (MetricResult<Long> counter : successCounterResults) {
         if (counter.getAttempted() > 0) {
@@ -503,9 +510,12 @@ public class TestPipeline extends Pipeline implements TestRule {
         }
       }
 
-      assertThat(String
-          .format("Expected %d successful assertions, but found %d.", expectedNumberOfAssertions,
-              successfulAssertions), successfulAssertions, is(expectedNumberOfAssertions));
+      assertThat(
+          String.format(
+              "Expected %d successful assertions, but found %d.",
+              expectedNumberOfAssertions, successfulAssertions),
+          successfulAssertions,
+          is(expectedNumberOfAssertions));
     }
   }
 

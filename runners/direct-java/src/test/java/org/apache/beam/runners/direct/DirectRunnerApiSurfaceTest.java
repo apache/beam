@@ -47,7 +47,8 @@ public class DirectRunnerApiSurfaceTest {
             "org.apache.beam.sdk",
             "org.apache.beam.runners.direct",
             "org.joda.time",
-            "javax.annotation");
+            "javax.annotation",
+            "java.math");
 
     final Package thisPackage = getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
@@ -68,7 +69,7 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(ExecutableGraphBuilder.class)
             .pruningPattern(
                 "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
-                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */)
+                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */ )
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")

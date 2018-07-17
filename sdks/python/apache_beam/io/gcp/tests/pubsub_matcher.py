@@ -17,6 +17,8 @@
 
 """PubSub verifier used for end-to-end test."""
 
+from __future__ import absolute_import
+
 import logging
 import time
 from collections import Counter

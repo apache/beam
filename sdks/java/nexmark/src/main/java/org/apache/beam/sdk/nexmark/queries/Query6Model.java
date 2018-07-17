@@ -36,13 +36,9 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 import org.junit.Assert;
 
-/**
- * A direct implementation of {@link Query6}.
- */
+/** A direct implementation of {@link Query6}. */
 public class Query6Model extends NexmarkQueryModel implements Serializable {
-  /**
-   * Simulator for query 6.
-   */
+  /** Simulator for query 6. */
   private static class Simulator extends AbstractSimulator<AuctionBid, SellerPrice> {
     /** The last 10 winning bids ordered by age, indexed by seller id. */
     private final Map<Long, Queue<Bid>> winningBidsPerSeller;
@@ -59,15 +55,13 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
       lastTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
 
-    /**
-     * Update the per-seller running counts/sums.
-     */
+    /** Update the per-seller running counts/sums. */
     private void captureWinningBid(Auction auction, Bid bid, Instant timestamp) {
       NexmarkUtils.info("winning auction, bid: %s, %s", auction, bid);
       Queue<Bid> queue = winningBidsPerSeller.get(auction.seller);
       if (queue == null) {
-        queue = new PriorityQueue<Bid>(10,
-            (Bid b1, Bid b2) -> Long.compare(b1.dateTime, b2.dateTime));
+        queue =
+            new PriorityQueue<Bid>(10, (Bid b1, Bid b2) -> Long.compare(b1.dateTime, b2.dateTime));
       }
       Long total = totalWinningBidPricesPerSeller.get(auction.seller);
       if (total == null) {
@@ -83,11 +77,11 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
       total += bid.price;
       winningBidsPerSeller.put(auction.seller, queue);
       totalWinningBidPricesPerSeller.put(auction.seller, total);
-      TimestampedValue<SellerPrice> intermediateResult = TimestampedValue.of(
-          new SellerPrice(auction.seller, Math.round((double) total / count)), timestamp);
+      TimestampedValue<SellerPrice> intermediateResult =
+          TimestampedValue.of(
+              new SellerPrice(auction.seller, Math.round((double) total / count)), timestamp);
       addIntermediateResult(intermediateResult);
     }
-
 
     @Override
     protected void run() {
@@ -97,16 +91,19 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
           long seller = entry.getKey();
           long count = entry.getValue().size();
           long total = totalWinningBidPricesPerSeller.get(seller);
-          addResult(TimestampedValue.of(
-              new SellerPrice(seller, Math.round((double) total / count)), lastTimestamp));
+          addResult(
+              TimestampedValue.of(
+                  new SellerPrice(seller, Math.round((double) total / count)), lastTimestamp));
         }
         allDone();
         return;
       }
 
       lastTimestamp = timestampedWinningBid.getTimestamp();
-      captureWinningBid(timestampedWinningBid.getValue().auction,
-          timestampedWinningBid.getValue().bid, lastTimestamp);
+      captureWinningBid(
+          timestampedWinningBid.getValue().auction,
+          timestampedWinningBid.getValue().bid,
+          lastTimestamp);
     }
   }
 

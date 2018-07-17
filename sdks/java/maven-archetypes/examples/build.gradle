@@ -54,7 +54,6 @@ processResources {
 evaluationDependsOn(':beam-examples-java')
 
 task generateSources(type: Exec) {
-  println "Generating sources for archetype"
   inputs.file './generate-sources.sh'
   inputs.dir project(':beam-examples-java').sourceSets.main.allSource
   inputs.dir project(':beam-examples-java').sourceSets.test.allSource

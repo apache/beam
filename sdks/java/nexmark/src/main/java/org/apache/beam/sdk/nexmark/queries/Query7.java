@@ -32,8 +32,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 
 /**
- * Query 7, 'Highest Bid'. Select the bids with the highest bid
- * price in the last minute. In CQL syntax:
+ * Query 7, 'Highest Bid'. Select the bids with the highest bid price in the last minute. In CQL
+ * syntax:
  *
  * <pre>
  * SELECT Rstream(B.auction, B.price, B.bidder)
@@ -42,9 +42,9 @@ import org.joda.time.Duration;
  *                  FROM BID [RANGE 1 MINUTE SLIDE 1 MINUTE] B1);
  * </pre>
  *
- * <p>We will use a shorter window to help make testing easier. We'll also implement this using
- * a side-input in order to exercise that functionality. (A combiner, as used in Query 5, is
- * a more efficient approach.).
+ * <p>We will use a shorter window to help make testing easier. We'll also implement this using a
+ * side-input in order to exercise that functionality. (A combiner, as used in Query 5, is a more
+ * efficient approach.).
  */
 public class Query7 extends NexmarkQuery {
   public Query7(NexmarkConfiguration configuration) {
@@ -72,18 +72,20 @@ public class Query7 extends NexmarkQuery {
 
     return slidingBids
         // Select all bids which have that maximum price (there may be more than one).
-        .apply(name + ".Select", ParDo
-          .of(new DoFn<Bid, Bid>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  long maxPrice = c.sideInput(maxPriceView);
-                  Bid bid = c.element();
-                  if (bid.price == maxPrice) {
-                    c.output(bid);
+        .apply(
+        name + ".Select",
+        ParDo.of(
+                new DoFn<Bid, Bid>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    long maxPrice = c.sideInput(maxPriceView);
+                    Bid bid = c.element();
+                    if (bid.price == maxPrice) {
+                      c.output(bid);
+                    }
                   }
-                }
-              })
-          .withSideInputs(maxPriceView));
+                })
+            .withSideInputs(maxPriceView));
   }
 
   @Override

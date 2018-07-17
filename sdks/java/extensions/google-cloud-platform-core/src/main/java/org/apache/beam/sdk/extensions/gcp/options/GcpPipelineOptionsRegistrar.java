@@ -23,9 +23,7 @@ import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
-/**
- * A registrar containing the default GCP options.
- */
+/** A registrar containing the default GCP options. */
 @AutoService(PipelineOptionsRegistrar.class)
 public class GcpPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override

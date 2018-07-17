@@ -61,37 +61,41 @@ public class FlattenRunnerTest {
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
             .build();
-    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
-        .setSpec(functionSpec)
-        .putInputs("inputA", "inputATarget")
-        .putInputs("inputB", "inputBTarget")
-        .putInputs("inputC", "inputCTarget")
-        .putOutputs(mainOutputId, "mainOutputTarget")
-        .build();
+    RunnerApi.PTransform pTransform =
+        RunnerApi.PTransform.newBuilder()
+            .setSpec(functionSpec)
+            .putInputs("inputA", "inputATarget")
+            .putInputs("inputB", "inputBTarget")
+            .putInputs("inputC", "inputCTarget")
+            .putOutputs(mainOutputId, "mainOutputTarget")
+            .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put("mainOutputTarget",
+    consumers.put(
+        "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-    new FlattenRunner.Factory<>().createRunnerForPTransform(
-        PipelineOptionsFactory.create(),
-        null /* beamFnDataClient */,
-        null /* beamFnStateClient */,
-        pTransformId,
-        pTransform,
-        Suppliers.ofInstance("57L")::get,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        consumers,
-        null /* addStartFunction */,
-        null, /* addFinishFunction */
-        null /* splitListener */);
+    new FlattenRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            pTransformId,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            consumers,
+            null /* addStartFunction */,
+            null, /* addFinishFunction */
+            null /* splitListener */);
 
     mainOutputValues.clear();
-    assertThat(consumers.keySet(), containsInAnyOrder(
-        "inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget"));
+    assertThat(
+        consumers.keySet(),
+        containsInAnyOrder("inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget"));
 
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));

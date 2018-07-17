@@ -53,7 +53,7 @@ public class ExplicitShardedFile implements ShardedFile {
   /** Constructs an {@link ExplicitShardedFile} for the given files. */
   public ExplicitShardedFile(Collection<String> files) throws IOException {
     this.files = new ArrayList<>();
-    for (String file: files) {
+    for (String file : files) {
       this.files.add(FileSystems.matchSingleFileSpec(file));
     }
   }
@@ -109,8 +109,8 @@ public class ExplicitShardedFile implements ShardedFile {
     List<String> allLines = Lists.newArrayList();
     int i = 1;
     for (Metadata file : files) {
-      try (Reader reader = Channels.newReader(FileSystems.open(file.resourceId()),
-          StandardCharsets.UTF_8.name())) {
+      try (Reader reader =
+          Channels.newReader(FileSystems.open(file.resourceId()), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
         LOG.debug("[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);

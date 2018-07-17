@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import absolute_import
 
 import json
 import logging
 import os
 import tempfile
 import unittest
+from builtins import range
 
 import avro.datafile
 import avro.schema
@@ -450,6 +452,13 @@ class TestFastAvro(TestAvro):
   def __init__(self, methodName='runTest'):
     super(TestFastAvro, self).__init__(methodName)
     self.use_fastavro = True
+
+  def setUp(self):
+    super(TestFastAvro, self).setUp()
+    try:
+      from fastavro.read import block_reader  # pylint: disable=unused-variable
+    except ImportError:
+      self.skipTest("fastavro is not installed.")
 
 
 if __name__ == '__main__':

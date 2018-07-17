@@ -22,9 +22,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * The data that the Java SDK harness needs to execute a DoFn.
- */
+/** The data that the Java SDK harness needs to execute a DoFn. */
 @AutoValue
 public abstract class DoFnAndMainOutput implements Serializable {
   public static DoFnAndMainOutput of(DoFn<?, ?> fn, TupleTag<?> tag) {

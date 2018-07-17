@@ -20,9 +20,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.runners.AppliedPTransform;
 
-/**
- * A Factory for creating {@link TransformExecutor Transform Executors} on an input.
- */
+/** A Factory for creating {@link TransformExecutor Transform Executors} on an input. */
 interface TransformExecutorFactory {
   TransformExecutor create(
       CommittedBundle<?> bundle,

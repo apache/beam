@@ -44,32 +44,38 @@ public class PipelineOptionsTest {
   /** Interfaces used for testing that {@link PipelineOptions#as(Class)} functions. */
   private interface DerivedTestOptions extends BaseTestOptions {
     int getDerivedValue();
+
     void setDerivedValue(int derivedValue);
 
     @Override
     @JsonIgnore
     Set<String> getIgnoredValue();
+
     @Override
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
   private interface ConflictedTestOptions extends BaseTestOptions {
     String getDerivedValue();
+
     void setDerivedValue(String derivedValue);
 
     @Override
     @JsonIgnore
     Set<String> getIgnoredValue();
+
     @Override
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
   private interface BaseTestOptions extends PipelineOptions {
     List<Boolean> getBaseValue();
+
     void setBaseValue(List<Boolean> baseValue);
 
     @JsonIgnore
     Set<String> getIgnoredValue();
+
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
@@ -81,12 +87,15 @@ public class PipelineOptionsTest {
 
   private interface ValueProviderOptions extends PipelineOptions {
     ValueProvider<Boolean> getBool();
+
     void setBool(ValueProvider<Boolean> value);
 
     ValueProvider<String> getString();
+
     void setString(ValueProvider<String> value);
 
     String getNotAValueProvider();
+
     void setNotAValueProvider(String value);
   }
 
@@ -94,8 +103,7 @@ public class PipelineOptionsTest {
   public void testOutputRuntimeOptions() {
     ValueProviderOptions options =
         PipelineOptionsFactory.fromArgs("--string=baz").as(ValueProviderOptions.class);
-    Map<String, ?> expected = ImmutableMap.of(
-        "bool", ImmutableMap.of("type", Boolean.class));
+    Map<String, ?> expected = ImmutableMap.of("bool", ImmutableMap.of("type", Boolean.class));
     assertEquals(expected, options.outputRuntimeOptions());
   }
 

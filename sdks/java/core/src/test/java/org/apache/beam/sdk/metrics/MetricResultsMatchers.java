@@ -23,9 +23,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
-/**
- * Matchers for {@link MetricResults}.
- */
+/** Matchers for {@link MetricResults}. */
 public class MetricResultsMatchers {
 
   /**
@@ -51,7 +49,10 @@ public class MetricResultsMatchers {
    * the given value for either committed or attempted (based on {@code isCommitted}) metrics.
    */
   public static <T> Matcher<MetricResult<T>> metricsResult(
-      final String namespace, final String name, final String step, final T value,
+      final String namespace,
+      final String name,
+      final String step,
+      final T value,
       final boolean isCommitted) {
     final String metricState = isCommitted ? "committed" : "attempted";
     return new TypeSafeMatcher<MetricResult<T>>() {
@@ -67,10 +68,14 @@ public class MetricResultsMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricResult{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(String.format(", %s=", metricState)).appendValue(value)
+            .appendText("MetricResult{inNamespace=")
+            .appendValue(namespace)
+            .appendText(", name=")
+            .appendValue(name)
+            .appendText(", step=")
+            .appendValue(step)
+            .appendText(String.format(", %s=", metricState))
+            .appendValue(value)
             .appendText("}");
       }
 
@@ -83,8 +88,10 @@ public class MetricResultsMatchers {
 
         if (!Objects.equals(value, metricValue)) {
           mismatchDescription
-              .appendText(String.format("%s: ", metricState)).appendValue(value)
-              .appendText(" != ").appendValue(metricValue);
+              .appendText(String.format("%s: ", metricState))
+              .appendValue(value)
+              .appendText(" != ")
+              .appendValue(metricValue);
         }
 
         mismatchDescription.appendText("}");
@@ -101,20 +108,30 @@ public class MetricResultsMatchers {
   }
 
   static Matcher<MetricResult<DistributionResult>> distributionAttemptedMinMax(
-      final String namespace, final String name, final String step,
-      final Long attemptedMin, final Long attemptedMax) {
+      final String namespace,
+      final String name,
+      final String step,
+      final Long attemptedMin,
+      final Long attemptedMax) {
     return distributionMinMax(namespace, name, step, attemptedMin, attemptedMax, false);
   }
 
   static Matcher<MetricResult<DistributionResult>> distributionCommittedMinMax(
-      final String namespace, final String name, final String step,
-      final Long committedMin, final Long committedMax) {
+      final String namespace,
+      final String name,
+      final String step,
+      final Long committedMin,
+      final Long committedMax) {
     return distributionMinMax(namespace, name, step, committedMin, committedMax, true);
   }
 
   public static Matcher<MetricResult<DistributionResult>> distributionMinMax(
-      final String namespace, final String name, final String step,
-      final Long min, final Long max, final boolean isCommitted) {
+      final String namespace,
+      final String name,
+      final String step,
+      final Long min,
+      final Long max,
+      final boolean isCommitted) {
     final String metricState = isCommitted ? "committed" : "attempted";
     return new TypeSafeMatcher<MetricResult<DistributionResult>>() {
       @Override
@@ -130,17 +147,22 @@ public class MetricResultsMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricResult{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(String.format(", %sMin=", metricState)).appendValue(min)
-            .appendText(String.format(", %sMax=", metricState)).appendValue(max)
+            .appendText("MetricResult{inNamespace=")
+            .appendValue(namespace)
+            .appendText(", name=")
+            .appendValue(name)
+            .appendText(", step=")
+            .appendValue(step)
+            .appendText(String.format(", %sMin=", metricState))
+            .appendValue(min)
+            .appendText(String.format(", %sMax=", metricState))
+            .appendValue(max)
             .appendText("}");
       }
 
       @Override
-      protected void describeMismatchSafely(MetricResult<DistributionResult> item,
-          Description mismatchDescription) {
+      protected void describeMismatchSafely(
+          MetricResult<DistributionResult> item, Description mismatchDescription) {
         mismatchDescription.appendText("MetricResult{");
 
         describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
@@ -148,14 +170,18 @@ public class MetricResultsMatchers {
 
         if (!Objects.equals(min, metricValue.getMin())) {
           mismatchDescription
-              .appendText(String.format("%sMin: ", metricState)).appendValue(min)
-              .appendText(" != ").appendValue(metricValue.getMin());
+              .appendText(String.format("%sMin: ", metricState))
+              .appendValue(min)
+              .appendText(" != ")
+              .appendValue(metricValue.getMin());
         }
 
         if (!Objects.equals(max, metricValue.getMax())) {
           mismatchDescription
-              .appendText(String.format("%sMax: ", metricState)).appendValue(max)
-              .appendText(" != ").appendValue(metricValue.getMax());
+              .appendText(String.format("%sMax: ", metricState))
+              .appendValue(max)
+              .appendText(" != ")
+              .appendValue(metricValue.getMax());
         }
 
         mismatchDescription.appendText("}");
@@ -171,20 +197,26 @@ public class MetricResultsMatchers {
       String step) {
     if (!Objects.equals(namespace, item.getName().getNamespace())) {
       mismatchDescription
-          .appendText("inNamespace: ").appendValue(namespace)
-          .appendText(" != ").appendValue(item.getName().getNamespace());
+          .appendText("inNamespace: ")
+          .appendValue(namespace)
+          .appendText(" != ")
+          .appendValue(item.getName().getNamespace());
     }
 
     if (!Objects.equals(name, item.getName().getName())) {
       mismatchDescription
-          .appendText("name: ").appendValue(name)
-          .appendText(" != ").appendValue(item.getName().getName());
+          .appendText("name: ")
+          .appendValue(name)
+          .appendText(" != ")
+          .appendValue(item.getName().getName());
     }
 
     if (!item.getStep().contains(step)) {
       mismatchDescription
-          .appendText("step: ").appendValue(step)
-          .appendText(" != ").appendValue(item.getStep());
+          .appendText("step: ")
+          .appendValue(step)
+          .appendText(" != ")
+          .appendValue(item.getStep());
     }
   }
 }

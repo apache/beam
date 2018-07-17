@@ -38,8 +38,7 @@ import org.joda.time.Instant;
  * values.
  */
 public class Reify {
-  private static class ReifyView<K, V>
-  extends PTransform<PCollection<K>, PCollection<KV<K, V>>> {
+  private static class ReifyView<K, V> extends PTransform<PCollection<K>, PCollection<KV<K, V>>> {
     private final PCollectionView<V> view;
     private final Coder<V> coder;
 
@@ -64,8 +63,7 @@ public class Reify {
     }
   }
 
-  private static class ReifyViewInGlobalWindow<V>
-  extends PTransform<PBegin, PCollection<V>> {
+  private static class ReifyViewInGlobalWindow<V> extends PTransform<PBegin, PCollection<V>> {
     private final PCollectionView<V> view;
     private final Coder<V> coder;
 
@@ -93,11 +91,12 @@ public class Reify {
               ParDo.of(
                   new DoFn<T, ValueInSingleWindow<T>>() {
                     @ProcessElement
-                    public void processElement(@Element T element,
-                                               @Timestamp Instant timestamp,
-                                               BoundedWindow window,
-                                               PaneInfo pane,
-                                               OutputReceiver<ValueInSingleWindow<T>> r) {
+                    public void processElement(
+                        @Element T element,
+                        @Timestamp Instant timestamp,
+                        BoundedWindow window,
+                        PaneInfo pane,
+                        OutputReceiver<ValueInSingleWindow<T>> r) {
                       r.outputWithTimestamp(
                           ValueInSingleWindow.of(element, timestamp, window, pane), timestamp);
                     }
@@ -117,9 +116,10 @@ public class Reify {
               ParDo.of(
                   new DoFn<T, TimestampedValue<T>>() {
                     @ProcessElement
-                    public void processElement(@Element T element,
-                                               @Timestamp Instant timestamp,
-                                               OutputReceiver<TimestampedValue<T>> r) {
+                    public void processElement(
+                        @Element T element,
+                        @Timestamp Instant timestamp,
+                        OutputReceiver<TimestampedValue<T>> r) {
                       r.output(TimestampedValue.of(element, timestamp));
                     }
                   }))
@@ -146,8 +146,7 @@ public class Reify {
                       r.output(
                           KV.of(
                               element.getKey(),
-                              ValueInSingleWindow.of(
-                                  element.getValue(), timestamp, window, pane)));
+                              ValueInSingleWindow.of(element.getValue(), timestamp, window, pane)));
                     }
                   }))
           .setCoder(
@@ -169,9 +168,10 @@ public class Reify {
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
                     @ProcessElement
-                    public void processElement(@Element KV<K, V> element,
-                                               @Timestamp Instant timestamp,
-                                               OutputReceiver<KV<K, TimestampedValue<V>>> r) {
+                    public void processElement(
+                        @Element KV<K, V> element,
+                        @Timestamp Instant timestamp,
+                        OutputReceiver<KV<K, TimestampedValue<V>>> r) {
                       r.output(
                           KV.of(
                               element.getKey(),
@@ -199,8 +199,8 @@ public class Reify {
                     }
 
                     @ProcessElement
-                    public void processElement(@Element KV<K, TimestampedValue<V>> kv,
-                                               OutputReceiver<KV<K, V>> r) {
+                    public void processElement(
+                        @Element KV<K, TimestampedValue<V>> kv, OutputReceiver<KV<K, V>> r) {
                       r.outputWithTimestamp(
                           KV.of(kv.getKey(), kv.getValue().getValue()),
                           kv.getValue().getTimestamp());

@@ -21,9 +21,7 @@ package org.apache.beam.runners.spark;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.junit.rules.ExternalResource;
 
-/**
- * A rule that clears the {@link GlobalWatermarkHolder}.
- */
+/** A rule that clears the {@link GlobalWatermarkHolder}. */
 public class ClearWatermarksRule extends ExternalResource {
 
   @Override

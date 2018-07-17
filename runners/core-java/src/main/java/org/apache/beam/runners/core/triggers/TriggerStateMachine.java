@@ -48,42 +48,42 @@ import org.joda.time.Instant;
  * <p>Several predefined {@code Trigger}s are provided:
  *
  * <ul>
- * <li> {@link AfterWatermarkStateMachine} for firing when the watermark passes a timestamp
- *     determined from either the end of the window or the arrival of the first element in a pane.
- * <li> {@link AfterProcessingTimeStateMachine} for firing after some amount of processing time has
- *     elapsed (typically since the first element in a pane).
- * <li> {@link AfterPaneStateMachine} for firing off a property of the elements in the current pane,
- *     such as the number of elements that have been assigned to the current pane.
+ *   <li>{@link AfterWatermarkStateMachine} for firing when the watermark passes a timestamp
+ *       determined from either the end of the window or the arrival of the first element in a pane.
+ *   <li>{@link AfterProcessingTimeStateMachine} for firing after some amount of processing time has
+ *       elapsed (typically since the first element in a pane).
+ *   <li>{@link AfterPaneStateMachine} for firing off a property of the elements in the current
+ *       pane, such as the number of elements that have been assigned to the current pane.
  * </ul>
  *
  * <p>In addition, {@code Trigger}s can be combined in a variety of ways:
  *
  * <ul>
- * <li> {@link RepeatedlyStateMachine#forever} to create a trigger that executes forever. Any time
- *     its argument finishes it gets reset and starts over. Can be combined with {@link
- *     TriggerStateMachine#orFinally} to specify a condition that causes the repetition to stop.
- * <li> {@link AfterEachStateMachine#inOrder} to execute each trigger in sequence, firing each (and
- *     every) time that a trigger fires, and advancing to the next trigger in the sequence when it
- *     finishes.
- * <li> {@link AfterFirstStateMachine#of} to create a trigger that fires after at least one of its
- *     arguments fires. An {@link AfterFirstStateMachine} trigger finishes after it fires once.
- * <li> {@link AfterAllStateMachine#of} to create a trigger that fires after all least one of its
- *     arguments have fired at least once. An {@link AfterAllStateMachine} trigger finishes after it
- *     fires once.
+ *   <li>{@link RepeatedlyStateMachine#forever} to create a trigger that executes forever. Any time
+ *       its argument finishes it gets reset and starts over. Can be combined with {@link
+ *       TriggerStateMachine#orFinally} to specify a condition that causes the repetition to stop.
+ *   <li>{@link AfterEachStateMachine#inOrder} to execute each trigger in sequence, firing each (and
+ *       every) time that a trigger fires, and advancing to the next trigger in the sequence when it
+ *       finishes.
+ *   <li>{@link AfterFirstStateMachine#of} to create a trigger that fires after at least one of its
+ *       arguments fires. An {@link AfterFirstStateMachine} trigger finishes after it fires once.
+ *   <li>{@link AfterAllStateMachine#of} to create a trigger that fires after all least one of its
+ *       arguments have fired at least once. An {@link AfterAllStateMachine} trigger finishes after
+ *       it fires once.
  * </ul>
  *
  * <p>Each trigger tree is instantiated per-key and per-window. Every trigger in the tree is in one
  * of the following states:
  *
  * <ul>
- * <li> Never Existed - before the trigger has started executing, there is no state associated with
- *     it anywhere in the system. A trigger moves to the executing state as soon as it processes in
- *     the current pane.
- * <li> Executing - while the trigger is receiving items and may fire. While it is in this state, it
- *     may persist book-keeping information to persisted state, set timers, etc.
- * <li> Finished - after a trigger finishes, all of its book-keeping data is cleaned up, and the
- *     system remembers only that it is finished. Entering this state causes us to discard any
- *     elements in the buffer for that window, as well.
+ *   <li>Never Existed - before the trigger has started executing, there is no state associated with
+ *       it anywhere in the system. A trigger moves to the executing state as soon as it processes
+ *       in the current pane.
+ *   <li>Executing - while the trigger is receiving items and may fire. While it is in this state,
+ *       it may persist book-keeping information to persisted state, set timers, etc.
+ *   <li>Finished - after a trigger finishes, all of its book-keeping data is cleaned up, and the
+ *       system remembers only that it is finished. Entering this state causes us to discard any
+ *       elements in the buffer for that window, as well.
  * </ul>
  *
  * <p>Once finished, a trigger cannot return itself back to an earlier state, however a composite
@@ -109,39 +109,25 @@ public abstract class TriggerStateMachine implements Serializable {
      */
     boolean isMerging();
 
-    /**
-     * Access the executable versions of the sub-triggers of the current trigger.
-     */
+    /** Access the executable versions of the sub-triggers of the current trigger. */
     Iterable<ExecutableTriggerStateMachine> subTriggers();
 
-    /**
-     * Access the executable version of the specified sub-trigger.
-     */
+    /** Access the executable version of the specified sub-trigger. */
     ExecutableTriggerStateMachine subTrigger(int subtriggerIndex);
 
-    /**
-     * Returns true if the current trigger is marked finished.
-     */
+    /** Returns true if the current trigger is marked finished. */
     boolean isFinished();
 
-    /**
-     * Return true if the given subtrigger is marked finished.
-     */
+    /** Return true if the given subtrigger is marked finished. */
     boolean isFinished(int subtriggerIndex);
 
-    /**
-     * Returns true if all the sub-triggers of the current trigger are marked finished.
-     */
+    /** Returns true if all the sub-triggers of the current trigger are marked finished. */
     boolean areAllSubtriggersFinished();
 
-    /**
-     * Returns an iterable over the unfinished sub-triggers of the current trigger.
-     */
+    /** Returns an iterable over the unfinished sub-triggers of the current trigger. */
     Iterable<ExecutableTriggerStateMachine> unfinishedSubTriggers();
 
-    /**
-     * Returns the first unfinished sub-trigger.
-     */
+    /** Returns the first unfinished sub-trigger. */
     ExecutableTriggerStateMachine firstUnfinishedSubTrigger();
 
     /**
@@ -150,14 +136,10 @@ public abstract class TriggerStateMachine implements Serializable {
      */
     void resetTree() throws Exception;
 
-    /**
-     * Sets the finished bit for the current trigger.
-     */
+    /** Sets the finished bit for the current trigger. */
     void setFinished(boolean finished);
 
-    /**
-     * Sets the finished bit for the given sub-trigger.
-     */
+    /** Sets the finished bit for the given sub-trigger. */
     void setFinished(boolean finished, int subTriggerIndex);
   }
 
@@ -195,8 +177,8 @@ public abstract class TriggerStateMachine implements Serializable {
     public abstract TriggerContext forTrigger(ExecutableTriggerStateMachine trigger);
 
     /**
-     * Removes the timer set in this trigger context for the given {@link Instant}
-     * and {@link TimeDomain}.
+     * Removes the timer set in this trigger context for the given {@link Instant} and {@link
+     * TimeDomain}.
      */
     public abstract void deleteTimer(Instant timestamp, TimeDomain domain);
 
@@ -224,9 +206,9 @@ public abstract class TriggerStateMachine implements Serializable {
      * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
      * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
      *
-     * <p>As with {@link #state}, timers are implicitly scoped to the current window. All
-     * timer firings for a window will be received, but the implementation should choose to ignore
-     * those that are not applicable.
+     * <p>As with {@link #state}, timers are implicitly scoped to the current window. All timer
+     * firings for a window will be received, but the implementation should choose to ignore those
+     * that are not applicable.
      *
      * @param timestamp the time at which the trigger should be re-evaluated
      * @param domain the domain that the {@code timestamp} applies to
@@ -247,9 +229,9 @@ public abstract class TriggerStateMachine implements Serializable {
      * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
      * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
      *
-     * <p>As with {@link #state}, timers are implicitly scoped to the current window. All
-     * timer firings for a window will be received, but the implementation should choose to ignore
-     * those that are not applicable.
+     * <p>As with {@link #state}, timers are implicitly scoped to the current window. All timer
+     * firings for a window will be received, but the implementation should choose to ignore those
+     * that are not applicable.
      *
      * @param timestamp the time at which the trigger should be re-evaluated
      * @param domain the domain that the {@code timestamp} applies to
@@ -267,17 +249,13 @@ public abstract class TriggerStateMachine implements Serializable {
     public abstract MergingTriggerInfo trigger();
   }
 
-  @Nullable
-  protected final List<TriggerStateMachine> subTriggers;
+  @Nullable protected final List<TriggerStateMachine> subTriggers;
 
   protected TriggerStateMachine(@Nullable List<TriggerStateMachine> subTriggers) {
     this.subTriggers = subTriggers;
   }
 
-
-  /**
-   * Called every time an element is incorporated into a window.
-   */
+  /** Called every time an element is incorporated into a window. */
   public abstract void onElement(OnElementContext c) throws Exception;
 
   /**
@@ -298,23 +276,23 @@ public abstract class TriggerStateMachine implements Serializable {
   public abstract void onMerge(OnMergeContext c) throws Exception;
 
   /**
-   * Returns {@code true} if the current state of the trigger indicates that its condition
-   * is satisfied and it is ready to fire.
+   * Returns {@code true} if the current state of the trigger indicates that its condition is
+   * satisfied and it is ready to fire.
    */
   public abstract boolean shouldFire(TriggerContext context) throws Exception;
 
   /**
-   * Adjusts the state of the trigger to be ready for the next pane. For example, a
-   * {@link RepeatedlyStateMachine} trigger will reset its inner trigger, since it has fired.
+   * Adjusts the state of the trigger to be ready for the next pane. For example, a {@link
+   * RepeatedlyStateMachine} trigger will reset its inner trigger, since it has fired.
    *
-   * <p>If the trigger is finished, it is the responsibility of the trigger itself to
-   * record that fact via the {@code context}.
+   * <p>If the trigger is finished, it is the responsibility of the trigger itself to record that
+   * fact via the {@code context}.
    */
   public abstract void onFire(TriggerContext context) throws Exception;
 
   /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during
-   * an {@link #onElement} call.
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #onElement} call.
    */
   public void prefetchOnElement(StateAccessor<?> state) {
     if (subTriggers != null) {
@@ -325,8 +303,8 @@ public abstract class TriggerStateMachine implements Serializable {
   }
 
   /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during
-   * an {@link #onMerge} call.
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #onMerge} call.
    */
   public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
     if (subTriggers != null) {
@@ -337,8 +315,8 @@ public abstract class TriggerStateMachine implements Serializable {
   }
 
   /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during
-   * an {@link #shouldFire} call.
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #shouldFire} call.
    */
   public void prefetchShouldFire(StateAccessor<?> state) {
     if (subTriggers != null) {
@@ -349,8 +327,8 @@ public abstract class TriggerStateMachine implements Serializable {
   }
 
   /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during
-   * an {@link #onFire} call.
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #onFire} call.
    */
   public void prefetchOnFire(StateAccessor<?> state) {
     if (subTriggers != null) {
@@ -379,9 +357,7 @@ public abstract class TriggerStateMachine implements Serializable {
     return subTriggers;
   }
 
-  /**
-   * Returns whether this performs the same triggering as the given {@code Trigger}.
-   */
+  /** Returns whether this performs the same triggering as the given {@code Trigger}. */
   public boolean isCompatible(TriggerStateMachine other) {
     if (!getClass().equals(other.getClass())) {
       return false;
@@ -450,9 +426,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * <pre>{@code
    * Repeatedly.forever(AfterPane.elementCountAtLeast(2))
    *     .orFinally(AfterPane.elementCountAtLeast(5))
-   * }
-   * </pre>
-   *
+   * }</pre>
    */
   public TriggerStateMachine orFinally(TriggerStateMachine until) {
     return new OrFinallyStateMachine(this, until);

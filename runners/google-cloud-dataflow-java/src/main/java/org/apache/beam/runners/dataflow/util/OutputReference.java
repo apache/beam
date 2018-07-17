@@ -23,8 +23,8 @@ import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 
 /**
- * A representation used by {@link com.google.api.services.dataflow.model.Step}s
- * to reference the output of other {@code Step}s.
+ * A representation used by {@link com.google.api.services.dataflow.model.Step}s to reference the
+ * output of other {@code Step}s.
  */
 public final class OutputReference extends GenericJson {
   @Key("@type")

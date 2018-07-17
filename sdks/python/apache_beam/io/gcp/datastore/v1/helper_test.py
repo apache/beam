@@ -16,10 +16,13 @@
 #
 
 """Tests for datastore helper."""
+from __future__ import absolute_import
+
 import errno
 import random
 import sys
 import unittest
+from builtins import map
 from socket import error as SocketError
 
 from mock import MagicMock

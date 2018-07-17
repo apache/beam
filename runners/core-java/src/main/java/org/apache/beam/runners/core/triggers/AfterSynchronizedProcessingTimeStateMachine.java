@@ -58,10 +58,9 @@ class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstEle
   }
 
   @Override
-  protected AfterSynchronizedProcessingTimeStateMachine
-      newWith(List<SerializableFunction<Instant, Instant>> transforms) {
+  protected AfterSynchronizedProcessingTimeStateMachine newWith(
+      List<SerializableFunction<Instant, Instant>> transforms) {
     // ignore transforms
     return this;
   }
-
 }
