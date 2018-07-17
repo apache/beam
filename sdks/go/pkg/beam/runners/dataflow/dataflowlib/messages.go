@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dataflow
+package dataflowlib
 
 import (
 	"encoding/json"

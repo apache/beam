@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dataflow
+package dataflowlib
 
 import (
 	"bytes"
@@ -30,7 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	pubsub_v1 "github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio/v1"
-	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
 )
@@ -456,11 +456,11 @@ func translateWindowingStrategy(w *window.WindowingStrategy) proto.Message {
 	c := graphx.NewCoderMarshaller()
 	ws := graphx.MarshalWindowingStrategy(c, w)
 
-	msg := &rnapi_pb.MessageWithComponents{
-		Components: &rnapi_pb.Components{
+	msg := &pb.MessageWithComponents{
+		Components: &pb.Components{
 			Coders: c.Build(),
 		},
-		Root: &rnapi_pb.MessageWithComponents_WindowingStrategy{
+		Root: &pb.MessageWithComponents_WindowingStrategy{
 			WindowingStrategy: ws,
 		},
 	}
