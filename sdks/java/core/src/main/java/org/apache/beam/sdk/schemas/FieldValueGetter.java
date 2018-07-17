@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.annotations.Internal;
  */
 @Internal
 public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
+  @Nullable
   ValueT get(ObjectT object);
 
   String name();
