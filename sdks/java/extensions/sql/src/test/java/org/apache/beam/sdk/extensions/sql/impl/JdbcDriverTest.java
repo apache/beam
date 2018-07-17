@@ -206,7 +206,6 @@ public class JdbcDriverTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/CALCITE-2394")
   public void testTimestampWithDefaultTimezone() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     Connection connection = JdbcDriver.connect(tableProvider);
