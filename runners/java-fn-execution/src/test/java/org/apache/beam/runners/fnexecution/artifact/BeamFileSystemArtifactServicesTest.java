@@ -138,7 +138,7 @@ public class BeamFileSystemArtifactServicesTest {
             new StreamObserver<PutArtifactResponse>() {
               @Override
               public void onNext(PutArtifactResponse putArtifactResponse) {
-                Assert.fail("OnNext should never be called.");
+                // Do nothing.
               }
 
               @Override
