@@ -102,8 +102,14 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   public static Enumerable<Object> toEnumerable(BeamRelNode node) {
-    final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
-    return toEnumerable(options, node);
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
+      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+      return toEnumerable(options, node);
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
   }
 
   public static PipelineOptions createPipelineOptions(Map<String, String> map) {
@@ -117,20 +123,14 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return options;
   }
 
-  public static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
-    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      if (node instanceof BeamIOSinkRel) {
-        return count(options, node);
-      } else if (isLimitQuery(node)) {
-        return limitCollect(options, node);
-      }
-
-      return collect(options, node);
-    } finally {
-      Thread.currentThread().setContextClassLoader(originalClassLoader);
+  static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
+    if (node instanceof BeamIOSinkRel) {
+      return count(options, node);
+    } else if (isLimitQuery(node)) {
+      return limitCollect(options, node);
     }
+
+    return collect(options, node);
   }
 
   private static PipelineResult limitRun(
