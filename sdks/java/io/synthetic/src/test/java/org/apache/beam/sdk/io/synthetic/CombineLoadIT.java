@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.synthetic;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.math.BigInteger;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,7 +41,7 @@ import org.junit.runners.JUnit4;
 
 /** Performance fanout test for {@link GroupByKey}. */
 @RunWith(JUnit4.class)
-public class GroupByKeyLoadIT {
+public class CombineLoadIT {
 
   private static Options options;
 
@@ -86,47 +88,20 @@ public class GroupByKeyLoadIT {
     PCollection<KV<byte[], byte[]>> input =
         pipeline.apply(SyntheticBoundedIO.readFrom(syntheticSourceOptions));
 
-    for (int branch = 0; branch < options.getFanout(); branch++) {
-      groupAndUngroup(input, branch);
-    }
+    PCollection<Integer> numbers =
+        input.apply("Get numbers from bytes", ParDo.of(new ByteToIntFn()));
 
+    for (int branch = 0; branch < options.getFanout(); branch++) {
+      numbers.apply(String.format("Combine (%s)", branch), Mean.globally());
+    }
     pipeline.run().waitUntilFinish();
   }
 
-  private void groupAndUngroup(PCollection<KV<byte[], byte[]>> input, int branchNumber) {
-    PCollection<KV<byte[], Iterable<byte[]>>> groupedData =
-        input.apply(String.format("Group by key (%s)", branchNumber), GroupByKey.create());
-
-    groupedData.apply(
-        String.format("Ungroup (%s)", branchNumber), ParDo.of(new UngroupFn()));
-  }
-
-  // TODO: remove in case you're sure that we don't perform this
-  private void groupAndUngroupNTimesSequentially(
-      final PCollection<KV<byte[], byte[]>> input, final Integer n) {
-    if (n == 0) {
-      return;
-    } else {
-      // todo: synthetic step.
-      PCollection<KV<byte[], Iterable<byte[]>>> groupedCollection =
-          input.apply(String.format("Group by key no: %s.", n), GroupByKey.create());
-
-      PCollection<KV<byte[], byte[]>> nextInput =
-          groupedCollection.apply(
-              String.format("Ungroup by key no: %s.", n), ParDo.of(new UngroupFn()));
-
-      groupAndUngroupNTimesSequentially(nextInput, n - 1);
-    }
-  }
-
-  private static class UngroupFn extends DoFn<KV<byte[], Iterable<byte[]>>, KV<byte[], byte[]>> {
-
+  // TODO: This doesn't seem enough. How should I transform byte[] to numbers to calculate the mean?
+  private static class ByteToIntFn extends DoFn<KV<byte[], byte[]>, Integer> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      byte[] key = c.element().getKey();
-      for (byte[] value : c.element().getValue()) {
-        c.output(KV.of(key, value));
-      }
+      c.output(new BigInteger(c.element().getValue()).intValue());
     }
   }
 }
