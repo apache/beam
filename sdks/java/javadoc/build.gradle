@@ -78,6 +78,10 @@ for (String exportedJavadocProject : exportedJavadocProjects) {
   evaluationDependsOn(exportedJavadocProject)
 }
 
+task allJavadoc() {
+  dependsOn exportedJavadocProjects.collect { "$it:javadoc" }
+}
+
 task aggregateJavadoc(type: Javadoc) {
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
