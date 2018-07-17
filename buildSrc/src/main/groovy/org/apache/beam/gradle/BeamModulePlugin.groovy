@@ -643,6 +643,9 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.checkstyle { toolVersion = "8.7" }
 
+      // Ensure check runs javadoc
+      project.check.dependsOn project.javadoc
+
       // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
       // connects the apt-eclipse plugin to update the eclipse project files
       // with the instructions needed to run apt within eclipse to handle the AutoValue
