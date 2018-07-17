@@ -23,7 +23,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
@@ -64,9 +63,6 @@ public class SelectEvent extends PTransform<PCollection<Event>, PCollection<Row>
                     o.output(row.getRow(index));
                   }
                 }))
-        .setSchema(
-            input.getSchema().getField(index).getType().getRowSchema(),
-            SerializableFunctions.identity(),
-            SerializableFunctions.identity());
+        .setRowSchema(input.getSchema().getField(index).getType().getRowSchema());
   }
 }

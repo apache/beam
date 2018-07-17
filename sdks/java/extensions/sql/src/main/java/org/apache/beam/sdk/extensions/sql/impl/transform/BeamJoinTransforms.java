@@ -30,7 +30,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -222,8 +221,7 @@ public class BeamJoinTransforms {
                       return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
                     }
                   }))
-          .setSchema(
-              joinSubsetType, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(joinSubsetType);
     }
   }
 }

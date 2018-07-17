@@ -167,10 +167,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         return upstream
             .apply(Window.into(new GlobalWindows()))
             .apply(new LimitTransform<>())
-            .setSchema(
-                CalciteUtils.toBeamSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
       } else {
 
         WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();

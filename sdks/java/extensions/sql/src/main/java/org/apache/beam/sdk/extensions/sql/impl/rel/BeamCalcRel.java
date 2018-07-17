@@ -32,7 +32,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -77,12 +76,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       PCollection<Row> projectStream =
           upstream
               .apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))))
-              .setSchema(
-                  schema, SerializableFunctions.identity(), SerializableFunctions.identity());
-      projectStream.setSchema(
-          CalciteUtils.toBeamSchema(getRowType()),
-          SerializableFunctions.identity(),
-          SerializableFunctions.identity());
+              .setRowSchema(schema);
+      projectStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
       return projectStream;
     }

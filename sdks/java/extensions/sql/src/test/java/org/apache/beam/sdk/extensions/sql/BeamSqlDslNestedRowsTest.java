@@ -70,8 +70,7 @@ public class BeamSqlDslNestedRowsTest {
             .apply(
                 SqlTransform.query(
                     "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
@@ -115,8 +114,7 @@ public class BeamSqlDslNestedRowsTest {
             .apply(
                 SqlTransform.query(
                     "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
@@ -158,8 +156,7 @@ public class BeamSqlDslNestedRowsTest {
             .apply(
                 SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedString` FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -211,8 +208,7 @@ public class BeamSqlDslNestedRowsTest {
             .apply(
                 SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray` FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -263,8 +259,7 @@ public class BeamSqlDslNestedRowsTest {
             .apply(
                 SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[1] FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(

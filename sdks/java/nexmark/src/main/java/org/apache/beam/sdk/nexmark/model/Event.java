@@ -55,7 +55,7 @@ public class Event implements KnownSize, Serializable {
     return Objects.hashCode(newPerson, newAuction, bid);
   }
 
-  /** The type of object stored in this event. **/
+  /** The type of object stored in this event. * */
   public enum Type {
     PERSON(0),
     AUCTION(1),

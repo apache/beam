@@ -28,7 +28,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -91,7 +90,7 @@ public class MockedBoundedTable extends MockedTable {
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
         .apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows))
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+        .setRowSchema(getSchema());
   }
 
   @Override

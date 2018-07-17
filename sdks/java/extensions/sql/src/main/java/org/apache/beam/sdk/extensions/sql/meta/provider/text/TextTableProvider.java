@@ -37,7 +37,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -138,7 +137,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
               "linesToRows",
               MapElements.into(TypeDescriptors.rows())
                   .via(s -> Row.withSchema(SCHEMA).addValue(s).build()))
-          .setSchema(SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(SCHEMA);
     }
   }
 
@@ -191,7 +190,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
               "csvToRow",
               FlatMapElements.into(TypeDescriptors.rows())
                   .via(s -> csvLines2BeamRows(csvFormat, s, schema)))
-          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(schema);
     }
   }
 }

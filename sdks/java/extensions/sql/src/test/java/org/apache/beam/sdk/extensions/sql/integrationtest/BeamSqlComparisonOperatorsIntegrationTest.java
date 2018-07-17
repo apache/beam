@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
@@ -358,7 +357,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               "string_true_test",
               "string_false_test")
           .buildIOReader(pipeline.begin())
-          .setSchema(type, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(type);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -83,11 +82,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
 
-      return pinput
-          .getPipeline()
-          .begin()
-          .apply(Create.of(rows))
-          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+      return pinput.getPipeline().begin().apply(Create.of(rows)).setRowSchema(schema);
     }
   }
 

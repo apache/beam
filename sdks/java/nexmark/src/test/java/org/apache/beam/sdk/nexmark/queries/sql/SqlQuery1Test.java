@@ -27,20 +27,20 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit tests for {@link SqlQuery1}. */
 public class SqlQuery1Test {
 
-  private static final Bid BID1_USD = new Bid(5L, 3L, 100L, new DateTime(43234234L), "extra1");
+  private static final Bid BID1_USD = new Bid(5L, 3L, 100L, new Instant(43234234L), "extra1");
 
-  private static final Bid BID2_USD = new Bid(6L, 4L, 500L, new DateTime(13234234L), "extra2");
+  private static final Bid BID2_USD = new Bid(6L, 4L, 500L, new Instant(13234234L), "extra2");
 
-  private static final Bid BID1_EUR = new Bid(5L, 3L, 89L, new DateTime(43234234L), "extra1");
+  private static final Bid BID1_EUR = new Bid(5L, 3L, 89L, new Instant(43234234L), "extra1");
 
-  private static final Bid BID2_EUR = new Bid(6L, 4L, 445L, new DateTime(13234234L), "extra2");
+  private static final Bid BID2_EUR = new Bid(6L, 4L, 445L, new Instant(13234234L), "extra2");
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
