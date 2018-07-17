@@ -102,7 +102,7 @@ class PipelineOptionsValidator(object):
     """
     errors = []
     for cls in self.OPTIONS:
-      if 'validate' in cls.__dict__:
+      if 'validate' in [k for k, v in cls.__dict__.items() if str(v).startswith("<function")]:
         errors.extend(self.options.view_as(cls).validate(self))
     return errors
 
