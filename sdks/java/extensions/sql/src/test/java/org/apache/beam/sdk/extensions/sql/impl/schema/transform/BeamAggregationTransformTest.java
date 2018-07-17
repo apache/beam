@@ -133,8 +133,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
         aggregatedStream.apply(
             "mergeRecord",
             ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(outputType, -1)));
-    mergedStream.setSchema(
-        outputType, SerializableFunctions.identity(), SerializableFunctions.identity());
+    mergedStream.setRowSchema(outputType);
 
     // assert function BeamAggregationTransform.AggregationGroupByKeyFn
     PAssert.that(exGroupByStream).containsInAnyOrder(prepareResultOfAggregationGroupByKeyFn());

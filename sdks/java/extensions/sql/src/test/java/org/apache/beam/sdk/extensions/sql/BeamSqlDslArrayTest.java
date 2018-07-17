@@ -293,8 +293,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> result =
         input
             .apply(SqlTransform.query("SELECT f_arrayOfRows FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -350,8 +349,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> result =
         input
             .apply(SqlTransform.query("SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -397,8 +395,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> result =
         input
             .apply(SqlTransform.query("SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
-            .setSchema(
-                resultSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(

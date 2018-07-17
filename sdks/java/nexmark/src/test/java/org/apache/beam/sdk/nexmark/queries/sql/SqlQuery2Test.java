@@ -27,7 +27,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -87,7 +87,7 @@ public class SqlQuery2Test {
   }
 
   private static Bid newBid(long id) {
-    return new Bid(id, 3L, 100L, new DateTime(432342L + id), "extra_" + id);
+    return new Bid(id, 3L, 100L, new Instant(432342L + id), "extra_" + id);
   }
 
   private static AuctionPrice newAuctionPrice(Bid bid) {

@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -100,7 +99,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     return begin
         .apply("read", kafkaRead.withoutMetadata())
         .apply("in_format", getPTransformForInput())
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+        .setRowSchema(getSchema());
   }
 
   @Override

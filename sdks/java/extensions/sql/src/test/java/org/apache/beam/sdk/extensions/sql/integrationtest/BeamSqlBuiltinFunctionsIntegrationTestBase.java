@@ -107,7 +107,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               2147483647,
               9223372036854775807L)
           .buildIOReader(pipeline.begin())
-          .setSchema(ROW_TYPE, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(ROW_TYPE);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

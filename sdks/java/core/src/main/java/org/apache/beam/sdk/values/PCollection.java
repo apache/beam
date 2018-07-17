@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -290,6 +291,19 @@ public class PCollection<T> extends PValueBase implements PValue {
     checkArgument(coder != null, "Cannot setCoder(null)");
     this.coderOrFailure = new CoderOrFailure<>(coder, null);
     return this;
+  }
+
+  /**
+   * Sets a schema on this PCollection.
+   *
+   * <p>Can only be called on a {@link PCollection<Row>}.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public PCollection<T> setRowSchema(Schema schema) {
+    return setSchema(
+        schema,
+        (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
+        (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
   }
 
   /** Sets a {@link Schema} on this {@link PCollection}. */

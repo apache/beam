@@ -29,7 +29,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,7 +103,7 @@ public class SqlQuery3Test {
         "cc_" + id,
         "city_" + id,
         state,
-        new DateTime(123123L + id),
+        new Instant(123123L + id),
         "extra_" + id);
   }
 
@@ -115,7 +114,7 @@ public class SqlQuery3Test {
         "desc_" + id,
         123 + id,
         200 + id,
-        new DateTime(123123L + id),
+        new Instant(123123L + id),
         new Instant(223123 + id),
         seller,
         category,

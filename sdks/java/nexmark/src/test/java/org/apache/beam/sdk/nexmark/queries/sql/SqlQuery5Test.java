@@ -30,7 +30,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -76,7 +76,7 @@ public class SqlQuery5Test {
         auction,
         3L,
         100L,
-        new DateTime(432342L + index * config.windowPeriodSec * 1000),
+        new Instant(432342L + index * config.windowPeriodSec * 1000),
         "extra_" + auction);
   }
 }

@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -135,10 +134,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
                       CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setSchema(
-          CalciteUtils.toBeamSchema(getRowType()),
-          SerializableFunctions.identity(),
-          SerializableFunctions.identity());
+      mergedStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
       return mergedStream;
     }

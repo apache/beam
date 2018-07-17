@@ -23,7 +23,6 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -47,7 +46,7 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
     // TODO: make this more generic.
     return begin
         .apply(BigQueryIO.read(BigQueryUtils.toBeamRow(schema)).from(tableSpec))
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+        .setRowSchema(getSchema());
   }
 
   @Override

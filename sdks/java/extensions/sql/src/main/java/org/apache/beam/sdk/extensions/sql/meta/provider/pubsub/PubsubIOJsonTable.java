@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -143,9 +142,7 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
         begin
             .apply("readFromPubsub", readMessagesWithAttributes())
             .apply("parseMessageToRow", createParserParDo());
-    rowsWithDlq
-        .get(MAIN_TAG)
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+    rowsWithDlq.get(MAIN_TAG).setRowSchema(getSchema());
 
     if (useDlq()) {
       rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());
