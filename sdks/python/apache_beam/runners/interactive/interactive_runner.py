@@ -37,7 +37,6 @@ from apache_beam import coders
 from apache_beam import runners
 from apache_beam.io import filesystems
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import display_manager
 from apache_beam.transforms import combiners
@@ -76,8 +75,13 @@ class InteractiveRunner(runners.PipelineRunner):
 
     pcolls_to_pcoll_id = self._pcolls_to_pcoll_id(pipeline, original_context)
 
+    # Make a copy of the original pipeline to avoid accidental manipulation
+    pipeline, context = beam.pipeline.Pipeline.from_runner_api(
+        pipeline_proto,
+        self._underlying_runner,
+        pipeline._options,  # pylint: disable=protected-access
+        return_context=True)
     pipeline_info = PipelineInfo(pipeline_proto.components)
-    context = pipeline_context.PipelineContext(pipeline_proto.components)
 
     caches_used = set()
 
@@ -85,18 +89,33 @@ class InteractiveRunner(runners.PipelineRunner):
       """Returns PTransforms (and their names) that produces the given PColl."""
       derivation = pipeline_info.derivation(pcoll_id)
       if self._cache_manager.exists('full', derivation.cache_label()):
+        # If the PCollection is cached, yield ReadCache PTransform that reads
+        # the PCollection and all its sub PTransforms.
         if not leaf:
           caches_used.add(pcoll_id)
-          yield ('Read' + derivation.cache_label(),
-                 beam_runner_api_pb2.PTransform(
-                     unique_name='Read' + derivation.cache_label(),
-                     spec=beam.io.Read(
-                         beam.io.ReadFromText(
-                             self._cache_manager.glob_path(
-                                 'full', derivation.cache_label()),
-                             coder=SafeFastPrimitivesCoder())._source)
-                     .to_runner_api(context),
-                     outputs={'None': pcoll_id}))
+
+          cache_label = pipeline_info.derivation(pcoll_id).cache_label()
+          dummy_pcoll = pipeline | ReadCache(self._cache_manager, cache_label)
+
+          # Find the top level ReadCache composite PTransform.
+          read_cache = dummy_pcoll.producer
+          while read_cache.parent.parent:
+            read_cache = read_cache.parent
+
+          def _include_subtransforms(transform):
+            """Depth-first yield the PTransform itself and its sub PTransforms.
+            """
+            yield transform
+            for subtransform in transform.parts:
+              for yielded in _include_subtransforms(subtransform):
+                yield yielded
+
+          for transform in _include_subtransforms(read_cache):
+            transform_proto = transform.to_runner_api(context)
+            if dummy_pcoll in transform.outputs.values():
+              transform_proto.outputs['None'] = pcoll_id
+            yield context.transforms.get_id(transform), transform_proto
+
       else:
         transform_id, _ = pipeline_info.producer(pcoll_id)
         transform_proto = pipeline_proto.components.transforms[transform_id]
@@ -250,9 +269,24 @@ class InteractiveRunner(runners.PipelineRunner):
     return referenced_pcollections
 
 
-class WriteCache(beam.PTransform):
-  """A cache that maps PTransform outputs to materialized PCollections."""
+class ReadCache(beam.PTransform):
+  """A PTransform that reads the PCollections from the cache."""
 
+  def __init__(self, cache_manager, label):
+    self._cache_manager = cache_manager
+    self._label = label
+
+  def expand(self, pbegin):
+    # pylint: disable=expression-not-assigned
+    return pbegin | 'Load%s' % self._label >> (
+        beam.io.Read(
+            beam.io.ReadFromText(
+                self._cache_manager.glob_path('full', self._label),
+                coder=SafeFastPrimitivesCoder())._source))
+
+
+class WriteCache(beam.PTransform):
+  """A PTransform that writes the PCollections to the cache."""
   def __init__(self, cache_manager, sample=False):
     self._cache_manager = cache_manager
     self._sample = sample
