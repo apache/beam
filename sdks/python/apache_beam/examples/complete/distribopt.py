@@ -15,9 +15,35 @@
 # limitations under the License.
 #
 
-"""
-Example illustrating the use of Apache Beam for distributing optimization tasks.
-Running this example requires NumPy and SciPy
+"""Example illustrating the use of Apache Beam for solving distributing optimization tasks.
+
+This example solves an optimization problem which consists of distributing a number of
+crops to grow in several greenhouses. The decision where to grow the crop has an impact on
+the production parameters associated with the greenhouse, which affects the total cost of
+production at the greenhouse. Additionally, each crop needs to be transported to a customer
+so the decision where to grow the crop has an impact on the transportation costs as well.
+
+This type of optimization problems are known as mixed-integer programs as they exist of discrete
+parameters (do we produce a crop in greenhouse A, B or C?) and continuous parameters (the
+greenhouse production parameters).
+
+Running this example requires NumPy and SciPy. The input consists of a CSV file with the following
+columns (Tx representing the transporation cost/unit if the crop is produced in greenhouse x):
+Crop name, Quantity, Ta, Tb, Tc, ....
+
+Example input file with 5 crops and 3 greenhouses (a transporation cost of 0 forbids production
+of the crop in a greenhouse):
+OP01,8,12,0,12
+OP02,30,14,3,12
+OP03,25,7,3,14
+OP04,87,7,2,2
+OP05,19,1,7,10
+
+The pipeline consists of three phases:
+  - Creating a grid of mappings (assignment of each crop to a greenhouse)
+  - For each mapping and each greenhouse, optimization of the production parameters for cost,
+    addition of the transporation costs, and aggregation of the costs for each mapping.
+  - Selecting the mapping with the lowest cost.
 """
 import argparse
 import logging
@@ -35,11 +61,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 
 class Simulator(object):
-  """
-  Greenhouse simulation
-
-  Disclaimer: this code is an example and does not correspond to any real greenhouse simulation.
-  """
+  """Greenhouse simulation for the optimization of greenhouse parameters."""
 
   def __init__(self, quantities):
     super(Simulator, self).__init__()
@@ -66,24 +88,31 @@ class Simulator(object):
 
 
 class CreateGrid(beam.PTransform):
-  """
-  A transform for generating the mapping grid.
+  """A transform for generating the mapping grid.
+
+  Input: Formatted records of the input file, e.g.,
+  {
+    'crop': 'OP009',
+    'quantity': 102,
+    'transport_costs': [('A', None), ('B', 3), ('C', 8)]
+  }
+  Output: tuple (mapping_identifier, {crop -> greenhouse})
   """
 
   class PreGenerateMappings(beam.DoFn):
-    """
-    ParDo implementation which splits of 2 records and generated a sub grid.
+    """ParDo implementation which consumes 2 records of an element and forms a small sub grid.
 
     This facilitates parallellization of the grid generation.
-    Emits both the PCollection representing the subgrid, as well as the list
-    of remaining records. Both serve as an input to GenerateMappings
+    Emits two PCollections: the subgrid represented as collection of lists of two tuples,
+    and a list of remaining records. Both serve as an input to GenerateMappings.
     """
 
     def process(self, element):
       records = list(element[1])
-      # Split of 2 crops and pre-generate all combinations to facilitate parallellism
-      # No point splitting of a crop which can only be created in 1 greenhouse,
-      # split of crops with highest number of options.
+      # Split of 2 crops and pre-generate the subgrid.
+      # Select the crop with highest number of possible greenhouses:
+      # in case two crops with only a single possible greenhouse were selected the subgrid
+      # would consist of only 1 element.
       best_split = np.argsort([-len(rec['transport_costs']) for rec in records])[:2]
       rec1 = records[best_split[0]]
       rec2 = records[best_split[1]]
@@ -101,17 +130,10 @@ class CreateGrid(beam.PTransform):
       yield pvalue.TaggedOutput('combine', remaining)
 
   class GenerateMappings(beam.DoFn):
-    """
-    ParDo implementation to generate all possible assignments of crops to greenhouses.
+    """ParDo implementation to generate all possible mappings (assignments of crops to greenhouses).
 
-    Input: dict with crop, quantity and transport_costs keys, e.g.,
-    {
-        'crop': 'OP009',
-        'quantity': 102,
-        'transport_costs': [('A', None), ('B', 3), ('C', 8)]
-    }
-
-    Output: tuple (mapping_identifier, {crop -> greenhouse})
+    Input: output of PreGenerateMappings
+    Output: tuples of the form (mapping_identifier, {crop -> greenhouse})
     """
 
     @staticmethod
@@ -165,9 +187,7 @@ class CreateGrid(beam.PTransform):
 
 
 class OptimizeGrid(beam.PTransform):
-  """
-  A transform for optimizing all greenhouses of the mapping grid.
-  """
+  """A transform for optimizing all greenhouses of the mapping grid."""
 
   class CreateOptimizationTasks(beam.DoFn):
     """
@@ -192,12 +212,11 @@ class OptimizeGrid(beam.PTransform):
         yield (key, crops)
 
   class OptimizeProductParameters(beam.DoFn):
-    """
-    Solve the optimization task to determine optimal production parameters.
+    """Solve the optimization task to determine optimal production parameters.
     Input: ((mapping_identifier, greenhouse), [(crop, quantity),...])
     Two outputs:
-        - solution: (mapping_identifier, (greenhouse, [production parameters]))
-        - costs: (crop, greenhouse, mapping_identifier, cost)
+      - solution: (mapping_identifier, (greenhouse, [production parameters]))
+      - costs: (crop, greenhouse, mapping_identifier, cost)
     """
 
     @staticmethod
@@ -232,9 +251,7 @@ class OptimizeGrid(beam.PTransform):
 
 
 class CreateTransportData(beam.DoFn):
-  """
-  Transform records to pvalues ((crop, greenhouse), transport_cost)
-  """
+  """Transform records to pvalues ((crop, greenhouse), transport_cost)"""
 
   def process(self, record):
     crop = record['crop']
@@ -243,10 +260,9 @@ class CreateTransportData(beam.DoFn):
 
 
 def add_transport_costs(element, transport, quantities):
-  """
-  Adds the transport cost for the crop to the production cost.
+  """Adds the transport cost for the crop to the production cost.
 
-  pvalues are of the form (crop, greenhouse, mapping, cost), the cost only
+  elements are of the form (crop, greenhouse, mapping, cost), the cost only
   corresponds to the production cost. Return the same format, but including
   the transport cost.
   """
@@ -277,8 +293,7 @@ def parse_input(line):
 
 
 def format_output(element):
-  """
-  Transforms the datastructure (unpack lists introduced by CoGroupByKey)
+  """Transforms the datastructure (unpack lists introduced by CoGroupByKey)
   before writing the result to file.
   """
   result = element[1]
@@ -302,10 +317,10 @@ def run(argv=None):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
-  with beam.Pipeline(options=pipeline_options) as pipe:
+  with beam.Pipeline(options=pipeline_options) as p:
     # Parse input file
     records = (
-        pipe
+        p
         | 'read' >> beam.io.ReadFromText(known_args.input)
         | 'process input' >> beam.Map(parse_input)
     )
