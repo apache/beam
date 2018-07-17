@@ -139,7 +139,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
         Bid bestBid = bestBids.get(id);
         if (bestBid != null) {
           TimestampedValue<AuctionBid> result =
-              TimestampedValue.of(new AuctionBid(auction, bestBid), new Instant(auction.expires));
+              TimestampedValue.of(new AuctionBid(auction, bestBid), auction.expires);
           NexmarkUtils.info("winning: %s", result);
           return result;
         }

@@ -34,7 +34,7 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 public interface FieldValueSetter<ObjectT, ValueT> extends Serializable {
   /** Sets the specified field on object to value. */
-  void set(ObjectT object, ValueT value);
+  void set(ObjectT object, @Nullable ValueT value);
 
   /** Returns the name of the field. */
   String name();

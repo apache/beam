@@ -33,7 +33,6 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** A person either creating an auction or making a bid. */
@@ -53,7 +52,7 @@ public class Person implements KnownSize, Serializable {
           STRING_CODER.encode(value.creditCard, outStream);
           STRING_CODER.encode(value.city, outStream);
           STRING_CODER.encode(value.state, outStream);
-          INSTANT_CODER.encode(value.dateTime.toInstant(), outStream);
+          INSTANT_CODER.encode(value.dateTime, outStream);
           STRING_CODER.encode(value.extra, outStream);
         }
 
@@ -65,7 +64,7 @@ public class Person implements KnownSize, Serializable {
           String creditCard = STRING_CODER.decode(inStream);
           String city = STRING_CODER.decode(inStream);
           String state = STRING_CODER.decode(inStream);
-          DateTime dateTime = new DateTime(INSTANT_CODER.decode(inStream));
+          Instant dateTime = INSTANT_CODER.decode(inStream);
           String extra = STRING_CODER.decode(inStream);
           return new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
         }
@@ -93,7 +92,7 @@ public class Person implements KnownSize, Serializable {
 
   @JsonProperty public String state;
 
-  @JsonProperty public DateTime dateTime;
+  @JsonProperty public Instant dateTime;
 
   /** Additional arbitrary payload for performance testing. */
   @JsonProperty public String extra;
@@ -118,7 +117,7 @@ public class Person implements KnownSize, Serializable {
       String creditCard,
       String city,
       String state,
-      DateTime dateTime,
+      Instant dateTime,
       String extra) {
     this.id = id;
     this.name = name;

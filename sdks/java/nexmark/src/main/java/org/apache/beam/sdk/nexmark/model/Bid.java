@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** A bid for an item on auction. */
@@ -51,7 +50,7 @@ public class Bid implements KnownSize, Serializable {
           LONG_CODER.encode(value.auction, outStream);
           LONG_CODER.encode(value.bidder, outStream);
           LONG_CODER.encode(value.price, outStream);
-          INSTANT_CODER.encode(value.dateTime.toInstant(), outStream);
+          INSTANT_CODER.encode(value.dateTime, outStream);
           STRING_CODER.encode(value.extra, outStream);
         }
 
@@ -60,7 +59,7 @@ public class Bid implements KnownSize, Serializable {
           long auction = LONG_CODER.decode(inStream);
           long bidder = LONG_CODER.decode(inStream);
           long price = LONG_CODER.decode(inStream);
-          DateTime dateTime = new DateTime(INSTANT_CODER.decode(inStream));
+          Instant dateTime = INSTANT_CODER.decode(inStream);
           String extra = STRING_CODER.decode(inStream);
           return new Bid(auction, bidder, price, dateTime, extra);
         }
@@ -112,7 +111,7 @@ public class Bid implements KnownSize, Serializable {
    * Instant at which bid was made (ms since epoch). NOTE: This may be earlier than the system's
    * event time.
    */
-  @JsonProperty public DateTime dateTime;
+  @JsonProperty public Instant dateTime;
 
   /** Additional arbitrary payload for performance testing. */
   @JsonProperty public String extra;
@@ -127,7 +126,7 @@ public class Bid implements KnownSize, Serializable {
     extra = null;
   }
 
-  public Bid(long auction, long bidder, long price, DateTime dateTime, String extra) {
+  public Bid(long auction, long bidder, long price, Instant dateTime, String extra) {
     this.auction = auction;
     this.bidder = bidder;
     this.price = price;

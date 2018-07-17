@@ -33,7 +33,6 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** An auction submitted by a person. */
@@ -53,7 +52,7 @@ public class Auction implements KnownSize, Serializable {
           STRING_CODER.encode(value.description, outStream);
           LONG_CODER.encode(value.initialBid, outStream);
           LONG_CODER.encode(value.reserve, outStream);
-          INSTANT_CODER.encode(value.dateTime.toInstant(), outStream);
+          INSTANT_CODER.encode(value.dateTime, outStream);
           INSTANT_CODER.encode(value.expires, outStream);
           LONG_CODER.encode(value.seller, outStream);
           LONG_CODER.encode(value.category, outStream);
@@ -67,7 +66,7 @@ public class Auction implements KnownSize, Serializable {
           String description = STRING_CODER.decode(inStream);
           long initialBid = LONG_CODER.decode(inStream);
           long reserve = LONG_CODER.decode(inStream);
-          DateTime dateTime = new DateTime(INSTANT_CODER.decode(inStream));
+          Instant dateTime = INSTANT_CODER.decode(inStream);
           Instant expires = INSTANT_CODER.decode(inStream);
           long seller = LONG_CODER.decode(inStream);
           long category = LONG_CODER.decode(inStream);
@@ -105,7 +104,7 @@ public class Auction implements KnownSize, Serializable {
   /** Reserve price, in cents. */
   @JsonProperty public long reserve;
 
-  @JsonProperty public DateTime dateTime;
+  @JsonProperty public Instant dateTime;
 
   /** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
   @JsonProperty public Instant expires;
@@ -140,7 +139,7 @@ public class Auction implements KnownSize, Serializable {
       String description,
       long initialBid,
       long reserve,
-      DateTime dateTime,
+      Instant dateTime,
       Instant expires,
       long seller,
       long category,
