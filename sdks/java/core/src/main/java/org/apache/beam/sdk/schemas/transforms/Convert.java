@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental(Kind.SCHEMAS)
 public class Convert {
   /**
-   * Convert a {@link PCollection<InputT>} into a {@link PCollection<Row>}.
+   * Convert a {@link PCollection}{@literal <InputT>} into a {@link PCollection}{@literal <Row>}.
    *
    * <p>The input {@link PCollection} must have a schema attached. The output collection will have
    * the same schema as the iput.
@@ -45,7 +45,7 @@ public class Convert {
   }
 
   /**
-   * Convert a {@link PCollection<Row>} into a {@link PCollection<OutputT>}.
+   * Convert a {@link PCollection}{@literal <Row>} into a {@link PCollection}{@literal <OutputT>}.
    *
    * <p>The output schema will be inferred using the schema registry. A schema must be registered
    * for this type, or the conversion will fail.
@@ -56,7 +56,7 @@ public class Convert {
   }
 
   /**
-   * Convert a {@link PCollection<Row>} into a {@link PCollection<OutputT>}.
+   * Convert a {@link PCollection}{@literal <Row>} into a {@link PCollection}{@literal <Row>}.
    *
    * <p>The output schema will be inferred using the schema registry. A schema must be registered
    * for this type, or the conversion will fail.
@@ -67,7 +67,7 @@ public class Convert {
   }
 
   /**
-   * Convert a {@link PCollection<InputT>} to a {@link PCollection<OutputT>}.
+   * Convert a {@link PCollection}{@literal <InputT>} to a {@link PCollection}{@literal <OutputT>}.
    *
    * <p>This function allows converting between two types as long as the two types have
    * <i>compatible</i> schemas. Two schemas are said to be <i>compatible</i> if they recursively
@@ -79,7 +79,7 @@ public class Convert {
   }
 
   /**
-   * Convert a {@link PCollection<InputT>} to a {@link PCollection<OutputT>}.
+   * Convert a {@link PCollection}{@literal <InputT>} to a {@link PCollection}{@literal <OutputT>}.
    *
    * <p>This function allows converting between two types as long as the two types have
    * <i>compatible</i> schemas. Two schemas are said to be <i>compatible</i> if they recursively
