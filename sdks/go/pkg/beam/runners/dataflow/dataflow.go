@@ -145,7 +145,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(edges, model, opts, workerURL, modelURL)
+		job, err := dataflowlib.Translate(model, opts, workerURL, modelURL)
 		if err != nil {
 			return err
 		}
@@ -153,7 +153,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, edges, model, opts, workerURL, modelURL, *endpoint, false)
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, false)
 	return err
 }
 

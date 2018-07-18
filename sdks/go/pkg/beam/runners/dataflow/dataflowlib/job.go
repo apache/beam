@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
@@ -61,10 +60,10 @@ type JobOptions struct {
 }
 
 // Translate translates a pipeline to a Dataflow job.
-func Translate(edges []*graph.MultiEdge, p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
+func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
-	steps, err := translate(edges)
+	steps, err := translate(p)
 	if err != nil {
 		return nil, err
 	}

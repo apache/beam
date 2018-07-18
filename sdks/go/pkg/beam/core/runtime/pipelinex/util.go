@@ -36,3 +36,54 @@ func ContainerImages(p *pb.Pipeline) []string {
 	}
 	return ret
 }
+
+// TopologicalSort returns a topologically sorted list of the given
+// ids, generally from the same scope/composite. Assumes acyclic graph.
+func TopologicalSort(xforms map[string]*pb.PTransform, ids []string) []string {
+	if len(ids) == 0 {
+		return ids
+	}
+
+	v := newVisiter(xforms, ids)
+	for _, id := range ids {
+		v.visit(xforms, id)
+	}
+	return v.output
+}
+
+type visiter struct {
+	output []string
+	index  int
+	seen   map[string]bool
+	next   map[string][]string // collection -> transforms
+}
+
+func newVisiter(xforms map[string]*pb.PTransform, ids []string) *visiter {
+	ret := &visiter{
+		output: make([]string, len(ids), len(ids)),
+		index:  len(ids) - 1,
+		seen:   make(map[string]bool),
+		next:   make(map[string][]string),
+	}
+	for _, id := range ids {
+		for _, in := range xforms[id].Inputs {
+			ret.next[in] = append(ret.next[in], id)
+		}
+	}
+	return ret
+}
+
+func (v *visiter) visit(xforms map[string]*pb.PTransform, id string) {
+	if v.seen[id] {
+		return
+	}
+	v.seen[id] = true
+	for _, out := range xforms[id].Outputs {
+		for _, next := range v.next[out] {
+			v.visit(xforms, next)
+		}
+	}
+
+	v.output[v.index] = id
+	v.index--
+}

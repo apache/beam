@@ -17,10 +17,9 @@ package dataflowlib
 
 import (
 	"context"
-	json "encoding/json"
+	"encoding/json"
 	"os"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -29,7 +28,7 @@ import (
 	df "google.golang.org/api/dataflow/v1b3"
 )
 
-func Execute(ctx context.Context, edges []*graph.MultiEdge, p *pb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (string, error) {
+func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (string, error) {
 	// (1) Upload Go binary to GCS.
 
 	bin := opts.Worker
@@ -72,7 +71,7 @@ func Execute(ctx context.Context, edges []*graph.MultiEdge, p *pb.Pipeline, opts
 
 	// (3) Translate to v1b3 and submit
 
-	job, err := Translate(edges, p, opts, workerURL, modelURL)
+	job, err := Translate(p, opts, workerURL, modelURL)
 	if err != nil {
 		return "", err
 	}

@@ -79,7 +79,7 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pb.Pipeline, error) {
 	p := &pb.Pipeline{
 		Components: m.build(),
 	}
-	return pipelinex.Fixup(p)
+	return pipelinex.Normalize(p)
 }
 
 type marshaller struct {
@@ -189,7 +189,7 @@ func tryAddingCoder(c *coder.Coder) (ok bool) {
 }
 
 func (m *marshaller) addMultiEdge(edge NamedEdge) string {
-	id := StableMultiEdgeID(edge.Edge)
+	id := edgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
 		return id
 	}
@@ -224,7 +224,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
 
-	id := StableMultiEdgeID(edge.Edge)
+	id := edgeID(edge.Edge)
 	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
 	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
 
@@ -237,7 +237,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 		// Inject(i)
 
-		injectID := StableCoGBKInjectID(id, i)
+		injectID := fmt.Sprintf("%v_inject%v", id, i)
 		payload := &pb.ParDoPayload{
 			DoFn: &pb.SdkFunctionSpec{
 				Spec: &pb.FunctionSpec{
@@ -271,7 +271,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	out := fmt.Sprintf("%v_flatten", nodeID(outNode))
 	m.makeNode(out, kvCoderID, outNode)
 
-	flattenID := StableCoGBKFlattenID(id)
+	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pb.PTransform{
 		UniqueName: flattenID,
 		Spec:       &pb.FunctionSpec{Urn: URNFlatten},
@@ -285,7 +285,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
 	m.makeNode(gbkOut, gbkCoderID, outNode)
 
-	gbkID := StableCoGBKGBKID(id)
+	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pb.PTransform{
 		UniqueName: edge.Name,
 		Spec:       m.makePayload(edge.Edge),
@@ -314,6 +314,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	switch edge.Op {
 	case graph.Impulse:
+		// TODO(herohde) 7/18/2018: Encode data?
 		return &pb.FunctionSpec{Urn: URNImpulse}
 
 	case graph.ParDo:
@@ -417,7 +418,7 @@ func (m *marshaller) addDefaultEnv() string {
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
-	ws := MarshalWindowingStrategy(m.coders, w)
+	ws := marshalWindowingStrategy(m.coders, w)
 	return m.internWindowingStrategy(ws)
 }
 
@@ -433,12 +434,9 @@ func (m *marshaller) internWindowingStrategy(w *pb.WindowingStrategy) string {
 	return id
 }
 
-// TODO(herohde) 4/14/2018: make below function private or refactor,
-// once Dataflow doesn't need it anymore.
-
-// MarshalWindowingStrategy marshals the given windowing strategy in
+// marshalWindowingStrategy marshals the given windowing strategy in
 // the given coder context.
-func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
+func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
 	ws := &pb.WindowingStrategy{
 		WindowFn: &pb.SdkFunctionSpec{
 			Spec: makeWindowFn(w.Fn),
@@ -520,35 +518,14 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 	})
 }
 
+func edgeID(edge *graph.MultiEdge) string {
+	return fmt.Sprintf("e%v", edge.ID())
+}
+
 func nodeID(n *graph.Node) string {
 	return fmt.Sprintf("n%v", n.ID())
 }
 
 func scopeID(s *graph.Scope) string {
 	return fmt.Sprintf("s%v", s.ID())
-}
-
-func index(i int) string {
-	return fmt.Sprintf("i%v", i)
-}
-
-// TODO(herohde) 4/17/2018: StableXXXID returns deterministic transform ids
-// for reference in the Dataflow runner. A better solution is to translate
-// the proto pipeline to the Dataflow representation (or for Dataflow to
-// support proto pipelines directly).
-
-func StableMultiEdgeID(edge *graph.MultiEdge) string {
-	return fmt.Sprintf("e%v", edge.ID())
-}
-
-func StableCoGBKInjectID(id string, i int) string {
-	return fmt.Sprintf("%v_inject%v", id, i)
-}
-
-func StableCoGBKFlattenID(id string) string {
-	return fmt.Sprintf("%v_flatten", id)
-}
-
-func StableCoGBKGBKID(id string) string {
-	return fmt.Sprintf("%v_gbk", id)
 }
