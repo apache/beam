@@ -1760,7 +1760,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
-   * {@link PTransform} is equal to the {@link Class} provided ot this matcher and it has no side
+   * {@link PTransform} is equal to the {@link Class} provided to this matcher and it has no side
    * inputs.
    */
   private static PTransformMatcher combineValuesWithoutSideInputs() {
