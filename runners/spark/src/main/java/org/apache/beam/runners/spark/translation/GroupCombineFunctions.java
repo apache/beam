@@ -29,8 +29,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.HashPartitioner;
-import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -52,13 +50,11 @@ public class GroupCombineFunctions {
             .map(WindowingHelpers.unwindowFunction())
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-    // use a default parallelism HashPartitioner.
-    Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
 
     // using mapPartitions allows to preserve the partitioner
     // and avoid unnecessary shuffle downstream.
     return pairRDD
-        .groupByKey(partitioner)
+        .groupByKey()
         .mapPartitionsToPair(
             TranslationUtils.pairFunctionToPairFlatMapFunction(
                 CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
