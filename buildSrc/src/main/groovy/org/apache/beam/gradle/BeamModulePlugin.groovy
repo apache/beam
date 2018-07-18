@@ -259,12 +259,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
-    // Apply a task dependency visualization plugin which creates a ".dot" file in the build directory
-    // giving the task dependencies for the current build. Unfortunately this creates a ".dot" file
-    // in each sub-projects report output directory.
-    // See https://github.com/mmalohlava/gradle-visteg for further details.
-    project.apply plugin: "cz.malohlava.visteg"
-
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
     // repository. This offline repository satisfies all Gradle build dependencies and Java
     // project dependencies. The offline repository is placed within $rootDir/offline-repo
