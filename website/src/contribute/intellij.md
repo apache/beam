@@ -81,7 +81,7 @@ modules as they are not configured for Checkstyle validation.
 
 ## Code Style
 
-Note: As of release 2.6.0 uniform formatting is automated by the build
+Note: As of release 2.6.0 uniform formatting for Java and Groovy code is automated by the build
 through the [Spotless Gradle plugin](https://github.com/diffplug/spotless/tree/master/plugin-gradle).
 Instead of relying on the IDE, now you can run `./gradlew spotlessApply`
 to reformat changes prior to commit.
