@@ -123,7 +123,7 @@ echo "==============================================================="
 
 sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
 # TODO: [BEAM-4767]
-sed -i -e "s/beam-master-.*/beam-${RELEASE}/g" runners/google-cloud-dataflow-java/build.gradle
+sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
 
 echo "===============Update release branch as following=============="
 git diff
@@ -139,7 +139,7 @@ fi
 
 git add sdks/python/apache_beam/version.py
 git add runners/google-cloud-dataflow-java/build.gradle
-git commit -f -m "Create release branch for version ${RELEASE}."
+git commit -m "Create release branch for version ${RELEASE}."
 git push --set-upstream origin ${RELEASE_BRANCH}
 
 clean_up
