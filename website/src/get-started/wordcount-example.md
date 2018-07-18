@@ -168,7 +168,7 @@ nested transforms (which is a [composite transform]({{ site.baseurl }}/documenta
 Each transform takes some kind of input data and produces some output data. The
 input and output data is often represented by the SDK class `PCollection`.
 `PCollection` is a special class, provided by the Beam SDK, that you can use to
-represent a data set of virtually any size, including unbounded data sets.
+represent a dataset of virtually any size, including unbounded datasets.
 
 ![The MinimalWordCount pipeline data flow.](
   {{ "/images/wordcount-pipeline.png" | prepend: site.baseurl }}){: width="800px"}
@@ -920,13 +920,12 @@ or DEBUG significantly increases the amount of logs output.
 <span class="language-java">`PAssert`</span><span class="language-py">`assert_that`</span>
 is a set of convenient PTransforms in the style of Hamcrest's collection
 matchers that can be used when writing pipeline level tests to validate the
-contents of PCollections. Asserts are best used in unit tests with small data
-sets.
+contents of PCollections. Asserts are best used in unit tests with small datasets.
 
 {:.language-go}
 The `passert` package contains convenient PTransforms that can be used when
 writing pipeline level tests to validate the contents of PCollections. Asserts
-are best used in unit tests with small data sets.
+are best used in unit tests with small datasets.
 
 {:.language-java}
 The following example verifies that the set of filtered words matches our
@@ -975,7 +974,7 @@ examples did, but introduces several advanced concepts.
 
 **New Concepts:**
 
-* Unbounded and bounded pipeline input modes
+* Unbounded and bounded datasets
 * Adding timestamps to data
 * Windowing
 * Reusing PTransforms over windowed PCollections
@@ -1133,12 +1132,21 @@ To view the full code in Go, see
 **[windowed_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/windowed_wordcount/windowed_wordcount.go).**
 
 
-### Unbounded and bounded pipeline input modes
+### Unbounded and bounded datasets
 
 Beam allows you to create a single pipeline that can handle both bounded and
-unbounded types of input. If your input has a fixed number of elements, it's
-considered a 'bounded' data set. If your input is continuously updating, then
-it's considered 'unbounded' and you must use a runner that supports streaming.
+unbounded datasets. If your dataset has a fixed number of elements, it is a bounded
+dataset and all of the data can be processed together. For bounded datasets,
+the question to ask is "Do I have all of the data?" If data continuously
+arrives (such as an endless stream of game scores in the
+[Mobile gaming example](https://beam.apache.org/get-started/mobile-gaming-example/),
+it is an unbounded dataset. An unbounded dataset is never available for
+processing at any one time, so the data must be processed using a streaming
+pipeline that runs continuously. The dataset will only be complete up to a
+certain point, so the question to ask is "Up until what point do I have all of
+the data?" Beam uses [windowing]({{ site.baseurl }}/documentation/programming-guide/#windowing)
+to divide a continuously updating dataset into logical windows of finite size.
+If your input is unbounded, you must use a runner that supports streaming.
 
 If your pipeline's input is bounded, then all downstream PCollections will also be
 bounded. Similarly, if the input is unbounded, then all downstream PCollections
@@ -1305,7 +1313,7 @@ frequency count of the words seen in each 15 second window.
 
 **New Concepts:**
 
-* Reading an unbounded data set
+* Reading an unbounded dataset
 * Writing unbounded results
 
 **To run this example in Java:**
@@ -1369,9 +1377,9 @@ To view the full code in Python, see
 ([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
 
 
-### Reading an unbounded data set
+### Reading an unbounded dataset
 
-This example uses an unbounded data set as input. The code reads Pub/Sub
+This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
 [`beam.io.ReadStringsFromPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
 
