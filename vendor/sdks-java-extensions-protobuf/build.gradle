@@ -45,12 +45,8 @@ ext.summary = "Add support to Apache Beam for Vendored Google Protobuf."
  */
 evaluationDependsOn(":beam-sdks-java-extensions-protobuf")
 
-sourceSets {
-    main {
-        java {
-            srcDirs project(":beam-sdks-java-extensions-protobuf").sourceSets.main.java.srcDirs
-        }
-    }
+compileJava {
+    source project(":beam-sdks-java-extensions-protobuf").sourceSets.main.java.srcDirs
 }
 
 dependencies {
