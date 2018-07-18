@@ -64,7 +64,7 @@ task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:s
 
   systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
 
-  include '**/JdbcJarTest.class'
+  include '**/JdbcJarPreCommitCheck.class'
   classpath = configurations.integrationTest
   useJUnit { }
 }

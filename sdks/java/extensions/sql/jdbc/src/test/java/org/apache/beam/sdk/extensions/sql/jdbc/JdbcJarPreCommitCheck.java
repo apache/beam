@@ -33,7 +33,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Test for JDBC via {@link java.net.URLClassLoader}. */
-public class JdbcJarTest {
+public class JdbcJarPreCommitCheck {
   private static final String DRIVER_URL = "jdbc:beam:";
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
