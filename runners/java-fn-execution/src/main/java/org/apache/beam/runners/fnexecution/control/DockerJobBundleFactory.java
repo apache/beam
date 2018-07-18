@@ -74,7 +74,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   public interface JobBundleFactoryFactory {
     DockerJobBundleFactory create(JobInfo jobInfo) throws Exception;
   }
-  // TODO: a hacky way to override the factory for testing.
+  // TODO (BEAM-4819): a hacky way to override the factory for testing.
   // Should be replaced with mechanism that let's users configure their own factory
   public static final AtomicReference<JobBundleFactoryFactory> FACTORY =
       new AtomicReference(
