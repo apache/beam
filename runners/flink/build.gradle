@@ -80,10 +80,10 @@ dependencies {
   shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest project(":beam-sdks-java-harness")
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
-  testCompile project(":beam-sdks-java-harness")
 }
 
 class ValidatesRunnerConfig {
