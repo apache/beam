@@ -89,7 +89,7 @@ Official [source code download](https://dist.apache.org/repos/dist/release/beam/
 ### 2.4.0 (2018-03-20)
 Official [source code download](https://archive.apache.org/dist/beam/2.4.0/apache-beam-2.4.0-source-release.zip)
 
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12341608).
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12342682).
 
 ### 2.3.0 (2018-01-30)
 Official [source code download](https://archive.apache.org/dist/beam/2.3.0/apache-beam-2.3.0-source-release.zip).
