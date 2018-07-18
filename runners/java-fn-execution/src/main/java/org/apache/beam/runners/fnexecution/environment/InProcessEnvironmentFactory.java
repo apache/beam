@@ -108,7 +108,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
                     e);
                 throw e;
               }
-              return (Object) null;
+              return null;
             });
     executor.submit(
         () -> {
