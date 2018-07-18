@@ -517,9 +517,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
-    private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-    private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
-
     @TimerId("event")
     private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
