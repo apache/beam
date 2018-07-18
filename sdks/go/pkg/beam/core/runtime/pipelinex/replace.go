@@ -35,13 +35,14 @@ func Update(p *pb.Pipeline, values *pb.Components) (*pb.Pipeline, error) {
 	reflectx.MergeMaps(ret.Components.WindowingStrategies, values.WindowingStrategies)
 	reflectx.MergeMaps(ret.Components.Coders, values.Coders)
 	reflectx.MergeMaps(ret.Components.Environments, values.Environments)
-	return Fixup(ret)
+	return Normalize(ret)
 }
 
-// Fixup recomputes derivative information in the pipeline, such
+// Normalize recomputes derivative information in the pipeline, such
 // as roots and input/output for composite transforms. It also
-// ensures that unique names are so.
-func Fixup(p *pb.Pipeline) (*pb.Pipeline, error) {
+// ensures that unique names are so and topologically sorts each
+// subtransform list.
+func Normalize(p *pb.Pipeline) (*pb.Pipeline, error) {
 	if len(p.GetComponents().GetTransforms()) == 0 {
 		return nil, fmt.Errorf("empty pipeline")
 	}
@@ -51,6 +52,27 @@ func Fixup(p *pb.Pipeline) (*pb.Pipeline, error) {
 	ret.Components.Transforms = computeCompositeInputOutput(ret.Components.Transforms)
 	ret.RootTransformIds = computeRoots(ret.Components.Transforms)
 	return ret, nil
+}
+
+// TrimCoders returns the transitive closure of the given coders ids.
+func TrimCoders(coders map[string]*pb.Coder, ids ...string) map[string]*pb.Coder {
+	ret := make(map[string]*pb.Coder)
+	for _, id := range ids {
+		walkCoders(coders, ret, id)
+	}
+	return ret
+}
+
+func walkCoders(coders, accum map[string]*pb.Coder, id string) {
+	if _, ok := accum[id]; ok {
+		return // already visited
+	}
+
+	c := coders[id]
+	accum[id] = c
+	for _, sub := range c.ComponentCoderIds {
+		walkCoders(coders, accum, sub)
+	}
 }
 
 // computeRoots returns the root (top-level) transform IDs.
@@ -63,7 +85,7 @@ func computeRoots(xforms map[string]*pb.PTransform) []string {
 			roots = append(roots, id)
 		}
 	}
-	return roots
+	return TopologicalSort(xforms, roots)
 }
 
 func makeParentMap(xforms map[string]*pb.PTransform) map[string]string {
@@ -111,6 +133,7 @@ func walk(id string, ret map[string]*pb.PTransform, seen map[string]bool) {
 	upd := ShallowClonePTransform(t)
 	upd.Inputs = diff(in, out)
 	upd.Outputs = diff(out, in)
+	upd.Subtransforms = TopologicalSort(ret, upd.Subtransforms)
 
 	ret[id] = upd
 	seen[id] = true
