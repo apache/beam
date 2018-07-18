@@ -180,11 +180,11 @@ public class SyntheticOptions implements Serializable {
    *       representing the mean of this exponentially distributed delay in milliseconds.
    *   <li>The zipf distribution is specified through
    *       "delayDistribution":{"type":"zipf","param":param,"multiplier":multiplier}, where param is
-   *       a number > 1 and multiplier just scales the output of the distribution. By default, the
-   *       multiplier is 1. Parameters closer to 1 produce dramatically more skewed results. E.g.
-   *       given 100 samples, the min will almost always be 1, while max with param 3 will usually
-   *       be below 10; with param 2 max will usually be between several dozen and several hundred;
-   *       with param 1.5, thousands to millions.
+   *       a number &gt; 1 and multiplier just scales the output of the distribution. By default,
+   *       the multiplier is 1. Parameters closer to 1 produce dramatically more skewed results.
+   *       E.g. given 100 samples, the min will almost always be 1, while max with param 3 will
+   *       usually be below 10; with param 2 max will usually be between several dozen and several
+   *       hundred; with param 1.5, thousands to millions.
    *   <li>The constant sleep time per record is specified through
    *       "delayDistribution":{"type":"const","const":const} where const is a non-negative number
    *       representing the constant sleep time in milliseconds.
