@@ -99,6 +99,12 @@ public interface SparkPipelineOptions
 
   void setCheckpointDurationMillis(Long durationMillis);
 
+  @Description("Bundle Size for splitting BoundedSources.")
+  @Default.Long(64L * 1024L * 1024L)
+  long getBundleSize();
+
+  void setBundleSize(long value);
+
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
