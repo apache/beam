@@ -175,7 +175,7 @@ public class BeamFileSystemArtifactServicesTest {
                 .build());
       }
       outputStreamObserver.onCompleted();
-      complete.get(1, TimeUnit.SECONDS);
+      complete.get(10, TimeUnit.SECONDS);
     }
   }
 
