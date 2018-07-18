@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -111,6 +112,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -467,21 +469,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformMatchers.classEqualTo(Read.Bounded.class),
               new FnApiBoundedReadOverrideFactory()));
     }
-    overridesBuilder.add(
-        PTransformOverride.of(
-            PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()));
-    // Order is important. Streaming views almost all use Combine internally.
-    // TODO (BEAM-4118) Remove this check once combiner lifting is implemented for the FnAPI.
-    if (!hasExperiment(options, "beam_fn_api")) {
-      overridesBuilder.add(
-          PTransformOverride.of(
-              PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-              new PrimitiveCombineGroupedValuesOverrideFactory()));
-    }
-    overridesBuilder.add(
-        PTransformOverride.of(
-            PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
-            new PrimitiveParDoSingleFactory()));
+    overridesBuilder
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()))
+        // Order is important. Streaming views almost all use Combine internally.
+        .add(
+            PTransformOverride.of(
+                combineValuesWithoutSideInputs(),
+                new PrimitiveCombineGroupedValuesOverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
+                new PrimitiveParDoSingleFactory()));
     return overridesBuilder.build();
   }
 
@@ -1755,6 +1755,33 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String.format(
               "%s does not currently support state or timers with merging windows",
               DataflowRunner.class.getSimpleName()));
+    }
+  }
+
+  /**
+   * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
+   * {@link PTransform} is equal to the {@link Class} provided ot this matcher and it has no side
+   * inputs.
+   */
+  private static PTransformMatcher combineValuesWithoutSideInputs() {
+    return new CombineValuesWithoutSideInputsPTransformMatcher();
+  }
+
+  private static class CombineValuesWithoutSideInputsPTransformMatcher
+      implements PTransformMatcher {
+    private CombineValuesWithoutSideInputsPTransformMatcher() {}
+
+    @Override
+    public boolean matches(AppliedPTransform<?, ?, ?> application) {
+      return application.getTransform().getClass().equals(Combine.GroupedValues.class)
+          && ((Combine.GroupedValues<?, ?, ?>) application.getTransform())
+              .getSideInputs()
+              .isEmpty();
+    }
+
+    @Override
+    public String toString() {
+      return toStringHelper(CombineValuesWithoutSideInputsPTransformMatcher.class).toString();
     }
   }
 }
