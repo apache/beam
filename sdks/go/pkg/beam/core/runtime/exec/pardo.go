@@ -201,45 +201,55 @@ func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.Ev
 	if fn == nil {
 		return nil, nil
 	}
-
-	for _, e := range n.emitters {
-		if err := e.Init(ctx, ws, ts); err != nil {
-			return nil, err
-		}
-	}
-	for _, s := range n.sideinput {
-		if err := s.Init(); err != nil {
-			return nil, err
-		}
+	if err := n.preInvoke(ctx, ws, ts); err != nil {
+		return nil, err
 	}
 	val, err := Invoke(ctx, ws, ts, fn, opt, n.extra...)
-	for _, s := range n.sideinput {
-		if err := s.Reset(); err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
-	return val, err
+	if err := n.postInvoke(); err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 // invokeProcessFn handles the per element invocations
 func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (*FullValue, error) {
+	if err := n.preInvoke(ctx, ws, ts); err != nil {
+		return nil, err
+	}
+	val, err := n.inv.Invoke(ctx, ws, ts, opt, n.extra...)
+	if err != nil {
+		return nil, err
+	}
+	if err := n.postInvoke(); err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func (n *ParDo) preInvoke(ctx context.Context, ws []typex.Window, ts typex.EventTime) error {
 	for _, e := range n.emitters {
 		if err := e.Init(ctx, ws, ts); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	for _, s := range n.sideinput {
 		if err := s.Init(); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	val, err := n.inv.Invoke(ctx, ws, ts, opt, n.extra...)
+	return nil
+}
+
+func (n *ParDo) postInvoke() error {
 	for _, s := range n.sideinput {
 		if err := s.Reset(); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return val, err
+	return nil
 }
 
 func (n *ParDo) fail(err error) error {
