@@ -1136,6 +1136,15 @@ public class TextIO {
       return new Write(inner.withWritableByteChannelFactory(writableByteChannelFactory));
     }
 
+    /**
+     * See {@link TypedWrite#withCompression(Compression)}.
+     */
+    public Write withCompression(Compression compression) {
+      checkArgument(compression != null, "compression can not be null");
+      return withWritableByteChannelFactory(
+          FileBasedSink.CompressionType.fromCanonical(compression));
+    }
+
     /** See {@link TypedWrite#withWindowedWrites}. */
     public Write withWindowedWrites() {
       return new Write(inner.withWindowedWrites());
