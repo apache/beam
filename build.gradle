@@ -82,7 +82,19 @@ if (!gradle.startParameter.isOffline()) {
   apply plugin: "com.gradle.build-scan"
 }
 
+// Apply a task dependency visualization plugin which creates a ".dot" file containing the
+// task dependencies for the current build. This command can help create a visual representation:
+//   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
+//
+// See https://github.com/mmalohlava/gradle-visteg for further details.
+apply plugin: "cz.malohlava.visteg"
+
+// This plugin provides a task to determine which dependencies have updates.
+// Additionally, the plugin checks for updates to Gradle itself.
+//
+// See https://github.com/ben-manes/gradle-versions-plugin for further details.
 apply plugin: 'com.github.ben-manes.versions'
+
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
