@@ -39,7 +39,7 @@
 #/sdks/java/extensions/sorter
 /sdks/java/extensions/sql @akedin @apilloud @amaliujia @XuMingmin @xumingming @kennknowles
 /sdks/java/container @herohde @aaltay
-/sdks/java/fn-execution @lukecwik
+/sdks/java/fn-execution @lukecwik @angoenka
 /sdks/java/nexmark @echauchot @aromanenko-dev
 /sdks/java/build-tools @jasonkuster @swegner
 /sdks/java/harness @lukecwik
@@ -109,9 +109,9 @@ build.gradle @lukecwik
 /runners/core-java @lukecwik
 /runners/core-java/src/main/java/org/apache/beam/runners/core/metrics @echauchot
 /runners/local-java @lukecwik
-/runners/java-fn-execution @lukecwik
+/runners/java-fn-execution @lukecwik @angoenka
 /runners/core-construction-java @lukecwik
-#/runners/flink
+/runners/flink @angoenka
 /runners/spark @jbonofre
 /runners/reference @lukecwik
 #/runners/gearpump
