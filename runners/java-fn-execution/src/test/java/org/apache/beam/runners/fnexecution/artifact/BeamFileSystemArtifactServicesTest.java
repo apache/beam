@@ -74,11 +74,14 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link BeamFileSystemArtifactStagingService} and {@link
  * BeamFileSystemArtifactRetrievalService}.
  */
+@RunWith(JUnit4.class)
 public class BeamFileSystemArtifactServicesTest {
   private static final int DATA_1KB = 1 << 10;
   private GrpcFnServer<BeamFileSystemArtifactStagingService> stagingServer;
@@ -133,6 +136,7 @@ public class BeamFileSystemArtifactServicesTest {
 
   private void putArtifact(String stagingSessionToken, final String filePath, final String fileName)
       throws Exception {
+    CompletableFuture<Boolean> complete = new CompletableFuture<>();
     StreamObserver<PutArtifactRequest> outputStreamObserver =
         stagingStub.putArtifact(
             new StreamObserver<PutArtifactResponse>() {
@@ -148,7 +152,9 @@ public class BeamFileSystemArtifactServicesTest {
               }
 
               @Override
-              public void onCompleted() {}
+              public void onCompleted() {
+                complete.complete(Boolean.TRUE);
+              }
             });
     outputStreamObserver.onNext(
         PutArtifactRequest.newBuilder()
@@ -169,6 +175,7 @@ public class BeamFileSystemArtifactServicesTest {
                 .build());
       }
       outputStreamObserver.onCompleted();
+      complete.get(1, TimeUnit.SECONDS);
     }
   }
 
