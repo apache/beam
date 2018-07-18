@@ -133,6 +133,9 @@ rat {
     "website/src/_sass/bootstrap/**/*",
     "website/src/js/bootstrap*.js",
     "website/src/js/bootstrap/**/*",
+
+    // Ignore ownership files
+    "ownership/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
