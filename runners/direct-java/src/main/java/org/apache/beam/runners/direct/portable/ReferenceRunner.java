@@ -29,6 +29,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -234,7 +237,8 @@ public class ReferenceRunner {
       GrpcFnServer<GrpcLoggingService> logging,
       GrpcFnServer<ArtifactRetrievalService> artifact,
       GrpcFnServer<StaticGrpcProvisionService> provisioning,
-      ControlClientPool.Source controlClientSource) {
+      ControlClientPool.Source controlClientSource)
+      throws IOException {
     switch (environmentType) {
       case DOCKER:
         return DockerEnvironmentFactory.forServices(
@@ -243,6 +247,8 @@ public class ReferenceRunner {
             artifact,
             provisioning,
             controlClientSource,
+            // TODO: Clean up at the appropriate time.
+            Files.createTempDirectory(Paths.get("/tmp"), "worker_persistent_dir"),
             IdGenerators.incrementingLongs());
       case IN_PROCESS:
         return InProcessEnvironmentFactory.create(

@@ -34,7 +34,9 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -54,6 +56,8 @@ public class DockerEnvironmentFactoryTest {
       "e4485f0f2b813b63470feacba5fe9cb89699878c095df4124abd320fd5401385";
 
   private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
+
+  @Rule public TemporaryFolder workerTempDir = new TemporaryFolder();
 
   @Mock private DockerCommand docker;
 
@@ -81,6 +85,7 @@ public class DockerEnvironmentFactoryTest {
             retrievalServiceServer,
             provisioningServiceServer,
             (workerId, timeout) -> client,
+            workerTempDir.getRoot().toPath(),
             ID_GENERATOR);
   }
 

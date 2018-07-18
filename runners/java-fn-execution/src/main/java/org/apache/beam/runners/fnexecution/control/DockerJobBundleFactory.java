@@ -26,6 +26,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.net.HostAndPort;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -78,6 +84,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private final GrpcFnServer<GrpcLoggingService> loggingServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
+  private final Path workerTempPath;
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
@@ -100,6 +107,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
+    Path workerTempPath =
+        Files.createTempDirectory(Paths.get("/tmp"), "worker_persistent_directory");
     DockerEnvironmentFactory environmentFactory =
         DockerEnvironmentFactory.forServices(
             controlServer,
@@ -107,6 +116,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
             retrievalServer,
             provisioningServer,
             clientPool.getSource(),
+            workerTempPath,
             IdGenerators.incrementingLongs());
     return new DockerJobBundleFactory(
         environmentFactory,
@@ -115,7 +125,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         controlServer,
         loggingServer,
         retrievalServer,
-        provisioningServer);
+        provisioningServer,
+        workerTempPath);
   }
 
   @VisibleForTesting
@@ -126,12 +137,14 @@ public class DockerJobBundleFactory implements JobBundleFactory {
       GrpcFnServer<FnApiControlClientPoolService> controlServer,
       GrpcFnServer<GrpcLoggingService> loggingServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServer) {
+      GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
+      Path workerTempPath) {
     this.stageIdGenerator = stageIdGenerator;
     this.controlServer = controlServer;
     this.loggingServer = loggingServer;
     this.retrievalServer = retrievalServer;
     this.provisioningServer = provisioningServer;
+    this.workerTempPath = workerTempPath;
     this.environmentCache =
         CacheBuilder.newBuilder()
             .removalListener(
@@ -185,6 +198,38 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     loggingServer.close();
     retrievalServer.close();
     provisioningServer.close();
+
+    // Finally, delete the persistent worker directory.
+    deleteRecursively(workerTempPath);
+  }
+
+  private static void deleteRecursively(Path path) throws IOException {
+    Files.walkFileTree(
+        path,
+        new FileVisitor<Path>() {
+          @Override
+          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+            return FileVisitResult.CONTINUE;
+          }
+
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+          }
+
+          @Override
+          public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+            return FileVisitResult.TERMINATE;
+          }
+
+          @Override
+          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+          }
+        });
   }
 
   private static ServerFactory getServerFactory() {

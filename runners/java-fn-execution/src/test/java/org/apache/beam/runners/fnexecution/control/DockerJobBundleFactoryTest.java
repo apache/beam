@@ -45,7 +45,9 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -54,6 +56,8 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link DockerJobBundleFactory}. */
 @RunWith(JUnit4.class)
 public class DockerJobBundleFactoryTest {
+
+  @Rule public TemporaryFolder workerTempDir = new TemporaryFolder();
 
   @Mock private DockerEnvironmentFactory envFactory;
   @Mock private RemoteEnvironment remoteEnvironment;
@@ -88,7 +92,8 @@ public class DockerJobBundleFactoryTest {
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer)) {
+            provisioningServer,
+            workerTempDir.getRoot().toPath())) {
       bundleFactory.forStage(getExecutableStage(environment));
       verify(envFactory).createEnvironment(environment);
     }
@@ -104,7 +109,8 @@ public class DockerJobBundleFactoryTest {
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer);
+            provisioningServer,
+            workerTempDir.getRoot().toPath());
     try (AutoCloseable unused = bundleFactory) {
       bundleFactory.forStage(getExecutableStage(environment));
     }
@@ -121,7 +127,8 @@ public class DockerJobBundleFactoryTest {
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer)) {
+            provisioningServer,
+            workerTempDir.getRoot().toPath())) {
       StageBundleFactory<?> bf1 = bundleFactory.forStage(getExecutableStage(environment));
       StageBundleFactory<?> bf2 = bundleFactory.forStage(getExecutableStage(environment));
       // NOTE: We hang on to stage bundle references to ensure their underlying environments are not
@@ -153,7 +160,8 @@ public class DockerJobBundleFactoryTest {
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer)) {
+            provisioningServer,
+            workerTempDir.getRoot().toPath())) {
       bundleFactory.forStage(getExecutableStage(environment));
       bundleFactory.forStage(getExecutableStage(envFoo));
       verify(envFactory).createEnvironment(environment);
