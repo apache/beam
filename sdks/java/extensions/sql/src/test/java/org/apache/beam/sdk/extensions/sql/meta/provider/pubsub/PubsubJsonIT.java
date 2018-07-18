@@ -40,6 +40,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -262,7 +263,7 @@ public class PubsubJsonIT implements Serializable {
     // wait one minute to allow subscription creation.
     Thread.sleep(60 * 1000);
     eventsTopic.publish(messages);
-    assertThat(queryResult.get().size(), equalTo(3));
+    assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
     pool.shutdown();
   }
 
