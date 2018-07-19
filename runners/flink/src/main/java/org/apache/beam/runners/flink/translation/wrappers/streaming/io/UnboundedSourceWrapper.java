@@ -202,7 +202,12 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
-    if (localReaders.size() == 1) {
+    if (localReaders.size() == 0) {
+      // It can happen when value of parallelism is greater than number of IO readers (for example,
+      // parallelism is 2 and number of Kafka topic partitions is 1). In this case, we just fall
+      // through to idle this executor.
+      LOG.info("Number of readers is 0 for this task executor, idle");
+    } else if (localReaders.size() == 1) {
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
 
