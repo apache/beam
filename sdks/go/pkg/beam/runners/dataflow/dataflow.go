@@ -121,9 +121,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		NumWorkers:     *numWorkers,
 		MachineType:    *machineType,
 		Labels:         jobLabels,
-		TempLocation:   gcsx.Join(*stagingLocation, "tmp"),
+		TempLocation:   *tempLocation,
 		Worker:         *jobopts.WorkerBinary,
-		TeardownPolicy: *tempLocation,
+		TeardownPolicy: *teardownPolicy,
+	}
+	if opts.TempLocation == "" {
+		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
 	}
 
 	// (1) Build and submit
