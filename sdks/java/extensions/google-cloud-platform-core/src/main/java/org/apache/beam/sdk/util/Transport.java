@@ -105,6 +105,7 @@ public class Transport {
       ApiComponents components = apiComponentsFromUrl(servicePath);
       storageBuilder.setRootUrl(components.rootUrl);
       storageBuilder.setServicePath(components.servicePath);
+      storageBuilder.setBatchPath("batch" + components.servicePath);
     }
     return storageBuilder;
   }
