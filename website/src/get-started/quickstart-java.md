@@ -41,6 +41,7 @@ This Quickstart will walk you through executing your first Beam pipeline to run 
 
 The easiest way to get a copy of the WordCount pipeline is to use the following command to generate a simple Maven project that contains Beam's WordCount examples and builds against the most recent Beam release:
 
+{:.unix}
 ```
 $ mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
@@ -52,9 +53,23 @@ $ mvn archetype:generate \
       -Dpackage=org.apache.beam.examples \
       -DinteractiveMode=false
 ```
+{:.powershell}
+```
+PS> mvn archetype:generate `
+ -D archetypeGroupId=org.apache.beam `
+ -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
+ -D archetypeVersion={{ site.release_latest }} `
+ -D groupId=org.example `
+ -D artifactId=word-count-beam `
+ -D version="0.1" `
+ -D package=org.apache.beam.examples `
+ -D interactiveMode=false
+```
+
 
 This will create a directory `word-count-beam` that contains a simple `pom.xml` and a series of example pipelines that count words in text files.
 
+{:.unix}
 ```
 $ cd word-count-beam/
 
@@ -64,6 +79,32 @@ pom.xml	src
 $ ls src/main/java/org/apache/beam/examples/
 DebuggingWordCount.java	WindowedWordCount.java	common
 MinimalWordCount.java	WordCount.java
+```
+{:.powershell}
+```
+PS> cd .\word-count-beam
+
+PS> dir
+
+... 
+ 
+Mode                LastWriteTime         Length Name                                                        
+----                -------------         ------ ----                                                        
+d-----        7/19/2018  11:00 PM                src                                                         
+-a----        7/19/2018  11:00 PM          16051 pom.xml
+
+PS> dir .\src\main\java\org\apache\beam\examples
+
+...
+Mode                LastWriteTime         Length Name                                                        
+----                -------------         ------ ----                                                        
+d-----        7/19/2018  11:00 PM                common                                                      
+d-----        7/19/2018  11:00 PM                complete                                                    
+d-----        7/19/2018  11:00 PM                subprocess                                                  
+-a----        7/19/2018  11:00 PM           7073 DebuggingWordCount.java                                     
+-a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java                                       
+-a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java                                      
+-a----        7/19/2018  11:00 PM           7662 WordCount.java
 ```
 
 For a detailed introduction to the Beam concepts used in these examples, see the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example). Here, we'll just focus on executing `WordCount.java`.
@@ -86,6 +127,12 @@ After you've chosen which runner you'd like to use:
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+```
+
+{:.runner-direct-powershell}
+```
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--inputFile=pom.xml --output=counts" -P direct-runner
 ```
 
 {:.runner-apex}
@@ -141,6 +188,11 @@ Once the pipeline has completed, you can view the output. You'll notice that the
 $ ls counts*
 ```
 
+{:.runner-direct-powershell}
+```
+PS> dir counts*
+```
+
 {:.runner-apex}
 ```
 $ ls counts*
@@ -183,6 +235,19 @@ Apache: 2
 The: 1
 limitations: 1
 Foundation: 1
+...
+```
+
+{:.runner-direct-powershell}
+```
+PS> cat counts*
+the: 28
+executions: 2
+available: 5
+project: 6
+clients: 4
+to: 11
+Dependencies: 1
 ...
 ```
 
