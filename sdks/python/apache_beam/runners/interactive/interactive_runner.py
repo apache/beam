@@ -67,13 +67,21 @@ class InteractiveRunner(runners.PipelineRunner):
   def run_pipeline(self, pipeline):
     if not hasattr(self, '_desired_cache_labels'):
       self._desired_cache_labels = set()
-    print('Running...')
+
+    # Invoke a round trip through the runner API. This makes sure the Pipeline
+    # proto is stable.
+    pipeline = beam.pipeline.Pipeline.from_runner_api(
+        pipeline.to_runner_api(),
+        pipeline.runner,
+        pipeline._options)
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
         return_context=True)
-
     pcolls_to_pcoll_id = self._pcolls_to_pcoll_id(pipeline, original_context)
+
+    # TODO(qinyeli): Refactor the rest of this function into
+    # def manipulate_pipeline(pipeline_proto) -> pipeline_proto_to_run:
 
     # Make a copy of the original pipeline to avoid accidental manipulation
     pipeline, context = beam.pipeline.Pipeline.from_runner_api(
