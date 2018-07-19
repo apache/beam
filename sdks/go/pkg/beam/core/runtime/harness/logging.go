@@ -67,6 +67,8 @@ func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg s
 		entry.InstructionReference = id
 	}
 
+	// fmt.Fprintln(os.Stderr, msg)
+
 	select {
 	case l.out <- entry:
 		// ok

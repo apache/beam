@@ -27,8 +27,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"sync/atomic"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // IsWorkerCompatibleBinary returns the path to itself and true if running
