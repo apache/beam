@@ -229,6 +229,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		if len(t.Subtransforms) > 0 {
 			return x.translateTransforms(fmt.Sprintf("%v%v/", trunk, path.Base(t.UniqueName)), t.Subtransforms)
 		}
+
 		return nil, fmt.Errorf("unexpected primitive urn: %v", t)
 	}
 }
