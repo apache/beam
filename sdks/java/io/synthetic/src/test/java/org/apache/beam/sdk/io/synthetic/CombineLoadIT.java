@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.apache.beam.sdk.io.synthetic.SyntheticSourceTestUtils.fromString;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import org.apache.beam.sdk.options.Default;
@@ -27,8 +28,8 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -39,7 +40,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Performance fanout test for {@link GroupByKey}. */
+/** Performance fanout test for {@link Combine}. */
 @RunWith(JUnit4.class)
 public class CombineLoadIT {
 
@@ -75,12 +76,6 @@ public class CombineLoadIT {
             Options.class, TestPipeline.testingPipelineOptions().as(Options.class));
 
     syntheticSourceOptions = fromString(options.getInputOptions());
-  }
-
-  private static SyntheticBoundedIO.SyntheticSourceOptions fromString(String jsonString)
-      throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    return mapper.readValue(jsonString, SyntheticBoundedIO.SyntheticSourceOptions.class);
   }
 
   @Test

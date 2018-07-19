@@ -28,24 +28,30 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.transforms.join.CoGroupByKey;
+import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Performance fanout test for {@link GroupByKey}. */
+/** Performance fanout test for {@link CoGroupByKey}. */
 @RunWith(JUnit4.class)
-public class GroupByKeyLoadIT {
+public class CoGroupByKeyLoadIT {
 
   private static Options options;
 
   // TODO: parse it in a more decent way
   private static SyntheticBoundedIO.SyntheticSourceOptions syntheticSourceOptions;
+
+  private static final TupleTag<byte[]> INPUT_TAG = new TupleTag<>();
+  private static final TupleTag<byte[]> CO_INPUT_TAG = new TupleTag<>();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -79,47 +85,43 @@ public class GroupByKeyLoadIT {
   @Test
   public void groupByKeyTest() {
     PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply(SyntheticBoundedIO.readFrom(syntheticSourceOptions));
+        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(syntheticSourceOptions));
+
+    PCollection<KV<byte[], byte[]>> coInput =
+        pipeline.apply("Read co-input", SyntheticBoundedIO.readFrom(syntheticSourceOptions));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
-      groupAndUngroup(input, branch);
+      coGroupAndUngroup(input, coInput, branch);
     }
 
     pipeline.run().waitUntilFinish();
   }
 
-  private void groupAndUngroup(PCollection<KV<byte[], byte[]>> input, int branchNumber) {
-    PCollection<KV<byte[], Iterable<byte[]>>> groupedData =
-        input.apply(String.format("Group by key (%s)", branchNumber), GroupByKey.create());
+  private void coGroupAndUngroup(
+      PCollection<KV<byte[], byte[]>> input, PCollection<KV<byte[], byte[]>> coInput, int branch) {
 
-    groupedData.apply(
-        String.format("Ungroup (%s)", branchNumber), ParDo.of(new UngroupFn()));
+    PCollection<KV<byte[], CoGbkResult>> groupedData =
+        KeyedPCollectionTuple.of(INPUT_TAG, input)
+            .and(CO_INPUT_TAG, coInput)
+            .apply(String.format("Co - group by key (%s)", branch), CoGroupByKey.create());
+    groupedData.apply(String.format("Ungroup (%s)", branch), ParDo.of(new Ungroup()));
   }
 
-  // TODO: remove in case you're sure that we don't perform this
-  private void groupAndUngroupNTimesSequentially(
-      final PCollection<KV<byte[], byte[]>> input, final Integer n) {
-    if (n == 0) {
-      return;
-    } else {
-      // todo: synthetic step.
-      PCollection<KV<byte[], Iterable<byte[]>>> groupedCollection =
-          input.apply(String.format("Group by key no: %s.", n), GroupByKey.create());
-
-      PCollection<KV<byte[], byte[]>> nextInput =
-          groupedCollection.apply(
-              String.format("Ungroup by key no: %s.", n), ParDo.of(new UngroupFn()));
-
-      groupAndUngroupNTimesSequentially(nextInput, n - 1);
-    }
-  }
-
-  private static class UngroupFn extends DoFn<KV<byte[], Iterable<byte[]>>, KV<byte[], byte[]>> {
+  private static class Ungroup extends DoFn<KV<byte[], CoGbkResult>, KV<byte[], byte[]>> {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       byte[] key = c.element().getKey();
-      for (byte[] value : c.element().getValue()) {
+      CoGbkResult elementValue = c.element().getValue();
+
+      Iterable<byte[]> inputs = elementValue.getAll(INPUT_TAG);
+      Iterable<byte[]> coInputs = elementValue.getAll(CO_INPUT_TAG);
+
+      for (byte[] value : inputs) {
+        c.output(KV.of(key, value));
+      }
+
+      for (byte[] value : coInputs) {
         c.output(KV.of(key, value));
       }
     }
