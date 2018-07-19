@@ -30,23 +30,77 @@ read branch
 echo "=====================Environment Variables====================="
 echo "working branch: ${branch}"
 echo "local repo dir: ~/${LOCAL_CLONE_DIR}/${BEAM_ROOT_DIR}"
-echo "==============================================================="
 
-echo "====================Starting Pre-installation=================="
-cd ~
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-sudo python get-pip.py
-rm get-pip.py
+echo "====================Checking Requirement======================="
 
-sudo `which pip` install --upgrade virtualenv
+echo "====================Checking pip==============================="
+if [[ -z `which pip` ]]; then
+  echo "There is no pip installed on your machine."
+  echo "Would you like to install pip with root permission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Refused to install pip on your machine. Exit."
+    exit
+  else
+    echo "==================Installing pip========================="
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    sudo python get-pip.py
+    rm get-pip.py
+  fi
+else
+  pip --version
+fi
 
-sudo `which pip` install cython
-sudo apt-get install gcc
-sudo apt-get install python-dev
+echo "====================Checking virtualenv========================"
+if [[ -z `which virtualenv` ]]; then
+  echo "There is no virtualenv installed on your machine."
+  echo "Would you like to install virtualenv with root perrission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Refused to install virtualenv on your machine. Exit."
+    exit
+  else
+    echo "==================Installing virtualenv==================="
+    sudo `which pip` install --upgrade virtualenv
+  fi
+else
+  virtualenv --version
+fi
 
-sudo apt-get install time
-alias time='/usr/bin/time'
-echo "==============================================================="
+echo "=====================Checking cython==========================="
+if [[ -z `which cython` ]]; then
+  echo "There is no cython installed on your machine."
+  echo "Would you like to install cython with root permission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Refused to install cython on your machine. Exit."
+    exit
+  else
+    echo "==================Installing cython======================="
+    sudo `which pip` install cython
+    sudo apt-get install gcc
+    sudo apt-get install python-dev
+  fi
+else
+  cython --version
+fi
+
+echo "==================Checking /usr/bin/time========================"
+if [[ `which time` != "/usr/bin/time" ]]; then
+  echo "There is no usr/bin/time installed on your machine."
+  echo "Would you like to install time on your machine with root permission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Refused to install time on your machine. Exit."
+    exit
+  else
+    echo "==================Installing time========================="
+    sudo apt-get install time
+    alias time='/usr/bin/time'
+  fi
+else
+  which time
+fi
 
 echo "======================Starting Clone Repo======================"
 mkdir ${LOCAL_CLONE_DIR}
@@ -60,7 +114,8 @@ echo "======================Starting Release Build==================="
 git clean -fdx
 ./gradlew clean
 gpg --output ~/doc.sig --sign ~/.bashrc
-./gradlew build -PisRelease --scan --stacktrace
+# If build fails, we want to catch as much errors as possible once.
+./gradlew build -PisRelease --scan --stacktrace --no-parallel --continue
 echo "==============================================================="
 
 echo "Do you want to clean local clone repo? [y|N]"
