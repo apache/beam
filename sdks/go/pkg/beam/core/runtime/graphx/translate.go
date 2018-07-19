@@ -228,6 +228,8 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
 	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
 
+	var subtransforms []string
+
 	inputs := make(map[string]string)
 	for i, in := range edge.Edge.Input {
 		m.addNode(in.From)
@@ -242,10 +244,10 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 			DoFn: &pb.SdkFunctionSpec{
 				Spec: &pb.FunctionSpec{
 					Urn: URNInject,
-					Payload: protox.MustEncode(&v1.TransformPayload{
+					Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
 						Urn:    URNInject,
 						Inject: &v1.InjectPayload{N: (int32)(i)},
-					}),
+					})),
 				},
 				EnvironmentId: m.addDefaultEnv(),
 			},
@@ -260,6 +262,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 			Outputs: map[string]string{"i0": out},
 		}
 		m.transforms[injectID] = inject
+		subtransforms = append(subtransforms, injectID)
 
 		inputs[fmt.Sprintf("i%v", i)] = out
 	}
@@ -279,6 +282,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		Outputs:    map[string]string{"i0": out},
 	}
 	m.transforms[flattenID] = flatten
+	subtransforms = append(subtransforms, flattenID)
 
 	// CoGBK
 
@@ -287,27 +291,49 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pb.PTransform{
-		UniqueName: edge.Name,
+		UniqueName: gbkID,
 		Spec:       m.makePayload(edge.Edge),
 		Inputs:     map[string]string{"i0": out},
 		Outputs:    map[string]string{"i0": gbkOut},
 	}
 	m.transforms[gbkID] = gbk
+	subtransforms = append(subtransforms, gbkID)
 
 	// Expand
 
 	m.addNode(outNode)
 
-	expand := &pb.PTransform{
-		UniqueName: id,
-		Spec: &pb.FunctionSpec{
-			Urn:     URNExpand,
-			Payload: protox.MustEncode(&v1.TransformPayload{Urn: URNExpand}),
+	expandID := fmt.Sprintf("%v_expand", id)
+	payload := &pb.ParDoPayload{
+		DoFn: &pb.SdkFunctionSpec{
+			Spec: &pb.FunctionSpec{
+				Urn: URNExpand,
+				Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+					Urn: URNExpand,
+				})),
+			},
+			EnvironmentId: m.addDefaultEnv(),
 		},
-		Inputs:  map[string]string{"i0": out},
+	}
+	expand := &pb.PTransform{
+		UniqueName: expandID,
+		Spec: &pb.FunctionSpec{
+			Urn:     URNParDo,
+			Payload: protox.MustEncode(payload),
+		},
+		Inputs:  map[string]string{"i0": gbkOut},
 		Outputs: map[string]string{"i0": nodeID(outNode)},
 	}
 	m.transforms[id] = expand
+	subtransforms = append(subtransforms, id)
+
+	// Add composite for visualization
+
+	cogbkID := fmt.Sprintf("%v_cogbk", id)
+	m.transforms[cogbkID] = &pb.PTransform{
+		UniqueName:    edge.Name,
+		Subtransforms: subtransforms,
+	}
 	return id
 }
 
