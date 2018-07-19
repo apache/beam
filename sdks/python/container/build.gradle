@@ -59,7 +59,15 @@ golang {
 
 docker {
   name containerImageName(name: "python")
-  files "./build/"
+  files "./build"
+  // If the user has specified additional python requirements, copy them otherwise make an empty file
+  if (project.hasProperty("python_requirements")) {
+    copySpec.with(copySpec().from("${python_requirements}").rename(".*", "user_python_requirements.txt"))
+  } else {
+    File empty_req = File.createTempFile("temp",".tmp");
+    empty_req.write ""
+    copySpec.with(copySpec().from(empty_req.absolutePath).rename(".*", "user_python_requirements.txt"))
+  }
 }
 
 // Ensure that making the docker image builds any required artifacts

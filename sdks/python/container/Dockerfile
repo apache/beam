@@ -42,6 +42,7 @@ RUN apt-get update && \
 #
 RUN \
     # These are packages needed by the Python SDK.
+    # TODO: Would this make more sense as a requirements.txt file?
     pip install "avro == 1.8.2" && \
     pip install "crcmod == 1.7" && \
     pip install "dill == 0.2.6" && \
@@ -79,13 +80,17 @@ RUN \
     pip install "tensorflow == 1.4.0" && \
     pip install "protorpc == 0.11.1" && \
     pip install "python-gflags == 3.0.6" && \
-    # Remove pip cache.
-    rm -rf /root/.cache/pip && \
     # Check that the fast implementation of protobuf is used.
     python -c "from google.protobuf.internal import api_implementation; assert api_implementation._default_implementation_type == 'cpp'; print 'Verified fast protobuf used.'"
 
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+
+COPY user_python_requirements.txt /tmp/
+RUN pip install -r /tmp/user_python_requirements.txt
+
+# Remove pip cache.
+RUN rm -rf /root/.cache/pip
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
