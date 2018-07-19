@@ -316,7 +316,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
           this.currentTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
           break;
         default:
-          throw new IllegalStateException(String.format("Unknown timedomain %s", timeDomain));
+          throw new IllegalArgumentException(String.format("Unknown time domain %s", timeDomain));
       }
 
       try {
@@ -327,7 +327,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
                 .getWindowingStrategy()
                 .getAllowedLateness();
       } catch (IOException e) {
-        throw new IllegalStateException(
+        throw new IllegalArgumentException(
             String.format("Unable to get allowed lateness for timer %s", timerId));
       }
     }
@@ -336,7 +336,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     public void set(Instant absoluteTime) {
       // Verifies that the time domain of this timer is acceptable for absolute timers.
       if (!TimeDomain.EVENT_TIME.equals(timeDomain)) {
-        throw new IllegalStateException(
+        throw new IllegalArgumentException(
             "Can only set relative timers in processing time domain. Use #setRelative()");
       }
 
@@ -384,7 +384,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     /**
-     * For event time timers the target time should be prior to window GC time. So it return
+     * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).
      */
     private Instant minTargetAndGcTime(Instant target) {
@@ -510,7 +510,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
       checkState(
           currentElement.getValue() instanceof KV,
           "Accessing timer in unkeyed context. Current element is not a KV: %s.",
-          currentElement);
+          currentElement.getValue());
 
       return new FnApiTimer(timerId, (WindowedValue) currentElement);
     }
