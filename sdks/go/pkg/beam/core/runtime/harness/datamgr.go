@@ -210,7 +210,9 @@ func (c *DataChannel) makeReader(ctx context.Context, id exec.StreamID) *dataRea
 }
 
 func (c *DataChannel) removeReader(id string) {
+	c.mu.Lock()
 	delete(c.readers, id)
+	c.mu.Unlock()
 }
 
 func (c *DataChannel) makeWriter(ctx context.Context, id exec.StreamID) *dataWriter {
