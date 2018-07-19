@@ -79,7 +79,7 @@ public class CombineLoadIT {
   }
 
   @Test
-  public void groupByKeyTest() {
+  public void combineLoadTest() {
     PCollection<KV<byte[], byte[]>> input =
         pipeline.apply(SyntheticBoundedIO.readFrom(syntheticSourceOptions));
 

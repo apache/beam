@@ -83,7 +83,7 @@ public class CoGroupByKeyLoadIT {
   }
 
   @Test
-  public void groupByKeyTest() {
+  public void coGroupByKeyLoadTest() {
     PCollection<KV<byte[], byte[]>> input =
         pipeline.apply("Read input", SyntheticBoundedIO.readFrom(syntheticSourceOptions));
 

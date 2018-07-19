@@ -77,7 +77,7 @@ public class GroupByKeyLoadIT {
   }
 
   @Test
-  public void groupByKeyTest() {
+  public void groupByKeyLoadTest() {
     PCollection<KV<byte[], byte[]>> input =
         pipeline.apply(SyntheticBoundedIO.readFrom(syntheticSourceOptions));
 
