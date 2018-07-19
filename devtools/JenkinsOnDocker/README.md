@@ -14,7 +14,7 @@ If you haven't yet, [install Docker on your machine.](https://docs.docker.com/in
 
 **WARNING: Not for production use.**
 
-*INFO: Changing admin credentials is adviced.*
+*INFO: Changing admin credentials is advised.*
 
 You can utilize scripts in this folder to build Docker container with Jenkins,
 pre-installed plugin and some basic configuration.
