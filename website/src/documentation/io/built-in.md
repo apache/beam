@@ -109,7 +109,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
   <tr>
     <td>Apache Kafka</td><td>Python</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788</a></td>
-    </tr>
+  </tr>
   <tr>
     <td>Apache Kudu</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-2661">BEAM-2661</a></td>
