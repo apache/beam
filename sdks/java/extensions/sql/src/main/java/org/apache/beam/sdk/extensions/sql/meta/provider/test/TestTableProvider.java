@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.parser;
+package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -30,8 +31,8 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -46,10 +47,9 @@ import org.apache.beam.sdk.values.Row;
  * Test in-memory table provider for use in tests.
  *
  * <p>Keeps global state and tracks class instances. Works only in DirectRunner.
- *
- * <p>Similar to {@link MockedBoundedTable} with more concurrency support.
  */
-public class TestTableProvider implements TableProvider {
+@AutoService(TableProvider.class)
+public class TestTableProvider extends InMemoryMetaTableProvider {
   static final Map<Long, Map<String, TableWithRows>> GLOBAL_TABLES = new ConcurrentHashMap<>();
 
   private static final AtomicLong INSTANCES = new AtomicLong(0);
