@@ -125,7 +125,7 @@ if 'Linux' in platform.system():
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
-    'numpy',
+    'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',
     ]
 
