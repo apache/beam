@@ -234,6 +234,9 @@ class BeamBuiltinAggregations {
 
     @Override
     public BigDecimal toBigDecimal(Integer record) {
+      if (record == null) {
+        return BigDecimal.ZERO;
+      }
       return new BigDecimal(record);
     }
   }

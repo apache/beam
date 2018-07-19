@@ -16,89 +16,48 @@
  * limitations under the License.
  */
 
-apply plugin: 'eu.appsatori.fatjar'
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(testShadowJar: true, shadowClosure: {})
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: TPC"
 ext.summary = "TPC Benchmark on Beam SQL"
 
-//        , shadowClosure: DEFAULT_SHADOW_CLOSURE << {
-//    dependencies {
-//        include(dependency(library.java.protobuf_java))
-//        include(dependency(library.java.protobuf_java_util))
-//        include(dependency("org.apache.calcite:.*"))
-////        include(dependency(project(':beam-sdks-java-extensions-sql')))
-//    }
-//    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-//    relocate "org.apache.beam.sdk.extensions.tpc", getJavaRelocatedPath("org.apache.beam.sdk.extensions.tpc")
-//}
+dependencies {
+    compile project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
+    compile project(path: ":beam-sdks-java-core", configuration: "shadow")
+    runtime project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+//    compile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
+    compile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+    compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+    compile library.java.protobuf_java
+    compile library.java.slf4j_jdk14
+    compile library.java.slf4j_api
+    compile library.java.commons_lang3
+    compile library.java.joda_time
+    compile library.java.gax_grpc
+    compile 'com.google.api:gax:1.28.0'
+    compile library.java.google_auth_library_oauth2_http
+    compile library.java.google_api_services_pubsub
+    compile library.java.google_http_client
+    compile library.java.google_api_services_bigquery
+    compile library.java.google_api_client
+    compile library.java.guava
+    compile library.java.junit
+    compile library.java.hamcrest_core
+    compile library.java.hamcrest_library
 
-
-configurations {
-    integrationTest
-    gradleRun
+    testCompile library.java.junit
 }
 
-def calcite_version = "1.16.0"
-def avatica_version = "1.11.0"
-
-dependencies {
-    shadow project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
-    shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-    shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-//    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-//    shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-//    shadow "io.airlift.tpch:tpch:0.9"
-    compile "org.apache.calcite:calcite-core:$calcite_version"
-    shadow "org.apache.calcite.avatica:avatica-core:$avatica_version"
-    shadow "org.apache.calcite:calcite-plus:$calcite_version"
-
-    shadow "io.netty:netty-all:4.1.17.Final"
-    shadow project(path: ":beam-runners-spark", configuration: "shadow")
-    shadow project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
-    shadow library.java.spark_streaming
-    shadow library.java.spark_core
-
-    compile "net.hydromatic:tpcds:0.4"
-    compile library.java.slf4j_jdk14
-    testCompile library.java.junit
-    // Depending on outputs so integrationTest can run with only test dependencies.
-    // This enables us to test the JDBC jar being loaded on a custom classloader.
-    integrationTest sourceSets.test.output
-    integrationTest sourceSets.main.output
-    integrationTest library.java.junit
-
-    gradleRun project(path: project.path, configuration: "shadow")
+processResources {
+    filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+            'beam.version': version,
+    ]
 }
 
 shadowJar {
-//    dependencies {
-//        include "org.apache.calcite:calcite-core:$calcite_version"
-//        include "io.netty:netty-all:4.1.17.Final"
-//        include project(path: ":beam-runners-spark", configuration: "shadow")
-//        include project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
-//        include library.java.spark_streaming
-//        include library.java.spark_core
-//    }
-//
-//    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-
+    zip64 true
     manifest {
         attributes "Main-Class": "org.apache.beam.sdk.extensions.tpc.BeamTpc"
     }
-}
-
-test {
-    doFirst {
-        // Assert everything is in the output or test jar
-        assert classpath.size() == 2
-    }
-}
-
-task run(type: JavaExec) {
-    main = "org.apache.beam.sdk.extensions.tpc.BeamTpc"
-    classpath = configurations.gradleRun
-    args = ["--inputFile=/Users/jiangkai/data/", "--output=tpcoutput"]
-//  jvmArgs '-ea'
 }

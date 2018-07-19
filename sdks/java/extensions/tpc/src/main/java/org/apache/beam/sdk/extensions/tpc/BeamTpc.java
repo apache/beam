@@ -25,7 +25,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
-import org.apache.beam.sdk.extensions.tpc.query.TpcHQuery;
+import org.apache.beam.sdk.extensions.tpc.query.TpcDsQuery;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -47,33 +47,37 @@ public class BeamTpc {
       Pipeline pipeline, CSVFormat csvFormat, TpcOptions tpcOptions) {
     ImmutableMap<String, Schema> hSchemas =
         ImmutableMap.<String, Schema>builder()
-            .put("customer", SchemaUtil.customerSchema)
-            .put("lineitem", SchemaUtil.lineitemSchema)
-            .put("nation", SchemaUtil.nationSchema)
-            .put("orders", SchemaUtil.orderSchema)
-            .put("part", SchemaUtil.partSchema)
-            .put("partsupp", SchemaUtil.partsuppSchema)
-            .put("region", SchemaUtil.regionSchema)
-            .put("supplier", SchemaUtil.supplierSchema)
+            .put("customer", Schemas.getCustomerDsSchema)
+//            .put("lineitem", Schemas.lineitemSchema)
+//            .put("nation", Schemas.nationSchema)
+//            .put("orders", Schemas.orderSchema)
+//            .put("part", Schemas.partSchema)
+//            .put("partsupp", Schemas.partsuppSchema)
+//            .put("region", Schemas.regionSchema)
+//            .put("supplier", Schemas.supplierSchema)
+              .put("store_sales", Schemas.storeSalesSchema)
+              .put("catalog_sales", Schemas.catalogSalesSchema)
+              .put("item", Schemas.itemSchema)
+              .put("date_dim", Schemas.dateDimSchema)
+              .put("promotion", Schemas.promotionSchema)
+              .put("customer_demographics", Schemas.customerDemographicsSchema)
+              .put("web_sales", Schemas.webSalesSchema)
+              .put("inventory", Schemas.inventorySchema)
             .build();
-
-//    Monitor<Row> resultMonitor = new Monitor<Row>("tpc", "start");
 
     PCollectionTuple tables = PCollectionTuple.empty(pipeline);
 
     for (Map.Entry<String, Schema> tableSchema : hSchemas.entrySet()) {
-      String filePattern = tpcOptions.getInputFile() + tableSchema.getKey() + ".tbl";
+      String filePattern = tpcOptions.getInputFile() + tableSchema.getKey() + ".dat";
 
       PCollection<Row> table =
           new TextTable(
-                  SchemaUtil.nationSchema,
+                  tableSchema.getValue(),
                   filePattern,
                   new TextTableProvider.CsvToRow(tableSchema.getValue(), csvFormat),
                   new TextTableProvider.RowToCsv(csvFormat))
               .buildIOReader(pipeline.begin())
-              .setCoder(tableSchema.getValue().getRowCoder());
-
-//      table = table.apply(resultMonitor.getTransform());
+              .setCoder(tableSchema.getValue().getRowCoder()).setName(tableSchema.getKey());
 
       tables = tables.and(new TupleTag<>(tableSchema.getKey()), table);
     }
@@ -100,8 +104,9 @@ public class BeamTpc {
 
     tables
         .apply(
-            "SqlTransform " + tpcOptions.getTable() + ":" + tpcOptions.getQuery(),
-            SqlTransform.query(TpcHQuery.QUERYTEST))
+            "SqlTransform " + "DS" + ":" + "7",
+            SqlTransform.query(TpcDsQuery.QUERY7))
+//            SqlTransform.query(TpcDsQuery.QUERY7))
         .apply(resultMonitor.getTransform())
         .apply(
             "exp_table",
@@ -117,26 +122,6 @@ public class BeamTpc {
                       }
                     }))
         .apply(TextIO.write().to(outputPath));
-
-    tables.apply(
-            "SqlTransform " + tpcOptions.getTable() + ":" + "1",
-            SqlTransform.query(TpcHQuery.QUERY1));
-
-    tables.apply(
-            "SqlTransform " + tpcOptions.getTable() + ":" + "3",
-            SqlTransform.query(TpcHQuery.QUERY3));
-
-    tables.apply(
-            "SqlTransform " + tpcOptions.getTable() + ":" + "4",
-            SqlTransform.query(TpcHQuery.QUERY4));
-
-    tables.apply(
-            "SqlTransform " + tpcOptions.getTable() + ":" + "5",
-            SqlTransform.query(TpcHQuery.QUERY5));
-
-    tables.apply(
-            "SqlTransform " + tpcOptions.getTable() + ":" + "6",
-            SqlTransform.query(TpcHQuery.QUERY6));
 
     long startTs = System.currentTimeMillis();
     PipelineResult pipelineResult = pipeline.run();

@@ -22,10 +22,7 @@ public class TpcHQuery {
   public static final String QUERYTEST =
       "select\n"
           + "\tcount(*) as count_order\n"
-          + "from\n"
-          + "\tlineitem\n"
-          + "where\n"
-          + "\tl_shipdate <= date '1998-09-01' + interval '90' day (3) ";
+          + "from store_sales";
 
   public static final String QUERY1 =
       "select\n"
