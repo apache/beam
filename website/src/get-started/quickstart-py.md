@@ -46,8 +46,13 @@ pip --version
 If you do not have `pip` version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.
 
+{:.unix}
 ```
 pip install --upgrade pip
+```
+{:.powershell}
+```
+PS> python -m pip install --upgrade pip
 ```
 
 
@@ -58,16 +63,26 @@ for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
 
+{:.unix}
 ```
 pip install --upgrade virtualenv
+```
+{:.powershell}
+```
+PS> python -m pip install --upgrade virtualenv
 ```
 
 If you do not want to use a Python virtual environment (not recommended), ensure
 `setuptools` is installed on your machine. If you do not have `setuptools`
 version 17.1 or newer, run the following command to install it.
 
+{:.unix}
 ```
 pip install --upgrade setuptools
+```
+{:.powershell}
+```
+PS> python -m pip install --upgrade setuptools
 ```
 
 ## Get Apache Beam
@@ -76,8 +91,13 @@ pip install --upgrade setuptools
 
 A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
 
+{:.unix}
 ```
 virtualenv /path/to/directory
+```
+{:.powershell}
+```
+PS> virtualenv C:\path\to\directory
 ```
 
 A virtual environment needs to be activated for each shell that is to use it.
@@ -86,11 +106,16 @@ environment's directories.
 
 To activate a virtual environment in Bash, run:
 
+{.unix}
 ```
 . /path/to/directory/bin/activate
 ```
+{.powershell}
+```
+PS> C:\path\to\directory\Scripts\activate.ps1
+```
 
-That is, source the script `bin/activate` under the virtual environment directory you created.
+That is, execute the `activate` script under the virtual environment directory you created.
 
 For instructions using other shells, see the [virtualenv documentation](https://virtualenv.pypa.io/en/stable/userguide/#activate-script).
 
@@ -98,8 +123,13 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 Install the latest Python SDK from PyPI:
 
+{:.unix}
 ```
 pip install apache-beam
+```
+{:.powershell}
+```
+PS> python -m pip install apache-beam
 ```
 
 #### Extra requirements
@@ -129,6 +159,10 @@ For example, run `wordcount.py` with the following command:
 {:.runner-direct}
 ```
 python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
+```
+{:.runner-direct-powershell}
+```
+python -m apache_beam.examples.wordcount --input C:\path\to\inputfile --output C:\path\to\write\counts
 ```
 
 {:.runner-apex}
