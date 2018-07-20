@@ -655,12 +655,12 @@ Submit to the cluster:
             --monitorJobs=true"
 
 ## Nexmark dashboards
-Bellow dashboards are used as a CI mechanism to ensure no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:
+Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:
 - Parameters of the runners are not the same
 - Nexmark is run with the runners in local (most of the time embedded) mode
-- Nexmark run on a shared machine that also run all the CI and build.
+- Nexmark runs on a shared machine that also run all the CI and build.
 - Runners have different support of the Beam model
-- Runners have different strengths that make comparision difficult:
+- Runners have different strengths that make comparison difficult:
     - Some runners were designed to be batch oriented, others streaming oriented
     - Some are designed towards sub-second latency, others support auto-scaling
 
