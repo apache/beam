@@ -46,11 +46,12 @@ pip --version
 If you do not have `pip` version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.
 
-{:.unix}
+{:.shell-unix}
 ```
 pip install --upgrade pip
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> python -m pip install --upgrade pip
 ```
@@ -63,11 +64,12 @@ for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
 
-{:.unix}
+{:.shell-unix}
 ```
 pip install --upgrade virtualenv
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> python -m pip install --upgrade virtualenv
 ```
@@ -76,11 +78,12 @@ If you do not want to use a Python virtual environment (not recommended), ensure
 `setuptools` is installed on your machine. If you do not have `setuptools`
 version 17.1 or newer, run the following command to install it.
 
-{:.unix}
+{:.shell-unix}
 ```
 pip install --upgrade setuptools
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> python -m pip install --upgrade setuptools
 ```
@@ -91,11 +94,12 @@ PS> python -m pip install --upgrade setuptools
 
 A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
 
-{:.unix}
+{:.shell-unix}
 ```
 virtualenv /path/to/directory
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> virtualenv C:\path\to\directory
 ```
@@ -106,11 +110,12 @@ environment's directories.
 
 To activate a virtual environment in Bash, run:
 
-{.unix}
+{:.shell-unix}
 ```
 . /path/to/directory/bin/activate
 ```
-{.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> C:\path\to\directory\Scripts\activate.ps1
 ```
@@ -123,11 +128,12 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 Install the latest Python SDK from PyPI:
 
-{:.unix}
+{:.shell-unix}
 ```
 pip install apache-beam
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> python -m pip install apache-beam
 ```
@@ -159,10 +165,6 @@ For example, run `wordcount.py` with the following command:
 {:.runner-direct}
 ```
 python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
-```
-{:.runner-direct-powershell}
-```
-python -m apache_beam.examples.wordcount --input C:\path\to\inputfile --output C:\path\to\write\counts
 ```
 
 {:.runner-apex}
