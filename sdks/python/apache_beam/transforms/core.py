@@ -28,6 +28,7 @@ from builtins import map
 from builtins import object
 from builtins import range
 
+from future.builtins import filter
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -63,11 +64,6 @@ from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
-
-try:
-  from itertools import ifilter as filter
-except ImportError:
-  pass
 
 __all__ = [
     'DoFn',
@@ -912,7 +908,7 @@ class ParDo(PTransformWithSideInputs):
     main_tag = main_kw.pop('main', None)
     if main_kw:
       raise ValueError('Unexpected keyword arguments: %s' %
-                       list(main_kw.keys()))
+                       list(main_kw))
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
@@ -1806,7 +1802,7 @@ class WindowInto(ParDo):
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     timestamp_combiner = kwargs.pop('timestamp_combiner', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
     self.windowing = Windowing(
         windowfn, triggerfn, accumulation_mode, timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
@@ -1875,7 +1871,7 @@ class Flatten(PTransform):
     super(Flatten, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
 
   def _extract_input_pvalues(self, pvalueish):
     try:

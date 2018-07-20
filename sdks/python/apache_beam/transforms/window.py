@@ -52,11 +52,11 @@ from __future__ import absolute_import
 import abc
 from builtins import object
 from builtins import range
-from functools import total_ordering
 
 from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
+from past.builtins import cmp
 
 from apache_beam.coders import coders
 from apache_beam.portability import common_urns
@@ -192,32 +192,31 @@ class BoundedWindow(object):
   def max_timestamp(self):
     return self.end.predecessor()
 
-  def cmp(self, other):
-    # Order first by endpoint, then arbitrarily.
-    end_cmp = (self.end > other.end) - (self.end < other.end)
-    hash_cmp = (hash(self) > hash(other)) - (hash(self) < hash(other))
-    return end_cmp or hash_cmp
-
   def __eq__(self, other):
     raise NotImplementedError
 
   def __ne__(self, other):
-    return self.cmp(other) != 0
+    return (cmp(self.end, other.end)
+            or cmp(hash(self), hash(other))) != 0
 
   def __lt__(self, other):
-    return self.cmp(other) < 0
+    return (cmp(self.end, other.end)
+            or cmp(hash(self), hash(other))) < 0
 
   def __le__(self, other):
-    return self.cmp(other) <= 0
+    return (cmp(self.end, other.end)
+            or cmp(hash(self), hash(other))) <= 0
 
   def __gt__(self, other):
-    return self.cmp(other) > 0
+    return (cmp(self.end, other.end)
+            or cmp(hash(self), hash(other))) > 0
 
   def __ge__(self, other):
-    return self.cmp(other) >= 0
+    return (cmp(self.end, other.end)
+            or cmp(hash(self), hash(other))) >= 0
 
   def __hash__(self):
-    return hash(self.end)
+    raise NotImplementedError
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
@@ -252,7 +251,6 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
-@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -273,10 +271,25 @@ class TimestampedValue(object):
   def __hash__(self):
     return hash((type(self), self.value, self.timestamp))
 
+  def __ne__(self, other):
+    return (cmp(type(self), type(other)) or cmp(
+        (self.value, self.timestamp), (other.value, other.timestamp))) != 0
+
   def __lt__(self, other):
-    if type(self) is not type(other):
-      return hash(type(self)) < hash(type(other))
-    return (self.value, self.timestamp) < (other.value, other.timestamp)
+    return (cmp(type(self), type(other)) or cmp(
+        (self.value, self.timestamp), (other.value, other.timestamp))) < 0
+
+  def __le__(self, other):
+    return (cmp(type(self), type(other)) or cmp(
+        (self.value, self.timestamp), (other.value, other.timestamp))) <= 0
+
+  def __gt__(self, other):
+    return (cmp(type(self), type(other)) or cmp(
+        (self.value, self.timestamp), (other.value, other.timestamp))) > 0
+
+  def __ge__(self, other):
+    return (cmp(type(self), type(other)) or cmp(
+        (self.value, self.timestamp), (other.value, other.timestamp))) >= 0
 
 
 class GlobalWindow(BoundedWindow):

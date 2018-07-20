@@ -30,6 +30,7 @@ from abc import ABCMeta
 from abc import abstractmethod
 from builtins import object
 
+from future.moves.itertools import zip_longest
 from future.utils import iteritems
 from future.utils import with_metaclass
 
@@ -48,10 +49,6 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
 
 # AfterCount is experimental. No backwards compatibility guarantees.
-try:
-  from itertools import izip_longest as zip_longest
-except ImportError:
-  from itertools import zip_longest
 
 __all__ = [
     'AccumulationMode',
