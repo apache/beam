@@ -189,7 +189,7 @@ public class Networks {
   private static <NodeT, EdgeT> void dfs(
       Network<NodeT, EdgeT> network, NodeT node, ArrayDeque<NodeT> parents, Set<NodeT> parentsSet) {
     if (parentsSet.contains(node)) {
-      checkArgument(!parents.contains(node), "Network has a cycle %s on node %s", node);
+      checkArgument(!parents.contains(node), "Network has a cycle %s on node %s", parents, node);
     }
     parents.addLast(node);
     parentsSet.add(node);
