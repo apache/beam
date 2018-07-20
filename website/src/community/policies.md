@@ -24,4 +24,4 @@ This page contains a list of major policies agreed upon by the Apache Beam commu
 
 ## Releases
 
-Apache Beam makes minor releases every 6 weeks. Apache Beam has a [calendar](https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com) for cutting the next release branch. Once a release branch  is cut, the community works quickly to finalize that release.
+Apache Beam makes minor releases every 6 weeks. Apache Beam has a [calendar](https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com) for cutting the next release branch. Once a release branch is cut, the community works quickly to finalize that release.
