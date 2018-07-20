@@ -86,10 +86,6 @@ sudo apt-get install \
 
 Then please use the standard `./gradlew build` command.
 
-### Spark Runner
-
-See the Spark Runner [README](https://github.com/apache/beam/tree/master/runners/spark).
-
 ## Contact Us
 
 To get involved in Apache Beam:
