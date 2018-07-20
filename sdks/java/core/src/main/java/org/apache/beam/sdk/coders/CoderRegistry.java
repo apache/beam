@@ -621,11 +621,7 @@ public class CoderRegistry {
     } else if (type instanceof WildcardType) {
       // No coder for an unknown generic type.
       throw new CannotProvideCoderException(
-          String.format(
-              "Cannot provide a coder for type variable %s"
-                  + " (declared by %s) because the actual type is unknown due to erasure.",
-              type, ((TypeVariable<?>) type).getGenericDeclaration()),
-          ReasonCode.TYPE_ERASURE);
+          String.format("Cannot provide a coder for wildcard type %s.", type), ReasonCode.UNKNOWN);
     } else {
       throw new RuntimeException("Internal error: unexpected kind of Type: " + type);
     }
