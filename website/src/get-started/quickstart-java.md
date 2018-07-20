@@ -41,7 +41,7 @@ This Quickstart will walk you through executing your first Beam pipeline to run 
 
 The easiest way to get a copy of the WordCount pipeline is to use the following command to generate a simple Maven project that contains Beam's WordCount examples and builds against the most recent Beam release:
 
-{:.unix}
+{:.shell-unix}
 ```
 $ mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
@@ -53,7 +53,8 @@ $ mvn archetype:generate \
       -Dpackage=org.apache.beam.examples \
       -DinteractiveMode=false
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> mvn archetype:generate `
  -D archetypeGroupId=org.apache.beam `
@@ -69,7 +70,7 @@ PS> mvn archetype:generate `
 
 This will create a directory `word-count-beam` that contains a simple `pom.xml` and a series of example pipelines that count words in text files.
 
-{:.unix}
+{:.shell-unix}
 ```
 $ cd word-count-beam/
 
@@ -80,7 +81,8 @@ $ ls src/main/java/org/apache/beam/examples/
 DebuggingWordCount.java	WindowedWordCount.java	common
 MinimalWordCount.java	WordCount.java
 ```
-{:.powershell}
+
+{:.shell-PowerShell}
 ```
 PS> cd .\word-count-beam
 
@@ -122,6 +124,8 @@ After you've chosen which runner you'd like to use:
     1. Adding any runner-specific required options
     1. Choosing input files and an output location are accessible on the chosen runner. (For example, you can't access a local file if you are running the pipeline on an external cluster.)
 1.  Run your first WordCount pipeline.
+
+For Unix shells:
 
 {:.runner-direct}
 ```
@@ -178,6 +182,57 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 ```
+For Windows PowerShell:
+
+{:.runner-direct}
+```
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--inputFile=pom.xml --output=counts" -P direct-runner
+```
+
+{:.runner-apex}
+```
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -P apex-runner
+```
+
+{:.runner-flink-local}
+```
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -P flink-runner
+```
+
+{:.runner-flink-cluster}
+```
+PS> mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
+               --inputFile=C:\path\to\quickstart\pom.xml --output=C:\tmp\counts" -P flink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
+```
+
+{:.runner-spark}
+```
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -P spark-runner
+```
+
+{:.runner-dataflow}
+```
+Make sure you complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+ -D exec.args="--runner=DataflowRunner --project=<your-gcp-project> `
+               --gcpTempLocation=gs://<your-gcs-bucket>/tmp `
+               --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" `
+ -P dataflow-runner
+```
+
+{:.runner-samza-local}
+```
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+     -D exec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
+```
 
 ## Inspect the results
 
@@ -186,11 +241,6 @@ Once the pipeline has completed, you can view the output. You'll notice that the
 {:.runner-direct}
 ```
 $ ls counts*
-```
-
-{:.runner-direct-powershell}
-```
-PS> dir counts*
 ```
 
 {:.runner-apex}
@@ -235,19 +285,6 @@ Apache: 2
 The: 1
 limitations: 1
 Foundation: 1
-...
-```
-
-{:.runner-direct-powershell}
-```
-PS> cat counts*
-the: 28
-executions: 2
-available: 5
-project: 6
-clients: 4
-to: 11
-Dependencies: 1
 ...
 ```
 
