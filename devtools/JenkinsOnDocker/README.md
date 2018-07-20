@@ -1,3 +1,22 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
 # Local Jenkins Setup
 
 Setting up a local Jenkins instance is useful for testing Jenkins job changes
@@ -20,19 +39,23 @@ You can utilize scripts in this folder to build Docker container with Jenkins,
 pre-installed plugin and some basic configuration.
 
 ```bash
-fetchplugins.sh
 docker build -t beamjenkins .
 docker run -p 127.0.0.1:8080:8080 beamjenkins:latest
 ```
-* fetchplugin.sh -- fetches list of plugins from
-  [infra wiki list](https://cwiki.apache.org/confluence/display/INFRA/Jenkins+Plugin+Upgrades).
-* docker build -- builds image with name beamjenkins based on dockerfile located
+* plugins.txt -- Pre-assembled list of plugins that are available on Apache
+  Jenkins. This list does not contain versions and migt not have all the plugins
+  available. If you find some plugin missing, or having and incorrect version,
+  you can check
+  [infra wiki list](https://cwiki.apache.org/confluence/display/INFRA/Jenkins+Plugin+Upgrades)
+  for plugin updates history. Feel free to update this list with added/removed
+  plugins.
+* docker build -- builds image with name beamjenkins based on Dockerfile located
   in current folder.
 * docker run -- creates and starts new container.
     * The `-p 127.0.0.1:8080:8080` parameter to `docker run` ensures that your
       Jenkins instance will only be available via localhost and not your machine
       hostname.
-* Default credentials: admin:jenadmin (Suggested to change these in dockerfile.)
+* Default credentials: admin:jenadmin (Suggested to change these in Dockerfile.)
 
 Image built via this scripts will contain all required plugins, basic
 configuration listed in manual setup instructions below and also remap
