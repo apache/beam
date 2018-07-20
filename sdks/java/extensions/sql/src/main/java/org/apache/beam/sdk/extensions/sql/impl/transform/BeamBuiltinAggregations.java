@@ -174,7 +174,8 @@ class BeamBuiltinAggregations {
   static class FloatSum extends Combine.BinaryCombineFn<Float> {
     @Override
     public Float apply(Float left, Float right) {
-      return left + right;
+      return (left == null ? 0f : left)
+              + (right == null ? 0f: right);
     }
   }
 

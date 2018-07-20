@@ -104,8 +104,8 @@ public class BeamTpc {
 
     tables
         .apply(
-            "SqlTransform " + "DS" + ":" + "7",
-            SqlTransform.query(TpcDsQuery.QUERY7))
+            "SqlTransform " + "DS" + ":" + tpcOptions.getQuery(),
+            SqlTransform.query(TpcDsQuery.getQuery(tpcOptions.getQuery())))
 //            SqlTransform.query(TpcDsQuery.QUERY7))
         .apply(resultMonitor.getTransform())
         .apply(

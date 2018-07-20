@@ -196,4 +196,16 @@ public class TpcDsQuery {
           "        ,item.i_category_id\n" +
           "        ,item.i_category\n" +
           "limit 100";
+
+  public static String getQuery(int num) {
+      switch(num) {
+          case 3: return QUERY3;
+          case 7: return QUERY7;
+          case 11: return QUERY11;
+          case 22: return QUERY22;
+          case 38: return QUERY38;
+          case 42: return QUERY42;
+          default: throw new UnsupportedOperationException("unsupport DS query");
+      }
+  }
 }
