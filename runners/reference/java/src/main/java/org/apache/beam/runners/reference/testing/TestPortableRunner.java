@@ -17,17 +17,21 @@
  */
 package org.apache.beam.runners.reference.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import org.apache.beam.runners.reference.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.hamcrest.Matchers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +110,7 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
       portableOptions.setJobEndpoint(jobServerHostPort);
       PortableRunner runner = PortableRunner.fromOptions(portableOptions);
       PipelineResult result = runner.run(pipeline);
-      result.waitUntilFinish();
+      assertThat("Pipeline did not succeed.", result.waitUntilFinish(), Matchers.is(State.DONE));
       return result;
     } finally {
       try {

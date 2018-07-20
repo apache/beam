@@ -97,7 +97,7 @@ def createPortableValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
     }
