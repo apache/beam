@@ -36,16 +36,16 @@ If you haven't yet, [install Docker on your machine.](https://docs.docker.com/in
 *INFO: Changing admin credentials is advised.*
 
 You can utilize scripts in this folder to build Docker container with Jenkins,
-pre-installed plugin and some basic configuration.
+pre-installed plugins and some basic configuration.
 
 ```bash
 docker build -t beamjenkins .
 docker run -p 127.0.0.1:8080:8080 beamjenkins:latest
 ```
 * plugins.txt -- Pre-assembled list of plugins that are available on Apache
-  Jenkins. This list does not contain versions and migt not have all the plugins
-  available. If you find some plugin missing, or having and incorrect version,
-  you can check
+  Jenkins. This list does not contain versions and might not have all the
+  plugins available. If you find some plugin missing, or having and incorrect
+  version, you can check
   [infra wiki list](https://cwiki.apache.org/confluence/display/INFRA/Jenkins+Plugin+Upgrades)
   for plugin updates history. Feel free to update this list with added/removed
   plugins.
