@@ -45,7 +45,7 @@ type dataClient interface {
 // are generally used, each managing multiple logical byte streams.
 type DataManager struct {
 	ports map[string]*DataChannel
-	mu    sync.Mutex
+	mu    sync.Mutex // guards the ports map
 }
 
 func (m *DataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
@@ -93,7 +93,7 @@ type DataChannel struct {
 	readers map[string]*dataReader
 	// TODO: early/late closed, bad instructions, finer locks, reconnect?
 
-	mu sync.Mutex
+	mu sync.Mutex // guards both the readers and writers maps.
 }
 
 func NewDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
