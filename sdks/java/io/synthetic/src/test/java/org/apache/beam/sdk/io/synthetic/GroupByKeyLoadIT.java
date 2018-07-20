@@ -44,7 +44,6 @@ public class GroupByKeyLoadIT {
 
   private static Options options;
 
-  // TODO: parse it in a more decent way
   private static SyntheticBoundedIO.SyntheticSourceOptions syntheticSourceOptions;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -88,7 +87,10 @@ public class GroupByKeyLoadIT {
     pipeline.run().waitUntilFinish();
   }
 
+  // TODO: Is this a proper fanout test?
   private void groupAndUngroup(PCollection<KV<byte[], byte[]>> input, int branchNumber) {
+    // TODO: Should we add the Synthetic step here?
+
     PCollection<KV<byte[], Iterable<byte[]>>> groupedData =
         input.apply(String.format("Group by key (%s)", branchNumber), GroupByKey.create());
 
@@ -102,7 +104,7 @@ public class GroupByKeyLoadIT {
     if (n == 0) {
       return;
     } else {
-      // todo: synthetic step.
+      // TODO: synthetic step?
       PCollection<KV<byte[], Iterable<byte[]>>> groupedCollection =
           input.apply(String.format("Group by key no: %s.", n), GroupByKey.create());
 
@@ -114,6 +116,7 @@ public class GroupByKeyLoadIT {
     }
   }
 
+  // TODO: I skipped the getIterations() option usage. I'm still not sure if we should use it here.
   private static class UngroupFn extends DoFn<KV<byte[], Iterable<byte[]>>, KV<byte[], byte[]>> {
 
     @ProcessElement

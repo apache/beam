@@ -104,6 +104,7 @@ public class SideInputLoadIT {
     sideInputOptions = fromString(options.getSideInputOptions());
   }
 
+  // TODO: Should this be a fanout test too?
   @Test
   public void sideInputLoadTest() {
     PCollection<KV<byte[], byte[]>> input =
@@ -130,6 +131,18 @@ public class SideInputLoadIT {
 
     pipeline.run().waitUntilFinish();
   }
+
+
+  /*
+  * TODO:
+  *
+  * Should we use metrics API, as in the Side input gist?
+  * (https://gist.github.com/pabloem/eeb97d25ebda43db09ff9b875f61f127)
+  *
+  * Do I think correctly, that we should also use the metrics api in all other tests to
+  * gather more data about the test runs (or is it out of scope, at least for now)?
+  *
+  */
 
   /* For every element, iterate over the whole iterable side input. */
   private static class ConsumeIterable extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {

@@ -46,7 +46,6 @@ public class CombineLoadIT {
 
   private static Options options;
 
-  // TODO: parse it in a more decent way
   private static SyntheticBoundedIO.SyntheticSourceOptions syntheticSourceOptions;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -92,7 +91,8 @@ public class CombineLoadIT {
     pipeline.run().waitUntilFinish();
   }
 
-  // TODO: This doesn't seem enough. How should I transform byte[] to numbers to calculate the mean?
+  // TODO: This certainly is not enough.
+  // TODO: How should I transform byte[] to numbers to calculate the mean?
   private static class ByteToIntFn extends DoFn<KV<byte[], byte[]>, Integer> {
     @ProcessElement
     public void processElement(ProcessContext c) {

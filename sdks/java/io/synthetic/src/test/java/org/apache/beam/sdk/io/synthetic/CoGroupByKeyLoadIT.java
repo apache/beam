@@ -47,8 +47,9 @@ public class CoGroupByKeyLoadIT {
 
   private static Options options;
 
-  // TODO: parse it in a more decent way
-  private static SyntheticBoundedIO.SyntheticSourceOptions syntheticSourceOptions;
+  private static SyntheticBoundedIO.SyntheticSourceOptions inputOptions;
+
+  private static SyntheticBoundedIO.SyntheticSourceOptions coInputOptions;
 
   private static final TupleTag<byte[]> INPUT_TAG = new TupleTag<>();
   private static final TupleTag<byte[]> CO_INPUT_TAG = new TupleTag<>();
@@ -58,11 +59,17 @@ public class CoGroupByKeyLoadIT {
   /** Pipeline options for the test. */
   public interface Options extends TestPipelineOptions {
 
-    @Description("The JSON representation of SyntheticBoundedInput.SourceOptions.")
+    @Description("The JSON representation of SyntheticBoundedInput.SourceOptions. Input options.")
     @Validation.Required
     String getInputOptions();
 
-    void setInputOptions(String inputOptions);
+    void setInputOptions(String  inputOptions);
+
+    @Description("The JSON representation of SyntheticBoundedInput.SourceOptions. Co-input options.")
+    @Validation.Required
+    String getCoInputOptions();
+
+    void setCoInputOptions(String inputOptions);
 
     @Description("The number of gbk to perform")
     @Default.Integer(5)
@@ -79,16 +86,19 @@ public class CoGroupByKeyLoadIT {
         PipelineOptionsValidator.validate(
             Options.class, TestPipeline.testingPipelineOptions().as(Options.class));
 
-    syntheticSourceOptions = fromString(options.getInputOptions());
+    inputOptions = fromString(options.getInputOptions());
+    coInputOptions = fromString(options.getCoInputOptions());
   }
 
+  // TODO: Is this a proper fanout test?
+  // TODO: Should this be a fanout test too or should we just "reiterate large inputs"?
   @Test
   public void coGroupByKeyLoadTest() {
     PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(syntheticSourceOptions));
+        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(inputOptions));
 
     PCollection<KV<byte[], byte[]>> coInput =
-        pipeline.apply("Read co-input", SyntheticBoundedIO.readFrom(syntheticSourceOptions));
+        pipeline.apply("Read co-input", SyntheticBoundedIO.readFrom(coInputOptions));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       coGroupAndUngroup(input, coInput, branch);
@@ -107,6 +117,7 @@ public class CoGroupByKeyLoadIT {
     groupedData.apply(String.format("Ungroup (%s)", branch), ParDo.of(new Ungroup()));
   }
 
+  // TODO: Is this enough?
   private static class Ungroup extends DoFn<KV<byte[], CoGbkResult>, KV<byte[], byte[]>> {
 
     @ProcessElement
