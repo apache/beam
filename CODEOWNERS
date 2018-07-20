@@ -115,7 +115,7 @@ build.gradle @lukecwik
 /runners/spark @jbonofre
 /runners/reference @lukecwik
 #/runners/gearpump
-/runners/extensions-java @echauchot
+/runners/extensions-java/metrics/src/main/java/org/apache/beam/runners/extensions/metrics @echauchot
 /runners/google-cloud-dataflow-java @pabloem @lukecwik
 /runners/direct-java @lukecwik
 
