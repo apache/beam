@@ -83,6 +83,46 @@ public class NetworksTest {
     }
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testTopologicalSortWithCycle() {
+    MutableNetwork<String, String> network = createEmptyNetwork();
+    network.addNode("A");
+    network.addNode("B");
+    network.addNode("C");
+    network.addNode("D");
+    network.addNode("E");
+
+    network.addEdge("A", "B", "AB");
+    network.addEdge("B", "C", "BC");
+    network.addEdge("C", "D", "CD");
+    network.addEdge("D", "E", "DE");
+    // Cycle between B -> C -> D ->
+    network.addEdge("D", "B", "DB");
+
+    Iterable<String> sortedNodes = Networks.topologicalOrder(network);
+    Map<String, Integer> nodeToPosition = new HashMap<>(Iterables.size(sortedNodes));
+    int i = 0;
+    for (String node : sortedNodes) {
+      nodeToPosition.put(node, i);
+      i += 1;
+    }
+
+    for (String node : network.nodes()) {
+      for (String descendant :
+          Sets.difference(
+              Networks.reachableNodes(network, ImmutableSet.of(node), Collections.emptySet()),
+              Sets.newHashSet(node))) {
+        assertThat(
+            String.format(
+                "Expected position of node %s to be before descendant %s,"
+                    + " order returned %s for network %s",
+                node, descendant, sortedNodes, network),
+            nodeToPosition.get(descendant),
+            greaterThan(nodeToPosition.get(node)));
+      }
+    }
+  }
+
   @Test
   public void testTopologicalSortWithSuborder() {
     // This cast is required to narrow the type accepted by the comparator

@@ -177,6 +177,28 @@ public class Networks {
   }
 
   /**
+   * Do a simple DFS traversal to find cycle in the graph. Not using Graphs.hasCycle as it does not
+   * provide the found cycle.
+   */
+  private static <NodeT, EdgeT> void checkCycle(Network<NodeT, EdgeT> network) {
+    ArrayDeque<NodeT> parents = new ArrayDeque<>();
+    HashSet<NodeT> parentsSet = new HashSet<>();
+    network.nodes().forEach(node -> dfs(network, node, parents, parentsSet));
+  }
+
+  private static <NodeT, EdgeT> void dfs(
+      Network<NodeT, EdgeT> network, NodeT node, ArrayDeque<NodeT> parents, Set<NodeT> parentsSet) {
+    if (parentsSet.contains(node)) {
+      checkArgument(!parents.contains(node), "Network has a cycle %s on node %s", parents, node);
+    }
+    parents.addLast(node);
+    parentsSet.add(node);
+    network.successors(node).forEach(successor -> dfs(network, successor, parents, parentsSet));
+    parentsSet.remove(node);
+    parents.removeLast();
+  }
+
+  /**
    * Compute the topological order for a {@link Network}.
    *
    * <p>Nodes must be considered in the order specified by the {@link Network Network's} {@link
@@ -193,6 +215,7 @@ public class Networks {
         "Only networks without self loops are supported, given %s",
         network);
 
+    checkCycle(network);
     // Linked hashset will prevent duplicates from appearing and will maintain insertion order.
     LinkedHashSet<NodeT> nodes = new LinkedHashSet<>(network.nodes().size());
     Queue<NodeT> processingOrder = new ArrayDeque<>();
