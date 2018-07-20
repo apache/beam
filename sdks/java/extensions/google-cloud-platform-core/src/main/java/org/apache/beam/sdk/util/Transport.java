@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -105,6 +106,7 @@ public class Transport {
       ApiComponents components = apiComponentsFromUrl(servicePath);
       storageBuilder.setRootUrl(components.rootUrl);
       storageBuilder.setServicePath(components.servicePath);
+      storageBuilder.setBatchPath(Paths.get("batch/", components.servicePath).toString());
     }
     return storageBuilder;
   }
