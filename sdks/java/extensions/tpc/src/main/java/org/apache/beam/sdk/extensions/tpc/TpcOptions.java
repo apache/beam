@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.tpc;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+//import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.options.Description;
-//import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /** PipelineOptions for Tpc benchmark launcher. */
-public interface TpcOptions extends DataflowPipelineWorkerPoolOptions {
+public interface TpcOptions extends PipelineOptions {
   @Description("Root path of the csv files to read from")
   @Validation.Required
   String getInputFile();

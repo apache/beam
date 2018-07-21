@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(shadowClosure: {} )
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
@@ -69,15 +69,15 @@ dependencies {
   gradleRun project(path: project.path, configuration: "shadow")
   gradleRun project(path: nexmarkRunnerDependency, configuration: "shadow")
 
+  shadow project(path: ":beam-runners-spark", configuration: "shadow")
+
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
   // to not hardcode any runner other than :beam-runners-direct-java
-  if (shouldProvideSpark) {
-    gradleRun library.java.spark_streaming
-    gradleRun library.java.spark_core, {
+   shadow library.java.spark_streaming
+   shadow library.java.spark_core, {
       exclude group:"org.slf4j", module:"jul-to-slf4j"
     }
-  }
 }
 
 if (shouldProvideSpark) {

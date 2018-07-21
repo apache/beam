@@ -22,11 +22,14 @@ applyJavaNature(testShadowJar: true, shadowClosure: {})
 description = "Apache Beam :: SDKs :: Java :: Extensions :: TPC"
 ext.summary = "TPC Benchmark on Beam SQL"
 
+def calcite_version = "1.16.0"
+def avatica_version = "1.11.0"
+
 dependencies {
     compile project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
     compile project(path: ":beam-sdks-java-core", configuration: "shadow")
-//    runtime project(path: ":beam-runners-flink_2.11", configuration: "shadow")
-    compile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
+    runtime project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+//    compile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
     compile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
     compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
     compile library.java.protobuf_java
@@ -46,17 +49,16 @@ dependencies {
     compile library.java.hamcrest_core
     compile library.java.hamcrest_library
 
-//    // Spark
-//    compile project(path: ":beam-runners-spark", configuration: "shadow")
-//    compile library.java.spark_streaming, {
-//        exclude group:"org.slf4j", module:"jul-to-slf4j"
-//        exclude group: "org.slf4j", module: "slf4j-jdk14"
-//    }
-//    compile library.java.spark_core, {
-//        exclude group:"org.slf4j", module:"jul-to-slf4j"
-//        exclude group: "org.slf4j", module: "slf4j-jdk14"
-//    }
-
+    // Spark
+    compile project(path: ":beam-runners-spark", configuration: "shadow")
+    compile library.java.spark_streaming, {
+        exclude group:"org.slf4j", module:"jul-to-slf4j"
+        exclude group: "org.slf4j", module: "slf4j-jdk14"
+    }
+    compile library.java.spark_core, {
+        exclude group:"org.slf4j", module:"jul-to-slf4j"
+        exclude group: "org.slf4j", module: "slf4j-jdk14"
+    }
 
     testCompile library.java.junit
 }
