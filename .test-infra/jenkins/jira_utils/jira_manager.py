@@ -17,6 +17,7 @@
 
 import logging
 import yaml
+import traceback
 from datetime import datetime
 from jira_client import JiraClient
 
@@ -26,7 +27,7 @@ _ISSUE_SUMMARY_PREFIX = 'Beam Dependency Update Request: '
 
 class JiraManager:
 
-  def __init__(self, jira_url, jira_username, jira_password, owners_file, sdk_type='Java'):
+  def __init__(self, jira_url, jira_username, jira_password, owners_file):
     options = {
       'server': jira_url
     }
@@ -35,41 +36,89 @@ class JiraManager:
     with open(owners_file) as f:
       owners = yaml.load(f)
     self.owners_map = owners['deps']
-    self.sdk_type = sdk_type
     logging.getLogger().setLevel(logging.INFO)
 
 
-  def run(self, dep_name, dep_latest_version, sdk_type):
-    summary =  _ISSUE_SUMMARY_PREFIX + dep_name
-    if sdk_type == 'Java':
-      # TODO find parent issue first.
-
-    summary = summary + " " + dep_latest_version
-
-    issues = self._search_issues(summary)
-
-    if not issues:
-      self._create_issue(dep_name, dep_latest_version)
-    # TODO
-
-  pass
+  def run(self, dep_name, dep_latest_version, sdk_type, group_id=None):
+    """
+    Manage the jira issue for a dependency
+    Args:
+      dep_name,
+      dep_latest_version,
+      sdk_type: Java, Python
+      group_id (optional): only required for Java dependencies
+    """
+    logging.info("Start handling the JIRA issues for {0} dependency: {1} {2}".format(
+        sdk_type, dep_name, dep_latest_version))
+    try:
+      # find the parent issue for Java deps base on the groupID
+      parent_issue = None
+      if sdk_type == 'Java':
+        summary = _ISSUE_SUMMARY_PREFIX + group_id
+        parent_issues = self._search_issues(summary)
+        for i in parent_issues:
+          if i.fields.summary == summary:
+            parent_issue = i
+            break
+        # Create a new parent issue if no existing found
+        if not parent_issue:
+          logging.info("""Did not find existing issue with name {0}. \n 
+            Created a parent issue for {1}""".format(summary, group_id))
+          try:
+            parent_issue = self._create_issue(group_id, None)
+            print parent_issue.key
+          except:
+            logging.error("""Failed creating a parent issue for {0}.
+              Stop handling the JIRA issue for {1}, {2}""".format(group_id, dep_name, dep_latest_version))
+            return
+        # Reopen the existing parent issue if it was closed
+        elif (parent_issue.fields.status.name != 'Open' and
+          parent_issue.fields.status.name != 'Reopened'):
+          logging.info("""The parent issue {0} is not opening. Attempt reopening the issue""".format(parent_issue.key))
+          try:
+            self.jira.reopen_issue(parent_issue)
+          except:
+            traceback.print_exc()
+            logging.error("""Failed reopening the parent issue {0}.
+              Stop handling the JIRA issue for {1}, {2}""".format(parent_issue.key, dep_name, dep_latest_version))
+            return
+        logging.info("Found the parent issue {0}. Continuous to create or update the sub-task for {1}".format(parent_issue.key, dep_name))
+      # creating a new issue/sub-task or updating on the existing issue of the dep
+      summary =  _ISSUE_SUMMARY_PREFIX + dep_name + " " + dep_latest_version
+      issues = self._search_issues(summary)
+      issue = None
+      for i in issues:
+        if i.fields.summary == summary:
+          issue = i
+          break
+      if not issue:
+        if sdk_type == 'Java':
+          issue = self._create_issue(dep_name, dep_latest_version, is_subtask=True, parent_key=parent_issue.key)
+        else:
+          issue = self._create_issue(dep_name, dep_latest_version)
+        logging.info('Created a new issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
+      elif issue.fields.status.name == 'Open' or issue.fields.status.name == 'Reopened':
+        self._append_descriptions(issue, dep_name, dep_latest_version)
+        logging.info('Updated the existing issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
+    except:
+      raise
 
 
   def _create_issue(self, dep_name, dep_latest_version, is_subtask=False, parent_key=None):
     """
     Create a new issue or subtask
     Args:
-      dep_name
-      dep_latest_version
-      is_subtask
-      parent_key - only required if the 'is_subtask'is true.
+      dep_name,
+      dep_latest_version,
+      is_subtask,
+      parent_key: only required if the 'is_subtask'is true.
     """
-    logging.info("Creating a new JIRA issue to track {0} upgrade process").format(dep_name)
-    assignee, owners = self._find_assignees(dep_name)
+    logging.info("Creating a new JIRA issue to track {0} upgrade process".format(dep_name))
+    assignee, owners = self._find_owners(dep_name)
     summary =  _ISSUE_SUMMARY_PREFIX + dep_name
     if dep_latest_version:
       summary = summary + " " + dep_latest_version
-    description = """\n\n {0} \n
+    description = """\n\n{0}\n
         Please review and upgrade the {1} to the latest version {2} \n 
         cc: """.format(
         datetime.today(),
@@ -77,28 +126,45 @@ class JiraManager:
         dep_latest_version
     )
     for owner in owners:
-      description.append("[~{0}],".format(owner))
+      description += "[~{0}], ".format(owner)
     try:
       if not is_subtask:
-        self.jira.create_issue(summary, _JIRA_COMPONENT, description=description, assignee=assignee)
+        issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description, assignee=assignee)
       else:
-        self.jira.create_issue(summary, _JIRA_COMPONENT, description=description, assignee=assignee, parent_key=parent_key)
+        issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description, assignee=assignee, parent_key=parent_key)
     except Exception as e:
-      logging.error("Error while creating issue: "+ str(e))
+      logging.error("Failed creating issue: "+ str(e))
+      raise e
+    return issue
 
 
   def _search_issues(self, summary):
+    """
+    Search issues by using issues' summary.
+    Args:
+      summary: a string
+    Return:
+      A list of issues
+    """
     try:
       issues = self.jira.get_issues_by_summary(summary)
     except Exception as e:
-      logging.error("Error while searching issues: "+ str(e))
+      logging.error("Failed searching issues: "+ str(e))
+      return []
     return issues
 
 
   def _append_descriptions(self, issue, dep_name, dep_latest_version):
-    logging.info("Updating JIRA issue to {0} track {1} upgrade process").format(
-        issue.key['name'],
-        dep_name)
+    """
+    Add descriptions on an existing issue.
+    Args:
+      issue: Jira issue
+      dep_name
+      dep_latest_version
+    """
+    logging.info("Updating JIRA issue {0} to track {1} upgrade process".format(
+        issue.key,
+        dep_name))
     description = issue.fields.description + """\n\n{0}\n
         Please review and upgrade the {1} to the latest version {2} \n 
         cc: """.format(
@@ -106,27 +172,38 @@ class JiraManager:
         dep_name,
         dep_latest_version
     )
-    _, owners = self._find_assignees(dep_name)
+    _, owners = self._find_owners(dep_name)
     for owner in owners:
-      description.append("[~{0}],".format(owner))
+      description += "[~{0}], ".format(owner)
     try:
       self.jira.update_issue(issue, description=description)
     except Exception as e:
-      logging.error("Error while updating issue: "+ str(e))
+      traceback.print_exc()
+      logging.error("Failed updating issue: "+ str(e))
 
 
   def _find_owners(self, dep_name):
+    """
+    Find owners for a dependency/
+    Args:
+      dep_name
+    Return:
+      primary: The primary owner of the dep. The Jira issue will be assigned to the primary owner.
+      others: A list of other owners of the dep. Owners will be cc'ed in the description.
+    """
     try:
       dep_info = self.owners_map[dep_name]
       owners = dep_info['owners']
       if not owners:
-        logging.info("Could not find owners for " + dep_name)
+        logging.warning("Could not find owners for " + dep_name)
         return None, []
     except KeyError:
-      logging.info("Could not find {0} in the ownership configurations.".format(dep_name))
+      traceback.print_exc()
+      logging.warning("Could not find the dependency info of {0} in the OWNERS configurations.".format(dep_name))
       return None, []
     except Exception as e:
-      logging.error("Error while finding dependency owners: "+ str(e))
+      traceback.print_exc()
+      logging.error("Failed finding dependency owners: "+ str(e))
       return None, None
 
     logging.info("Found owners of {0}: {1}".format(dep_name, owners))

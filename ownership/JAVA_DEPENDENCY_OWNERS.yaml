@@ -819,11 +819,6 @@ deps:
     artifact: httpcore-nio
     owners:
 
-  org.apache.httpcomponents:httpcore-nio:
-    group: org.apache.httpcomponents
-    artifact: httpcore-nio
-    owners:
-
   org.apache.kafka:kafka_2.11:
     group: org.apache.kafka
     artifact: kafka_2.11

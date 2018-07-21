@@ -19,6 +19,7 @@
 from jira import JIRA
 
 class JiraClient:
+
   def __init__(self, options, basic_auth, project):
     self.jira = JIRA(options, basic_auth=basic_auth)
     self.project = project
@@ -30,7 +31,7 @@ class JiraClient:
     Args:
       summary
     Return:
-      a list of issues
+      A list of issues
     """
     try:
       issues = self.jira.search_issues("project={0} AND summary ~ '{1}'".format(self.project, summary))
@@ -54,7 +55,7 @@ class JiraClient:
     return issue
 
 
-  def create_issue(self, summary, components, description='', issuetype='Bug', assignee=None, parent_key=None):
+  def create_issue(self, summary, components, description, issuetype='Bug', assignee=None, parent_key=None):
     """
     Create a new issue
     Args:
@@ -67,7 +68,7 @@ class JiraClient:
     Return:
       Issue created
     """
-    feilds = {
+    fields = {
       'project': {'key': self.project},
       'summary': summary,
       'description': description,
@@ -75,20 +76,20 @@ class JiraClient:
       'components': [],
     }
     for component in components:
-      feilds['components'].append({'name': component})
+      fields['components'].append({'name': component})
     if assignee is not None:
-      feilds['assignee'] = {'name': assignee}
+      fields['assignee'] = {'name': assignee}
     if parent_key is not None:
-      feilds['parent'] = {'key': parent_key}
-      feilds['issuetype'] = {'name': 'Sub-task'}
+      fields['parent'] = {'key': parent_key}
+      fields['issuetype'] = {'name': 'Sub-task'}
     try:
-      new_issue = self.jira.create_issue(fields = feilds)
+      new_issue = self.jira.create_issue(fields = fields)
     except Exception:
       raise
     return new_issue
 
 
-  def update_issue(self, issue, summary=None, components=None, description=None, assignee=None,  notify=True):
+  def update_issue(self, issue, summary=None, components=None, description=None, assignee=None, notify=True):
     """
     Create a new issue
     Args:
@@ -103,17 +104,29 @@ class JiraClient:
       Issue created
     """
     fields={}
-    if summary is not None:
+    if summary:
       fields['summary'] = summary
-    if description is not None:
+    if description:
       fields['description'] = description
-    if assignee is not None:
+    if assignee:
       fields['assignee'] = {'name': assignee}
-    if components is not None:
+    if components:
       fields['components'] = []
       for component in components:
         fields['components'].append({'name': component})
     try:
       issue.update(fields=fields, notify=notify)
     except Exception:
+      raise
+
+
+  def reopen_issue(self, issue):
+    """
+    Reopen an issue
+    Args:
+      issue - Jira issue object
+    """
+    try:
+      self.jira.transition_issue(issue.key, 3)
+    except:
       raise
