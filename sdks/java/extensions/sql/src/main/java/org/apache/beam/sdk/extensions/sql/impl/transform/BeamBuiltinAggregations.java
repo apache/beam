@@ -174,7 +174,8 @@ class BeamBuiltinAggregations {
   static class FloatSum extends Combine.BinaryCombineFn<Float> {
     @Override
     public Float apply(Float left, Float right) {
-      return left + right;
+      return (left == null ? 0f : left)
+              + (right == null ? 0f: right);
     }
   }
 
@@ -234,6 +235,9 @@ class BeamBuiltinAggregations {
 
     @Override
     public BigDecimal toBigDecimal(Integer record) {
+      if (record == null) {
+        return BigDecimal.ZERO;
+      }
       return new BigDecimal(record);
     }
   }
@@ -286,7 +290,11 @@ class BeamBuiltinAggregations {
 
     @Override
     public BigDecimal toBigDecimal(Float record) {
-      return new BigDecimal(record);
+      if (record != null) {
+        return new BigDecimal(record);
+      } else {
+        return BigDecimal.ZERO;
+      }
     }
   }
 

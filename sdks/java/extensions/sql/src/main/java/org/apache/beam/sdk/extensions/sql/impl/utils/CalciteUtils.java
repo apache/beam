@@ -47,6 +47,7 @@ public class CalciteUtils {
           .put(FieldType.INT32, SqlTypeName.INTEGER)
           .put(FieldType.INT64, SqlTypeName.BIGINT)
           .put(FieldType.FLOAT, SqlTypeName.FLOAT)
+          .put(FieldType.FLOAT.withMetadata("REAL"), SqlTypeName.REAL)
           .put(FieldType.DOUBLE, SqlTypeName.DOUBLE)
           .put(FieldType.DECIMAL, SqlTypeName.DECIMAL)
           .put(FieldType.BOOLEAN, SqlTypeName.BOOLEAN)
