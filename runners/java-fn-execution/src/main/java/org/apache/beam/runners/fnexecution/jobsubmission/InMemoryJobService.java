@@ -72,13 +72,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<String> cleanupJobFn,
-      Boolean cleanArtifactsPerJob,
       JobInvoker invoker) {
     return new InMemoryJobService(
         stagingServiceDescriptor,
         stagingServiceTokenProvider,
         cleanupJobFn,
-        cleanArtifactsPerJob,
         invoker);
   }
 
@@ -88,19 +86,16 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final Function<String, String> stagingServiceTokenProvider;
   private final ThrowingConsumer<String> cleanupJobFn;
-  private final Boolean cleanArtifactsPerJob;
   private final JobInvoker invoker;
 
   private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<String> cleanupJobFn,
-      Boolean cleanArtifactsPerJob,
       JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.cleanupJobFn = cleanupJobFn;
-    this.cleanArtifactsPerJob = cleanArtifactsPerJob;
     this.invoker = invoker;
 
     this.preparations = new ConcurrentHashMap<>();
@@ -183,24 +178,22 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               preparation.pipeline(), preparation.options(), request.getRetrievalToken());
       String invocationId = invocation.getId();
 
-      if (cleanArtifactsPerJob) {
-        invocation.addStateListener(
-            state -> {
-              if (
-              // TODO: add other terminal states
-              state.equals(JobState.Enum.DONE) || state.equals(JobState.Enum.FAILED)) {
-                String stagingSessionToken = stagingSessionTokens.get(preparationId);
-                try {
-                  cleanupJobFn.accept(stagingSessionToken);
-                } catch (Exception e) {
-                  LOG.error(
-                      "Failed to remove job staging directory for token {}: {}",
-                      stagingSessionToken,
-                      e);
-                }
+      invocation.addTerminationListener(
+          (state, id) -> {
+            String stagingSessionToken = stagingSessionTokens.get(preparationId);
+            stagingSessionTokens.remove(preparationId);
+            if (cleanupJobFn != null) {
+              try {
+                cleanupJobFn.accept(stagingSessionToken);
+              } catch (Exception e) {
+                LOG.error(
+                    "Failed to remove job staging directory for token {}: {}",
+                    stagingSessionToken,
+                    e);
               }
-            });
-      }
+            }
+          }
+      );
 
       invocation.start();
       invocations.put(invocationId, invocation);

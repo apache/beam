@@ -145,9 +145,10 @@ public class FlinkJobServerDriver implements Runnable {
             throw new RuntimeException(exn);
           }
         },
-        (String stagingSessionToken) ->
-            artifactStagingService.getService().removeJobArtifacts(stagingSessionToken),
-        configuration.cleanArtifactsPerJob,
+        configuration.cleanArtifactsPerJob ?
+            (String stagingSessionToken) ->
+                artifactStagingService.getService().removeArtifacts(stagingSessionToken)
+            : null,
         invoker);
   }
 

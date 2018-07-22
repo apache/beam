@@ -148,7 +148,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         + Hashing.sha256().hashString(artifactMetadata.getName(), CHARSET).toString();
   }
 
-  public void removeJobArtifacts(String stagingSessionToken) throws Exception {
+  public void removeArtifacts(String stagingSessionToken) throws Exception {
     StagingSessionToken parsedToken = StagingSessionToken.decode(stagingSessionToken);
     ResourceId dir = getJobDirResourceId(parsedToken);
     ResourceId manifestResourceId = dir.resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
@@ -312,7 +312,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * Serializable StagingSessionToken used to stage files with {@link
    * BeamFileSystemArtifactStagingService}.
    */
-  static class StagingSessionToken implements Serializable {
+  private static class StagingSessionToken implements Serializable {
 
     private String sessionId;
     private String basePath;

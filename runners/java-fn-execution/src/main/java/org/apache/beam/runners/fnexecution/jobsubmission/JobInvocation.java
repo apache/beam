@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -40,6 +41,21 @@ public interface JobInvocation {
   /** Listen for job state changes with a {@link Consumer}. */
   void addStateListener(Consumer<Enum> stateStreamObserver);
 
+  /** Subscribe to a message about a job finishing */
+  void addTerminationListener(BiConsumer<JobState.Enum, String> terminatedStateObserver);
+
   /** Listen for job messages with a {@link Consumer}. */
   void addMessageListener(Consumer<JobMessage> messageStreamObserver);
+
+  static Boolean isTerminated(Enum state) {
+    switch (state) {
+      case DONE:
+      case FAILED:
+      case CANCELLED:
+      case DRAINED:
+        return true;
+      default:
+        return false;
+    }
+  }
 }

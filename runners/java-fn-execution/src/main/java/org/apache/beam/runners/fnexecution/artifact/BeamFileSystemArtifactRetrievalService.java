@@ -185,7 +185,7 @@ public class BeamFileSystemArtifactRetrievalService
     return loadManifest(manifestResourceId);
   }
 
-  public static ProxyManifest loadManifest(ResourceId manifestResourceId) throws IOException {
+  static ProxyManifest loadManifest(ResourceId manifestResourceId) throws IOException {
     ProxyManifest.Builder manifestBuilder = ProxyManifest.newBuilder();
     try (InputStream stream = Channels.newInputStream(FileSystems.open(manifestResourceId))) {
       String contents = new String(ByteStreams.toByteArray(stream), StandardCharsets.UTF_8);
