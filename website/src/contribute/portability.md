@@ -174,18 +174,25 @@ their respective components.
 
 ### Status
 
-MVP complete (for Flink runner). See the
+MVP in progress (near completion for Flink runner). See the
 [Portability support table](https://docs.google.com/spreadsheets/d/1KDa_FGn1ShjomGd-UUDOhuh2q73de2tPz6BqHpzqvNI/edit?usp=sharing)
 for details.
 
 #### Running Python wordcount on Flink
 
 The Flink runner is currently the only runner to support portable pipeline execution.
-To run a basic Python wordcount (in batch mode):
+To run a basic Python wordcount (in batch mode) with embedded Flink:
 
 1. Run once to build the SDK harness container: `./gradlew -p sdks/python/container
 docker`
 2. Start the Flink portable JobService endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow`
 3. Submit the wordcount pipeline to above endpoint: `./gradlew :beam-sdks-python:portableWordCount`
+
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html):
+
+1. Start local Flink cluster
+2. Create shaded JobService jar: `./gradlew :beam-runners-flink_2.11-job-server:installShadowDist`
+3. Start JobService with Flink web service endpoint: `java -jar ./runners/flink/job-server/build/install/beam-runners-flink_2.11-job-server-shadow/lib/beam-runners-flink_2.11-job-server-*.jar--job-host=localhost:8099" "--artifacts-dir=/tmp/flink-artifacts" "--flink-master-url=localhost:8081"`
+4. Submit the pipeline.
 
 Note: A subset of the functionality is also supported in streaming mode; use `--streaming` in the command line to enable it.
