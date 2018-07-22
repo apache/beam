@@ -655,14 +655,15 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    long insertAll(
+    <T> long insertAll(
         TableReference ref,
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         BackOff backoff,
         final Sleeper sleeper,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -766,7 +767,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
               } else {
-                failedInserts.add(rowsToPublish.get(errorIndex));
+                errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
           }
@@ -803,12 +804,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public long insertAll(
+    public <T> long insertAll(
         TableReference ref,
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -817,7 +819,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           BackOffAdapter.toGcpBackOff(INSERT_BACKOFF_FACTORY.backoff()),
           Sleeper.DEFAULT,
           retryPolicy,
-          failedInserts);
+          failedInserts,
+          errorContainer);
     }
 
     @Override
