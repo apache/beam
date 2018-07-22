@@ -44,7 +44,7 @@ public class SamzaPipelineTranslator {
           .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
-          .put(PTransformTranslation.COMBINE_TRANSFORM_URN, new GroupByKeyTranslator())
+          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
           .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
@@ -110,7 +110,7 @@ public class SamzaPipelineTranslator {
     private static boolean canTranslate(String urn, PTransform<?, ?> transform) {
       if (!TRANSLATORS.containsKey(urn)) {
         return false;
-      } else if (urn.equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
+      } else if (urn.equals(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)) {
         // According to BEAM, Combines with side inputs are translated as generic composites
         return ((Combine.PerKey) transform).getSideInputs().isEmpty();
       } else {

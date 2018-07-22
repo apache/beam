@@ -29,9 +29,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
@@ -44,6 +44,7 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProces
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
@@ -69,6 +70,21 @@ import org.slf4j.LoggerFactory;
 public class DockerJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
 
+  /** Factory that creates {@link JobBundleFactory} for the given {@link JobInfo}. */
+  public interface JobBundleFactoryFactory {
+    DockerJobBundleFactory create(JobInfo jobInfo) throws Exception;
+  }
+  // TODO (BEAM-4819): a hacky way to override the factory for testing.
+  // Should be replaced with mechanism that let's users configure their own factory
+  public static final AtomicReference<JobBundleFactoryFactory> FACTORY =
+      new AtomicReference(
+          new JobBundleFactoryFactory() {
+            @Override
+            public DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
+              return new DockerJobBundleFactory(jobInfo);
+            }
+          });
+
   // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
   // or attempt to document the supported Docker version(s)?
   private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
@@ -82,6 +98,10 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
   public static DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
+    return FACTORY.get().create(jobInfo);
+  }
+
+  protected DockerJobBundleFactory(JobInfo jobInfo) throws Exception {
     ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
     ControlClientPool clientPool = MapControlClientPool.create();
@@ -100,27 +120,25 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
-    DockerEnvironmentFactory environmentFactory =
-        DockerEnvironmentFactory.forServices(
+    EnvironmentFactory environmentFactory =
+        getEnvironmentFactory(
             controlServer,
             loggingServer,
             retrievalServer,
             provisioningServer,
             clientPool.getSource(),
             IdGenerators.incrementingLongs());
-    return new DockerJobBundleFactory(
-        environmentFactory,
-        serverFactory,
-        stageIdGenerator,
-        controlServer,
-        loggingServer,
-        retrievalServer,
-        provisioningServer);
+    this.stageIdGenerator = stageIdGenerator;
+    this.controlServer = controlServer;
+    this.loggingServer = loggingServer;
+    this.retrievalServer = retrievalServer;
+    this.provisioningServer = provisioningServer;
+    this.environmentCache = createEnvironmentCache(environmentFactory, serverFactory);
   }
 
   @VisibleForTesting
   DockerJobBundleFactory(
-      DockerEnvironmentFactory environmentFactory,
+      EnvironmentFactory environmentFactory,
       ServerFactory serverFactory,
       IdGenerator stageIdGenerator,
       GrpcFnServer<FnApiControlClientPoolService> controlServer,
@@ -132,28 +150,31 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     this.loggingServer = loggingServer;
     this.retrievalServer = retrievalServer;
     this.provisioningServer = provisioningServer;
-    this.environmentCache =
-        CacheBuilder.newBuilder()
-            .removalListener(
-                ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
-                  LOG.debug("Cleaning up for environment {}", notification.getKey().getUrl());
-                  try {
-                    notification.getValue().close();
-                  } catch (Exception e) {
-                    LOG.warn(
-                        String.format("Error cleaning up environment %s", notification.getKey()),
-                        e);
-                  }
-                }))
-            .build(
-                new CacheLoader<Environment, WrappedSdkHarnessClient>() {
-                  @Override
-                  public WrappedSdkHarnessClient load(Environment environment) throws Exception {
-                    RemoteEnvironment remoteEnvironment =
-                        environmentFactory.createEnvironment(environment);
-                    return WrappedSdkHarnessClient.wrapping(remoteEnvironment, serverFactory);
-                  }
-                });
+    this.environmentCache = createEnvironmentCache(environmentFactory, serverFactory);
+  }
+
+  private LoadingCache<Environment, WrappedSdkHarnessClient> createEnvironmentCache(
+      EnvironmentFactory environmentFactory, ServerFactory serverFactory) {
+    return CacheBuilder.newBuilder()
+        .removalListener(
+            ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
+              LOG.debug("Cleaning up for environment {}", notification.getKey().getUrl());
+              try {
+                notification.getValue().close();
+              } catch (Exception e) {
+                LOG.warn(
+                    String.format("Error cleaning up environment %s", notification.getKey()), e);
+              }
+            }))
+        .build(
+            new CacheLoader<Environment, WrappedSdkHarnessClient>() {
+              @Override
+              public WrappedSdkHarnessClient load(Environment environment) throws Exception {
+                RemoteEnvironment remoteEnvironment =
+                    environmentFactory.createEnvironment(environment);
+                return WrappedSdkHarnessClient.wrapping(remoteEnvironment, serverFactory);
+              }
+            });
   }
 
   @Override
@@ -187,7 +208,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     provisioningServer.close();
   }
 
-  private static ServerFactory getServerFactory() {
+  protected ServerFactory getServerFactory() {
     switch (getPlatform()) {
       case LINUX:
         return ServerFactory.createDefault();
@@ -355,12 +376,20 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     OTHER,
   }
 
-  // TODO: Remove this once a real artifact retrieval service has been wired in.
-  private static class UnimplementedArtifactRetrievalService
-      extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase
-      implements ArtifactRetrievalService {
-
-    @Override
-    public void close() throws Exception {}
+  /** Create {@link EnvironmentFactory} for the given services. */
+  protected EnvironmentFactory getEnvironmentFactory(
+      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      ControlClientPool.Source clientSource,
+      IdGenerator idGenerator) {
+    return DockerEnvironmentFactory.forServices(
+        controlServiceServer,
+        loggingServiceServer,
+        retrievalServiceServer,
+        provisioningServiceServer,
+        clientSource,
+        idGenerator);
   }
 }

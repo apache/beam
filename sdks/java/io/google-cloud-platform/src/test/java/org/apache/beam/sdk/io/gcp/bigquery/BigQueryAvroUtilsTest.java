@@ -32,6 +32,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -90,7 +93,39 @@ public class BigQueryAvroUtilsTest {
   public void testConvertGenericRecordToTableRow() throws Exception {
     TableSchema tableSchema = new TableSchema();
     tableSchema.setFields(fields);
-    Schema avroSchema = AvroCoder.of(Bird.class).getSchema();
+
+    // BigQuery encodes NUMERIC values to Avro using the BYTES type with the DECIMAL logical
+    // type. AvroCoder can't apply logical types to Schemas directly, so we need to get the
+    // Schema for the Bird class defined below, then replace the field used to test NUMERIC with
+    // a field that has the appropriate Schema.
+    BigDecimal birthdayMoney = new BigDecimal("123456789.123456789");
+    Schema birthdayMoneySchema = Schema.create(Type.BYTES);
+    LogicalType birthdayMoneyLogicalType =
+        LogicalTypes.decimal(birthdayMoney.precision(), birthdayMoney.scale());
+    // DecimalConversion.toBytes returns a ByteBuffer, which can be mutated by callees if passed
+    // to other methods. We wrap the byte array as a ByteBuffer when adding it to the
+    // GenericRecords below.
+    byte[] birthdayMoneyBytes =
+        new Conversions.DecimalConversion()
+            .toBytes(birthdayMoney, birthdayMoneySchema, birthdayMoneyLogicalType)
+            .array();
+
+    // In order to update the Schema for birthdayMoney, we need to recreate all of the Fields.
+    List<Schema.Field> avroFields = new ArrayList<>();
+    for (Schema.Field field : AvroCoder.of(Bird.class).getSchema().getFields()) {
+      Schema schema = field.schema();
+      if (field.name().equals("birthdayMoney")) {
+        // birthdayMoney is a nullable field with type BYTES/DECIMAL.
+        schema =
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                birthdayMoneyLogicalType.addToSchema(birthdayMoneySchema));
+      }
+      // After a Field is added to a Schema, it is assigned a position, so we can't simply reuse
+      // the existing Field.
+      avroFields.add(new Schema.Field(field.name(), schema, field.doc(), field.defaultValue()));
+    }
+    Schema avroSchema = Schema.createRecord(avroFields);
 
     {
       // Test nullable fields.
@@ -110,7 +145,7 @@ public class BigQueryAvroUtilsTest {
       record.put("number", 5L);
       record.put("quality", 5.0);
       record.put("birthday", 5L);
-      record.put("birthdayMoney", new String("123456789.123456789"));
+      record.put("birthdayMoney", ByteBuffer.wrap(birthdayMoneyBytes));
       record.put("flighted", Boolean.TRUE);
       record.put("sound", soundByteBuffer);
       record.put("anniversaryDate", new Utf8("2000-01-01"));
@@ -121,7 +156,7 @@ public class BigQueryAvroUtilsTest {
           new TableRow()
               .set("number", "5")
               .set("birthday", "1970-01-01 00:00:00.000005 UTC")
-              .set("birthdayMoney", "123456789.123456789")
+              .set("birthdayMoney", birthdayMoney.toString())
               .set("quality", 5.0)
               .set("associates", new ArrayList<TableRow>())
               .set("flighted", Boolean.TRUE)
@@ -139,13 +174,13 @@ public class BigQueryAvroUtilsTest {
       GenericRecord record = new GenericData.Record(avroSchema);
       record.put("number", 5L);
       record.put("associates", Lists.newArrayList(nestedRecord));
-      record.put("birthdayMoney", new BigDecimal("987654321.987654321"));
+      record.put("birthdayMoney", ByteBuffer.wrap(birthdayMoneyBytes));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row =
           new TableRow()
               .set("associates", Lists.newArrayList(new TableRow().set("species", "other")))
               .set("number", "5")
-              .set("birthdayMoney", "987654321.987654321");
+              .set("birthdayMoney", birthdayMoney.toString());
       assertEquals(row, convertedRow);
     }
   }
@@ -172,7 +207,7 @@ public class BigQueryAvroUtilsTest {
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.LONG))));
     assertThat(
         avroSchema.getField("birthdayMoney").schema(),
-        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BYTES))));
     assertThat(
         avroSchema.getField("flighted").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BOOLEAN))));
@@ -233,7 +268,7 @@ public class BigQueryAvroUtilsTest {
     @Nullable Double quality;
     @Nullable Long quantity;
     @Nullable Long birthday; // Exercises TIMESTAMP.
-    @Nullable String birthdayMoney; // Exercises NUMERIC.
+    @Nullable ByteBuffer birthdayMoney; // Exercises NUMERIC.
     @Nullable Boolean flighted;
     @Nullable ByteBuffer sound;
     @Nullable Utf8 anniversaryDate;

@@ -33,10 +33,10 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Suppliers;
-import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,7 +117,7 @@ public class BeamFnDataWriteRunnerTest {
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
     String bundleId = "57L";
 
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 

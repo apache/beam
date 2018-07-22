@@ -303,6 +303,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           return;
         }
       }
+      outboundObserver.onNext(PutArtifactResponse.newBuilder().build());
       outboundObserver.onCompleted();
     }
   }

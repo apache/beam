@@ -227,15 +227,6 @@ public final class TranslationUtils {
     }
   }
 
-  public static void rejectSplittable(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not support splittable DoFn: %s", SparkRunner.class.getSimpleName(), doFn));
-    }
-  }
   /**
    * Reject state and timers {@link DoFn}.
    *
