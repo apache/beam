@@ -74,17 +74,16 @@ docker run -p 127.0.0.1:8080:8080 <new_image_name>
 Such approach may be handy for debugging, but it is highly advised to keep all
 data in docker volumes.
 
-### Manual setup
+## Manual setup
 
 When invoking Docker, you can map a local directory to persist state and keep
-your Jenkins configuration even after machine reboot. //TODO This is planned to
-change to explaining how to spin up data container.
+your Jenkins configuration even after machine reboot.
 
 ```bash
 JENKINS_HOME=$(readlink --canonicalize-missing ~/jenkins/homedir)
 
-mkdir --parents ${JENKINS_HOME}
-chmod --recursive 777 ${JENKINS_HOME}
+mkdir -p ${JENKINS_HOME}
+chmod -R 777 ${JENKINS_HOME}
 docker run -p 127.0.0.1:8080:8080 -v ${JENKINS_HOME}:/var/jenkins_home jenkins/jenkins:lts
 ```
 
@@ -93,11 +92,9 @@ http://127.0.0.1:8080. And map jenkins_home of running container to JENKINS_HOME
 on your OS file system.
 
 You can setup your Jenkins instance to look like the Apache Beam Jenkins using
-[these steps](#beam-config).
+[these steps](#beam-config). (Running Beam Job DSL groovy scripts)
 
-//TODO Change 777 permissions, to minimum required set.
-
-#### Forking your Jenkins instance
+### Forking your Jenkins instance
 
 Later you can fork a new Docker container by copying the contents of the mapped
 directory and starting Jenkins from the new copy.
@@ -108,21 +105,21 @@ want to have a clean roll-back option.
 ```bash
 JENKINS_NEWHOME=$(readlink --canonicalize-missing ~/jenkins/homedir_v2)
 
-mkdir --parents ${JENKINS_NEWHOME}
+mkdir -p ${JENKINS_NEWHOME}
 cp -R ${JENKINS_HOME} ${JENKINS_NEWHOME}
 JENKINS_HOME=${JENKINS_NEWHOME}
 
-chmod --recursive 777 ${JENKINS_HOME}
+chmod -R 777 ${JENKINS_HOME}
 docker run -p 127.0.0.1:8080:8080 -v ${JENKINS_HOME}:/var/jenkins_home jenkins/jenkins:lts
 ```
-* The `-p 127.0.0.1:8080:8080` parameter to `docker run` ensures that your 
+* The `-p 127.0.0.1:8080:8080` parameter to `docker run` ensures that your
       Jenkins instance will only be available via localhost and not your machine
       hostname.
 
-#### Running Beam Job DSL groovy scripts {#beam-config}
+### Running Beam Job DSL groovy scripts {#beam-config}
 
 On Beam we configure Jenkins jobs via groovy job dsl scripts. If you want to run
-those on your docker instance of jenkins, you will need to do some setup on top
+those on your docker instance of Jenkins, you will need to do some setup on top
 of installing default plugins:
 
 1.  Install following plugins
@@ -133,13 +130,17 @@ of installing default plugins:
     1.  Node and Label parameter
     1.  (Optional) CustomHistory: This will allow you to easily generate job
         diffs as you make changes.
-1.  Add "beam" label to jenkins instance
+1.  Add "beam" label to Jenkins instance
     1.  Go to Manage Jenkins -> Configure System
     1.  Type "beam" under "Labels" field.
 1.  Disable script security. This way you will not have to approve all the
     scripts.
     1.  Go to Manage Jenkins -> Configure Global Security
     1.  Unmark "Enable script security for Job DSL scripts"
+1.  Set up Job DSL jobs import job. (Seed job)
+    1.  Refer to sampleseedjob.xml for parameters.
+    1.  Go to Jenkins -> New Item -> Freestyle project
+    1.  Build step: Process Job DSLs
 
 ## Additional docker hints
 
