@@ -24,14 +24,14 @@ import uuid
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
+
+from apache_beam.io.gcp import pubsub_it_pipeline
+from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
+from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
-
-from apache_beam.io.gcp.pubsub import PubsubMessage
-from apache_beam.runners.runner import PipelineState
-from apache_beam.io.gcp import pubsub_it_pipeline
 
 INPUT_TOPIC = 'psit_topic_input'
 OUTPUT_TOPIC = 'psit_topic_output'
@@ -56,14 +56,14 @@ class PubSubIntegrationTest(unittest.TestCase):
       # pipeline writes back the timestamp of each element (as reported by
       # Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
       PubsubMessage('data002', {
-        TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
       }),
   ]
   EXPECTED_OUTPUT_MESSAGES = [
       PubsubMessage('data001-seen', {'processed': 'IT'}),
       PubsubMessage('data002-seen', {
-        TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
-        'processed': 'IT',
+          TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+          'processed': 'IT',
       }),
   ]
 

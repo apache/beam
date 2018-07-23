@@ -147,8 +147,7 @@ class PubSubMatcherTest(unittest.TestCase):
     mock_sub = mock_get_sub.return_value
     mock_sub.return_value.full_name.return_value = 'mock_sub'
     self.pubsub_matcher.timeout = 0.1
-    with self.assertRaisesRegexp(AssertionError,
-                                 r'Expected 1.*\n.*Got 0') as error:
+    with self.assertRaisesRegexp(AssertionError, r'Expected 1.*\n.*Got 0'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertTrue(mock_sub.pull.called)
 

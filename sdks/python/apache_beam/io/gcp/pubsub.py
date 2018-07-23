@@ -27,6 +27,7 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
+import six
 from past.builtins import basestring
 
 from apache_beam import coders
@@ -81,10 +82,15 @@ class PubsubMessage(object):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
   @staticmethod
-  def _from_proto(proto_msg):
+  def _from_proto_str(proto_msg):
     """Construct from serialized form of ``PubsubMessage``.
 
-    https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
+    Args:
+      proto_msg: String containing a serialized protobuf of type
+      https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
+
+    Returns:
+      A new PubsubMessage object.
     """
     msg = pubsub_pb2.PubsubMessage()
     msg.ParseFromString(proto_msg)
@@ -92,10 +98,16 @@ class PubsubMessage(object):
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
     return PubsubMessage(msg.data, attributes)
 
-  def _to_proto(self):
+  def _to_proto_str(self):
     """Get serialized form of ``PubsubMessage``.
 
-    https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
+    Args:
+      proto_msg: str containing a serialized protobuf.
+
+    Returns:
+      A str containing a serialized protobuf of type
+      https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
+      containing the payload of this object.
     """
     msg = pubsub_pb2.PubsubMessage()
     msg.data = self.data
@@ -165,7 +177,7 @@ class ReadFromPubSub(PTransform):
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = six.binary_type
     if self.with_attributes:
-      pcoll = pcoll | Map(PubsubMessage._from_proto)
+      pcoll = pcoll | Map(PubsubMessage._from_proto_str)
       pcoll.element_type = PubsubMessage
     return pcoll
 
@@ -178,6 +190,7 @@ class ReadFromPubSub(PTransform):
 @deprecated(since='2.6.0', extra_message='Use ReadFromPubSub instead.')
 def ReadStringsFromPubSub(topic=None, subscription=None, id_label=None):
   return _ReadStringsFromPubSub(topic, subscription, id_label)
+
 
 class _ReadStringsFromPubSub(PTransform):
   """This class is deprecated. Use ``ReadFromPubSub`` instead."""
@@ -249,18 +262,20 @@ class WriteToPubSub(PTransform):
                              timestamp_attribute)
 
   @staticmethod
-  def to_proto(element):
+  def to_proto_str(element):
     if not isinstance(element, PubsubMessage):
       raise TypeError('Unexpected element. Type: %s (expected: PubsubMessage), '
                       'value: %r' % (type(element), element))
-    return element._to_proto()
+    return element._to_proto_str()
 
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.to_proto)
-      pcoll.element_type = six.binary_type
-    else:
-      pcoll.element_type = six.binary_type
+      pcoll = pcoll | 'ToProtobuf' >> Map(self.to_proto_str)
+
+    # Without attributes, message data is written as-is. With attributes,
+    # message data + attributes are passed as a serialized protobuf string (see
+    # ``PubsubMessage._to_proto_str`` for exact protobuf message type).
+    pcoll.element_type = six.binary_type
     return pcoll | Write(self._sink)
 
   def to_runner_api_parameter(self, context):

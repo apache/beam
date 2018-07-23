@@ -23,8 +23,9 @@ import logging
 import time
 from collections import Counter
 
-from apache_beam.io.gcp.pubsub import PubsubMessage
 from hamcrest.core.base_matcher import BaseMatcher
+
+from apache_beam.io.gcp.pubsub import PubsubMessage
 
 __all__ = ['PubSubMessageMatcher']
 
@@ -101,18 +102,20 @@ class PubSubMessageMatcher(BaseMatcher):
     while time.time() - start_time <= timeout:
       pulled = subscription.pull(max_messages=MAX_MESSAGES_IN_ONE_PULL)
       for ack_id, message in pulled:
-        if self.with_attributes:
-          msg = PubsubMessage._from_message(message)
-          if self.strip_attributes:
-            for attr in self.strip_attributes:
-              try:
-                del msg.attributes[attr]
-              except KeyError:
-                msg.attributes[attr] = ('PubSubMessageMatcher error: '
-                                        'expected attribute not found.')
-          total_messages.append(msg)
-        else:
+        if not self.with_attributes:
           total_messages.append(message.data)
+          continue
+
+        msg = PubsubMessage._from_message(message)
+        if self.strip_attributes:
+          for attr in self.strip_attributes:
+            try:
+              del msg.attributes[attr]
+            except KeyError:
+              msg.attributes[attr] = ('PubSubMessageMatcher error: '
+                                      'expected attribute not found.')
+        total_messages.append(msg)
+
         subscription.acknowledge([ack_id])
       if len(total_messages) >= expected_num:
         return total_messages

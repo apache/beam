@@ -70,10 +70,10 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
     output = messages | 'modify_data' >> beam.Map(modify_data)
 
   # Write to PubSub.
-  output | beam.io.WriteToPubSub(known_args.output_topic,
-                                 id_label=id_label,
-                                 with_attributes=with_attributes,
-                                 timestamp_attribute=timestamp_attribute)
+  _ = output | beam.io.WriteToPubSub(known_args.output_topic,
+                                     id_label=id_label,
+                                     with_attributes=with_attributes,
+                                     timestamp_attribute=timestamp_attribute)
 
   result = p.run()
   result.wait_until_finish()

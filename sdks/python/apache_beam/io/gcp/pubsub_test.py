@@ -79,7 +79,7 @@ class TestPubsubMessage(unittest.TestCase):
     data = 'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
     m = PubsubMessage(data, attributes)
-    m_converted = PubsubMessage._from_proto(m._to_proto())
+    m_converted = PubsubMessage._from_proto_str(m._to_proto_str())
     self.assertEqual(m_converted.data, data)
     self.assertEqual(m_converted.attributes, attributes)
 
