@@ -68,14 +68,28 @@ if [[ $confirmation != "y" ]]; then
     cd ${BEAM_REPO}
     (gpg --list-sigs ${name} && gpg --armor --export ${name}) >> KEYS
     svn status
-    svn commit KEYS
+    echo "Please review all changes. Do you confirm to commit? [y|N]"
+    read commit_confirmation
+    if [[ $commit_confirmation = "y" ]]; then
+      svn commit KEYS
+    else
+      echo "Not commit new changes into ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}${DEV_REPO}/KEYS"
+    fi
+
     cd ~/${LOCAL_SVN_DIR}
     echo "===Starting updating KEYS file in release repo==="
     svn co ${ROOT_SVN_URL}/${RELEASE_REPO}/${BEAM_REPO}
     cd ${BEAM_REPO}
     (gpg --list-sigs ${name} && gpg --armor --export ${name}) >> KEYS
     svn status
-    svn commit KEYS
+    echo "Please review all changes. Do you confirm to commit? [y|N]"
+    read commit_confirmation
+    if [[ $commit_confirmation = "y" ]]; then
+      svn commit KEYS
+    else
+      echo "Not commit new changes into ${ROOT_SVN_URL}/${DEV_REPO}/${BEAM_REPO}${RELEASE_REPO}/KEYS"
+    fi
+
     cd ~
     rm -rf ${LOCAL_SVN_DIR}
   fi
