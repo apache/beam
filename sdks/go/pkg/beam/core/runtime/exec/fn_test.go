@@ -181,7 +181,7 @@ func BenchmarkReflectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn.Call([]reflect.Value{n})[0]
 	}
-	b.Log(n)
+	b.Log(n.Interface())
 }
 
 func BenchmarkReflectCallNewArgs(b *testing.B) {
@@ -192,7 +192,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
-	b.Log(n)
+	b.Log(n.Interface())
 }
 
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
@@ -203,7 +203,7 @@ func BenchmarkReflectCallReuseArgs(b *testing.B) {
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
-	b.Log(n)
+	b.Log(n.Interface())
 }
 
 func BenchmarkInvokeCall(b *testing.B) {
@@ -240,7 +240,7 @@ func BenchmarkReflectFnCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn.Call([]reflect.Value{n})[0]
 	}
-	b.Log(n)
+	b.Log(n.Interface())
 }
 
 func BenchmarkInvokeFnCall(b *testing.B) {
