@@ -151,7 +151,7 @@ class ReadFromPubSub(PTransform):
       with_attributes:
         True - output elements will be :class:`~PubsubMessage` objects.
         False - output elements will be of type ``six.binary_type`` (message
-          data only).
+        data only).
       timestamp_attribute: Message value to use as element timestamp. If None,
         uses message publishing time as the timestamp.
 
@@ -247,7 +247,7 @@ class WriteToPubSub(PTransform):
       with_attributes:
         True - input elements will be :class:`~PubsubMessage` objects.
         False - input elements will be of type ``six.binary_type`` (message
-          data only).
+        data only).
       id_label: If set, will set an attribute for each Cloud Pub/Sub message
         with the given name and a unique value. This attribute can then be used
         in a ReadFromPubSub PTransform to deduplicate messages.
