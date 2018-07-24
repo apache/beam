@@ -25,12 +25,12 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.values.KV;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.values.KV;
 import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,8 +49,7 @@ public class SyntheticStepTest {
 
   private SyntheticStep.Options fromString(String jsonString) throws IOException {
     ObjectMapper mapper = new ObjectMapper();
-    SyntheticStep.Options result = mapper.readValue(
-                             jsonString, SyntheticStep.Options.class);
+    SyntheticStep.Options result = mapper.readValue(jsonString, SyntheticStep.Options.class);
     result.validate();
     return result;
   }

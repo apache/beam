@@ -34,27 +34,26 @@ import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 
 /**
- * This {@link SyntheticStep} class provides a parameterizable {@code DoFn} that
- * consumes {@code KV<byte[], byte[]>} and emits {@code KV<byte[], byte[]>}.
- * Each emitted record will be slowed down by a certain sleep time generated based on
- * the specified sleep time distribution in {@link SyntheticStep.Options}.
+ * This {@link SyntheticStep} class provides a parameterizable {@code DoFn} that consumes {@code
+ * KV<byte[], byte[]>} and emits {@code KV<byte[], byte[]>}. Each emitted record will be slowed down
+ * by a certain sleep time generated based on the specified sleep time distribution in {@link
+ * SyntheticStep.Options}.
  *
- * <p>See {@link SyntheticStep.Options} for how to construct an instance.
- * To construct a {@code SyntheticStep} from SyntheticStep options, use:
- * <pre> {@code
+ * <p>See {@link SyntheticStep.Options} for how to construct an instance. To construct a {@code
+ * SyntheticStep} from SyntheticStep options, use:
+ *
+ * <pre>{@code
  * SyntheticStep.Options options = ...;
  *
  * // Construct the synthetic step with options.
  * SyntheticStep step = new SyntheticStep(options);
- * } </pre>
+ * }</pre>
  */
 public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
   private final Options options;
   private final KV<Long, Long> idAndThroughput; // used when maxWorkerThroughput is set
-  private final Counter throttlingMsecsCounter = Metrics.counter(
-      "dataflow-throttling-metrics",
-      "throttling-msecs"
-  );
+  private final Counter throttlingMsecsCounter =
+      Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
 
   public SyntheticStep(Options options) {
     options.validate();
@@ -69,8 +68,9 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
     Duration delayMsec = Duration.millis(options.nextDelay(seed));
     long sleepMillis = 0;
     while (delayMsec.getMillis() > 0) {
-      sleepMillis += SyntheticUtils.delay(delayMsec, options.cpuUtilizationInMixedDelay,
-                                         options.delayType, rnd);
+      sleepMillis +=
+          SyntheticUtils.delay(
+              delayMsec, options.cpuUtilizationInMixedDelay, options.delayType, rnd);
 
       // Ensure the worker throughput is within the limit (if set).
       if (options.maxWorkerThroughput < 0
@@ -126,38 +126,34 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   }
 
   /**
-   * Synthetic step options.
-   * These options are all JSON, see documentations of individual fields for details.
-   * {@code Options} uses jackson annotations
-   * which PipelineOptionsFactory can use to parse and construct an instance.
+   * Synthetic step options. These options are all JSON, see documentations of individual fields for
+   * details. {@code Options} uses jackson annotations which PipelineOptionsFactory can use to parse
+   * and construct an instance.
    */
   public static class Options extends SyntheticOptions {
     /**
-     * Amplification/filtering ratio: the number of output records
-     * should be emitted on average for each input record.
+     * Amplification/filtering ratio: the number of output records should be emitted on average for
+     * each input record.
      */
     @JsonProperty public double outputRecordsPerInputRecord;
 
     /**
-     * If false, the DoFn generates a different distribution of KV pairs
-     * according to the parameters in {@link SyntheticOptions},
-     * and input records are merely used as a “clock”;
-     * If true, the shape of the input distribution is preserved,
-     * and the DoFn only does sleeping and amplification/filtering.
+     * If false, the DoFn generates a different distribution of KV pairs according to the parameters
+     * in {@link SyntheticOptions}, and input records are merely used as a “clock”; If true, the
+     * shape of the input distribution is preserved, and the DoFn only does sleeping and
+     * amplification/filtering.
      */
     @JsonProperty public boolean preservesInputKeyDistribution;
 
-    /**
-     * User-defined tag to annotate synthetic step name.
-     */
+    /** User-defined tag to annotate synthetic step name. */
     @JsonProperty public String uniqueTag;
 
     /**
      * An upper limit on throughput across the worker for this step. In a streaming job, it is not
      * easy to tightly control parallelism of a DoFn. It depends on various factors. As a result, it
      * is much harder to control throughput preconfigured cpu or sleep delay. When max throughput is
-     * set, SyntheticStep delays beyond the configured delay (either cpu or sleep) in order to
-     * keep the overall throughput below the limit.
+     * set, SyntheticStep delays beyond the configured delay (either cpu or sleep) in order to keep
+     * the overall throughput below the limit.
      */
     @JsonProperty public long maxWorkerThroughput = -1;
 
@@ -167,16 +163,14 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
      */
     @JsonProperty public long perBundleDelay = 0;
 
-    /**
-     * Type of per bundle delay to use ("SLEEP", "CPU", "MIXED").
-     */
+    /** Type of per bundle delay to use ("SLEEP", "CPU", "MIXED"). */
     @JsonProperty public DelayType perBundleDelayType = DelayType.SLEEP;
 
     /**
-     * If true, reports time spent sleeping as 'cumulativeThrottlingMicros' metric.
-     * This enables Dataflow to detect throttled stages, which would influence scaling decisions.
+     * If true, reports time spent sleeping as 'cumulativeThrottlingMicros' metric. This enables
+     * Dataflow to detect throttled stages, which would influence scaling decisions.
      */
-     @JsonProperty public boolean reportThrottlingMicros;
+    @JsonProperty public boolean reportThrottlingMicros;
 
     @Override
     public void validate() {
@@ -186,23 +180,24 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
           "outputRecordsPerInputRecord should be a non-negative number, but found %s.",
           outputRecordsPerInputRecord);
       if (maxWorkerThroughput >= 0) {
-        checkArgument(perBundleDelay == 0,
+        checkArgument(
+            perBundleDelay == 0,
             "maxWorkerThroughput and perBundleDelay cannot be enabled simultaneously.");
       }
     }
   }
 
   /**
-   * static cache to store one worker level rate limiter for a step.
-   * Value in KV is the desired rate.
+   * static cache to store one worker level rate limiter for a step. Value in KV is the desired
+   * rate.
    */
   private static LoadingCache<KV<Long, Long>, RateLimiter> rateLimiterCache =
-      CacheBuilder.newBuilder().build(
-        new CacheLoader<KV<Long, Long>, RateLimiter>() {
-          @Override
-          public RateLimiter load(KV<Long, Long> pair) {
-            return RateLimiter.create(pair.getValue().doubleValue());
-          }
-        });
-
+      CacheBuilder.newBuilder()
+          .build(
+              new CacheLoader<KV<Long, Long>, RateLimiter>() {
+                @Override
+                public RateLimiter load(KV<Long, Long> pair) {
+                  return RateLimiter.create(pair.getValue().doubleValue());
+                }
+              });
 }

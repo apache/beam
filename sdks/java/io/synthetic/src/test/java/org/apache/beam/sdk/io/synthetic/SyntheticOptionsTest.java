@@ -122,8 +122,7 @@ public class SyntheticOptionsTest {
     assertEquals(
         100,
         (long)
-            ((NormalDistribution) (sourceOptions.delayDistribution.getDistribution()))
-                .getMean());
+            ((NormalDistribution) (sourceOptions.delayDistribution.getDistribution())).getMean());
     assertEquals(
         50,
         (long)
