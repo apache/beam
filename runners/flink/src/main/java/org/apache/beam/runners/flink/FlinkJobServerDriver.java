@@ -75,7 +75,7 @@ public class FlinkJobServerDriver implements Runnable {
     System.err.println();
   }
 
-  private static ServerConfiguration parseServerConfiguration(String[] args) {
+  public static FlinkJobServerDriver fromParams(String[] args) {
     ServerConfiguration configuration = new ServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -85,11 +85,8 @@ public class FlinkJobServerDriver implements Runnable {
       printUsage(parser);
       throw new IllegalArgumentException("Unable to parse command line arguments.", e);
     }
-    return configuration;
-  }
 
-  public static FlinkJobServerDriver fromParams(String[] args) {
-    return fromConfig(parseServerConfiguration(args));
+    return fromConfig(configuration);
   }
 
   public static FlinkJobServerDriver fromConfig(ServerConfiguration configuration) {
@@ -143,7 +140,7 @@ public class FlinkJobServerDriver implements Runnable {
         LOG.info("JobServer stopped on {}", jobServer.getApiServiceDescriptor().getUrl());
         jobServer = null;
       } catch (Exception e) {
-        LOG.error("Error while closing the jobServer.");
+        LOG.error("Error while closing the jobServer.", e);
       }
     }
     if (artifactStagingServer != null) {
@@ -153,7 +150,7 @@ public class FlinkJobServerDriver implements Runnable {
             "ArtifactStagingServer stopped on {}", jobServer.getApiServiceDescriptor().getUrl());
         artifactStagingServer = null;
       } catch (Exception e) {
-        LOG.error("Error while closing the artifactStagingServer.");
+        LOG.error("Error while closing the artifactStagingServer.", e);
       }
     }
   }

@@ -19,6 +19,8 @@ package org.apache.beam.runners.reference.testing;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
@@ -32,14 +34,23 @@ public interface TestPortablePipelineOptions extends TestPipelineOptions, Portab
   @Required
   @Description(
       "Fully qualified class name of TestJobServiceDriver capable of managing the JobService.")
-  String getJobServerDriver();
+  Class getJobServerDriver();
 
-  void setJobServerDriver(String jobServerDriver);
+  void setJobServerDriver(Class jobServerDriver);
 
   @Description("String containing comma separated arguments for the JobServer.")
-  String getJobServerConfig();
+  @Default.InstanceFactory(DefaultJobServerConfigFactory.class)
+  String[] getJobServerConfig();
 
-  void setJobServerConfig(String jobServerConfig);
+  void setJobServerConfig(String[] jobServerConfig);
+
+  class DefaultJobServerConfigFactory implements DefaultValueFactory<String[]> {
+
+    @Override
+    public String[] create(PipelineOptions options) {
+      return new String[0];
+    }
+  }
 
   /** Register {@link TestPortablePipelineOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)

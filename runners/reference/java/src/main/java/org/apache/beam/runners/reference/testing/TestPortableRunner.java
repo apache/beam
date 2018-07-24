@@ -19,8 +19,6 @@ package org.apache.beam.runners.reference.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import org.apache.beam.runners.reference.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -30,7 +28,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.hamcrest.Matchers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,16 +42,13 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>public static Object fromParams(String... params)
  *   <li>public String start() // Start JobServer and returns the JobServer host and port.
- *   <li>public void start() // Stop the JobServer and free all resources.
+ *   <li>public void stop() // Stop the JobServer and free all resources.
  * </ul>
  *
  * @see TestPipeline
  */
 public class TestPortableRunner extends PipelineRunner<PipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(TestPortableRunner.class);
-  private static final ObjectMapper MAPPER =
-      new ObjectMapper()
-          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   private final PortablePipelineOptions options;
 
   private TestPortableRunner(PortablePipelineOptions options) {
@@ -70,40 +65,19 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
         options.as(TestPortablePipelineOptions.class);
     String jobServerHostPort;
     Object jobServerDriver;
-    Class<?> jobServerDriverClass;
+    Class<?> jobServerDriverClass = testPortablePipelineOptions.getJobServerDriver();
+    String[] parameters = testPortablePipelineOptions.getJobServerConfig();
     try {
-      jobServerDriverClass =
-          Class.forName(
-              testPortablePipelineOptions.getJobServerDriver(),
-              true,
-              ReflectHelpers.findClassLoader());
-      String[] parameters;
-      try {
-        parameters =
-            MAPPER.readValue(testPortablePipelineOptions.getJobServerConfig(), String[].class);
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Arguments to jobServers should be a comma separated list of strings. Provided %s",
-                testPortablePipelineOptions.getJobServerDriver()));
-      }
-      try {
-        jobServerDriver =
-            jobServerDriverClass
-                .getMethod("fromParams", String[].class)
-                .invoke(null, (Object) parameters);
-        jobServerHostPort =
-            (String) jobServerDriverClass.getMethod("start").invoke(jobServerDriver);
-      } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-        throw new IllegalArgumentException(e);
-      }
-    } catch (ClassNotFoundException e) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Unknown 'TestJobServerDriver' specified '%s'",
-              testPortablePipelineOptions.getJobServerDriver()),
-          e);
+      jobServerDriver =
+          InstanceBuilder.ofType(jobServerDriverClass)
+              .fromFactoryMethod("fromParams")
+              .withArg(String[].class, parameters)
+              .build();
+      jobServerHostPort = (String) jobServerDriverClass.getMethod("start").invoke(jobServerDriver);
+    } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+      throw new IllegalArgumentException(e);
     }
+
     try {
       PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
       portableOptions.setRunner(PortableRunner.class);
