@@ -74,10 +74,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       ThrowingConsumer<String> cleanupJobFn,
       JobInvoker invoker) {
     return new InMemoryJobService(
-        stagingServiceDescriptor,
-        stagingServiceTokenProvider,
-        cleanupJobFn,
-        invoker);
+        stagingServiceDescriptor, stagingServiceTokenProvider, cleanupJobFn, invoker);
   }
 
   private final ConcurrentMap<String, JobPreparation> preparations;
@@ -192,8 +189,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
                     e);
               }
             }
-          }
-      );
+          });
 
       invocation.start();
       invocations.put(invocationId, invocation);

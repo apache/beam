@@ -200,22 +200,10 @@ public class BeamFileSystemArtifactServicesTest {
 
   void checkCleanup(String stagingSessionToken, String stagingSession) throws Exception {
     Assert.assertTrue(
-        Files.exists(
-            Paths.get(
-                stagingDir.toAbsolutePath().toString(),
-                stagingSession
-            )
-        )
-    );
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
     stagingService.removeArtifacts(stagingSessionToken);
     Assert.assertFalse(
-        Files.exists(
-            Paths.get(
-                stagingDir.toAbsolutePath().toString(),
-                stagingSession
-            )
-        )
-    );
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
   }
 
   @Test

@@ -60,8 +60,7 @@ public class InMemoryJobServiceTest {
     MockitoAnnotations.initMocks(this);
     stagingServiceDescriptor = Endpoints.ApiServiceDescriptor.getDefaultInstance();
     service =
-        InMemoryJobService.create(
-            stagingServiceDescriptor, session -> "token", null, invoker);
+        InMemoryJobService.create(stagingServiceDescriptor, session -> "token", null, invoker);
     when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN)).thenReturn(invocation);
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
   }

@@ -205,7 +205,8 @@ public class FlinkJobInvocation implements JobInvocation {
   }
 
   @Override
-  public synchronized void addTerminationListener(BiConsumer<JobState.Enum, String> terminatedStateObserver) {
+  public synchronized void addTerminationListener(
+      BiConsumer<JobState.Enum, String> terminatedStateObserver) {
     if (JobInvocation.isTerminated(getState())) {
       LOG.info("short-circuiting termination call in state " + getState() + " for job " + getId());
       terminatedStateObserver.accept(getState(), getId());
