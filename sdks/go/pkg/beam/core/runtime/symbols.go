@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	// Resolver is the accessible symbol resolver the runtime uses to find functions.
 	Resolver         SymbolResolver
 	cache            = make(map[string]interface{})
 	mu               sync.Mutex
