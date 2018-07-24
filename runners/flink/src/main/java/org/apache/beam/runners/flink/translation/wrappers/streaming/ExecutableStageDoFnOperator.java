@@ -75,7 +75,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   public ExecutableStageDoFnOperator(
       String stepName,
-      Coder<WindowedValue<InputT>> inputCoder,
+      Coder<WindowedValue<InputT>> windowedInputCoder,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -89,7 +91,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     super(
         new NoOpDoFn(),
         stepName,
+        windowedInputCoder,
         inputCoder,
+        outputCoders,
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,

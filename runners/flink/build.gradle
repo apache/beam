@@ -113,7 +113,6 @@ def createValidatesRunnerTask(Map m) {
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       }
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
