@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.redis;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import org.apache.beam.sdk.io.redis.RedisIO.Write.Method;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -94,6 +95,7 @@ public class RedisIOTest {
     Assert.assertEquals(111, write.connectionConfiguration().port());
     Assert.assertEquals("pass", write.connectionConfiguration().auth());
     Assert.assertEquals(5, write.connectionConfiguration().timeout());
+    Assert.assertEquals(Method.APPEND, write.method());
   }
 
   /** Simple embedded Redis instance wrapper to control Redis server. */

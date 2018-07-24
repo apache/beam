@@ -126,6 +126,7 @@ public class RedisIO {
   public static Write write() {
     return new AutoValue_RedisIO_Write.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setMethod(Write.Method.APPEND)
         .build();
   }
 
@@ -334,8 +335,41 @@ public class RedisIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<KV<String, String>>, PDone> {
 
+    /** Determines the method used to insert data in Redis. */
+    public enum Method {
+
+      /**
+       * Use APPEND command. If key already exists and is a string, this command appends the value
+       * at the end of the string.
+       */
+      APPEND,
+
+      /** Use SET command. If key already holds a value, it is overwritten. */
+      SET,
+
+      /**
+       * Use LPUSH command. Insert value at the head of the list stored at key. If key does not
+       * exist, it is created as empty list before performing the push operations. When key holds a
+       * value that is not a list, an error is returned.
+       */
+      LPUSH,
+
+      /**
+       * Use RPUSH command. Insert value at the tail of the list stored at key. If key does not
+       * exist, it is created as empty list before performing the push operations. When key holds a
+       * value that is not a list, an error is returned.
+       */
+      RPUSH
+    }
+
     @Nullable
     abstract RedisConnectionConfiguration connectionConfiguration();
+
+    @Nullable
+    abstract Method method();
+
+    @Nullable
+    abstract Long expireTime();
 
     abstract Builder builder();
 
@@ -344,6 +378,10 @@ public class RedisIO {
 
       abstract Builder setConnectionConfiguration(
           RedisConnectionConfiguration connectionConfiguration);
+
+      abstract Builder setMethod(Method method);
+
+      abstract Builder setExpireTime(Long expireTimeMillis);
 
       abstract Write build();
     }
@@ -371,6 +409,17 @@ public class RedisIO {
     public Write withConnectionConfiguration(RedisConnectionConfiguration connection) {
       checkArgument(connection != null, "connection can not be null");
       return builder().setConnectionConfiguration(connection).build();
+    }
+
+    public Write withMethod(Method method) {
+      checkArgument(method != null, "method can not be null");
+      return builder().setMethod(method).build();
+    }
+
+    public Write withExpireTime(Long expireTimeMillis) {
+      checkArgument(expireTimeMillis != null, "expireTimeMillis can not be null");
+      checkArgument(expireTimeMillis > 0, "expireTimeMillis can not be negative or 0");
+      return builder().setExpireTime(expireTimeMillis).build();
     }
 
     @Override
@@ -411,13 +460,68 @@ public class RedisIO {
       @ProcessElement
       public void processElement(ProcessContext processContext) {
         KV<String, String> record = processContext.element();
-        pipeline.append(record.getKey(), record.getValue());
+
+        writeRecord(record);
 
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
           batchCount = 0;
+        }
+      }
+
+      private void writeRecord(KV<String, String> record) {
+        Method method = spec.method();
+        Long expireTime = spec.expireTime();
+
+        if (Method.APPEND == method) {
+          writeUsingAppendCommand(record, expireTime);
+        } else if (Method.SET == method) {
+          writeUsingSetCommand(record, expireTime);
+        } else if (Method.LPUSH == method || Method.RPUSH == method) {
+          writeUsingListCommand(record, method, expireTime);
+        }
+      }
+
+      private void writeUsingAppendCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.append(key, value);
+
+        setExpireTimeWhenRequired(key, expireTime);
+      }
+
+      private void writeUsingSetCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        if (expireTime != null) {
+          pipeline.psetex(key, expireTime, value);
+        } else {
+          pipeline.set(key, value);
+        }
+      }
+
+      private void writeUsingListCommand(
+          KV<String, String> record, Method method, Long expireTime) {
+
+        String key = record.getKey();
+        String value = record.getValue();
+
+        if (Method.LPUSH == method) {
+          pipeline.lpush(key, value);
+        } else if (Method.RPUSH == method) {
+          pipeline.rpush(key, value);
+        }
+
+        setExpireTimeWhenRequired(key, expireTime);
+      }
+
+      private void setExpireTimeWhenRequired(String key, Long expireTime) {
+        if (expireTime != null) {
+          pipeline.pexpire(key, expireTime);
         }
       }
 
