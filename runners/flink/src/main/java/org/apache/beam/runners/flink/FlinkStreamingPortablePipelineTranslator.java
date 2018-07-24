@@ -296,9 +296,9 @@ public class FlinkStreamingPortablePipelineTranslator
           e);
     }
 
-    WindowedValueCoder<KV<K, V>> inputCoder =
+    WindowedValueCoder<KV<K, V>> windowedInputCoder =
         (WindowedValueCoder) instantiateCoder(inputPCollectionId, pipeline.getComponents());
-    KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
+    KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) windowedInputCoder.getValueCoder();
 
     SingletonKeyedWorkItemCoder<K, V> workItemCoder =
         SingletonKeyedWorkItemCoder.of(
@@ -470,7 +470,7 @@ public class FlinkStreamingPortablePipelineTranslator
         context.getDataStreamOrThrow(inputPCollectionId);
 
     // TODO: coder for side input push back
-    final Coder<WindowedValue<InputT>> inputCoder = null;
+    final Coder<WindowedValue<InputT>> windowedInputCoder = null;
     CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
         (!outputs.isEmpty())
             ? new CoderTypeInformation(outputCoders.get(mainOutputTag.getId()))
@@ -491,7 +491,9 @@ public class FlinkStreamingPortablePipelineTranslator
     DoFnOperator<InputT, OutputT> doFnOperator =
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
-            inputCoder,
+            windowedInputCoder,
+            null,
+            Collections.emptyMap(),
             mainOutputTag,
             additionalOutputTags,
             outputManagerFactory,

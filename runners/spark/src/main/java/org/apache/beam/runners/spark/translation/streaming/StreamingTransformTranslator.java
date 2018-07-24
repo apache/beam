@@ -387,6 +387,8 @@ public final class StreamingTransformTranslator {
         final SparkPCollectionView pviews = context.getPViews();
         final WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
+        Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
+        Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<InputT> unboundedDataset =
@@ -414,6 +416,8 @@ public final class StreamingTransformTranslator {
                           options,
                           transform.getMainOutputTag(),
                           transform.getAdditionalOutputTags().getAll(),
+                          inputCoder,
+                          outputCoders,
                           sideInputs,
                           windowingStrategy,
                           false));

@@ -410,7 +410,9 @@ class FlinkStreamingTransformTranslators {
           Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
           Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
           Map<TupleTag<?>, Integer> tagsToIds,
-          Coder<WindowedValue<InputT>> inputCoder,
+          Coder<WindowedValue<InputT>> windowedInputCoder,
+          Coder<InputT> inputCoder,
+          Map<TupleTag<?>, Coder<?>> outputCoders,
           Coder keyCoder,
           KeySelector<WindowedValue<InputT>, ?> keySelector,
           Map<Integer, PCollectionView<?>> transformedSideInputs);
@@ -448,14 +450,17 @@ class FlinkStreamingTransformTranslators {
                   entry.getKey().getId(),
                   (TypeInformation) context.getTypeInfo((PCollection<?>) entry.getValue())));
           tagsToCoders.put(
-              entry.getKey(), (Coder) context.getCoder((PCollection<OutputT>) entry.getValue()));
+              entry.getKey(),
+              (Coder) context.getWindowedInputCoder((PCollection<OutputT>) entry.getValue()));
           tagsToIds.put(entry.getKey(), idCount++);
         }
       }
 
       SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
 
-      Coder<WindowedValue<InputT>> inputCoder = context.getCoder(input);
+      Coder<WindowedValue<InputT>> windowedInputCoder = context.getWindowedInputCoder(input);
+      Coder<InputT> inputCoder = context.getInputCoder(input);
+      Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
       DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(input);
 
@@ -478,7 +483,7 @@ class FlinkStreamingTransformTranslators {
 
       CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
           new CoderTypeInformation<>(
-              context.getCoder((PCollection<OutputT>) outputs.get(mainOutputTag)));
+              context.getWindowedInputCoder((PCollection<OutputT>) outputs.get(mainOutputTag)));
 
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT> doFnOperator =
@@ -493,7 +498,9 @@ class FlinkStreamingTransformTranslators {
                 tagsToOutputTags,
                 tagsToCoders,
                 tagsToIds,
+                windowedInputCoder,
                 inputCoder,
+                outputCoders,
                 keyCoder,
                 keySelector,
                 new HashMap<>() /* side-input mapping */);
@@ -517,7 +524,9 @@ class FlinkStreamingTransformTranslators {
                 tagsToOutputTags,
                 tagsToCoders,
                 tagsToIds,
+                windowedInputCoder,
                 inputCoder,
+                outputCoders,
                 keyCoder,
                 keySelector,
                 transformedSideInputs.f0);
@@ -625,14 +634,18 @@ class FlinkStreamingTransformTranslators {
               tagsToOutputTags,
               tagsToCoders,
               tagsToIds,
+              windowedInputCoder,
               inputCoder,
+              outputCoders1,
               keyCoder,
               keySelector,
               transformedSideInputs) ->
               new DoFnOperator<>(
                   doFn1,
                   stepName,
+                  windowedInputCoder,
                   inputCoder,
+                  outputCoders1,
                   mainOutputTag1,
                   additionalOutputTags1,
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(
@@ -677,14 +690,18 @@ class FlinkStreamingTransformTranslators {
               tagsToOutputTags,
               tagsToCoders,
               tagsToIds,
+              windowedInputCoder,
               inputCoder,
+              outputCoders1,
               keyCoder,
               keySelector,
               transformedSideInputs) ->
               new SplittableDoFnOperator<>(
                   doFn,
                   stepName,
+                  windowedInputCoder,
                   inputCoder,
+                  outputCoders1,
                   mainOutputTag,
                   additionalOutputTags,
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(
@@ -817,7 +834,7 @@ class FlinkStreamingTransformTranslators {
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
       Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
-          context.getCoder(context.getOutput(transform));
+          context.getWindowedInputCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
@@ -919,7 +936,7 @@ class FlinkStreamingTransformTranslators {
                   combineFn, input.getPipeline().getCoderRegistry(), inputKvCoder));
 
       Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
-          context.getCoder(context.getOutput(transform));
+          context.getWindowedInputCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
