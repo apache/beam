@@ -23,11 +23,13 @@ Setting up a local Jenkins instance is useful for testing Jenkins job changes
 without affecting the production instance. Using Docker makes the setup very
 straightforward.
 
+As of now, this setup allows you to test Job DSL scripts. Imported Beam jobs
+will not succeed due to some tools (like gcloud) and credentials missing.
+
 ## Jenkins on Docker
 
 ### Requirements
 If you haven't yet, [install Docker on your machine.](https://docs.docker.com/install/)
-
 
 ### Setup using provided scripts
 
@@ -138,7 +140,7 @@ of installing default plugins:
     1.  Go to Manage Jenkins -> Configure Global Security
     1.  Unmark "Enable script security for Job DSL scripts"
 1.  Set up Job DSL jobs import job. (Seed job)
-    1.  Refer to sampleseedjob.xml for parameters.
+    1.  Refer to seedjobconfig.xml for parameters.
     1.  Go to Jenkins -> New Item -> Freestyle project
     1.  Build step: Process Job DSLs
 
