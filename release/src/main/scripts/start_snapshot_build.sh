@@ -75,11 +75,11 @@ hub pull-request -F- <<<"[DO NOT MERGE]Start snapshot build for release process
 
 Run Gradle Publish"
 
-echo "NOTE: If there is no jenkins jib started, please comment generated PR with Run Gradle Publish"
+echo "NOTE: If there is no jenkins job started, please comment generated PR with: Run Gradle Publish"
 
 echo "===========================Cleaning up==========================="
 cd ~
 rm -rf ${LOCAL_BEAM_DIR}
 echo "Things remained you need to do manually after build successful:"
-echo "1. Close this generated PR"
-echo "2. Delete your remote branch ${BRANCH_NAME}"
+echo "1. Close this generated PR in github website."
+echo "2. Delete your remote branch ${BRANCH_NAME} form your beam repo in github website."
