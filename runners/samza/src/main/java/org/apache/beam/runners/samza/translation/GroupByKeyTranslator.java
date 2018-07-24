@@ -136,8 +136,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     }
   }
 
-  private boolean needRepartition(TransformHierarchy.Node node,
-                                  TranslationContext ctx) {
+  private boolean needRepartition(TransformHierarchy.Node node, TranslationContext ctx) {
 
     if (ctx.getPipelineOptions().getMaxSourceParallelism() == 1) {
       // Only one task will be created, no need for repartition

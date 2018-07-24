@@ -7,19 +7,18 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
 /**
- * A wrapper transform of {@link org.apache.beam.sdk.transforms.GroupByKey}
- * or {@link org.apache.beam.sdk.transforms.join.CoGroupByKey} to indicate
- * there is no repartition needed for Samza runner. For example:
+ * A wrapper transform of {@link org.apache.beam.sdk.transforms.GroupByKey} or {@link
+ * org.apache.beam.sdk.transforms.join.CoGroupByKey} to indicate there is no repartition needed for
+ * Samza runner. For example:
  *
  * <p>input.apply(GroupWithoutRepartition.of(Count.perKey()));
- *
  */
 public class GroupWithoutRepartition<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
   private final PTransform<InputT, OutputT> transform;
 
   public static <InputT extends PInput, OutputT extends POutput>
-  GroupWithoutRepartition<InputT, OutputT> of(PTransform<InputT, OutputT> transform) {
+      GroupWithoutRepartition<InputT, OutputT> of(PTransform<InputT, OutputT> transform) {
     return new GroupWithoutRepartition<>(transform);
   }
 
@@ -35,9 +34,10 @@ public class GroupWithoutRepartition<InputT extends PInput, OutputT extends POut
     } else if (input instanceof KeyedPCollectionTuple) {
       return (OutputT) ((KeyedPCollectionTuple) input).apply(transform);
     } else {
-      throw new RuntimeException(transform.getName()
-          + " is not supported with "
-          + GroupWithoutRepartition.class.getSimpleName());
+      throw new RuntimeException(
+          transform.getName()
+              + " is not supported with "
+              + GroupWithoutRepartition.class.getSimpleName());
     }
   }
 }
