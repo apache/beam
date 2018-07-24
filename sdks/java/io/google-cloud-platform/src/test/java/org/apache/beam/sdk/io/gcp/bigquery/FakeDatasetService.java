@@ -46,7 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
-class FakeDatasetService implements DatasetService, Serializable {
+public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
   static com.google.common.collect.Table<String, String, Map<String, TableContainer>> tables;
@@ -73,7 +73,7 @@ class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
-  List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
+  public List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
     synchronized (tables) {
       return getTableContainer(projectId, datasetId, tableId).getRows();
