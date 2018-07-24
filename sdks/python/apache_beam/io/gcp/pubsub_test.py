@@ -75,6 +75,7 @@ class TestPubsubMessage(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, {})
 
+  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   def test_proto_conversion(self):
     data = 'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
