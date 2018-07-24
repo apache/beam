@@ -191,7 +191,7 @@ public class SyntheticOptions implements Serializable {
    * unbounded source uses RateLimiter to control QPS.
    */
   @JsonDeserialize(using = SamplerDeserializer.class)
-  private final Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
+  Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
 
   /**
    * When 'delayDistribution' is configured, this indicates how the delay enforced ("SLEEP", "CPU",
