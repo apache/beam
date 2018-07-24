@@ -26,12 +26,13 @@ import (
 )
 
 var (
-	Resolver SymbolResolver
-	cache    = make(map[string]interface{})
-	mu       sync.Mutex
+	Resolver         SymbolResolver
+	cache            = make(map[string]interface{})
+	mu               sync.Mutex
+	initResolverOnce sync.Once
 )
 
-func init() {
+func initResolver() {
 	// First try the Linux location, since it's the most reliable.
 	if r, err := symtab.New("/proc/self/exe"); err == nil {
 		Resolver = r
@@ -76,6 +77,8 @@ func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
 	if val, exists := cache[name]; exists {
 		return val, nil
 	}
+
+	initResolverOnce.Do(initResolver)
 
 	ptr, err := Resolver.Sym2Addr(name)
 	if err != nil {
