@@ -30,6 +30,7 @@ from builtins import range
 from builtins import zip
 
 from future.utils import itervalues
+from past.utils import old_div
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
@@ -274,7 +275,7 @@ class _BatchSizeEstimator(object):
 
     def div_keys(kv1_kv2):
       (x1, _), (x2, _) = kv1_kv2
-      return x2 / x1
+      return old_div(x2, x1) # TODO(BEAM-4858)
 
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
                    key=div_keys)
