@@ -173,7 +173,8 @@ class CommonJobProperties {
     }
   }
 
-  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
+  // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
+  static void setGradleSwitches(context, maxWorkers = 12) {
     def defaultSwitches = [
       // Gradle log verbosity enough to diagnose basic build issues
       "--info",
@@ -188,16 +189,9 @@ class CommonJobProperties {
 
     // Ensure that parallel workers don't exceed total available memory.
 
-    // TODO(BEAM-4230): OperatingSystemMXBeam incorrectly reports total memory; hard-code for now
-    // Jenkins machines are GCE n1-highmem-16, with 104 GB of memory
-    // def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
-    // def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
-    def totalMemoryMb = 104 * 1024
-    // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
-    // machine memory.
-    def totalExecutorMemoryMb = totalMemoryMb / 2
-    def perWorkerMemoryMb = totalExecutorMemoryMb / maxWorkers
-    context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
+    // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (3g/8g).
+    context.switches("-Dorg.gradle.jvmargs=-Xms3g")
+    context.switches("-Dorg.gradle.jvmargs=-Xmx8g")
   }
 
   // Sets common config for PreCommit jobs.
