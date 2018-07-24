@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
-interface BigQueryServices extends Serializable {
+public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link JobService}. */
   JobService getJobService(BigQueryOptions bqOptions);
