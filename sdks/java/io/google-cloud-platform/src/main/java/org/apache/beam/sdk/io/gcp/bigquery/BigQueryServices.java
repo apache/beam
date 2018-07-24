@@ -65,7 +65,7 @@ public interface BigQueryServices extends Serializable {
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
      */
-    Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException, IOException;
+    Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException;
 
     /** Dry runs the query in the given project. */
     JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)

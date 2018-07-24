@@ -1705,6 +1705,11 @@ public class BigQueryIO {
         if (getMaxFileSize() != null) {
           batchLoads.setMaxFileSize(getMaxFileSize());
         }
+        // When running in streaming (unbounded mode) we want to retry failed load jobs
+        // indefinitely. Failing the bundle is expensive, so we set a fairly high limit on retries.
+        if (IsBounded.UNBOUNDED.equals(input.isBounded())) {
+          batchLoads.setMaxRetryJobs(1000);
+        }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
         batchLoads.setNumFileShards(getNumFileShards());
         return rowsWithDestination.apply(batchLoads);
