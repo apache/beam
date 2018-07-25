@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
@@ -69,7 +70,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -283,9 +283,18 @@ class BatchLoads<DestinationT>
                             singlePartitionTag))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-    PCollection<KV<TableDestination, String>> tempTables =
+    PCollection<KV<TableDestination, BigQueryWriteResult>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
     tempTables
+        .apply(
+            ParDo.of(
+                new DoFn<
+                    KV<TableDestination, BigQueryWriteResult>, KV<TableDestination, String>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.of(c.element().getKey(), c.element().getValue().getTable()));
+                  }
+                }))
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
@@ -306,8 +315,9 @@ class BatchLoads<DestinationT>
                         createDisposition,
                         maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
-    writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
-    return writeResult(p);
+    PCollection<KV<TableDestination, BigQueryWriteResult>> singlePartitionResults =
+        writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
+    return writeResult(p, PCollectionList.of(Arrays.asList(singlePartitionResults, tempTables)));
   }
 
   // Expand the pipeline when the user has not requested periodically-triggered file writes.
@@ -350,10 +360,19 @@ class BatchLoads<DestinationT>
                             singlePartitionTag))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-    PCollection<KV<TableDestination, String>> tempTables =
+    PCollection<KV<TableDestination, BigQueryWriteResult>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
     tempTables
+        .apply(
+            ParDo.of(
+                new DoFn<
+                    KV<TableDestination, BigQueryWriteResult>, KV<TableDestination, String>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.of(c.element().getKey(), c.element().getValue().getTable()));
+                  }
+                }))
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
         .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
         .apply(
@@ -366,8 +385,9 @@ class BatchLoads<DestinationT>
                         createDisposition,
                         maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
-    writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
-    return writeResult(p);
+    PCollection<KV<TableDestination, BigQueryWriteResult>> singlePartitionResults =
+        writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
+    return writeResult(p, PCollectionList.of(Arrays.asList(singlePartitionResults, tempTables)));
   }
 
   // Generate the base job id string.
@@ -505,7 +525,7 @@ class BatchLoads<DestinationT>
   }
 
   // Take in a list of files and write them to temporary tables.
-  private PCollection<KV<TableDestination, String>> writeTempTables(
+  private PCollection<KV<TableDestination, BigQueryWriteResult>> writeTempTables(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input,
       PCollectionView<String> jobIdTokenView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
@@ -541,7 +561,7 @@ class BatchLoads<DestinationT>
 
   // In the case where the files fit into a single load job, there's no need to write temporary
   // tables and rename. We can load these files directly into the target BigQuery table.
-  void writeSinglePartition(
+  PCollection<KV<TableDestination, BigQueryWriteResult>> writeSinglePartition(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input,
       PCollectionView<String> loadJobIdPrefixView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(loadJobIdPrefixView);
@@ -551,7 +571,7 @@ class BatchLoads<DestinationT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             ListCoder.of(StringUtf8Coder.of()));
     // Write single partition to final table
-    input
+    return input
         .setCoder(partitionsCoder)
         // Reshuffle will distribute this among multiple workers, and also guard against
         // reexecution of the WritePartitions step once WriteTables has begun.
@@ -571,10 +591,10 @@ class BatchLoads<DestinationT>
                 ignoreUnknownValues));
   }
 
-  private WriteResult writeResult(Pipeline p) {
-    PCollection<TableRow> empty =
-        p.apply("CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(TableRow.class)));
-    return WriteResult.in(p, new TupleTag<>("failedInserts"), empty);
+  private WriteResult writeResult(
+      Pipeline p, PCollectionList<KV<TableDestination, BigQueryWriteResult>> results) {
+    return WriteResult.withLoadResults(
+        p, new TupleTag<>("loadJobResults"), results.apply(Flatten.pCollections()));
   }
 
   @Override

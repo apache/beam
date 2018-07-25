@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.allOf;
@@ -77,8 +78,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
@@ -177,7 +180,7 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
-
+    
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -187,6 +190,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(schema)
                 .withoutValidation());
+
     p.run();
 
     checkNotNull(
@@ -704,16 +708,36 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollectionView<Map<String, String>> schemasView =
         p.apply("CreateSchemaMap", Create.of(schemas)).apply("ViewSchemaAsMap", View.asMap());
 
-    input
-        .apply(Window.into(windowFn))
-        .apply(
-            BigQueryIO.<Integer>write()
-                .to(tableFunction)
-                .withFormatFunction(i -> new TableRow().set("name", "number" + i).set("number", i))
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchemaFromView(schemasView)
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+    WriteResult wr =
+        input
+            .apply(Window.into(windowFn))
+            .apply(
+                BigQueryIO.<Integer>write()
+                    .to(tableFunction)
+                    .withFormatFunction(
+                        i -> new TableRow().set("name", "number" + i).set("number", i))
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchemaFromView(schemasView)
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    if (!streaming) {
+      List<KV<TableDestination, BigQueryWriteResult>> destinations =
+          targetTables
+              .entrySet()
+              .stream()
+              .map(
+                  entry ->
+                      KV.of(
+                          entry.getValue(),
+                          new BigQueryWriteResult(
+                              BigQueryHelpers.Status.SUCCEEDED,
+                              BigQueryHelpers.toJsonString(entry.getValue().getTableReference()))))
+              .collect(toList());
+
+      PAssert.that(wr.getLoadJobResults()).containsInAnyOrder(destinations);
+    }
+
     p.run();
 
     for (int i = 0; i < 5; ++i) {
@@ -743,24 +767,28 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteFailedJobs() throws Exception {
-    p.apply(
-            Create.of(
-                    new TableRow().set("name", "a").set("number", 1),
-                    new TableRow().set("name", "b").set("number", 2),
-                    new TableRow().set("name", "c").set("number", 3))
-                .withCoder(TableRowJsonCoder.of()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+    String table = "project-id:dataset-id.table-id";
+    WriteResult wr =
+        p.apply(
+                Create.of(
+                        new TableRow().set("name", "a").set("number", 1),
+                        new TableRow().set("name", "b").set("number", 2),
+                        new TableRow().set("name", "c").set("number", 3))
+                    .withCoder(TableRowJsonCoder.of()))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(table)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
 
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Failed to create load job with id prefix");
-    thrown.expectMessage("reached max retries");
-    thrown.expectMessage("last failed load job");
-
+    PAssert.that(wr.getLoadJobResults())
+        .containsInAnyOrder(
+            KV.of(
+                new TableDestination(table, null),
+                new BigQueryWriteResult(
+                    BigQueryHelpers.Status.FAILED,
+                    BigQueryHelpers.toJsonString(BigQueryHelpers.parseTableSpec(table)))));
     p.run();
   }
 
@@ -1179,7 +1207,17 @@ public class BigQueryIOWriteTest implements Serializable {
             false);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
-        writeTablesInput.apply(writeTables);
+        writeTablesInput
+            .apply(writeTables)
+            .apply(
+                ParDo.of(
+                    new DoFn<
+                        KV<TableDestination, BigQueryWriteResult>, KV<TableDestination, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(KV.of(c.element().getKey(), c.element().getValue().getTable()));
+                      }
+                    }));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
