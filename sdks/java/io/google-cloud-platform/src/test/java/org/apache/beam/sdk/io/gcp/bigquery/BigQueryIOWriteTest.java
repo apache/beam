@@ -742,26 +742,6 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteUnknown() throws Exception {
-    p.apply(
-            Create.of(
-                    new TableRow().set("name", "a").set("number", 1),
-                    new TableRow().set("name", "b").set("number", 2),
-                    new TableRow().set("name", "c").set("number", 3))
-                .withCoder(TableRowJsonCoder.of()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
-
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Failed to create load job");
-    p.run();
-  }
-
-  @Test
   public void testWriteFailedJobs() throws Exception {
     p.apply(
             Create.of(
@@ -783,6 +763,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
     p.run();
   }
+
+  // TODO add a test for UNKNOWN errors
 
   @Test
   public void testWriteWithMissingSchemaFromView() throws Exception {
