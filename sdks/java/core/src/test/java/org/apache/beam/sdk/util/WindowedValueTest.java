@@ -20,12 +20,15 @@ package org.apache.beam.sdk.util;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,7 +51,7 @@ public class WindowedValueTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testWindowedValueCoder() throws CoderException {
+  public void testWindowedValueCoder() throws Exception {
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
         WindowedValue.of(
@@ -69,6 +72,19 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+
+    WindowedValue<String> value2 =
+        WindowedValue.of(
+            "abc",
+            new Instant(1234),
+            Arrays.asList(
+                new IntervalWindow(timestamp, timestamp.plus(1000)),
+                new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
+            PaneInfo.NO_FIRING);
+    assertTrue(windowedValueCoder.consistentWithEquals());
+    CoderProperties.coderConsistentWithEquals(windowedValueCoder, value, value2);
+    CoderProperties.structuralValueConsistentWithEquals(windowedValueCoder, value, value2);
+    CoderProperties.structuralValueDecodeEncodeEqual(windowedValueCoder, value);
   }
 
   @Test
@@ -96,6 +112,52 @@ public class WindowedValueTest {
         WindowedValue.of("foo", now, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
 
     assertThat(Iterables.getOnlyElement(value.explodeWindows()), equalTo(value));
+  }
+
+  @Test
+  public void testGlobalWindowedValueEquality() {
+    Set<WindowedValue<String>> equivalentValues =
+        ImmutableSet.of(
+            WindowedValue.valueInGlobalWindow("testValue"),
+            WindowedValue.valueInGlobalWindow("testValue", PaneInfo.NO_FIRING),
+            WindowedValue.timestampedValueInGlobalWindow(
+                "testValue", BoundedWindow.TIMESTAMP_MIN_VALUE),
+            WindowedValue.of(
+                "testValue",
+                BoundedWindow.TIMESTAMP_MIN_VALUE,
+                GlobalWindow.INSTANCE,
+                PaneInfo.NO_FIRING),
+            WindowedValue.of(
+                "testValue",
+                BoundedWindow.TIMESTAMP_MIN_VALUE,
+                Collections.singletonList(GlobalWindow.INSTANCE),
+                PaneInfo.NO_FIRING));
+    for (WindowedValue<String> first : equivalentValues) {
+      for (WindowedValue<String> second : equivalentValues) {
+        assertThat(first, equalTo(second));
+      }
+    }
+  }
+
+  @Test
+  public void testWindowedValueEquality() {
+    Set<WindowedValue<String>> equivalentValues =
+        ImmutableSet.of(
+            WindowedValue.of(
+                "testValue",
+                new Instant(100L),
+                new IntervalWindow(new Instant(200L), new Instant(300L)),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            WindowedValue.of(
+                "testValue",
+                new Instant(100L),
+                Collections.singletonList(new IntervalWindow(new Instant(200L), new Instant(300L))),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    for (WindowedValue<String> first : equivalentValues) {
+      for (WindowedValue<String> second : equivalentValues) {
+        assertThat(first, equalTo(second));
+      }
+    }
   }
 
   @Test

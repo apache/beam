@@ -54,6 +54,17 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
         new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Set coders are consistent with equals if and only if the element coder is consistent with
+   * equals.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return getElemCoder().consistentWithEquals();
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 

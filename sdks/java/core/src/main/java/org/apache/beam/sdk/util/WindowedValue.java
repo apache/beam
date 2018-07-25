@@ -34,8 +34,8 @@ import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -497,7 +497,7 @@ public abstract class WindowedValue<T> {
       // right, and cast the window type away here.
       @SuppressWarnings({"unchecked", "rawtypes"})
       Coder<Collection<? extends BoundedWindow>> collectionCoder =
-          (Coder) CollectionCoder.of(this.windowCoder);
+          (Coder) ListCoder.of(this.windowCoder);
       this.windowsCoder = collectionCoder;
     }
 
@@ -562,6 +562,29 @@ public abstract class WindowedValue<T> {
       windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
       PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This coder is consistent with equals if the window and value coders are consistent with
+     * equals.
+     */
+    @Override
+    public boolean consistentWithEquals() {
+      return windowsCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+    }
+
+    @Override
+    public Object structuralValue(WindowedValue<T> value) {
+      if (value != null && consistentWithEquals()) {
+        return value;
+      }
+      return ImmutableList.of(
+          value.getTimestamp(),
+          valueCoder.structuralValue(value.getValue()),
+          windowsCoder.structuralValue(value.getWindows()),
+          value.getPane());
     }
 
     /**

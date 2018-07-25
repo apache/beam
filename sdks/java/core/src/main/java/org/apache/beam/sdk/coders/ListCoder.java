@@ -32,6 +32,17 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
     return new ListCoder<>(elemCoder);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>List coders are consistent with equals if and only if the element coder is consistent with
+   * equals.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return getElemCoder().consistentWithEquals();
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 

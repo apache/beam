@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,6 +53,24 @@ public class ListCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
     CoderProperties.coderSerializable(ListCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
+  public void testConsistentWithEquals() throws Exception {
+    assertFalse(CollectionCoder.of(ByteArrayCoder.of()).consistentWithEquals());
+    assertTrue(TEST_CODER.consistentWithEquals());
+    for (List<Integer> value : TEST_VALUES) {
+      CoderProperties.coderConsistentWithEquals(TEST_CODER, value, ImmutableList.copyOf(value));
+    }
+  }
+
+  @Test
+  public void testStructuralValue() throws Exception {
+    for (List<Integer> value : TEST_VALUES) {
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+      CoderProperties.structuralValueConsistentWithEquals(
+          TEST_CODER, value, ImmutableList.copyOf(value));
+    }
   }
 
   @Test
