@@ -35,6 +35,7 @@ cp $DOCKER_FILE $TEMP_DIR
 cp $USER_REQUIREMENTS $TEMP_DIR/requirements.txt
 pushd $TEMP_DIR
 docker build . -t $NEW_PYTHON_IMAGE --build-arg BASE_PYTHON_IMAGE=$BASE_PYTHON_IMAGE
+popd
 rm -rf $TEMP_DIR
 
 
