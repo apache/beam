@@ -19,8 +19,10 @@
 package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import java.util.EnumMap;
 import java.util.List;
+import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.RegisterHandler;
@@ -150,7 +152,11 @@ public class FnHarness {
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
-          new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
+          new BeamFnDataGrpcClient(
+              options,
+              channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)))
+                  ::forDescriptor,
+              outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(
