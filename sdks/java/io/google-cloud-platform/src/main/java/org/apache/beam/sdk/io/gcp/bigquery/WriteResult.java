@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -37,26 +38,37 @@ public final class WriteResult implements POutput {
   private final PCollection<TableRow> failedInserts;
   private final TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
   private final PCollection<BigQueryInsertError> failedInsertsWithErr;
+  private final TupleTag<KV<TableDestination, BigQueryWriteResult>> loadResultsTag;
+  private final PCollection<KV<TableDestination, BigQueryWriteResult>> loadResults;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
       Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
-    return new WriteResult(pipeline, failedInsertsTag, failedInserts, null, null);
+    return new WriteResult(pipeline, failedInsertsTag, failedInserts, null, null, null, null);
   }
 
   static WriteResult withExtendedErrors(
       Pipeline pipeline,
       TupleTag<BigQueryInsertError> failedInsertsTag,
       PCollection<BigQueryInsertError> failedInserts) {
-    return new WriteResult(pipeline, null, null, failedInsertsTag, failedInserts);
+    return new WriteResult(pipeline, null, null, failedInsertsTag, failedInserts, null, null);
+  }
+
+  static WriteResult withLoadResults(
+      Pipeline pipeline,
+      TupleTag<KV<TableDestination, BigQueryWriteResult>> loadResultsTag,
+      PCollection<KV<TableDestination, BigQueryWriteResult>> loadResults) {
+    return new WriteResult(pipeline, null, null, null, null, loadResultsTag, loadResults);
   }
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
     if (failedInsertsTag != null) {
       return ImmutableMap.of(failedInsertsTag, failedInserts);
-    } else {
+    } else if (failedInsertsWithErrTag != null) {
       return ImmutableMap.of(failedInsertsWithErrTag, failedInsertsWithErr);
+    } else {
+      return ImmutableMap.of(loadResultsTag, loadResults);
     }
   }
 
@@ -65,12 +77,16 @@ public final class WriteResult implements POutput {
       TupleTag<TableRow> failedInsertsTag,
       PCollection<TableRow> failedInserts,
       TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
-      PCollection<BigQueryInsertError> failedInsertsWithErr) {
+      PCollection<BigQueryInsertError> failedInsertsWithErr,
+      TupleTag<KV<TableDestination, BigQueryWriteResult>> loadResultsTag,
+      PCollection<KV<TableDestination, BigQueryWriteResult>> loadResults) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
     this.failedInsertsWithErrTag = failedInsertsWithErrTag;
     this.failedInsertsWithErr = failedInsertsWithErr;
+    this.loadResultsTag = loadResultsTag;
+    this.loadResults = loadResults;
   }
 
   /**
@@ -101,6 +117,17 @@ public final class WriteResult implements POutput {
         "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
             + " extended errors. Use getFailedInserts instead");
     return failedInsertsWithErr;
+  }
+
+  /**
+   * Returns a {@link PCollection} containing pairs of {@link TableDestination} -> {@link
+   * BigQueryWriteResult} indicating the result of the load job per table destination.
+   */
+  public PCollection<KV<TableDestination, BigQueryWriteResult>> getLoadJobResults() {
+    checkArgument(
+        loadResultsTag != null,
+        "Cannot use getLoadJobResults as this WriteResult was not configured to represent a load jobs result");
+    return loadResults;
   }
 
   @Override
