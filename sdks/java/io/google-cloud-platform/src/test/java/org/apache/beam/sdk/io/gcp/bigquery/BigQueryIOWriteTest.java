@@ -118,6 +118,11 @@ import org.junit.runners.model.Statement;
 /** Tests for {@link BigQueryIO#write}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOWriteTest implements Serializable {
+  private static final String DATASET_ID = "dataset-id";
+  private static final String PROJECT_ID = "project-id";
+  private static final String TABLE_ID = "table-id";
+  private static final String TABLE_SPEC = PROJECT_ID + ":" + DATASET_ID + "." + TABLE_ID;
+
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
@@ -136,7 +141,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 @Override
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
-                  options.as(BigQueryOptions.class).setProject("project-id");
+                  options.as(BigQueryOptions.class).setProject(PROJECT_ID);
                   options
                       .as(BigQueryOptions.class)
                       .setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -163,7 +168,7 @@ public class BigQueryIOWriteTest implements Serializable {
     FakeDatasetService.setUp();
     BigQueryIO.clearCreatedTables();
 
-    fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
+    fakeDatasetService.createDataset(PROJECT_ID, DATASET_ID, "", "", null);
   }
 
   @After
@@ -184,18 +189,16 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(TABLE_SPEC)
                 .withTestServices(fakeBqServices)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(schema)
                 .withoutValidation());
-
+    
     p.run();
 
-    checkNotNull(
-        fakeDatasetService.getTable(
-            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
+    checkNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(TABLE_SPEC)));
   }
 
   @Test
@@ -322,7 +325,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     for (Map.Entry<Integer, List<TableRow>> entry : expectedTableRows.entrySet()) {
       assertThat(
-          fakeDatasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
+          fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
     }
   }
@@ -350,16 +353,14 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(TABLE_SPEC)
                 .withTestServices(fakeBqServices)
                 .withMethod(insertMethod)
                 .withSchema(schema)
                 .withTimePartitioning(timePartitioning)
                 .withoutValidation());
     p.run();
-    Table table =
-        fakeDatasetService.getTable(
-            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+    Table table = fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(TABLE_SPEC));
     assertEquals(schema, table.getSchema());
     assertEquals(timePartitioning, table.getTimePartitioning());
   }
@@ -387,7 +388,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(testStream)
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(TABLE_SPEC)
                 .withSchema(
                     new TableSchema()
                         .setFields(
@@ -401,7 +402,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
@@ -423,7 +424,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.of(row1, row2, row3))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(TABLE_SPEC)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
                 .withSchema(
@@ -437,7 +438,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, "table-id"),
         containsInAnyOrder(row1, row2, row3));
   }
 
@@ -463,7 +464,7 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply(Create.of(row1, row2, row3))
             .apply(
                 BigQueryIO.writeTableRows()
-                    .to("project-id:dataset-id.table-id")
+                    .to(TABLE_SPEC)
                     .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                     .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
                     .withSchema(
@@ -483,7 +484,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     // Only row1 and row3 were successfully inserted.
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "table-id"),
         containsInAnyOrder(row1, row3));
   }
 
@@ -522,7 +523,7 @@ public class BigQueryIOWriteTest implements Serializable {
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(TABLE_SPEC)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(
                     new TableSchema()
@@ -535,7 +536,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "table-id"),
         containsInAnyOrder(
             new TableRow().set("name", "a").set("number", 1),
             new TableRow().set("name", "b").set("number", 2),
@@ -677,7 +678,7 @@ public class BigQueryIOWriteTest implements Serializable {
     Map<String, String> schemas = Maps.newHashMap();
     for (int i = 0; i < 5; i++) {
       TableDestination destination =
-          new TableDestination("project-id:dataset-id" + ".table-id-" + i, "");
+          new TableDestination(PROJECT_ID + ":" + DATASET_ID + ".table-id-" + i, "");
       targetTables.put(i, destination);
       // Make sure each target table has its own custom table.
       schemas.put(
@@ -742,7 +743,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     for (int i = 0; i < 5; ++i) {
       String tableId = String.format("table-id-%d", i);
-      String tableSpec = String.format("project-id:dataset-id.%s", tableId);
+      String tableSpec = String.format(PROJECT_ID + ":" + DATASET_ID + ".%s", tableId);
 
       // Verify that table was created with the correct schema.
       assertThat(
@@ -750,7 +751,7 @@ public class BigQueryIOWriteTest implements Serializable {
               fakeDatasetService
                   .getTable(
                       new TableReference()
-                          .setProjectId("project-id")
+                          .setProjectId(PROJECT_ID)
                           .setDatasetId("dataset-id")
                           .setTableId(tableId))
                   .getSchema()),
@@ -758,7 +759,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
       // Verify that the table has the expected contents.
       assertThat(
-          fakeDatasetService.getAllRows("project-id", "dataset-id", tableId),
+          fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", tableId),
           containsInAnyOrder(
               new TableRow().set("name", String.format("number%d", i)).set("number", i),
               new TableRow().set("name", String.format("number%d", i + 5)).set("number", i + 5)));
@@ -767,7 +768,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteFailedJobs() throws Exception {
-    String table = "project-id:dataset-id.table-id";
+    String table = TABLE_SPEC;
     WriteResult wr =
         p.apply(
                 Create.of(
@@ -1050,7 +1051,7 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       for (int i = 0; i < numTables; ++i) {
         for (int j = 1; j <= expectedNumPartitionsPerTable; ++j) {
-          String tableName = String.format("project-id:dataset-id.tables%05d", i);
+          String tableName = String.format(PROJECT_ID + ":" + DATASET_ID + ".tables%05d", i);
           expectedPartitions.add(ShardedKey.of(new TableDestination(tableName, ""), j));
         }
       }
@@ -1059,7 +1060,7 @@ public class BigQueryIOWriteTest implements Serializable {
     List<WriteBundlesToFiles.Result<TableDestination>> files = Lists.newArrayList();
     Map<String, List<String>> filenamesPerTable = Maps.newHashMap();
     for (int i = 0; i < numTables; ++i) {
-      String tableName = String.format("project-id:dataset-id.tables%05d", i);
+      String tableName = String.format(PROJECT_ID + ":" + DATASET_ID + ".tables%05d", i);
       List<String> filenames =
           filenamesPerTable.computeIfAbsent(tableName, k -> Lists.newArrayList());
       for (int j = 0; j < numFilesPerTable; ++j) {
@@ -1158,7 +1159,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     List<KV<ShardedKey<String>, List<String>>> partitions = Lists.newArrayList();
     for (int i = 0; i < numTables; ++i) {
-      String tableName = String.format("project-id:dataset-id.table%05d", i);
+      String tableName = String.format(PROJECT_ID + ":" + DATASET_ID + ".table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
         String tempTableId = BigQueryHelpers.createJobId(jobIdToken, tableDestination, j, 0);
@@ -1180,8 +1181,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
         String json =
             String.format(
-                "{\"datasetId\":\"dataset-id\",\"projectId\":\"project-id\",\"tableId\":\"%s\"}",
-                tempTableId);
+                "{\"datasetId\":\"%s\",\"projectId\":\"%s\",\"tableId\":\"%s\"}",
+                DATASET_ID, PROJECT_ID, tempTableId);
         expectedTempTables.put(tableDestination, json);
       }
     }
@@ -1265,13 +1266,13 @@ public class BigQueryIOWriteTest implements Serializable {
     Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
     List<KV<TableDestination, String>> tempTablesElement = Lists.newArrayList();
     for (int i = 0; i < numFinalTables; ++i) {
-      String tableName = "project-id:dataset-id.table_" + i;
+      String tableName = PROJECT_ID + ":" + DATASET_ID + ".table_" + i;
       TableDestination tableDestination = new TableDestination(tableName, "table_" + i + "_desc");
       for (int j = 0; i < numTempTablesPerFinalTable; ++i) {
         TableReference tempTable =
             new TableReference()
-                .setProjectId("project-id")
-                .setDatasetId("dataset-id")
+                .setProjectId(PROJECT_ID)
+                .setDatasetId(DATASET_ID)
                 .setTableId(String.format("%s_%05d_%05d", jobIdToken, i, j));
         fakeDatasetService.createTable(new Table().setTableReference(tempTable));
 
@@ -1328,24 +1329,22 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testRemoveTemporaryTables() throws Exception {
     FakeDatasetService datasetService = new FakeDatasetService();
-    String projectId = "project";
-    String datasetId = "dataset";
-    datasetService.createDataset(projectId, datasetId, "", "", null);
+    datasetService.createDataset(PROJECT_ID, DATASET_ID, "", "", null);
     List<TableReference> tableRefs =
         Lists.newArrayList(
             BigQueryHelpers.parseTableSpec(
-                String.format("%s:%s.%s", projectId, datasetId, "table1")),
+                String.format("%s:%s.%s", PROJECT_ID, DATASET_ID, "table1")),
             BigQueryHelpers.parseTableSpec(
-                String.format("%s:%s.%s", projectId, datasetId, "table2")),
+                String.format("%s:%s.%s", PROJECT_ID, DATASET_ID, "table2")),
             BigQueryHelpers.parseTableSpec(
-                String.format("%s:%s.%s", projectId, datasetId, "table3")));
+                String.format("%s:%s.%s", PROJECT_ID, DATASET_ID, "table3")));
     for (TableReference tableRef : tableRefs) {
       datasetService.createTable(new Table().setTableReference(tableRef));
     }
 
     // Add one more table to delete that does not actually exist.
     tableRefs.add(
-        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, "table4")));
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", PROJECT_ID, DATASET_ID, "table4")));
 
     WriteRename.removeTemporaryTables(datasetService, tableRefs);
 
@@ -1387,7 +1386,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id$20171127")
+                .to(PROJECT_ID + ":" + DATASET_ID + ".table-id$20171127")
                 .withTestServices(fakeBqServices)
                 .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
                 .withSchema(schema)
@@ -1400,7 +1399,7 @@ public class BigQueryIOWriteTest implements Serializable {
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
-    String tableSpec = "project-id:dataset-id.table-id";
+    String tableSpec = TABLE_SPEC;
 
     TableDataInsertAllResponse.InsertErrors ephemeralError =
         new TableDataInsertAllResponse.InsertErrors()
@@ -1443,7 +1442,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     // Only row1 and row3 were successfully inserted.
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, TABLE_ID),
         containsInAnyOrder(row1, row3));
   }
 
@@ -1454,7 +1453,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     BigQueryIO.Write<TableRow> bqIoWrite =
         BigQueryIO.writeTableRows()
-            .to("project-id:dataset-id.table-id")
+            .to(TABLE_SPEC)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
             .withSchema(
