@@ -27,7 +27,7 @@ public class Schemas {
   //  private final ImmutableMap<String, TpcdsTable> tableHMap;
   private final ImmutableMap<String, String> columnPrefixes;
 
-  public static Schema storeSalesSchema =
+  public static final Schema storeSalesSchema =
       Schema.builder()
           .addNullableField("ss_sold_date_sk", Schema.FieldType.INT32)
           .addNullableField("ss_sold_time_sk", Schema.FieldType.INT32)
@@ -54,7 +54,7 @@ public class Schemas {
           .addNullableField("ss_net_profit", Schema.FieldType.FLOAT)
           .build();
 
-  public static Schema dateDimSchema =
+  public static final Schema dateDimSchema =
       Schema.builder()
           .addNullableField("d_date_sk", Schema.FieldType.INT32)
           .addNullableField("d_date_id", Schema.FieldType.STRING)
@@ -86,7 +86,7 @@ public class Schemas {
           .addNullableField("d_current_year", Schema.FieldType.STRING)
           .build();
 
-  public static Schema itemSchema =
+  public static final Schema itemSchema =
       Schema.builder()
           .addNullableField("i_item_sk", Schema.FieldType.INT32)
           .addNullableField("i_item_id", Schema.FieldType.STRING) //                 .string,
@@ -113,7 +113,7 @@ public class Schemas {
           .addNullableField("i_product_name", Schema.FieldType.STRING) //            .string),
           .build();
 
-  public static Schema inventorySchema =
+  public static final Schema inventorySchema =
       Schema.builder()
           .addNullableField("inv_date_sk", Schema.FieldType.INT32)
           .addNullableField("inv_item_sk", Schema.FieldType.INT32)

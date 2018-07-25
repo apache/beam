@@ -22,6 +22,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'],
+//  testShadowJar: true, shadowClosure: {})
   testShadowJar: true,
   shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
@@ -30,16 +31,19 @@ applyJavaNature(
       include(dependency("org.apache.calcite:.*"))
       include(dependency("org.apache.calcite.avatica:.*"))
       include(dependency("org.codehaus.janino:.*"))
+//      include '*.properties'
     }
     relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+//    relocate "java.sql", getJavaRelocatedPath("java.sql")
     relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-
-  // Looking up the compiler factory in Calcite depends on having a properties
-  // file in the right location. We package one that is shading compatible
-  // in src/main/resources. Note that if this shaded path changes, that
-  // files name and contents need to be updated as well. TODO, swap to use
-  // getJavaRelocatedPath once the Maven build is no longer also shading this
-  // module.
+    mergeServiceFiles()
+//
+//  // Looking up the compiler factory in Calcite depends on having a propertiesUnregisteredDriver
+//  // file in the right location. We package one that is shading compatible
+//  // in src/main/resources. Note that if this shaded path changes, that
+//  // files name and contents need to be updated as well. TODO, swap to use
+//  // getJavaRelocatedPath once the Maven build is no longer also shading this
+//  // module.
   relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
 })
 apply plugin: 'ca.coglinc.javacc'
@@ -55,7 +59,7 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.16.0"
+def calcite_version = "1.16.0-SNAPSHOT"
 def avatica_version = "1.11.0"
 
 dependencies {

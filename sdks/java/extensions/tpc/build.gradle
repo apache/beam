@@ -49,15 +49,27 @@ dependencies {
     compile library.java.hamcrest_core
     compile library.java.hamcrest_library
 
+//    compile "org.apache.calcite:calcite-core:$calcite_version"
+//    compile "org.apache.calcite:calcite-linq4j:$calcite_version"
+//    compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
+
     // Spark
+//    compile project(path: ":beam-runners-direct-java", configuration: "shadow")
     compile project(path: ":beam-runners-spark", configuration: "shadow")
+
     compile library.java.spark_streaming, {
-        exclude group:"org.slf4j", module:"jul-to-slf4j"
+        exclude group: "org.slf4j", module:"jul-to-slf4j"
         exclude group: "org.slf4j", module: "slf4j-jdk14"
+        exclude group: "org.apache.calcite", module: "calcite-core"
+        exclude group: "org.apache.calcite", module: "calcite-linq4j"
+        exclude group: "org.apache.calcite", module: "calcite-avatica"
     }
     compile library.java.spark_core, {
-        exclude group:"org.slf4j", module:"jul-to-slf4j"
+        exclude group: "org.slf4j", module:"jul-to-slf4j"
         exclude group: "org.slf4j", module: "slf4j-jdk14"
+        exclude group: "org.apache.calcite", module: "calcite-core"
+        exclude group: "org.apache.calcite", module: "calcite-linq4j"
+        exclude group: "org.apache.calcite", module: "calcite-avatica"
     }
 
     testCompile library.java.junit
