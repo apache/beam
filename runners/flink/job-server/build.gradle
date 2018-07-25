@@ -75,7 +75,7 @@ class PortableValidatesRunnerConfig {
 }
 
 def createPortableValidatesRunnerTask = {
-  def config = it as PortableValidatesRunnerConfig
+  def config = it ? it as PortableValidatesRunnerConfig : new PortableValidatesRunnerConfig()
   tasks.create(name: config.name, type: Test) {
     group = "Verification"
     description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
