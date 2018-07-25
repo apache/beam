@@ -1175,7 +1175,7 @@ artifactId=${project.name}
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.2.0" }
+          artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
         plugins {
@@ -1288,14 +1288,14 @@ artifactId=${project.name}
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.5.1" }
+          artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.12.0" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.13.1" }
         }
 
         generateProtoTasks {
