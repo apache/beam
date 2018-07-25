@@ -248,7 +248,7 @@ class WriteTables<DestinationT>
     return writeTablesOutputs.get(mainOutputTag);
   }
 
-  private void load(
+  private BigQueryWriteResult load(
       JobService jobService,
       DatasetService datasetService,
       String jobIdPrefix,
@@ -328,7 +328,7 @@ class WriteTables<DestinationT>
                 ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                 tableDescription);
           }
-          return;
+          return new BigQueryWriteResult(Status.SUCCEEDED, BigQueryHelpers.toJsonString(ref));
         case UNKNOWN:
           // This might happen if BigQuery's job listing is slow. Retry with the same
           // job id.
@@ -350,17 +350,10 @@ class WriteTables<DestinationT>
               jobId);
           continue;
         default:
-          throw new IllegalStateException(
-              String.format(
-                  "Unexpected status [%s] of load job: %s.",
-                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
+          return new BigQueryWriteResult(jobStatus, BigQueryHelpers.toJsonString(ref));
       }
     } while (nextBackOff(sleeper, backoff));
-    throw new RuntimeException(
-        String.format(
-            "Failed to create load job with id prefix %s, "
-                + "reached max retries: %d, last failed load job: %s.",
-            jobIdPrefix, maxRetryJobs, BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
+    return new BigQueryWriteResult(BigQueryHelpers.parseStatus(lastFailedLoadJob), BigQueryHelpers.toJsonString(ref));
   }
 
   /** Identical to {@link BackOffUtils#next} but without checked IOException. */
