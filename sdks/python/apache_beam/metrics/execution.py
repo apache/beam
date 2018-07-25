@@ -234,27 +234,6 @@ class MetricsContainer(object):
     )
 
 
-class ScopedMetricsContainer(object):
-
-  def __init__(self, container=None):
-    self._stack = MetricsEnvironment.container_stack()
-    self._container = container
-
-  def enter(self):
-    if self._container:
-      self._stack.append(self._container)
-
-  def exit(self):
-    if self._container:
-      self._stack.pop()
-
-  def __enter__(self):
-    self.enter()
-
-  def __exit__(self, type, value, traceback):
-    self.exit()
-
-
 class MetricUpdates(object):
   """Contains updates for several metrics.
 
