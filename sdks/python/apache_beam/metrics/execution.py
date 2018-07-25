@@ -122,38 +122,16 @@ class _MetricsEnvironment(object):
   def __init__(self):
     self.METRICS_SUPPORTED = False
     self._METRICS_SUPPORTED_LOCK = threading.Lock()
-    self.PER_THREAD = threading.local()
-    self.set_container_stack()
-
-  def set_container_stack(self):
-    if not hasattr(self.PER_THREAD, 'container'):
-      self.PER_THREAD.container = []
-
-  def container_stack(self):
-    self.set_container_stack()
-    return self.PER_THREAD.container
 
   def set_metrics_supported(self, supported):
-    self.set_container_stack()
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
-
-  def _old_style_container(self):
-    """Gets the current MetricsContainer based on the container stack.
-
-    The container stack is the old method, and will be deprecated. Should
-    rely on StateSampler instead."""
-    self.set_container_stack()
-    index = len(self.PER_THREAD.container) - 1
-    if index < 0:
-      return None
-    return self.PER_THREAD.container[index]
 
   def current_container(self):
     """Returns the current MetricsContainer."""
     sampler = statesampler.get_current_tracker()
     if sampler is None:
-      return self._old_style_container()
+      return None
     return sampler.current_state().metrics_container
 
 
