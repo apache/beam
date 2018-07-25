@@ -30,11 +30,17 @@ description = "Apache Beam :: Runners :: Samza"
  */
 evaluationDependsOn(":beam-sdks-java-core")
 
+repositories {
+  maven {
+    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
+  }
+}
+
 configurations {
   validatesRunner
 }
 
-def samza_version = "0.14.1"
+def samza_version = "300.141.25.7"
 
 dependencies {
   compile library.java.guava
@@ -46,14 +52,18 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.commons_compress
+  shadow library.java.commons_lang3
   shadow library.java.commons_io_2x
   shadow library.java.args4j
-  shadow "org.apache.samza:samza-api:$samza_version"
-  shadow "org.apache.samza:samza-core_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kafka_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kv_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
-  shadow "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+
+  shadow "com.linkedin.samza-li:samza-api:$samza_version"
+  shadow "com.linkedin.samza-li:samza-core_2.10:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kafka_2.10:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kv_2.10:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kv-rocksdb_2.10:$samza_version"
+  shadow "com.linkedin.samza-li:samza-kv-inmemory_2.10:$samza_version"
+
+  shadow "org.scala-lang:scala-library:2.10.7"
   shadow "org.apache.kafka:kafka-clients:0.11.0.2"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
