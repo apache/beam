@@ -69,6 +69,15 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean testShadowJar = false
 
     /**
+     * Controls whether the shadow jar is validated to not contain any classes outside the org.apache.beam namespace.
+     * This protects artifact jars from leaking dependencies classes causing conflicts for users.
+     *
+     * Note that this can be disabled for subprojects that produce application artifacts that are not intended to
+     * be depended on by users.
+     */
+    boolean validateShadowJar = true
+
+    /**
      * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
      * Users can compose their closure with the default closure via:
      * DEFAULT_SHADOW_CLOSURE << {
@@ -452,6 +461,7 @@ class BeamModulePlugin implements Plugin<Project> {
       dependencies {
         include(dependency(project.library.java.guava))
       }
+      // guava uses the com.google.common and com.google.thirdparty package namespaces
       relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
         // com.google.common is too generic, need to exclude guava-testlib
         exclude "com.google.common.collect.testing.**"
@@ -459,6 +469,7 @@ class BeamModulePlugin implements Plugin<Project> {
         exclude "com.google.common.testing.**"
         exclude "com.google.common.util.concurrent.testing.**"
       }
+      relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
     }
 
     // Configures a project with a default set of plugins that should apply to all Java projects.
@@ -711,6 +722,24 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
+      }
+
+      if (configuration.validateShadowJar) {
+        project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
+          inputs.files project.configurations.shadow.artifacts.files
+          doLast {
+            project.configurations.shadow.artifacts.files.each {
+              FileTree exposedClasses = project.zipTree(it).matching {
+                include "**/*.class"
+                exclude "org/apache/beam/**"
+              }
+              if (exposedClasses.files) {
+                throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+              }
+            }
+          }
+        }
+        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
       }
 
       if ((isRelease(project) || project.hasProperty('publishing')) &&
@@ -1329,23 +1358,6 @@ artifactId=${project.name}
         compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.12.3'
         shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
       }
-
-      project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: ['shadowJar', 'shadowTestJar']) {
-        inputs.files project.configurations.shadow.artifacts.files
-        inputs.files project.configurations.shadowTest.artifacts.files
-        doLast {
-          (project.configurations.shadow.artifacts.files + project.configurations.shadowTest.artifacts.files).each {
-            FileTree exposedClasses = project.zipTree(it).matching {
-              include "**/*.class"
-              exclude "org/apache/beam/**"
-            }
-            if (exposedClasses.files) {
-              throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
-            }
-          }
-        }
-      }
-      project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
 
       // TODO(BEAM-4544): Integrate intellij support into this.
     }
