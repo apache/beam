@@ -147,7 +147,8 @@ public class FlinkJobServerDriver implements Runnable {
       try {
         artifactStagingServer.close();
         LOG.info(
-            "ArtifactStagingServer stopped on {}", jobServer.getApiServiceDescriptor().getUrl());
+            "ArtifactStagingServer stopped on {}",
+            artifactStagingServer.getApiServiceDescriptor().getUrl());
         artifactStagingServer = null;
       } catch (Exception e) {
         LOG.error("Error while closing the artifactStagingServer.", e);
