@@ -103,5 +103,5 @@ python setup.py nosetests \
   --attr $1 \
   --nocapture \
   --processes=8 \
-  --process-timeout=2000 \
+  --process-timeout=3000 \
   --test-pipeline-options="$JOINED_OPTS"
