@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
 class WriteTables<DestinationT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
-        PCollection<KV<TableDestination, String>>> {
+        PCollection<KV<TableDestination, BigQueryWriteResult>>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
@@ -98,14 +98,15 @@ class WriteTables<DestinationT>
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
-  private final TupleTag<KV<TableDestination, String>> mainOutputTag;
+  private final TupleTag<KV<TableDestination, BigQueryWriteResult>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
 
   private class WriteTablesDoFn
-      extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
+      extends DoFn<
+          KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, BigQueryWriteResult>> {
     private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
 
     @StartBundle
@@ -166,19 +167,19 @@ class WriteTables<DestinationT>
           (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
       CreateDisposition createDisposition =
           (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
-      load(
-          bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          jobIdPrefix,
-          tableReference,
-          tableDestination.getTimePartitioning(),
-          tableSchema,
-          partitionFiles,
-          writeDisposition,
-          createDisposition,
-          tableDestination.getTableDescription());
-      c.output(
-          mainOutputTag, KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
+      BigQueryWriteResult result =
+          load(
+              bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              jobIdPrefix,
+              tableReference,
+              tableDestination.getTimePartitioning(),
+              tableSchema,
+              partitionFiles,
+              writeDisposition,
+              createDisposition,
+              tableDestination.getTableDescription());
+      c.output(mainOutputTag, KV.of(tableDestination, result));
       for (String file : partitionFiles) {
         c.output(temporaryFilesTag, file);
       }
@@ -218,7 +219,7 @@ class WriteTables<DestinationT>
   }
 
   @Override
-  public PCollection<KV<TableDestination, String>> expand(
+  public PCollection<KV<TableDestination, BigQueryWriteResult>> expand(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input) {
     PCollectionTuple writeTablesOutputs =
         input.apply(
@@ -245,7 +246,9 @@ class WriteTables<DestinationT>
         .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
 
-    return writeTablesOutputs.get(mainOutputTag);
+    return writeTablesOutputs
+        .get(mainOutputTag)
+        .setCoder(KvCoder.of(TableDestinationCoderV2.of(), BigQueryWriteResultCoder.of()));
   }
 
   private BigQueryWriteResult load(
