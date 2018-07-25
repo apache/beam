@@ -49,7 +49,7 @@ dependencies {
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
   compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-//  TODO: Enable AWS and HDPS file system.
+//  TODO: Enable AWS and HDFS file system.
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
