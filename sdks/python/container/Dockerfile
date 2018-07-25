@@ -91,9 +91,6 @@ RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
-COPY user_python_requirements.txt /tmp/
-RUN pip install -r /tmp/user_python_requirements.txt
-
 ADD target/linux_amd64/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
