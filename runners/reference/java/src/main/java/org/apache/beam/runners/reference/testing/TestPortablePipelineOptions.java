@@ -44,6 +44,7 @@ public interface TestPortablePipelineOptions extends TestPipelineOptions, Portab
 
   void setJobServerConfig(String[] jobServerConfig);
 
+  /** Factory for default config. */
   class DefaultJobServerConfigFactory implements DefaultValueFactory<String[]> {
 
     @Override
