@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -109,10 +108,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
   /** Only valid during {@link #processElement} and {@link #processTimer}, null otherwise. */
   private BoundedWindow currentWindow;
 
-  /** Following fields are only valid if a Schema is set, null otherwise. */
-  @Nullable private final SchemaCoder<InputT> schemaCoder;
-
-  @Nullable private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   @Nullable private final FieldAccessDescriptor fieldAccessDescriptor;
 
   /** Only valid during {@link #processTimer}, null otherwise. */
@@ -165,17 +160,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
           }
         };
 
-    this.schemaCoder =
-        (context.inputCoder instanceof SchemaCoder)
-            ? (SchemaCoder<InputT>) context.inputCoder
-            : null;
-    if (context.outputCoders != null) {
-      Coder<OutputT> outputCoder = (Coder<OutputT>) context.outputCoders.get(context.mainOutputTag);
-      mainOutputSchemaCoder =
-          (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
-    } else {
-      mainOutputSchemaCoder = null;
-    }
     DoFnSignature doFnSignature = DoFnSignatures.getSignature(context.doFn.getClass());
     DoFnSignature.ProcessElementMethod processElementMethod =
         DoFnSignatures.getSignature(context.doFn.getClass()).processElement();
@@ -183,7 +167,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     FieldAccessDescriptor fieldAccessDescriptor = null;
     if (rowParameter != null) {
       checkArgument(
-          schemaCoder != null,
+          context.schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
               + "DoFn "
               + context.doFn.getClass()
@@ -209,7 +193,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
         }
       }
       // Resolve the FieldAccessDescriptor. This converts all field names into field ids.
-      fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
+      fieldAccessDescriptor = fieldAccessDescriptor.resolve(context.schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;
   }
@@ -452,7 +436,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public Row asRow(@Nullable String id) {
       checkState(fieldAccessDescriptor.allFields());
-      return schemaCoder.getToRowFunction().apply(element());
+      return context.schemaCoder.getToRowFunction().apply(element());
     }
 
     @Override
@@ -473,7 +457,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
     }
 
     @Override
