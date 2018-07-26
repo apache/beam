@@ -19,6 +19,11 @@
 
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
+import java.lang.invoke.MethodType;
+import java.lang.invoke.SerializedLambda;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
@@ -158,5 +163,38 @@ public class TypeUtils {
     }
 
     return producer.getOutputType();
+  }
+
+  /**
+   * Get return type of lambda function (e.g UnaryFunction).
+   *
+   * @return return type
+   */ //TODO update javadoc
+  public static Type getLambdaReturnType(final Object lambda) {
+
+    Type returnType = null;
+    try {
+      //try to obtain SerializedLambda through invoking writeReplace()
+      final Method method = lambda.getClass().getDeclaredMethod("writeReplace");
+      method.setAccessible(true);
+      final SerializedLambda serializedLambda = SerializedLambda.class.cast(method.invoke(lambda));
+      final String signature = serializedLambda.getImplMethodSignature();
+      final MethodType methodType =
+          MethodType.fromMethodDescriptorString(signature, lambda.getClass().getClassLoader());
+      returnType = methodType.returnType();
+
+    } catch (IllegalAccessException | NoSuchMethodException | IllegalArgumentException
+        | InvocationTargetException | ClassCastException e){
+      // not a lambda try pure reflection, algo is trivial since it is functional interfaces: take
+      // the only not Object methods ;)
+      for (final Method m : lambda.getClass().getMethods()) {
+        if (Object.class == m.getDeclaringClass()) {
+          continue;
+        }
+        returnType = m.getReturnType();
+        break;
+      }
+    }
+    return returnType;
   }
 }
