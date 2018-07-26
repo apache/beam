@@ -164,6 +164,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     StateSupport.MergeFromStateMerger<Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>>
         stateCombiner = new StateSupport.MergeFromStateMerger<>();
 
+    TypeDescriptor<Pair<V, ScoreT>> rsbkValueType = TypeUtils.pairs(valueType, scoreType);
+
     ReduceStateByKey<InputT, K, Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
         new ReduceStateByKey<>(
             getName() + "::ReduceStateByKey",
@@ -172,13 +174,13 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
             keyExtractor,
             keyType,
             e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
+            rsbkValueType,
             windowing,
             euphoriaWindowing,
-            (StateContext context, Collector<Pair<V, ScoreT>> collector) -> {
-              return new MaxScored<>(context.getStorageProvider());
-            },
+            (StateContext context, Collector<Pair<V, ScoreT>> collector) ->
+                new MaxScored<>(context.getStorageProvider()),
             stateCombiner,
-            TypeUtils.pairs(keyType, TypeUtils.pairs(valueType, scoreType)),
+            TypeUtils.pairs(keyType, rsbkValueType),
             Collections.emptySet());
 
     MapElements<Pair<K, Pair<V, ScoreT>>, Triple<K, V, ScoreT>> format =

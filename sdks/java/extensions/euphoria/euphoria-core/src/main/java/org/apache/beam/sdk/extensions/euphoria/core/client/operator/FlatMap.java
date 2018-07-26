@@ -217,7 +217,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     private Dataset<InputT> input;
     private UnaryFunctor<InputT, OutputT> functor;
     @Nullable
-    private TypeDescriptor<OutputT> outputTypeDescriptor;
+    private TypeDescriptor<OutputT> outputType;
     @Nullable
     private ExtractEventTime<InputT> evtTimeFn;
 
@@ -252,14 +252,14 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
 
     public <OutputT> EventTimeBuilder<InputT, OutputT> using(
-        UnaryFunctor<InputT, OutputT> functor, TypeDescriptor<OutputT> outputTypeDescriptor) {
+        UnaryFunctor<InputT, OutputT> functor, TypeDescriptor<OutputT> outputType) {
       Objects.requireNonNull(functor);
-      Objects.requireNonNull(outputTypeDescriptor);
+      Objects.requireNonNull(outputType);
 
       @SuppressWarnings("unchecked")
       Builder<InputT, OutputT> casted = (Builder<InputT, OutputT>) this;
       casted.functor = functor;
-      casted.outputTypeDescriptor = outputTypeDescriptor;
+      casted.outputType = outputType;
       return casted;
     }
 
@@ -274,7 +274,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
       Flow flow = input.getFlow();
       FlatMap<InputT, OutputT> map =
           new FlatMap<>(name, flow, input, functor, evtTimeFn,
-              Sets.newHashSet(outputHints), outputTypeDescriptor);
+              Sets.newHashSet(outputHints), outputType);
       flow.add(map);
       return map.output();
     }
