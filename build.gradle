@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // See build_rules.gradle for documentation on default build tasks
 // and properties that are enabled in addition to natures
 // that can be applied to configure a project for certain common
@@ -147,8 +146,11 @@ rat {
     exclusions.addAll(gitIgnoreExcludes)
   }
 
-  plainOutput = true
-  xmlOutput = false
+  // Combining verbose with only XML output has each failing license logged.
+  // See https://github.com/eskatos/creadur-rat-gradle/issues/8 for further details.
+  verbose = true
+  plainOutput = false
+  xmlOutput = true
   htmlOutput = false
   failOnError = true
   excludes = exclusions
