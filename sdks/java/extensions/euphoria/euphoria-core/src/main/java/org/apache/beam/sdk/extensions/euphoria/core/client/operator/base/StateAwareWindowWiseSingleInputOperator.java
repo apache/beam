@@ -51,13 +51,13 @@ public abstract class StateAwareWindowWiseSingleInputOperator<
       Flow flow,
       Dataset<InputT> input,
       TypeDescriptor<OutputT> outputType,
-      UnaryFunction<KeyInT, K> extractor,
+      UnaryFunction<KeyInT, K> keyExtractor,
       TypeDescriptor<K> keyType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, outputType, windowing, euphoriaWindowing, extractor, keyType);
+    super(name, flow, outputType, windowing, euphoriaWindowing, keyExtractor, keyType);
     this.input = input;
     this.output = createOutput(input, outputHints);
   }

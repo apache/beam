@@ -53,6 +53,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.Storag
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -106,7 +107,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>> {
+    InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>>
+    implements TypeAware.Value<V> {
 
   final ReduceFunctor<V, OutputT> reducer;
 
@@ -114,6 +116,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   final UnaryFunction<InputT, V> valueExtractor;
   @Nullable
   final BinaryFunction<V, V, Integer> valueComparator;
+  @Nullable
+  final TypeDescriptor<V> valueType;
 
   @SuppressWarnings("unchecked")
   ReduceByKey(
@@ -121,24 +125,27 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
+      @Nullable TypeDescriptor<K> keyType,
       UnaryFunction<InputT, V> valueExtractor,
+      @Nullable TypeDescriptor<V> valueType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       CombinableReduceFunction<OutputT> reducer,
       Set<OutputHint> outputHints,
-      TypeDescriptor<Pair<K, OutputT>> outputTypeDescriptor,
-      TypeDescriptor<K> keyTypeDescriptor) {
+      TypeDescriptor<Pair<K, OutputT>> outputTypeDescriptor) {
     this(
         name,
         flow,
         input,
         keyExtractor,
+        keyType,
         valueExtractor,
+        valueType,
         windowing,
         euphoriaWindowing,
         (ReduceFunctor<V, OutputT>) toReduceFunctor(reducer),
         null,
-        outputHints, outputTypeDescriptor, keyTypeDescriptor);
+        outputHints, outputTypeDescriptor);
   }
 
   ReduceByKey(
@@ -146,19 +153,21 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
+      @Nullable TypeDescriptor<K> keyType,
       UnaryFunction<InputT, V> valueExtractor,
+      @Nullable TypeDescriptor<V> valueType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       ReduceFunctor<V, OutputT> reducer,
       @Nullable BinaryFunction<V, V, Integer> valueComparator,
       Set<OutputHint> outputHints,
-      TypeDescriptor<Pair<K, OutputT>> outputTypeDescriptor,
-      TypeDescriptor<K> keyType) {
+      TypeDescriptor<Pair<K, OutputT>> outputTypeDescriptor) {
 
     super(name, flow, input, outputTypeDescriptor, keyExtractor, keyType, windowing,
         euphoriaWindowing, outputHints);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
+    this.valueType = valueType;
     this.valueComparator = valueComparator;
   }
 
@@ -239,6 +248,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
             keyExtractor,
             keyType,
             valueExtractor,
+            valueType,
             windowing,
             euphoriaWindowing,
             stateFactory,
@@ -246,6 +256,11 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
             outputType,
             getHints());
     return DAG.of(reduceState);
+  }
+
+  @Override
+  public TypeDescriptor<V> getValueType() {
+    return valueType;
   }
 
   /**
@@ -284,7 +299,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
     default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunctor<V, OutputT> reducer){
+        ReduceFunctor<V, OutputT> reducer) {
       return reduceBy(reducer, null);
     }
 
@@ -318,15 +333,19 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
+    @Nullable
+    TypeDescriptor<K> keyType;
+
     UnaryFunction<InputT, V> valueExtractor;
-    @Nullable  TypeDescriptor<V> valueType;
+    @Nullable
+    TypeDescriptor<V> valueType;
+
     ReduceFunctor<V, OutputT> reducer;
     @Nullable
-    BinaryFunction<V, V, Integer> valuesComparator;
-    @Nullable
     TypeDescriptor<OutputT> outputTypeDescriptor;
+
     @Nullable
-    TypeDescriptor<K> keyTypeDescriptor;
+    BinaryFunction<V, V, Integer> valuesComparator;
   }
 
   /**
@@ -368,7 +387,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
           (BuilderParams<InputT, K, ?, ?, ?>) params;
 
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
-      paramsCasted.keyTypeDescriptor = keyType;
+      paramsCasted.keyType = keyType;
       return new ValueByReduceByBuilder<>(paramsCasted);
     }
 
@@ -423,6 +442,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
           paramsCasted = (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = UnaryFunction.identity();
+      paramsCasted.valueType = TypeUtils.getDatasetElementType(paramsCasted.input);
       paramsCasted.reducer = Objects.requireNonNull(reducer);
       paramsCasted.outputTypeDescriptor = outType;
       return new WithSortedValuesBuilder<>(paramsCasted);
@@ -565,14 +585,16 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
               flow,
               params.input,
               params.keyExtractor,
+              params.keyType,
               params.valueExtractor,
+              params.valueType,
               params.getWindowing(),
               params.euphoriaWindowing,
               params.reducer,
               params.valuesComparator,
               Sets.newHashSet(outputHints),
-              TypeUtils.pairs(params.keyTypeDescriptor, params.outputTypeDescriptor),
-              params.keyTypeDescriptor);
+              TypeUtils.pairs(params.keyType, params.outputTypeDescriptor)
+          );
       flow.add(reduce);
       return reduce.output();
     }

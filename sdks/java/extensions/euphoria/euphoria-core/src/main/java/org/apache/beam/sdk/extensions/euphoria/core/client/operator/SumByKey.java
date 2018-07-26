@@ -155,11 +155,13 @@ implements TypeAware.Value<Long>{
             input.getFlow(),
             input,
             keyExtractor,
+            keyType,
             valueExtractor,
+            getValueType(),
             windowing,
             euphoriaWindowing,
             Sums.ofLongs(),
-            getHints(), outputType, keyType);
+            getHints(), outputType);
     return DAG.of(reduceByKey);
   }
 

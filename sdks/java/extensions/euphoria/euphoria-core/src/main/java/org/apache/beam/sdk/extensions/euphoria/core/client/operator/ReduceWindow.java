@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -76,10 +78,16 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
+    InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>>
+implements TypeAware.Value<V> {
 
   private static final Byte B_ZERO = (byte) 0;
+  @VisibleForTesting
   final UnaryFunction<InputT, V> valueExtractor;
+  @Nullable
+  private final TypeDescriptor<V> valueType;
+
+  @VisibleForTesting
   final BinaryFunction<V, V, Integer> valueComparator;
   private final ReduceFunctor<V, OutputT> reducer;
 
@@ -88,6 +96,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, V> valueExtractor,
+      TypeDescriptor<V> valueType,
       TypeDescriptor<OutputT> outputTypeDescriptor,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
@@ -99,6 +108,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
         Collections.emptySet());
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
+    this.valueType = valueType;
     this.valueComparator = valueComparator;
   }
 
@@ -129,6 +139,11 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     return reducer;
   }
 
+  @Override
+  public TypeDescriptor<V> getValueType() {
+    return valueType;
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
@@ -137,17 +152,20 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     final DAG<Operator<?, ?>> dag = DAG.empty();
     if (windowing != null) {
       rbk =
-          new ReduceByKey<>(
+          new ReduceByKey<InputT, Byte, V, OutputT, W>(
               getName() + "::ReduceByKey",
               getFlow(),
               input,
               getKeyExtractor(),
+              getKeyType(),
               valueExtractor,
+              valueType,
               windowing,
               euphoriaWindowing,
               reducer,
               valueComparator,
-              getHints(), null, null);
+              getHints(),
+              TypeUtils.pairs(getKeyType(), outputType));
       dag.add(rbk);
     } else {
       // otherwise we use attached windowing, therefore
@@ -163,17 +181,19 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
               },
               null, null);
       rbk =
-          new ReduceByKey<>(
+          new ReduceByKey<Pair<Window<?>, InputT>, Window<?>, V, OutputT, W>(
               getName() + "::ReduceByKey::attached",
               getFlow(),
               map.output(),
-              Pair::getFirst,
+              (Pair<Window<?>, InputT> p) -> p.getFirst(),
+              null,
               p -> valueExtractor.apply(p.getSecond()),
+              valueType,
               null,
               null,
               reducer,
               valueComparator,
-              getHints(), null, null);
+              getHints(), null);
       dag.add(map);
       dag.add(rbk);
     }
@@ -199,10 +219,12 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, V> valueExtractor;
+    @Nullable BinaryFunction<V, V, Integer> valueComparator;
+    TypeDescriptor<V> valueType;
+
     ReduceFunctor<V, OutputT> reducer;
     @Nullable
     TypeDescriptor<OutputT> outputTypeDescriptor;
-    @Nullable BinaryFunction<V, V, Integer> valueComparator;
 
     public BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
@@ -234,13 +256,19 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       this.params = new BuilderParams<>(name, input);
     }
 
-    public <V> ReduceBuilder<InputT, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+    public <V> ReduceBuilder<InputT, V> valueBy(UnaryFunction<InputT, V> valueExtractor,
+        TypeDescriptor<V> valueType) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, V, ?, ?> paramsCasted = (BuilderParams<InputT, V, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
+      paramsCasted.valueType = valueType;
       return new ReduceBuilder<>(paramsCasted);
+    }
+
+    public <V> ReduceBuilder<InputT, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+      return valueBy(valueExtractor, null);
     }
 
     public <OutputT> SortableOutputBuilder<InputT, InputT, OutputT> reduceBy(
@@ -257,6 +285,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
           (BuilderParams<InputT, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = UnaryFunction.identity();
+      paramsCasted.valueType = TypeUtils.getDatasetElementType(paramsCasted.input);
       paramsCasted.reducer = reduceFunctionToFunctor(reducer);
       paramsCasted.outputTypeDescriptor = outputTypeDescriptor;
 
@@ -277,6 +306,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
           (BuilderParams<InputT, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = UnaryFunction.identity();
+      paramsCasted.valueType = TypeUtils.getDatasetElementType(paramsCasted.input);
       paramsCasted.reducer = reducer;
       paramsCasted.outputTypeDescriptor = outputTypeDescriptor;
 
@@ -292,6 +322,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
           (BuilderParams<InputT, InputT, InputT, ?>) params;
 
       paramsCasted.valueExtractor = UnaryFunction.identity();
+      paramsCasted.valueType = TypeUtils.getDatasetElementType(paramsCasted.input);
       paramsCasted.reducer = reduceFunctionToFunctor(reducer);
 
       paramsCasted.outputTypeDescriptor = TypeUtils.getDatasetElementType(paramsCasted.input);
@@ -422,7 +453,8 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
               flow,
               params.input,
               params.valueExtractor,
-                  params.outputTypeDescriptor,
+              params.valueType,
+              params.outputTypeDescriptor,
               params.getWindowing(),
               params.euphoriaWindowing,
               params.reducer,

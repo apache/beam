@@ -116,16 +116,15 @@ public class BeamPTransformTest implements Serializable {
         ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(4, 5, 6));
     Dataset<Integer> inputDataset = flow.createInput(input);
 
-    //final ListDataSink<Integer> output = ListDataSink.get();
     Dataset<Integer> plusOne = MapElements.of(inputDataset).using(i -> i + 1).output();
 
     PCollection<Integer> unwrapped = flow.unwrapped(plusOne);
 
-    PCollection<Integer> twicePcollection =
+    PCollection<Integer> twicePCollection =
         unwrapped.apply(
             "Twice", BeamPTransform.of(in -> MapElements.of(in).using(i -> 2 * i).output()));
 
-    PAssert.that(twicePcollection).containsInAnyOrder(4, 6, 8, 10, 12, 14);
+    PAssert.that(twicePCollection).containsInAnyOrder(4, 6, 8, 10, 12, 14);
 
     pipeline.run();
   }

@@ -28,7 +28,6 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -39,21 +38,16 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.AbstractTypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.PairCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -179,7 +173,7 @@ class TranslationContext {
           ((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeDescriptor());
     }
 
-    return inferCoderFromLambda(unaryFunction).orElseGet(()->getFallbackCoder(unaryFunction));
+    return inferCoderFromLambda(unaryFunction).orElseGet(() -> getFallbackCoder(unaryFunction));
   }
 
   private <InputT, OutputT> Coder<OutputT> getCoderBasedOnFunctor(
@@ -259,36 +253,45 @@ class TranslationContext {
 
   @SuppressWarnings("unchecked")
   private <T> Coder<T> getOutputCoder(Dataset<T> dataset) {
-    Operator<?, ?> op = dataset.getProducer();
-    if (op instanceof FlatMap) {
-      FlatMap<?, T> m = (FlatMap) op;
-      return getCoderBasedOnFunctor(m.getFunctor());
-    } else if (op instanceof Union) {
-      Union<T> u = (Union) op;
-      Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));
-      return getOutputCoder(first);
-    } else if (op instanceof ReduceByKey) {
-      ReduceByKey rb = (ReduceByKey) op;
-      Coder reducerCoder = getCoder(rb.getReducer());
-      Coder keyCoder = getCoder(rb.getKeyExtractor());
-      return PairCoder.of(keyCoder, reducerCoder);
-    } else if (op instanceof ReduceStateByKey) {
-      ReduceStateByKey rbsk = (ReduceStateByKey) op;
-      // TODO
+    //TODO: test this, is this approach right?
+    //TODO: Should we somehow automate creation of parametrized PairCoder ??
+//    Operator<?, ?> op = dataset.getProducer();
+//    if (op instanceof FlatMap) {
+//      FlatMap<?, T> m = (FlatMap) op;
+//      return getCoder(m.getFunctor());
+//    } else if (op instanceof Union) {
+//      Union<T> u = (Union) op;
+//      Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));
+//      return getOutputCoder(first);
+//    } else if (op instanceof ReduceByKey) {
+//      ReduceByKey rb = (ReduceByKey) op;
+//      Coder reducerCoder = getCoder(rb.getReducer());
+//      Coder keyCoder = getCoder(rb.getKeyExtractor());
+//      return PairCoder.of(keyCoder, reducerCoder);
+//    } else if (op instanceof ReduceStateByKey) {
+//      ReduceStateByKey rbsk = (ReduceStateByKey) op;
+//      // TODO
+//      return new KryoCoder<>();
+//    } else if (op instanceof WrappedInputPCollectionOperator) {
+//      return ((WrappedInputPCollectionOperator) op).input.getCoder();
+//    } else if (op == null) {
+//      // TODO
+//      return new KryoCoder<>();
+//    } else if (op instanceof Join) {
+//      Join join = (Join) op;
+//      Coder keyCoder = getCoder(join.getLeftKeyExtractor());
+//      Coder outputValueCoder = getCoder(join.getJoiner());
+//      return PairCoder.of(keyCoder, outputValueCoder);
+//    }
+//    // TODO
+//    return new KryoCoder<>();
+
+    TypeDescriptor<T> datasetElementType = TypeUtils.getDatasetElementType(dataset);
+    if (datasetElementType != null) {
+      return getCoder(datasetElementType);
+    } else {
       return new KryoCoder<>();
-    } else if (op instanceof WrappedInputPCollectionOperator) {
-      return ((WrappedInputPCollectionOperator) op).input.getCoder();
-    } else if (op == null) {
-      // TODO
-      return new KryoCoder<>();
-    } else if (op instanceof Join) {
-      Join join = (Join) op;
-      Coder keyCoder = getCoder(join.getLeftKeyExtractor());
-      Coder outputValueCoder = getCoder(join.getJoiner());
-      return PairCoder.of(keyCoder, outputValueCoder);
     }
-    // TODO
-    return new KryoCoder<>();
   }
 
   Duration getAllowedLateness(Operator<?, ?> operator) {
