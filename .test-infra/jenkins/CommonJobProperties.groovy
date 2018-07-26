@@ -353,3 +353,4 @@ class CommonJobProperties {
     return '"$WORKSPACE/' + path + '"'
   }
 }
+
