@@ -151,7 +151,11 @@ public class Main<OptionT extends NexmarkOptions> {
                     new TableFieldSchema().setName("eventsPerSec").setType("FLOAT"),
                     new TableFieldSchema().setName("numResults").setType("INTEGER")));
 
-    String tableSpec = NexmarkUtils.tableSpec(options, "{query}", 0L, null);
+    String queryName = "{query}";
+    if (options.getQueryLanguage() != null) {
+      queryName = queryName + "_" + options.getQueryLanguage();
+    }
+    final String tableSpec = NexmarkUtils.tableSpec(options, queryName, 0L, null);
     SerializableFunction<
             ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
         tableFunction =

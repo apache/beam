@@ -301,6 +301,21 @@ public class PCollection<T> extends PValueBase implements PValue {
     return setCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
   }
 
+  /** Returns whether this {@link PCollection} has an attached schema. */
+  @Experimental(Kind.SCHEMAS)
+  public boolean hasSchema() {
+    return getCoder() instanceof SchemaCoder;
+  }
+
+  /** Returns the attached schema, or null if there is none. */
+  @Experimental(Kind.SCHEMAS)
+  public Schema getSchema() {
+    if (!hasSchema()) {
+      throw new IllegalStateException("Cannot call getSchema when there is no schema");
+    }
+    return ((SchemaCoder) getCoder()).getSchema();
+  }
+
   /**
    * of the {@link PTransform}.
    *

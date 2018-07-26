@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -90,11 +91,24 @@ class FlinkStreamingTranslationContext {
     this.currentTransform = currentTransform;
   }
 
-  public <T> Coder<WindowedValue<T>> getCoder(PCollection<T> collection) {
+  public <T> Coder<WindowedValue<T>> getWindowedInputCoder(PCollection<T> collection) {
     Coder<T> valueCoder = collection.getCoder();
 
     return WindowedValue.getFullCoder(
         valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
+  }
+
+  public <T> Coder<T> getInputCoder(PCollection<T> collection) {
+    return collection.getCoder();
+  }
+
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return currentTransform
+        .getOutputs()
+        .entrySet()
+        .stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
 
   @SuppressWarnings("unchecked")

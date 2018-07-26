@@ -118,6 +118,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private static AmazonS3 buildAmazonS3Client(S3Options options) {
     AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard().withCredentials(options.getAwsCredentialsProvider());
+
+    if (options.getClientConfiguration() != null) {
+      builder = builder.withClientConfiguration(options.getClientConfiguration());
+    }
+
     if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
       builder = builder.withRegion(options.getAwsRegion());
     } else {

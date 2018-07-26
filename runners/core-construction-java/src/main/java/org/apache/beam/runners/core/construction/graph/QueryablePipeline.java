@@ -145,7 +145,7 @@ public class QueryablePipeline {
             PCollectionNode.class.getSimpleName(),
             PTransformNode.class.getSimpleName(),
             producedNode,
-            network.successors(producedNode));
+            network.predecessors(producedNode));
         unproducedCollections.remove(producedNode);
       }
       for (Map.Entry<String, String> consumed : transform.getInputsMap().entrySet()) {

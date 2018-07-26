@@ -125,6 +125,7 @@ if 'Linux' in platform.system():
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',
     ]
 
@@ -192,7 +193,7 @@ setuptools.setup(
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS
+        'gcp': GCP_REQUIREMENTS,
     },
     zip_safe=False,
     # PyPI package information.

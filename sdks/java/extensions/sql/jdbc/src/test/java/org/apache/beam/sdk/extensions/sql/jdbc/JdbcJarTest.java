@@ -33,15 +33,19 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Test for JDBC via {@link java.net.URLClassLoader}. */
-public class JdbcIT {
+public class JdbcJarTest {
   private static final String DRIVER_URL = "jdbc:beam:";
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   private Connection getConnection() throws Exception {
-    URL jdbcUrl = new File(System.getProperty("driver.jar")).toURI().toURL();
-    ClassLoader classLoader =
-        new URLClassLoader(new URL[] {jdbcUrl}, ClassLoader.getSystemClassLoader());
+    ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+    String path = System.getProperty("driver.jar");
+
+    if (path != null) {
+      URL jdbcUrl = new File(System.getProperty("driver.jar")).toURI().toURL();
+      classLoader = new URLClassLoader(new URL[] {jdbcUrl}, ClassLoader.getSystemClassLoader());
+    }
 
     ServiceLoader<Driver> loader = ServiceLoader.load(Driver.class, classLoader);
     Driver driver = loader.iterator().next();

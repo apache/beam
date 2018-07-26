@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.calcite.avatica.BuiltInConnectionProperty;
 import org.apache.calcite.avatica.ConnectStringParser;
 import org.apache.calcite.avatica.ConnectionProperty;
 import org.apache.calcite.config.CalciteConnectionProperty;
@@ -81,7 +82,7 @@ public class JdbcDriver extends Driver {
       Thread.currentThread().setContextClassLoader(origLoader);
     }
     // inject beam rules into planner
-    Hook.PLANNER.addThread(
+    Hook.PLANNER.add(
         new Function<RelOptPlanner, Void>() {
           @Override
           public Void apply(RelOptPlanner planner) {
@@ -108,6 +109,7 @@ public class JdbcDriver extends Driver {
     final BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) info.get(BEAM_CALCITE_SCHEMA);
 
     Properties info2 = new Properties(info);
+    setDefault(info2, BuiltInConnectionProperty.TIME_ZONE, "UTC");
     setDefault(info2, CalciteConnectionProperty.LEX, Lex.JAVA.name());
     setDefault(
         info2,

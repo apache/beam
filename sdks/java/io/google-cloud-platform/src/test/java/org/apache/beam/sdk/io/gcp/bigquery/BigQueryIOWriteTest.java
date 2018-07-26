@@ -26,11 +26,13 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Table;
@@ -1367,5 +1369,104 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testExtendedErrorRetrieval() throws Exception {
+    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
+    TableRow row2 = new TableRow().set("name", "b").set("number", "2");
+    TableRow row3 = new TableRow().set("name", "c").set("number", "3");
+    String tableSpec = "project-id:dataset-id.table-id";
+
+    TableDataInsertAllResponse.InsertErrors ephemeralError =
+        new TableDataInsertAllResponse.InsertErrors()
+            .setErrors(ImmutableList.of(new ErrorProto().setReason("timeout")));
+    TableDataInsertAllResponse.InsertErrors persistentError =
+        new TableDataInsertAllResponse.InsertErrors()
+            .setErrors(Lists.newArrayList(new ErrorProto().setReason("invalidQuery")));
+
+    fakeDatasetService.failOnInsert(
+        ImmutableMap.of(
+            row1, ImmutableList.of(ephemeralError, ephemeralError),
+            row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
+
+    PCollection<BigQueryInsertError> failedRows =
+        p.apply(Create.of(row1, row2, row3))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(tableSpec)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation()
+                    .withExtendedErrorInfo())
+            .getFailedInsertsWithErr();
+
+    // row2 finally fails with a non-retryable error, so we expect to see it in the collection of
+    // failed rows.
+    PAssert.that(failedRows)
+        .containsInAnyOrder(
+            new BigQueryInsertError(
+                row2, persistentError, BigQueryHelpers.parseTableSpec(tableSpec)));
+    p.run();
+
+    // Only row1 and row3 were successfully inserted.
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row3));
+  }
+
+  @Test
+  public void testWrongErrorConfigs() {
+    p.enableAutoRunIfMissing(true);
+    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
+
+    BigQueryIO.Write<TableRow> bqIoWrite =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+
+    try {
+      p.apply("Create1", Create.<TableRow>of(row1))
+          .apply("Write 1", bqIoWrite)
+          .getFailedInsertsWithErr();
+      fail();
+    } catch (IllegalArgumentException e) {
+      assertThat(
+          e.getMessage(),
+          is(
+              "Cannot use getFailedInsertsWithErr as this WriteResult "
+                  + "does not use extended errors. Use getFailedInserts instead"));
+    }
+
+    try {
+      p.apply("Create2", Create.<TableRow>of(row1))
+          .apply("Write2", bqIoWrite.withExtendedErrorInfo())
+          .getFailedInserts();
+      fail();
+    } catch (IllegalArgumentException e) {
+      assertThat(
+          e.getMessage(),
+          is(
+              "Cannot use getFailedInserts as this WriteResult "
+                  + "uses extended errors information. Use getFailedInsertsWithErr instead"));
+    }
   }
 }

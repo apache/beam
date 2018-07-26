@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -172,6 +173,7 @@ public class Schema implements Serializable {
     return Schema.builder().addFields(fields).build();
   }
 
+  /** Returns true if two Schemas have the same fields in the same order. */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof Schema)) {
@@ -180,6 +182,34 @@ public class Schema implements Serializable {
     Schema other = (Schema) o;
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields());
+  }
+
+  /** Returns true if two Schemas have the same fields, but possibly in different orders. */
+  public boolean equivalent(Schema other) {
+    if (other.getFieldCount() != getFieldCount()) {
+      return false;
+    }
+
+    List<Field> otherFields =
+        other
+            .getFields()
+            .stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Collectors.toList());
+    List<Field> actualFields =
+        getFields()
+            .stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Collectors.toList());
+
+    for (int i = 0; i < otherFields.size(); ++i) {
+      Field otherField = otherFields.get(i);
+      Field actualField = actualFields.get(i);
+      if (!otherField.equivalent(actualField)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
@@ -399,6 +429,33 @@ public class Schema implements Serializable {
           && Arrays.equals(getMetadata(), other.getMetadata());
     }
 
+    private boolean equivalent(FieldType other) {
+      if (!other.getTypeName().equals(getTypeName())) {
+        return false;
+      }
+      switch (getTypeName()) {
+        case ROW:
+          if (!other.getRowSchema().equivalent(getRowSchema())) {
+            return false;
+          }
+          break;
+        case ARRAY:
+          if (!other.getCollectionElementType().equivalent(getCollectionElementType())) {
+            return false;
+          }
+          break;
+        case MAP:
+          if (!other.getMapKeyType().equivalent(getMapKeyType())
+              || !other.getMapValueType().equivalent(getMapValueType())) {
+            return false;
+          }
+          break;
+        default:
+          return other.equals(this);
+      }
+      return true;
+    }
+
     @Override
     public int hashCode() {
       return Arrays.deepHashCode(
@@ -493,6 +550,12 @@ public class Schema implements Serializable {
           && Objects.equals(getDescription(), other.getDescription())
           && Objects.equals(getType(), other.getType())
           && Objects.equals(getNullable(), other.getNullable());
+    }
+
+    private boolean equivalent(Field otherField) {
+      return otherField.getName().equals(getName())
+          && otherField.getNullable().equals(getNullable())
+          && getType().equivalent(otherField.getType());
     }
 
     @Override

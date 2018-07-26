@@ -151,7 +151,7 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
         inputTimestamp);
     holdState.add(watermarkHold);
 
-    Duration resumeDelay = new Duration((long) (1000L * residual.getDelaySec()));
+    Duration resumeDelay = Duration.millis((long) (1000L * residual.getDelaySec()));
     Instant wakeupTime = timerInternals.currentProcessingTime().plus(resumeDelay);
 
     // Set a timer to continue processing this element.

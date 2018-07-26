@@ -319,6 +319,8 @@ public class ExecutableStageDoFnOperatorTest {
         new ExecutableStageDoFnOperator<>(
             "transform",
             null,
+            null,
+            Collections.emptyMap(),
             mainOutput,
             ImmutableList.of(additionalOutput),
             outputManagerFactory,
@@ -353,6 +355,8 @@ public class ExecutableStageDoFnOperatorTest {
         new ExecutableStageDoFnOperator<>(
             "transform",
             null,
+            null,
+            Collections.emptyMap(),
             mainOutput,
             additionalOutputs,
             outputManagerFactory,

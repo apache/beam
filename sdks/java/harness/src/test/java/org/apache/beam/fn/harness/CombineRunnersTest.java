@@ -24,9 +24,9 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -123,7 +123,7 @@ public class CombineRunnersTest {
   @Test
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -190,7 +190,7 @@ public class CombineRunnersTest {
   @Test
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -245,7 +245,7 @@ public class CombineRunnersTest {
   @Test
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -300,7 +300,7 @@ public class CombineRunnersTest {
   @Test
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),

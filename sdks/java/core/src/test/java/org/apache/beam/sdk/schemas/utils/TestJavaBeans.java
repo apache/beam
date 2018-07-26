@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,6 +32,49 @@ import org.joda.time.Instant;
 
 /** Various Java Beans and associated schemas used in tests. */
 public class TestJavaBeans {
+  /** A Bean containing one nullable and one non-nullable type. */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class NullableBean {
+    @Nullable private String str;
+    private int anInt;
+
+    public NullableBean() {}
+
+    @Nullable
+    public String getStr() {
+      return str;
+    }
+
+    public void setStr(@Nullable String str) {
+      this.str = str;
+    }
+
+    public int getAnInt() {
+      return anInt;
+    }
+
+    public void setAnInt(int anInt) {
+      this.anInt = anInt;
+    }
+  }
+
+  /** A Bean containing nullable getter but a non-nullable setter. */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class MismatchingNullableBean {
+    @Nullable private String str;
+
+    public MismatchingNullableBean() {}
+
+    @Nullable
+    public String getStr() {
+      return str;
+    }
+
+    public void setStr(String str) {
+      this.str = str;
+    }
+  }
+
   /** A simple Bean containing basic types. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class SimpleBean {

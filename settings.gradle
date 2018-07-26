@@ -53,7 +53,7 @@ project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-c
 include ":beam-runners-google-cloud-dataflow-java-examples"
 project(":beam-runners-google-cloud-dataflow-java-examples").dir = file("runners/google-cloud-dataflow-java/examples")
 include ":beam-runners-google-cloud-dataflow-java-examples-streaming"
-project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples")
+project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples-streaming")
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
 include "beam-runners-local-java-core"
@@ -152,6 +152,8 @@ include "beam-sdks-java-io-tika"
 project(":beam-sdks-java-io-tika").dir = file("sdks/java/io/tika")
 include "beam-sdks-java-io-xml"
 project(":beam-sdks-java-io-xml").dir = file("sdks/java/io/xml")
+include "beam-sdks-java-io-synthetic"
+project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
 include "beam-sdks-java-javadoc"
 project(":beam-sdks-java-javadoc").dir = file("sdks/java/javadoc")
 include "beam-sdks-java-maven-archetypes-examples"

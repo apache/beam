@@ -22,6 +22,8 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.runners.PTransformOverride;
 
 /** {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner. */
@@ -32,6 +34,13 @@ public class SamzaTransformOverrides {
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
                 new SamzaPublishViewTransformOverride()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableProcessKeyedBounded(),
+                new SplittableParDoNaiveBounded.OverrideFactory()))
         .build();
   }
 }

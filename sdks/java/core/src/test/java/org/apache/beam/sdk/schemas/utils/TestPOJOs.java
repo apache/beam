@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,6 +32,40 @@ import org.joda.time.Instant;
 
 /** Various Java POJOs and associated schemas used in tests. */
 public class TestPOJOs {
+  /** A POJO containing one nullable and one non-nullable type. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class POJOWithNullables {
+    @Nullable public String str;
+    public int anInt;
+
+    public POJOWithNullables(@Nullable String str, int anInt) {
+      this.str = str;
+      this.anInt = anInt;
+    }
+
+    public POJOWithNullables() {}
+  }
+
+  /** The schema for {@link POJOWithNullables}. * */
+  public static final Schema NULLABLES_SCHEMA =
+      Schema.builder().addNullableField("str", FieldType.STRING).addInt32Field("anInt").build();
+
+  /** a POJO containing a nested nullable field. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class POJOWithNestedNullable {
+    @Nullable public POJOWithNullables nested;
+
+    public POJOWithNestedNullable(@Nullable POJOWithNullables nested) {
+      this.nested = nested;
+    }
+
+    public POJOWithNestedNullable() {}
+  }
+
+  /** The schema for {@link POJOWithNestedNullable}. * */
+  public static final Schema NESTED_NULLABLE_SCHEMA =
+      Schema.builder().addNullableField("nested", FieldType.row(NULLABLES_SCHEMA)).build();
+
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class SimplePOJO {

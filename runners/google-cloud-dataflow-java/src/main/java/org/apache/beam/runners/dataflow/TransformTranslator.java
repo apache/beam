@@ -83,6 +83,12 @@ public interface TransformTranslator<TransformT extends PTransform> {
 
     /** Get the {@link AppliedPTransform} that produced the provided {@link PValue}. */
     AppliedPTransform<?, ?, ?> getProducer(PValue value);
+
+    /**
+     * Gets the parent composite transform to the current transform, if one exists. Otherwise
+     * returns one null.
+     */
+    AppliedPTransform<?, ?, ?> getCurrentParent();
   }
 
   /** The interface for a {@link TransformTranslator} to build a Dataflow step. */

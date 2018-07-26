@@ -126,7 +126,6 @@ class MobileGamingCommands {
     return [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
-      output: "gs://${testScripts.gcsBucket()}/java-leaderboard-result.txt",
       leaderBoardTableName: "leaderboard_${runner}",
       teamWindowDuration: 5]
   }
@@ -135,7 +134,6 @@ class MobileGamingCommands {
     return [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
-      output: "gs://${testScripts.gcsBucket()}/java-leaderboard-result.txt",
       fixedWindowDuration: 5,
       userActivityWindowDuration: 5,
       sessionGap: 1,
