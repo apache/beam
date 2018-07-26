@@ -20,10 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.Iterables;
-import java.lang.invoke.MethodType;
-import java.lang.invoke.SerializedLambda;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
@@ -133,39 +129,6 @@ class TranslationContext {
     return false;
   }
 
-  /**
-   * Get return type of lambda function (e.g UnaryFunction).
-   *
-   * @return return type
-   */
-  static Type getLambdaReturnType(final Object lambda) {
-
-    Type returnType = null;
-    try {
-      final Method method = lambda.getClass().getDeclaredMethod("writeReplace");
-      method.setAccessible(true);
-      final SerializedLambda serializedLambda = SerializedLambda.class.cast(method.invoke(lambda));
-      final String signature = serializedLambda.getImplMethodSignature();
-      final MethodType methodType =
-          MethodType.fromMethodDescriptorString(signature, lambda.getClass().getClassLoader());
-      returnType = methodType.returnType();
-    } catch (IllegalAccessException
-        | IllegalArgumentException
-        | NoSuchMethodException
-        | InvocationTargetException e) {
-      // not a lambda try pure reflection, algo is trivial since it is functional interfaces: take
-      // the only not Object methods ;)
-      for (final Method m : lambda.getClass().getMethods()) {
-        if (Object.class == m.getDeclaringClass()) {
-          continue;
-        }
-        returnType = m.getReturnType();
-        break;
-      }
-    }
-    return returnType;
-  }
-
   <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunction<InputT, OutputT> unaryFunction) {
 
     if (unaryFunction instanceof TypeAwareUnaryFunction) {
@@ -200,7 +163,7 @@ class TranslationContext {
    */
   <InputT, OutputT> Optional<Coder<OutputT>> inferCoderFromLambda(
       UnaryFunction<InputT, OutputT> unaryFunction) {
-    final Type lambdaType = getLambdaReturnType(unaryFunction);
+    final Type lambdaType = TypeUtils.getLambdaReturnType(unaryFunction);
     if (lambdaType != null) {
       try {
 
