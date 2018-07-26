@@ -190,13 +190,17 @@ class GreedyPCollectionFusers {
         // side inputs can be fused with other transforms in the same environment which are not
         // upstream of any of the side inputs.
         || (pipeline.getSideInputs(parDo).isEmpty()
-            // Since we lack the ability to mark upstream transforms as key preserving, we
-            // purposefully break fusion here to provide runners the opportunity to insert a
-            // grouping operation
+            // We purposefully break fusion here to provide runners the opportunity to insert a
+            // grouping operation to simplify implementing support for ParDo's that contain user state.
+            // We would not need to do this if we had the ability to mark upstream transforms as
+            // key preserving or if runners could execute ParDos containing user state in a distributed
+            // fashion for a single key.
             && pipeline.getUserStates(parDo).isEmpty()
-            // Since we lack the ability to mark upstream transforms as key preserving, we
-            // purposefully break fusion here to provide runners the opportunity to insert a
-            // grouping operation
+            // We purposefully break fusion here to provide runners the opportunity to insert a
+            // grouping operation to simplify implementing support for ParDo's that contain timers.
+            // We would not need to do this if we had the ability to mark upstream transforms as
+            // key preserving or if runners could execute ParDos containing timers in a distributed
+            // fashion for a single key.
             && pipeline.getTimers(parDo).isEmpty()
             && compatibleEnvironments(parDo, other, pipeline));
   }

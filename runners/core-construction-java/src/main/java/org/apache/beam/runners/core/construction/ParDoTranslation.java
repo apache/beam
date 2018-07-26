@@ -335,9 +335,8 @@ public class ParDoTranslation {
         ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
-    ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getPayload());
     return components.getPcollectionsOrThrow(
-        ptransform.getInputsOrThrow(getMainInputName(ptransform, payload)));
+        ptransform.getInputsOrThrow(getMainInputName(ptransform)));
   }
 
   /** Returns the name of the main input of the ptransform. */

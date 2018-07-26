@@ -205,6 +205,16 @@ public class Networks {
     //    A FAST & EFFECTIVE HEURISTIC FOR THE FEEDBACK ARC SET PROBLEM
     //    Peter Eades, Xuemin Lin, W. F. Smyth
     // https://pdfs.semanticscholar.org/c7ed/d9acce96ca357876540e19664eb9d976637f.pdf
+    //
+    // The only edges that are ignored by the algorithm are back edges.
+    // The algorithm (while there are still nodes in the graph):
+    //   1) Removes all sinks from the graph adding them to the beginning of "s2". Continue to do this till there
+    //      are no more sinks.
+    //   2) Removes all source from the graph adding them to the end of "s1". Continue to do this till there
+    //      are no more sources.
+    //   3) Remote a single node with the highest delta within the graph and add it to the end of "s1".
+    //
+    // The topological order is then the s1 concatenated with s2.
 
     Deque<NodeT> s1 = new ArrayDeque<>();
     Deque<NodeT> s2 = new ArrayDeque<>();

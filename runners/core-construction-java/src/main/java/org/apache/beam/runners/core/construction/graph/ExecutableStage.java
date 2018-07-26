@@ -117,8 +117,8 @@ public interface ExecutableStage {
    * <ul>
    *   <li>The {@link PTransform#getSubtransformsList()} is empty. This ensures that executable
    *       stages are treated as primitive transforms.
-   *   <li>The only {@link PCollection} in the {@link PTransform#getInputsMap()} is the result of
-   *       {@link #getInputPCollection()} and {@link #getSideInputs()}.
+   *   <li>The only {@link PCollection PCollections} in the {@link PTransform#getInputsMap()} is the
+   *       result of {@link #getInputPCollection()} and {@link #getSideInputs()}.
    *   <li>The output {@link PCollection PCollections} in the values of {@link
    *       PTransform#getOutputsMap()} are the {@link PCollectionNode PCollections} returned by
    *       {@link #getOutputPCollections()}.
