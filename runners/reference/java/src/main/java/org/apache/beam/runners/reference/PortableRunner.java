@@ -28,6 +28,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
+import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
@@ -213,8 +214,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     // generally accept arbitrary artifact names.
     // NOTE: Base64 url encoding does not work here because the stage artifact names tend to be long
     // and exceed file length limits on the artifact stager.
-    String encodedPath = escapePath(file.getPath());
-    return StagedFile.of(file, encodedPath);
+    return StagedFile.of(file, UUID.randomUUID().toString());
   }
 
   /** Create a filename-friendly artifact name for the given path. */
