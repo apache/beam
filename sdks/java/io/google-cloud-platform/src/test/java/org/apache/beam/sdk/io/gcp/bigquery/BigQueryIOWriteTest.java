@@ -65,9 +65,11 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -185,17 +187,21 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
-    
-    p.apply(Create.empty(TableRowJsonCoder.of()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(TABLE_SPEC)
-                .withTestServices(fakeBqServices)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchema(schema)
-                .withoutValidation());
-    
+
+    WriteResult wr =
+        p.apply(Create.empty(TableRowJsonCoder.of()))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(TABLE_SPEC)
+                    .withTestServices(fakeBqServices)
+                    .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(schema)
+                    .withoutValidation());
+
+    PAssert.that(wr.getLoadJobResults())
+        .containsInAnyOrder(buildKVWithResult(BigQueryHelpers.Status.SUCCEEDED, TABLE_SPEC));
+
     p.run();
 
     checkNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(TABLE_SPEC)));
@@ -244,73 +250,75 @@ public class BigQueryIOWriteTest implements Serializable {
     // Use a partition decorator to verify that partition decorators are supported.
     final String partitionDecorator = "20171127";
 
-    users.apply(
-        "WriteBigQuery",
-        BigQueryIO.<String>write()
-            .withTestServices(fakeBqServices)
-            .withMaxFilesPerBundle(5)
-            .withMaxFileSize(10)
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withFormatFunction(
-                user -> {
-                  Matcher matcher = userPattern.matcher(user);
-                  if (matcher.matches()) {
-                    return new TableRow()
-                        .set("name", matcher.group(1))
-                        .set("id", Integer.valueOf(matcher.group(2)));
-                  }
-                  throw new RuntimeException("Unmatching element " + user);
-                })
-            .to(
-                new StringIntegerDestinations() {
-                  @Override
-                  public Integer getDestination(ValueInSingleWindow<String> element) {
-                    assertThat(
-                        element.getWindow(), Matchers.instanceOf(PartitionedGlobalWindow.class));
-                    Matcher matcher = userPattern.matcher(element.getValue());
-                    if (matcher.matches()) {
-                      // Since we name tables by userid, we can simply store an Integer to represent
-                      // a table.
-                      return Integer.valueOf(matcher.group(2));
-                    }
-                    throw new RuntimeException("Unmatching destination " + element.getValue());
-                  }
+    WriteResult wr =
+        users.apply(
+            "WriteBigQuery",
+            BigQueryIO.<String>write()
+                .withTestServices(fakeBqServices)
+                .withMaxFilesPerBundle(5)
+                .withMaxFileSize(10)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withFormatFunction(
+                    user -> {
+                      Matcher matcher = userPattern.matcher(user);
+                      if (matcher.matches()) {
+                        return new TableRow()
+                            .set("name", matcher.group(1))
+                            .set("id", Integer.valueOf(matcher.group(2)));
+                      }
+                      throw new RuntimeException("Unmatching element " + user);
+                    })
+                .to(
+                    new StringIntegerDestinations() {
+                      @Override
+                      public Integer getDestination(ValueInSingleWindow<String> element) {
+                        assertThat(
+                            element.getWindow(),
+                            Matchers.instanceOf(PartitionedGlobalWindow.class));
+                        Matcher matcher = userPattern.matcher(element.getValue());
+                        if (matcher.matches()) {
+                          // Since we name tables by userid, we can simply store an Integer to
+                          // represent
+                          // a table.
+                          return Integer.valueOf(matcher.group(2));
+                        }
+                        throw new RuntimeException("Unmatching destination " + element.getValue());
+                      }
 
-                  @Override
-                  public TableDestination getTable(Integer userId) {
-                    verifySideInputs();
-                    // Each user in it's own table.
-                    return new TableDestination(
-                        "dataset-id.userid-" + userId + "$" + partitionDecorator,
-                        "table for userid " + userId);
-                  }
+                      @Override
+                      public TableDestination getTable(Integer userId) {
+                        verifySideInputs();
+                        // Each user in it's own table.
+                        return new TableDestination(
+                            DATASET_ID + ".userid-" + userId + "$" + partitionDecorator,
+                            "table for userid " + userId);
+                      }
 
-                  @Override
-                  public TableSchema getSchema(Integer userId) {
-                    verifySideInputs();
-                    return new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("name").setType("STRING"),
-                                new TableFieldSchema().setName("id").setType("INTEGER")));
-                  }
+                      @Override
+                      public TableSchema getSchema(Integer userId) {
+                        verifySideInputs();
+                        return new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("id").setType("INTEGER")));
+                      }
 
-                  @Override
-                  public List<PCollectionView<?>> getSideInputs() {
-                    return ImmutableList.of(sideInput1, sideInput2);
-                  }
+                      @Override
+                      public List<PCollectionView<?>> getSideInputs() {
+                        return ImmutableList.of(sideInput1, sideInput2);
+                      }
 
-                  private void verifySideInputs() {
-                    assertThat(sideInput(sideInput1), containsInAnyOrder("a", "b", "c"));
-                    Map<String, String> mapSideInput = sideInput(sideInput2);
-                    assertEquals(3, mapSideInput.size());
-                    assertThat(
-                        mapSideInput,
-                        allOf(hasEntry("a", "a"), hasEntry("b", "b"), hasEntry("c", "c")));
-                  }
-                })
-            .withoutValidation());
-    p.run();
+                      private void verifySideInputs() {
+                        assertThat(sideInput(sideInput1), containsInAnyOrder("a", "b", "c"));
+                        Map<String, String> mapSideInput = sideInput(sideInput2);
+                        assertEquals(3, mapSideInput.size());
+                        assertThat(
+                            mapSideInput,
+                            allOf(hasEntry("a", "a"), hasEntry("b", "b"), hasEntry("c", "c")));
+                      }
+                    })
+                .withoutValidation());
 
     Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
     for (String anUserList : userList) {
@@ -323,11 +331,52 @@ public class BigQueryIOWriteTest implements Serializable {
       expected.add(new TableRow().set("name", nickname).set("id", userid));
     }
 
+    if (!streaming) {
+      List<KV<TableDestination, BigQueryWriteResult>> res =
+          expectedTableRows
+              .entrySet()
+              .stream()
+              .map(
+                  entry -> {
+                    TableDestination d =
+                        new TableDestination(
+                            PROJECT_ID
+                                + ":"
+                                + DATASET_ID
+                                + ".userid-"
+                                + entry.getKey().toString()
+                                + "$"
+                                + partitionDecorator,
+                            "table for userid " + entry.getKey().toString());
+                    return buildKVWithResult(BigQueryHelpers.Status.SUCCEEDED, d);
+                  })
+              .collect(toList());
+
+      PAssert.that(wr.getLoadJobResults()).containsInAnyOrder(res);
+    } else {
+      PAssert.that(wr.getFailedInserts()).empty();
+    }
+
+    p.run();
+
     for (Map.Entry<Integer, List<TableRow>> entry : expectedTableRows.entrySet()) {
       assertThat(
-          fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "userid-" + entry.getKey()),
+          fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
     }
+  }
+
+  private KV<TableDestination, BigQueryWriteResult> buildKVWithResult(
+      BigQueryHelpers.Status status, String tableSpec) {
+    return buildKVWithResult(status, new TableDestination(tableSpec, null));
+  }
+
+  private KV<TableDestination, BigQueryWriteResult> buildKVWithResult(
+      BigQueryHelpers.Status status, TableDestination tableDest) {
+    return KV.of(
+        tableDest,
+        new BigQueryWriteResult(
+            status, BigQueryHelpers.toJsonString(tableDest.getTableReference())));
   }
 
   @Test
@@ -350,15 +399,27 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
-    p.apply(Create.of(row1, row2))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(TABLE_SPEC)
-                .withTestServices(fakeBqServices)
-                .withMethod(insertMethod)
-                .withSchema(schema)
-                .withTimePartitioning(timePartitioning)
-                .withoutValidation());
+    WriteResult wr =
+        p.apply(Create.of(row1, row2))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(TABLE_SPEC)
+                    .withTestServices(fakeBqServices)
+                    .withMethod(insertMethod)
+                    .withSchema(schema)
+                    .withTimePartitioning(timePartitioning)
+                    .withoutValidation());
+
+    if (insertMethod == BigQueryIO.Write.Method.FILE_LOADS) {
+      PAssert.that(wr.getLoadJobResults())
+          .containsInAnyOrder(
+              buildKVWithResult(
+                  BigQueryHelpers.Status.SUCCEEDED,
+                  new TableDestination(TABLE_SPEC, null, timePartitioning)));
+    } else {
+      PAssert.that(wr.getFailedInserts()).empty();
+    }
+
     p.run();
     Table table = fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(TABLE_SPEC));
     assertEquals(schema, table.getSchema());
@@ -385,24 +446,32 @@ public class BigQueryIOWriteTest implements Serializable {
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
             .advanceWatermarkToInfinity();
 
-    p.apply(testStream)
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(TABLE_SPEC)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withTriggeringFrequency(Duration.standardSeconds(30))
-                .withNumFileShards(2)
-                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
-                .withoutValidation());
+    WriteResult wr =
+        p.apply(testStream)
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(TABLE_SPEC)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withTriggeringFrequency(Duration.standardSeconds(30))
+                    .withNumFileShards(2)
+                    .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
+                    .withoutValidation());
+
+    // For some reason only two batches run through when three seems expected.
+    PAssert.that(wr.getLoadJobResults())
+        .containsInAnyOrder(
+            buildKVWithResult(BigQueryHelpers.Status.SUCCEEDED, TABLE_SPEC),
+            buildKVWithResult(BigQueryHelpers.Status.SUCCEEDED, TABLE_SPEC));
+
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, TABLE_ID),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
@@ -421,24 +490,28 @@ public class BigQueryIOWriteTest implements Serializable {
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError)));
 
-    p.apply(Create.of(row1, row2, row3))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(TABLE_SPEC)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("name").setType("STRING"),
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+    WriteResult wr =
+        p.apply(Create.of(row1, row2, row3))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(TABLE_SPEC)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PAssert.that(wr.getFailedInserts()).empty();
+
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, TABLE_ID),
         containsInAnyOrder(row1, row2, row3));
   }
 
@@ -490,30 +563,35 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWrite() throws Exception {
-    p.apply(
-            Create.of(
-                    new TableRow().set("name", "a").set("number", 1),
-                    new TableRow().set("name", "b").set("number", 2),
-                    new TableRow().set("name", "c").set("number", 3))
-                .withCoder(TableRowJsonCoder.of()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("name").setType("STRING"),
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+    WriteResult wr =
+        p.apply(
+                Create.of(
+                        new TableRow().set("name", "a").set("number", 1),
+                        new TableRow().set("name", "b").set("number", 2),
+                        new TableRow().set("name", "c").set("number", 3))
+                    .withCoder(TableRowJsonCoder.of()))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(TABLE_SPEC)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PAssert.that(wr.getLoadJobResults())
+        .containsInAnyOrder(buildKVWithResult(BigQueryHelpers.Status.SUCCEEDED, TABLE_SPEC));
+
     p.run();
   }
 
   @Test
   public void testStreamingWrite() throws Exception {
-    p.apply(
+    PCollection<TableRow> failures = p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
                     new TableRow().set("name", "b").set("number", 2),
@@ -532,11 +610,15 @@ public class BigQueryIOWriteTest implements Serializable {
                                 new TableFieldSchema().setName("name").setType("STRING"),
                                 new TableFieldSchema().setName("number").setType("INTEGER"))))
                 .withTestServices(fakeBqServices)
-                .withoutValidation());
+                .withoutValidation())
+        .getFailedInserts();
+
+    PAssert.that(failures).empty();
+
     p.run();
 
     assertThat(
-        fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, TABLE_ID),
         containsInAnyOrder(
             new TableRow().set("name", "a").set("number", 1),
             new TableRow().set("name", "b").set("number", 2),
@@ -737,6 +819,8 @@ public class BigQueryIOWriteTest implements Serializable {
               .collect(toList());
 
       PAssert.that(wr.getLoadJobResults()).containsInAnyOrder(destinations);
+    } else {
+      PAssert.that(wr.getFailedInserts()).empty();
     }
 
     p.run();
@@ -752,14 +836,14 @@ public class BigQueryIOWriteTest implements Serializable {
                   .getTable(
                       new TableReference()
                           .setProjectId(PROJECT_ID)
-                          .setDatasetId("dataset-id")
+                          .setDatasetId(DATASET_ID)
                           .setTableId(tableId))
                   .getSchema()),
           equalTo(schemas.get(tableSpec)));
 
       // Verify that the table has the expected contents.
       assertThat(
-          fakeDatasetService.getAllRows(PROJECT_ID, "dataset-id", tableId),
+          fakeDatasetService.getAllRows(PROJECT_ID, DATASET_ID, tableId),
           containsInAnyOrder(
               new TableRow().set("name", String.format("number%d", i)).set("number", i),
               new TableRow().set("name", String.format("number%d", i + 5)).set("number", i + 5)));
@@ -803,13 +887,13 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("dataset-id.table-id")
+                .to(TABLE_SPEC)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchemaFromView(view)
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
 
-    thrown.expectMessage("does not contain data for table destination dataset-id.table-id");
+    thrown.expectMessage("does not contain data for table destination " + TABLE_SPEC);
     p.run();
   }
 
@@ -1207,18 +1291,33 @@ public class BigQueryIOWriteTest implements Serializable {
             4,
             false);
 
+    PCollection<KV<TableDestination, BigQueryWriteResult>> writeTablesResults =
+        writeTablesInput.apply(writeTables);
+
+    List<KV<TableDestination, BigQueryWriteResult>> expectedWriteResults =
+        expectedTempTables
+            .entries()
+            .stream()
+            .map(
+                entry ->
+                    KV.of(
+                        entry.getKey(),
+                        new BigQueryWriteResult(
+                            BigQueryHelpers.Status.SUCCEEDED, entry.getValue())))
+            .collect(Collectors.toList());
+
+    PAssert.that(writeTablesResults).containsInAnyOrder(expectedWriteResults);
+
     PCollection<KV<TableDestination, String>> writeTablesOutput =
-        writeTablesInput
-            .apply(writeTables)
-            .apply(
-                ParDo.of(
-                    new DoFn<
-                        KV<TableDestination, BigQueryWriteResult>, KV<TableDestination, String>>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        c.output(KV.of(c.element().getKey(), c.element().getValue().getTable()));
-                      }
-                    }));
+        writeTablesResults.apply(
+            ParDo.of(
+                new DoFn<
+                    KV<TableDestination, BigQueryWriteResult>, KV<TableDestination, String>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.of(c.element().getKey(), c.element().getValue().getTable()));
+                  }
+                }));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
@@ -1344,7 +1443,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
     // Add one more table to delete that does not actually exist.
     tableRefs.add(
-        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", PROJECT_ID, DATASET_ID, "table4")));
+        BigQueryHelpers.parseTableSpec(
+            String.format("%s:%s.%s", PROJECT_ID, DATASET_ID, "table4")));
 
     WriteRename.removeTemporaryTables(datasetService, tableRefs);
 
