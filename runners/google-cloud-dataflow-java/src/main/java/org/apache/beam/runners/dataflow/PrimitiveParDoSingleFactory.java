@@ -97,7 +97,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), outputCoder);
+          input.getPipeline(),
+          input.getWindowingStrategy(),
+          input.isBounded(),
+          outputCoder,
+          onlyOutputTag);
     }
 
     public DoFn<InputT, OutputT> getFn() {
