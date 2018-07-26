@@ -68,7 +68,7 @@ def run(argv=None):
   with beam.Pipeline(argv=pipeline_args) as p:
 
     # Read the text from PubSub messages.
-    lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
+    lines = p | beam.io.ReadFromPubSub(known_args.input_topic)
 
     # Get the number of appearances of a word.
     def count_ones(word_ones):

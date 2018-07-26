@@ -23,6 +23,7 @@ import unittest
 import mock
 from hamcrest import assert_that as hc_assert_that
 
+from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 
 # Protect against environments where pubsub library is not available.
@@ -39,14 +40,17 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def setUp(self):
     self.mock_presult = mock.MagicMock()
-    self.pubsub_matcher = PubSubMessageMatcher('mock_project',
-                                               'mock_sub_name',
-                                               ['mock_expected_msg'])
+
+  def init_matcher(self, with_attributes=False, strip_attributes=None):
+    self.pubsub_matcher = PubSubMessageMatcher(
+        'mock_project', 'mock_sub_name', ['mock_expected_msg'],
+        with_attributes=with_attributes, strip_attributes=strip_attributes)
 
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
               'PubSubMessageMatcher._get_subscription')
   def test_message_matcher_success(self, mock_get_sub, unsued_mock):
+    self.init_matcher()
     self.pubsub_matcher.expected_msg = ['a', 'b']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
@@ -59,7 +63,68 @@ class PubSubMatcherTest(unittest.TestCase):
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
               'PubSubMessageMatcher._get_subscription')
+  def test_message_matcher_attributes_success(self, mock_get_sub, unsued_mock):
+    self.init_matcher(with_attributes=True)
+    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {'k': 'v'})]
+    mock_sub = mock_get_sub.return_value
+    msg_a = pubsub.message.Message(b'a', 'unused_id')
+    msg_a.attributes['k'] = 'v'
+    mock_sub.pull.side_effect = [[(1, msg_a)]]
+    hc_assert_that(self.mock_presult, self.pubsub_matcher)
+    self.assertEqual(mock_sub.pull.call_count, 1)
+
+  @mock.patch('time.sleep', return_value=None)
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
+  def test_message_matcher_attributes_fail(self, mock_get_sub, unsued_mock):
+    self.init_matcher(with_attributes=True)
+    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {})]
+    mock_sub = mock_get_sub.return_value
+    msg_a = pubsub.message.Message(b'a', 'unused_id')
+    msg_a.attributes['k'] = 'v'  # Unexpected.
+    mock_sub.pull.side_effect = [[(1, msg_a)]]
+    with self.assertRaisesRegexp(AssertionError, r'Unexpected'):
+      hc_assert_that(self.mock_presult, self.pubsub_matcher)
+    self.assertEqual(mock_sub.pull.call_count, 1)
+
+  @mock.patch('time.sleep', return_value=None)
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
+  def test_message_matcher_strip_success(self, mock_get_sub, unsued_mock):
+    self.init_matcher(with_attributes=True,
+                      strip_attributes=['id', 'timestamp'])
+    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {'k': 'v'})]
+    mock_sub = mock_get_sub.return_value
+    msg_a = pubsub.message.Message(b'a', 'unused_id')
+    msg_a.attributes['id'] = 'foo'
+    msg_a.attributes['timestamp'] = 'bar'
+    msg_a.attributes['k'] = 'v'
+    mock_sub.pull.side_effect = [[(1, msg_a)]]
+    hc_assert_that(self.mock_presult, self.pubsub_matcher)
+    self.assertEqual(mock_sub.pull.call_count, 1)
+
+  @mock.patch('time.sleep', return_value=None)
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
+  def test_message_matcher_strip_fail(self, mock_get_sub, unsued_mock):
+    self.init_matcher(with_attributes=True,
+                      strip_attributes=['id', 'timestamp'])
+    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {'k': 'v'})]
+    mock_sub = mock_get_sub.return_value
+    # msg_a is missing attribute 'timestamp'.
+    msg_a = pubsub.message.Message(b'a', 'unused_id')
+    msg_a.attributes['id'] = 'foo'
+    msg_a.attributes['k'] = 'v'
+    mock_sub.pull.side_effect = [[(1, msg_a)]]
+    with self.assertRaisesRegexp(AssertionError, r'Stripped attributes'):
+      hc_assert_that(self.mock_presult, self.pubsub_matcher)
+    self.assertEqual(mock_sub.pull.call_count, 1)
+
+  @mock.patch('time.sleep', return_value=None)
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
   def test_message_matcher_mismatch(self, mock_get_sub, unused_mock):
+    self.init_matcher()
     self.pubsub_matcher.expected_msg = ['a']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.return_value = [
@@ -77,16 +142,14 @@ class PubSubMatcherTest(unittest.TestCase):
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
               'PubSubMessageMatcher._get_subscription')
-  def test_message_metcher_timeout(self, mock_get_sub, unused_mock):
+  def test_message_matcher_timeout(self, mock_get_sub, unused_mock):
+    self.init_matcher()
     mock_sub = mock_get_sub.return_value
     mock_sub.return_value.full_name.return_value = 'mock_sub'
     self.pubsub_matcher.timeout = 0.1
-    with self.assertRaises(AssertionError) as error:
+    with self.assertRaisesRegexp(AssertionError, r'Expected 1.*\n.*Got 0'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertTrue(mock_sub.pull.called)
-    self.assertEqual(
-        '\nExpected: Expected %d messages.\n     but: Got %d messages. Diffs: '
-        '%s.\n' % (1, 0, ['mock_expected_msg']), str(error.exception.args[0]))
 
 
 if __name__ == '__main__':

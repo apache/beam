@@ -14,39 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-"""A streaming word-counting workflow.
+"""
+Test pipeline for use by pubsub_integration_test.
 """
 
-from __future__ import absolute_import
-
 import argparse
-import logging
-
-import six
 
 import apache_beam as beam
-import apache_beam.transforms.window as window
-from apache_beam.examples.wordcount import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 
 
-def run(argv=None):
+def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
   """Build and run the pipeline."""
+
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--output_topic', required=True,
       help=('Output PubSub topic of the form '
             '"projects/<PROJECT>/topic/<TOPIC>".'))
-  group = parser.add_mutually_exclusive_group(required=True)
-  group.add_argument(
-      '--input_topic',
-      help=('Input PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
-  group.add_argument(
-      '--input_subscription',
+  parser.add_argument(
+      '--input_subscription', required=True,
       help=('Input PubSub subscription of the form '
             '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
@@ -59,40 +48,32 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   # Read from PubSub into a PCollection.
-  if known_args.input_subscription:
-    lines = p | beam.io.ReadFromPubSub(
-        subscription=known_args.input_subscription)
+  messages = p | beam.io.ReadFromPubSub(
+      subscription=known_args.input_subscription,
+      id_label=id_label,
+      with_attributes=with_attributes,
+      timestamp_attribute=timestamp_attribute)
+
+  def add_attribute(msg, timestamp=beam.DoFn.TimestampParam):
+    msg.data += '-seen'
+    msg.attributes['processed'] = 'IT'
+    if timestamp_attribute in msg.attributes:
+      msg.attributes[timestamp_attribute + '_out'] = timestamp.to_rfc3339()
+    return msg
+
+  def modify_data(data):
+    return data + '-seen'
+
+  if with_attributes:
+    output = messages | 'add_attribute' >> beam.Map(add_attribute)
   else:
-    lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
-
-  # Count the occurrences of each word.
-  def count_ones(word_ones):
-    (word, ones) = word_ones
-    return (word, sum(ones))
-
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | beam.WindowInto(window.FixedWindows(15, 0))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
-
-  # Format the counts into a PCollection of strings.
-  def format_result(word_count):
-    (word, count) = word_count
-    return '%s: %d' % (word, count)
-
-  output = counts | 'format' >> beam.Map(format_result)
+    output = messages | 'modify_data' >> beam.Map(modify_data)
 
   # Write to PubSub.
-  # pylint: disable=expression-not-assigned
-  output | beam.io.WriteToPubSub(known_args.output_topic)
+  _ = output | beam.io.WriteToPubSub(known_args.output_topic,
+                                     id_label=id_label,
+                                     with_attributes=with_attributes,
+                                     timestamp_attribute=timestamp_attribute)
 
   result = p.run()
   result.wait_until_finish()
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  run()
