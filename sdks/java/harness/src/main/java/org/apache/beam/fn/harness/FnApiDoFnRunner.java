@@ -640,7 +640,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
     }
 
     @Override
