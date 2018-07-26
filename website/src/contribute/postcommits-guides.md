@@ -20,9 +20,6 @@ limitations under the License.
 
 # Post-commit tests processes guides
 
-[TOC]
-
-
 ## Finding person to fix post-commit tests failures {#find_specialist}
 
 Finding proper person to triage the test failure might not be a trivial task.
