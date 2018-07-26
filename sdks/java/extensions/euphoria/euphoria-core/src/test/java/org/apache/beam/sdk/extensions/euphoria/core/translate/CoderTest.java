@@ -19,11 +19,9 @@
 
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import static org.apache.beam.sdk.extensions.euphoria.core.translate.TestUtils.defaultOptions;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,6 +38,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -53,7 +52,7 @@ public class CoderTest {
       new TranslationContext(
           mock(DAG.class),
           mock(Factory.class),
-          Pipeline.create(defaultOptions()),
+          TestPipeline.create(),
           mock(Settings.class),
           Duration.ZERO);
 
@@ -97,31 +96,7 @@ public class CoderTest {
             reduceFunctor, TypeUtils.pairs(NotSerializableClass.class, String.class)));
   }
 
-  @Test
-  public void testLambdaReturnType() {
+  private static class NotSerializableClass {
 
-    assertEquals(String.class, TranslationContext.getLambdaReturnType(unaryFunction));
-
-    UnaryFunction<String, Pair<String, String>> unaryFunction2 = a -> Pair.of(a, a);
-
-    assertEquals(Pair.class, TranslationContext.getLambdaReturnType(unaryFunction2));
-
-    //noinspection Convert2Lambda - test returning type for anonymous inner class
-    assertEquals(
-        Integer.class,
-        TranslationContext.getLambdaReturnType(
-            new AnonymousClass() {
-              @Override
-              public Integer testMethod() {
-                return 0;
-              }
-            }));
   }
-
-  interface AnonymousClass {
-
-    Integer testMethod();
-  }
-
-  private static class NotSerializableClass {}
 }
