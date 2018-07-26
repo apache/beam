@@ -82,12 +82,12 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, OutputT> mapper,
-      TypeDescriptor<OutputT> outputTypeDescriptor,
+      TypeDescriptor<OutputT> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, outputTypeDescriptor, mapper, outputTypeDescriptor, windowing,
+    super(name, flow, input, outputType, mapper, outputType, windowing,
         euphoriaWindowing, outputHints);
   }
 
@@ -125,13 +125,15 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
             flow,
             input,
             getKeyExtractor(),
+            outputType,
             e -> null,
+            TypeDescriptors.nulls(),
             windowing,
             euphoriaWindowing,
             (CombinableReduceFunction<Void>) e -> null,
             Collections.emptySet(),
-            TypeUtils.pairs(outputType, TypeDescriptors.nulls()),
-            outputType);
+            TypeUtils.pairs(outputType, TypeDescriptors.nulls())
+        );
 
     MapElements format =
         new MapElements<>(

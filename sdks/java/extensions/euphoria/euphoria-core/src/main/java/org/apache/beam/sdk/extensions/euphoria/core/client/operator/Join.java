@@ -220,6 +220,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
             keyExtractor,
             keyType,
             UnaryFunction.identity(),
+            eitherLeftRightType,
             getWindowing(),
             euphoriaWindowing,
             (StateContext context, Collector ctx) -> {

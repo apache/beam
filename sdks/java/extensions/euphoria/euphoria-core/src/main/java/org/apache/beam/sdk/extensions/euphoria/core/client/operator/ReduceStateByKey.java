@@ -119,6 +119,9 @@ public class ReduceStateByKey<
 
   // builder classes used when input is Dataset<InputT> ----------------------
   private final UnaryFunction<InputT, V> valueExtractor;
+  @Nullable
+  private final TypeDescriptor<V> valueType;
+
   private final StateMerger<V, OutputT, StateT> stateCombiner;
 
   ReduceStateByKey(
@@ -126,8 +129,9 @@ public class ReduceStateByKey<
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
-      TypeDescriptor<K> keyType,
+      @Nullable TypeDescriptor<K> keyType,
       UnaryFunction<InputT, V> valueExtractor,
+      TypeDescriptor<V> valueType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       StateFactory<V, OutputT, StateT> stateFactory,
@@ -138,6 +142,7 @@ public class ReduceStateByKey<
         outputHints);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
+    this.valueType = valueType;
     this.stateCombiner = stateMerger;
   }
 
@@ -200,9 +205,15 @@ public class ReduceStateByKey<
 
     String name;
     Dataset<InputT> input;
+
     UnaryFunction<InputT, K> keyExtractor;
+    @Nullable
     TypeDescriptor<K> keyType;
+
     UnaryFunction<InputT, V> valueExtractor;
+    @Nullable
+    TypeDescriptor<V> valueType;
+
     StateFactory<V, OutputT, StateT> stateFactory;
     StateMerger<V, OutputT, StateT> stateMerger;
     @Nullable
@@ -280,13 +291,18 @@ public class ReduceStateByKey<
      *     dataset's elements for later accumulation
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public <V> StateFactoryBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
-      @SuppressWarnings("unchecked")
-      final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
+    public <V> StateFactoryBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor,
+        TypeDescriptor<V> valueType) {
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
           (BuilderParams<InputT, K, V, ?, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
+      paramsCasted.valueType = valueType;
       return new StateFactoryBuilder<>(paramsCasted);
+    }
+
+    public <V> StateFactoryBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+      return valueBy(valueExtractor, null);
     }
   }
 
@@ -478,6 +494,7 @@ public class ReduceStateByKey<
               params.keyExtractor,
               params.keyType,
               params.valueExtractor,
+              params.valueType,
               params.getWindowing(),
               params.euphoriaWindowing,
               params.stateFactory,
