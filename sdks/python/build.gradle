@@ -245,7 +245,7 @@ task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      // TODO(BEAM-3544): Disable tests with sickbay-streaming tag.
+      // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
       args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
     }
   }
