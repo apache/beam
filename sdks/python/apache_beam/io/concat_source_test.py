@@ -35,6 +35,8 @@ from apache_beam.testing.util import equal_to
 
 class RangeSource(iobase.BoundedSource):
 
+  __hash__ = None
+
   def __init__(self, start, end, split_freq=1):
     assert start <= end
     self._start = start
@@ -79,9 +81,6 @@ class RangeSource(iobase.BoundedSource):
             and self._start == other._start
             and self._end == other._end
             and self._split_freq == other._split_freq)
-
-  def __hash__(self):
-    return hash((type(self), self._start, self._end, self._split_freq))
 
   def __ne__(self, other):
     return not self == other

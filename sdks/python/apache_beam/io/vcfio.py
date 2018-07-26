@@ -73,6 +73,7 @@ class Variant(object):
 
   Each object corresponds to a single record in a VCF file.
   """
+  __hash__ = None
 
   def __init__(self,
                reference_name=None,
@@ -123,9 +124,6 @@ class Variant(object):
   def __eq__(self, other):
     return (isinstance(other, Variant) and
             vars(self) == vars(other))
-
-  def __hash__(self):
-    return hash((type(self), vars(self)))
 
   def __repr__(self):
     return ', '.join(
@@ -191,6 +189,8 @@ class VariantCall(object):
   variant. It may include associated information such as quality and phasing.
   """
 
+  __hash__ = None
+
   def __init__(self, name=None, genotype=None, phaseset=None, info=None):
     """Initialize the :class:`VariantCall` object.
 
@@ -218,10 +218,6 @@ class VariantCall(object):
   def __eq__(self, other):
     return ((self.name, self.genotype, self.phaseset, self.info) ==
             (other.name, other.genotype, other.phaseset, other.info))
-
-  def __hash__(self):
-    return hash((self.name, self.genotype,
-                 self.phaseset, frozenset(self.info.items())))
 
   def __repr__(self):
     return ', '.join(

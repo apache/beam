@@ -35,6 +35,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
+  __hash__ = None
 
   def __init__(self, path, mode='', type='FILE'):
     io.BytesIO.__init__(self)
@@ -48,9 +49,6 @@ class FakeFile(io.BytesIO):
 
   def __eq__(self, other):
     return self.stat == other.stat and self.getvalue() == self.getvalue()
-
-  def __hash__(self):
-    return hash((frozenset(self.stat.items()), self.getvalue()))
 
   def close(self):
     self.saved_data = self.getvalue()
