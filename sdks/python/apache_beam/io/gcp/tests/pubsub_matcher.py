@@ -25,6 +25,8 @@ from collections import Counter
 
 from hamcrest.core.base_matcher import BaseMatcher
 
+from apache_beam.io.gcp.pubsub import PubsubMessage
+
 __all__ = ['PubSubMessageMatcher']
 
 
@@ -47,15 +49,22 @@ class PubSubMessageMatcher(BaseMatcher):
   subscription until all expected messages are shown or timeout.
   """
 
-  def __init__(self, project, sub_name, expected_msg, timeout=DEFAULT_TIMEOUT):
+  def __init__(self, project, sub_name, expected_msg, timeout=DEFAULT_TIMEOUT,
+               with_attributes=False, strip_attributes=None):
     """Initialize PubSubMessageMatcher object.
 
     Args:
       project: A name string of project.
       sub_name: A name string of subscription which is attached to output.
       expected_msg: A string list that contains expected message data pulled
-        from the subscription.
+        from the subscription. See also: with_attributes.
       timeout: Timeout in seconds to wait for all expected messages appears.
+      with_attributes: Whether expected_msg is a list of
+        ``PubsubMessage`` objects.
+      strip_attributes: List of strings. If with_attributes==True, strip the
+        attributes keyed by these values from incoming messages.
+        If a key is missing, will add an attribute with an error message as
+        value to prevent a successful match.
     """
     if pubsub is None:
       raise ImportError(
@@ -72,6 +81,8 @@ class PubSubMessageMatcher(BaseMatcher):
     self.expected_msg = expected_msg
     self.timeout = timeout
     self.messages = None
+    self.with_attributes = with_attributes
+    self.strip_attributes = strip_attributes
 
   def _matches(self, _):
     if self.messages is None:
@@ -91,7 +102,20 @@ class PubSubMessageMatcher(BaseMatcher):
     while time.time() - start_time <= timeout:
       pulled = subscription.pull(max_messages=MAX_MESSAGES_IN_ONE_PULL)
       for ack_id, message in pulled:
-        total_messages.append(message.data)
+        if not self.with_attributes:
+          total_messages.append(message.data)
+          continue
+
+        msg = PubsubMessage._from_message(message)
+        if self.strip_attributes:
+          for attr in self.strip_attributes:
+            try:
+              del msg.attributes[attr]
+            except KeyError:
+              msg.attributes[attr] = ('PubSubMessageMatcher error: '
+                                      'expected attribute not found.')
+        total_messages.append(msg)
+
         subscription.acknowledge([ack_id])
       if len(total_messages) >= expected_num:
         return total_messages
@@ -108,7 +132,13 @@ class PubSubMessageMatcher(BaseMatcher):
   def describe_mismatch(self, _, mismatch_description):
     c_expected = Counter(self.expected_msg)
     c_actual = Counter(self.messages)
-    diff = (c_expected | c_actual) - (c_expected & c_actual)
     mismatch_description.append_text(
-        "Got %d messages. Diffs: %s." %
-        (len(self.messages), list(diff.elements())))
+        "Got %d messages. "
+        "Diffs (item, count):\n"
+        "  Expected but not in actual: %s\n"
+        "  Unexpected: %s" % (
+            len(self.messages), (c_expected - c_actual).items(),
+            (c_actual - c_expected).items()))
+    if self.with_attributes and self.strip_attributes:
+      mismatch_description.append_text(
+          '\n  Stripped attributes: %r' % self.strip_attributes)

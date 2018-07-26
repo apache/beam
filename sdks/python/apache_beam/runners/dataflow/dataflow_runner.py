@@ -841,7 +841,7 @@ class DataflowRunner(PipelineRunner):
                           transform.source.id_label)
       if transform.source.with_attributes:
         # Setting this property signals Dataflow runner to return full
-        # PubsubMessages instead of just the payload.
+        # PubsubMessages instead of just the data part of the payload.
         step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
       if transform.source.timestamp_attribute is not None:
         step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
@@ -925,9 +925,19 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubPayloadSink is currently available for use '
+        raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.full_topic)
+      if transform.sink.id_label:
+        step.add_property(PropertyNames.PUBSUB_ID_LABEL,
+                          transform.sink.id_label)
+      if transform.sink.with_attributes:
+        # Setting this property signals Dataflow runner that the PCollection
+        # contains PubsubMessage objects instead of just raw data.
+        step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      if transform.sink.timestamp_attribute is not None:
+        step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+                          transform.sink.timestamp_attribute)
     else:
       raise ValueError(
           'Sink %r has unexpected format %s.' % (
