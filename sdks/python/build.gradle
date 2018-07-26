@@ -223,20 +223,30 @@ task portableWordCount(dependsOn: 'installGcpTest') {
   }
 }
 
-task postCommitVRTests(dependsOn: 'installGcpTest') {
+task postCommitITTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch"
     }
   }
 }
 
-task validatesRunnerTests(dependsOn: 'installGcpTest') {
+task validatesRunnerBatchTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner batch"
+    }
+  }
+}
+
+task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
     }
   }
 }
@@ -254,7 +264,7 @@ task postCommit() {
   dependsOn "preCommit"
   dependsOn "localWordCount"
   dependsOn "hdfsIntegrationTest"
-  dependsOn "postCommitVRTests"
+  dependsOn "postCommitITTests"
 }
 
 task dependencyUpdates(dependsOn: ':dependencyUpdates') {
