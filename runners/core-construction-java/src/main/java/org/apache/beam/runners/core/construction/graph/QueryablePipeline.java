@@ -324,6 +324,23 @@ public class QueryablePipeline {
         .collect(Collectors.toSet());
   }
 
+  public Collection<TimerReference> getTimers(PTransformNode transform) {
+    return getLocalTimerNames(transform.getTransform())
+        .stream()
+        .map(
+            localName -> {
+              String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
+              String collectionId = transform.getTransform().getInputsOrThrow(localName);
+              PCollection collection = components.getPcollectionsOrThrow(collectionId);
+              return TimerReference.of(
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
+                  PipelineNode.pCollection(collectionId, collection));
+            })
+        .collect(Collectors.toSet());
+  }
+
   private Set<String> getLocalSideInputNames(PTransform transform) {
     if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
@@ -340,6 +357,18 @@ public class QueryablePipeline {
     if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getStateSpecsMap().keySet();
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return Collections.emptySet();
+    }
+  }
+
+  private Set<String> getLocalTimerNames(PTransform transform) {
+    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+      try {
+        return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }

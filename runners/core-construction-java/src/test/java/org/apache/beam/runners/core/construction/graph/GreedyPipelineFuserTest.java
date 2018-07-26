@@ -1005,7 +1005,9 @@ public class GreedyPipelineFuserTest {
         PTransform.newBuilder()
             .setUniqueName("TimerParDo")
             .putInputs("input", "parDo.out")
-            .putOutputs("output", "timer.out")
+            .putInputs("timer", "timer.out")
+            .putOutputs("timer", "timer.out")
+            .putOutputs("output", "output.out")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -1024,6 +1026,7 @@ public class GreedyPipelineFuserTest {
             .putPcollections("parDo.out", pc("parDo.out"))
             .putTransforms("timer", timerTransform)
             .putPcollections("timer.out", pc("timer.out"))
+            .putPcollections("output.out", pc("output.out"))
             .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
             .build();
 
