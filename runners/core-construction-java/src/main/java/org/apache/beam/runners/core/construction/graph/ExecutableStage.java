@@ -26,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.TimerId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -72,17 +73,28 @@ public interface ExecutableStage {
   /**
    * Returns the root {@link PCollectionNode} of this {@link ExecutableStage}. This {@link
    * ExecutableStage} executes by reading elements from a Remote gRPC Read Node.
+   *
+   * <p>TODO(BEAM-4658): Add timers as input PCollections to executable stages.
    */
   PCollectionNode getInputPCollection();
 
   /**
-   * Returns the set of {@link PCollectionNode PCollections} that will be accessed by this {@link
-   * ExecutableStage} as side inputs.
+   * Returns a set of descriptors that will be accessed by this {@link ExecutableStage} as side
+   * inputs.
    */
   Collection<SideInputReference> getSideInputs();
 
-  /** Returns the set of {@link PTransformNode PTransforms} that contain user state. */
+  /**
+   * Returns the set of descriptors that will consume and produce user state by this {@link
+   * ExecutableStage}.
+   */
   Collection<UserStateReference> getUserStates();
+
+  /**
+   * Returns the set of descriptors that will consume and produce timers by this {@link
+   * ExecutableStage}.
+   */
+  Collection<TimerReference> getTimers();
 
   /**
    * Returns the leaf {@link PCollectionNode PCollections} of this {@link ExecutableStage}.
@@ -90,6 +102,8 @@ public interface ExecutableStage {
    * <p>All of these {@link PCollectionNode PCollections} are consumed by a {@link PTransformNode
    * PTransform} which is not contained within this executable stage, and must be materialized at
    * execution time by a Remote gRPC Write Transform.
+   *
+   * <p>TODO(BEAM-4658): Add timers as output PCollections to executable stages.
    */
   Collection<PCollectionNode> getOutputPCollections();
 
@@ -103,8 +117,8 @@ public interface ExecutableStage {
    * <ul>
    *   <li>The {@link PTransform#getSubtransformsList()} is empty. This ensures that executable
    *       stages are treated as primitive transforms.
-   *   <li>The only {@link PCollection} in the {@link PTransform#getInputsMap()} is the result of
-   *       {@link #getInputPCollection()}.
+   *   <li>The only {@link PCollection PCollections} in the {@link PTransform#getInputsMap()} is the
+   *       result of {@link #getInputPCollection()} and {@link #getSideInputs()}.
    *   <li>The output {@link PCollection PCollections} in the values of {@link
    *       PTransform#getOutputsMap()} are the {@link PCollectionNode PCollections} returned by
    *       {@link #getOutputPCollections()}.
@@ -144,6 +158,13 @@ public interface ExecutableStage {
           UserStateId.newBuilder()
               .setTransformId(userState.transform().getId())
               .setLocalName(userState.localName()));
+    }
+
+    for (TimerReference timer : getTimers()) {
+      payload.addTimers(
+          TimerId.newBuilder()
+              .setTransformId(timer.transform().getId())
+              .setLocalName(timer.localName()));
     }
 
     int outputIndex = 0;
@@ -205,6 +226,12 @@ public interface ExecutableStage {
             .stream()
             .map(userStateId -> UserStateReference.fromUserStateId(userStateId, components))
             .collect(Collectors.toList());
+    List<TimerReference> timers =
+        payload
+            .getTimersList()
+            .stream()
+            .map(timerId -> TimerReference.fromTimerId(timerId, components))
+            .collect(Collectors.toList());
     List<PTransformNode> transforms =
         payload
             .getTransformsList()
@@ -218,6 +245,6 @@ public interface ExecutableStage {
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
     return ImmutableExecutableStage.of(
-        components, environment, input, sideInputs, userStates, transforms, outputs);
+        components, environment, input, sideInputs, userStates, timers, transforms, outputs);
   }
 }

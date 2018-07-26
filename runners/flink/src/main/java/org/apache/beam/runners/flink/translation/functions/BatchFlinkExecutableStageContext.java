@@ -51,8 +51,8 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
   }
 
   @Override
-  public <InputT> StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
-    return jobBundleFactory.<InputT>forStage(executableStage);
+  public StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
+    return jobBundleFactory.forStage(executableStage);
   }
 
   @Override

@@ -347,8 +347,8 @@ public class GreedyPipelineFuser {
    * PTransformNode} consuming a single materialized {@link PCollectionNode}.
    *
    * <p>For convenience, {@link CollectionConsumer} implements {@link Comparable}. The natural
-   * ordering of {@link CollectionConsumer} is first by the ID of the {@link #consumedCollection()},
-   * then by the ID of the {@link #consumingTransform()}.
+   * ordering of {@link CollectionConsumer} is first by the IDs of the {@link
+   * #consumedCollection()}, then by the ID of the {@link #consumingTransform()}.
    */
   @AutoValue
   abstract static class CollectionConsumer implements Comparable<CollectionConsumer> {

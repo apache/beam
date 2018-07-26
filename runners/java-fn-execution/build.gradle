@@ -33,6 +33,7 @@ dependencies {
   shadow library.java.slf4j_api
   testCompile project(":beam-sdks-java-harness")
   testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

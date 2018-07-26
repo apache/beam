@@ -36,6 +36,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -89,7 +90,8 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
 
     private final CopyOnAccessInMemoryStateInternals<byte[]> stateInternals;
     private final DirectTimerInternals timerInternals;
-    private final RemoteBundle<KV<InputT, RestrictionT>> bundle;
+    private final RemoteBundle bundle;
+    private final FnDataReceiver<WindowedValue<?>> mainInput;
     private final Collection<UncommittedBundle<?>> outputs;
 
     private final SDFFeederViaStateAndTimers<InputT, RestrictionT> feeder;
@@ -124,7 +126,7 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
 
       this.bundle =
           jobBundleFactory
-              .<KV<InputT, RestrictionT>>forStage(stage)
+              .forStage(stage)
               .getBundle(
                   BundleFactoryOutputReceiverFactory.create(
                       bundleFactory, stage.getComponents(), outputs::add),
@@ -144,6 +146,7 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
                       }
                     }
                   });
+      this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());
     }
 
     @Override
@@ -158,7 +161,7 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
       } else {
         elementRestriction = feeder.resume(Iterables.getOnlyElement(kwi.timersIterable()));
       }
-      bundle.getInputReceiver().accept(elementRestriction);
+      mainInput.accept(elementRestriction);
     }
 
     @Override
