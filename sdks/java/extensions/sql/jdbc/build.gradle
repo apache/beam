@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(testShadowJar: true, shadowClosure: {})
+applyJavaNature(testShadowJar: true, validateShadowJar: false, shadowClosure: {})
 
 configurations {
   integrationTest
