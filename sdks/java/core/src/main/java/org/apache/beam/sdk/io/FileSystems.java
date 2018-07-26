@@ -329,9 +329,6 @@ public class FileSystems {
   /**
    * Deletes a collection of resources.
    *
-   * <p>It is allowed but not recommended to delete directories recursively. Callers depends on
-   * {@link FileSystems} and uses {@code DeleteOptions}.
-   *
    * <p>{@code resourceIds} must have the same scheme.
    *
    * @param resourceIds the references of the resources to delete.
