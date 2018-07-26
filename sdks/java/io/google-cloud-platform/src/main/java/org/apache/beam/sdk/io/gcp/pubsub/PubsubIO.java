@@ -734,7 +734,7 @@ public class PubsubIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 1000000;
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 10 * 1024 * 1024;
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
     @Nullable
