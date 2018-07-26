@@ -30,7 +30,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
  */
 public interface StageBundleFactory<T> extends AutoCloseable {
   /** Get a new {@link RemoteBundle bundle} for processing the data in an executable stage. */
-  RemoteBundle<T> getBundle(
+  RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler)

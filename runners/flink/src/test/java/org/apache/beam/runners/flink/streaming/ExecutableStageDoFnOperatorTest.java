@@ -118,12 +118,12 @@ public class ExecutableStageDoFnOperatorTest {
     testHarness.open();
 
     @SuppressWarnings("unchecked")
-    RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
-    FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceiver()).thenReturn(receiver);
+    FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
 
     Exception expected = new Exception();
     doThrow(expected).when(bundle).close();
@@ -141,12 +141,12 @@ public class ExecutableStageDoFnOperatorTest {
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
     @SuppressWarnings("unchecked")
-    RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
-    FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceiver()).thenReturn(receiver);
+    FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
 
     WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
@@ -209,21 +209,23 @@ public class ExecutableStageDoFnOperatorTest {
     StageBundleFactory<Void> stageBundleFactory =
         new StageBundleFactory<Void>() {
           @Override
-          public RemoteBundle<Void> getBundle(
+          public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
               StateRequestHandler stateRequestHandler,
               BundleProgressHandler progressHandler) {
-            return new RemoteBundle<Void>() {
+            return new RemoteBundle() {
               @Override
               public String getId() {
                 return "bundle-id";
               }
 
               @Override
-              public FnDataReceiver<WindowedValue<Void>> getInputReceiver() {
-                return input -> {
-                  /* Ignore input*/
-                };
+              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+                return ImmutableMap.of(
+                    "pCollectionId",
+                    input -> {
+                      /* Ignore input*/
+                    });
               }
 
               @Override

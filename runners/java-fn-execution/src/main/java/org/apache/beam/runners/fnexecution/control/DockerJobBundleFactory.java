@@ -270,7 +270,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     }
 
     @Override
-    public RemoteBundle<InputT> getBundle(
+    public RemoteBundle getBundle(
         OutputReceiverFactory outputReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler)

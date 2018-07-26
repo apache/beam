@@ -246,9 +246,10 @@ public class RemoteExecutionTest implements Serializable {
     }
     // The impulse example
 
-    try (ActiveBundle<byte[]> bundle =
+    try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
-      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
 
     for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
@@ -361,15 +362,13 @@ public class RemoteExecutionTest implements Serializable {
             });
     BundleProgressHandler progressHandler = BundleProgressHandler.unsupported();
 
-    try (ActiveBundle<byte[]> bundle =
+    try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
-      bundle
-          .getInputReceiver()
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
               WindowedValue.valueInGlobalWindow(
                   CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
-      bundle
-          .getInputReceiver()
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
               WindowedValue.valueInGlobalWindow(
                   CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
@@ -515,10 +514,11 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    try (ActiveBundle<KV<byte[], byte[]>> bundle =
+    try (ActiveBundle bundle =
         processor.newBundle(
             outputReceivers, stateRequestHandler, BundleProgressHandler.unsupported())) {
-      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
