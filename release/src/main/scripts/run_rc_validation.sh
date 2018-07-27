@@ -103,3 +103,64 @@ if [[ $confirmation = "y" ]]; then
   -PgcpProject=${USER_GCP_PROJECT} \
   -PgcsBucket=${USER_GCS_BUCKET}
 fi
+
+echo "===================Starting Java Mobile Game====================="
+echo "[GCP Project Required] Please input your GCP project:"
+read USER_GCP_PROJECT
+MOBILE_GAME_DATASET=${USER}_${RELEASE}_java_validations
+MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-java-topic-1
+echo "Please review following GCP sources setup: "
+echo "Using GCP project: ${USER_GCP_PROJECT}"
+echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
+echo "Will create Pubsub topic: ${MOBILE_GMAE_PUBSUB_TOPIC}"
+echo "[Confirmation Required] Do you want to run validations with configurations above? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  echo "-----------------Setting Up Service Account------------------------"
+  echo "Please go to GCP IAM console under your project(${USER_GCP_PROJECT})."
+  echo "Create a service account as project owner."
+  echo "[Input Required] Please enter your service account name:"
+  read USER_SERVICE_ACCOUNT_NAME
+  SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
+  gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_NAME}@${USER_GCP_PROJECT}
+  export GOOGLE_APPLICATION_CREDENTIALS=pwd/${SERVICE_ACCOUNT_KEY_JSON}
+
+  echo "-------------------Creating BigQuery Dataset-----------------------"
+  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+
+  echo "----------------------Creating Pubsub Topic------------------------"
+  gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
+
+  echo "[Current task] Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
+  ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+  -Prepourl=${REPO_URL} \
+  -Pver= ${RELEASE} \
+  -PgcpProject=${USER_GCP_PROJECT} \
+  -PgcsBucket=gs://dataflow-samples/game/gaming_data1.csv \
+  -PbqDataset=${MOBILE_GAME_DATASET} -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC}
+
+  echo "-------------------Cleaning Up BigQuery Dataset-------------------"
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
