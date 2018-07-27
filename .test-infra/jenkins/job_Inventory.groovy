@@ -23,6 +23,7 @@ import CommonJobProperties as commonJobProperties
 def nums = 1..16
 nums.each {
   def machine = "beam${it}"
+  def num = it
   job("beam_Inventory_${machine}") {
     description("Run inventory on ${machine}")
 
@@ -49,6 +50,10 @@ nums.each {
     }
 
     steps {
+      if (num == 6) {
+        // Fix corrup file causing failures on https://builds.apache.org/job/beam_PreCommit_Java_Cron/
+        shell('rm -rf /home/jenkins/.m2/repository/org/apache/zookeeper/zookeeper/3.4.6/')
+      }
       shell('ls /home/jenkins/tools')
       shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
