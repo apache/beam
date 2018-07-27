@@ -433,17 +433,18 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException(e);
     }
 
-    String inputPCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
+    String inputPCollectionId = stagePayload.getInput();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-2930
+    if (stagePayload.getSideInputsCount() > 0) {
+      throw new UnsupportedOperationException(
+          "[BEAM-2930] streaming translator does not support side inputs: " + transform);
+    }
 
     Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newLinkedHashMap();
     Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newLinkedHashMap();
     // TODO: does it matter which output we designate as "main"
-    TupleTag<OutputT> mainOutputTag;
-    if (!outputs.isEmpty()) {
-      mainOutputTag = new TupleTag(outputs.keySet().iterator().next());
-    } else {
-      mainOutputTag = null;
-    }
+    final TupleTag<OutputT> mainOutputTag =
+        outputs.isEmpty() ? null : new TupleTag(outputs.keySet().iterator().next());
 
     // associate output tags with ids, output manager uses these Integer ids to serialize state
     BiMap<String, Integer> outputIndexMap =
