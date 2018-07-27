@@ -20,6 +20,7 @@ RELEASE=
 REPO_URL=
 RC_NUM=
 RELEASE_BRANCH=
+WORKING_BRANCH=
 LOCAL_CLONE_DIR=rc_validations
 BEAM_ROOT_DIR=beam
 GIT_REPO_URL=https://github.com/apache/beam.git
@@ -27,6 +28,7 @@ GIT_REPO_URL=https://github.com/apache/beam.git
 echo "[Input Required] Please enter the release version: "
 read RELEASE
 RELEASE_BRANCH=release-${RELEASE}
+WORKING_BRANCH=release-${RELEASE}-RC${RC_NUM}_validations
 echo "[Input Required] Please enter the release candidate number(1-3): "
 read RC_NUM
 echo "[Input Required] Please copy the repo URL from the vote email sent out by Release Manager:"
@@ -50,6 +52,7 @@ cd ${LOCAL_CLONE_DIR}
 git clone ${GIT_REPO_URL}
 cd ${BEAM_ROOT_DIR}
 git checkout ${RELEASE_BRANCH}
+git checkout -b ${WORKING_BRANCH}
 
 echo "====================Starting Java Quickstart======================="
 
@@ -143,24 +146,25 @@ if [[ $confirmation = "y" ]]; then
   bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 fi
 
+echo "==================Starting Python Quickstart and MobileGame==================="
+echo "This task will create a PR against apache/beam, trigger a jenkins job to run:"
+echo "1. Python quickstart validations(batch & streaming)"
+echo "2. Python MobileGame validations(UserScore, HourlyTeamScore)"
+echo "[Confirmation Required] Do you want to proceed? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  echo "[Input Required] Please enter your github repo URL forked from apache/beam:"
+  read USER_REMOTE_URL
+  WORKING_BRANCH=python_validatoin_pr
+  git checkout -b ${WORKING_BRANCH}
+  touch empty_file.txt
+  git add empty_file.txt
+  git commit -m "Add empty file in order to create PR"
+  git push -f ${USER_REMOTE_URL}
+  hub pull-request -b apache:master -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
 
 
+  Run Python ReleaseCandidate"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  echo "[NOTE] If there is no jenkins job started, please comment generated PR with: Run Python ReleaseCandidate"
+fi
