@@ -61,9 +61,6 @@ public class SyntheticOptions implements Serializable {
     MIXED,
   }
 
-  /** Mapper for (de)serializing JSON. */
-  private static final ObjectMapper MAPPER = new ObjectMapper();
-
   /**
    * Wrapper over a distribution. Unfortunately commons-math does not provide a common interface
    * over both RealDistribution and IntegerDistribution, and we sometimes need one and sometimes the
@@ -321,7 +318,7 @@ public class SyntheticOptions implements Serializable {
   @Override
   public String toString() {
     try {
-      return MAPPER.writeValueAsString(this);
+      return new ObjectMapper().writeValueAsString(this);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
