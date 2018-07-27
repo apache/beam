@@ -161,18 +161,9 @@ class TranslationContext {
    *
    * @return coder for lambda return type
    */
+  //TODO remove this
   <InputT, OutputT> Optional<Coder<OutputT>> inferCoderFromLambda(
       UnaryFunction<InputT, OutputT> unaryFunction) {
-    final Type lambdaType = TypeUtils.getLambdaReturnType(unaryFunction);
-    if (lambdaType != null) {
-      try {
-
-        return Optional.of(getCoder(lambdaType));
-      } catch (IllegalArgumentException e) {
-        // suppress exception, failed to infer coder from return type.
-        LOG.debug("Couldn't infer coder for lambda return type {}", lambdaType);
-      }
-    }
     return Optional.empty();
   }
 

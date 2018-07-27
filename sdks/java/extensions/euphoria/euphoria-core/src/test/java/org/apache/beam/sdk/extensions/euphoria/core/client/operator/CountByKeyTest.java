@@ -24,9 +24,12 @@ import static org.junit.Assert.assertSame;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -120,4 +123,24 @@ public class CountByKeyTest {
     assertSame(trigger, windowingDesc.getTrigger());
     assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
+
+  @Test
+  public void testBuildTypePropagation() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+
+    TypeDescriptor<Long> outputType = TypeDescriptors.longs();
+    TypeDescriptor<String> keyType = TypeDescriptors.strings();
+    Dataset<Pair<String, Long>> counted =
+        CountByKey
+            .named("CountByKey1")
+            .of(dataset)
+            .keyBy(s -> s, keyType)
+            .output();
+
+
+    CountByKey count = (CountByKey) flow.operators().iterator().next();
+    TypePropagationAssert.assertOperatorTypeAwareness(count, outputType, keyType);
+  }
+
 }

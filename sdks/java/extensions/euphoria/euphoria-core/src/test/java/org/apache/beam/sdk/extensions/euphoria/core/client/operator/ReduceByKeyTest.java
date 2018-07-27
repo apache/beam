@@ -26,9 +26,12 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -236,4 +239,37 @@ public class ReduceByKeyTest {
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNull(windowingDesc);
   }
+
+  @Test
+  public void testRBKTypePropagation(){
+    Flow flow1 = Flow.create("TEST1");
+    Dataset<String> dataset = Util.createMockDataset(flow1, 2);
+
+    TypeDescriptor<String> keyType = TypeDescriptors.strings();
+    TypeDescriptor<Long> valueType = TypeDescriptors.longs();
+    TypeDescriptor<Long> combinedOutputType = TypeDescriptors.longs();
+
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s, keyType)
+        .valueBy(s -> 1L, valueType)
+        .combineBy(n -> n.mapToLong(l -> l).sum(), combinedOutputType)
+        .output();
+
+    ReduceByKey rbk = (ReduceByKey) flow1.operators().iterator().next();
+    TypePropagationAssert.assertOperatorTypeAwareness(rbk, combinedOutputType, keyType, valueType);
+
+    Flow flow2 = Flow.create("TEST1");
+    Dataset<String> dataset2 = Util.createMockDataset(flow2, 2);
+    TypeDescriptor<String> reducedOutputType = TypeDescriptors.strings();
+    ReduceByKey.of(dataset2)
+        .keyBy(s -> s, keyType)
+        .valueBy(s -> 1L, valueType)
+        .reduceBy(n -> "Sum: " + n.mapToLong(l -> l).sum(), reducedOutputType)
+        .output();
+
+    rbk = (ReduceByKey) flow2.operators().iterator().next();
+    TypePropagationAssert.assertOperatorTypeAwareness(rbk, reducedOutputType, keyType, valueType);
+
+  }
+
 }
