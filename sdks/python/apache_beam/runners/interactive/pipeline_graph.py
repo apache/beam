@@ -90,6 +90,8 @@ class PipelineGraph(object):
     # IDs defining the PCollection) to its attributes.
     edge_dict = collections.defaultdict(dict)
 
+    self._edge_to_vertex_pairs = collections.defaultdict(list)
+
     for _, transform in transforms.items():
       if not self._is_top_level_transform(transform):
         continue
@@ -102,11 +104,15 @@ class PipelineGraph(object):
         if pcoll_id not in self._consumers:
           invisible_leaf = 'leaf%s' % (hash(pcoll_id) % 10000)
           vertex_dict[invisible_leaf] = {'style': 'invis'}
+          self._edge_to_vertex_pairs[pcoll_id].append(
+              (transform.unique_name, invisible_leaf))
           edge_dict[(transform.unique_name, invisible_leaf)] = {}
         else:
           for consumer in self._consumers[pcoll_id]:
             producer_name = transform.unique_name
             consumer_name = transforms[consumer].unique_name
+            self._edge_to_vertex_pairs[pcoll_id].append(
+                (producer_name, consumer_name))
             edge_dict[(producer_name, consumer_name)] = {}
 
     return vertex_dict, edge_dict
@@ -129,9 +135,10 @@ class PipelineGraph(object):
 
     Args:
       vertex_dict: (Dict[str, Dict[str, str]]) maps vertex names to attributes
-      edge_dict: (Dict[str, Dict[str, str]]) maps edge names to attributes
-      default_vertex_attrs: (Dict[str, Dict[str, str]]) a dict of attributes
-      default_edge_attrs: (Dict[str, Dict[str, str]]) a dict of attributes
+      edge_dict: (Dict[(str, str), Dict[str, str]]) maps vertex name pairs to
+          attributes
+      default_vertex_attrs: (Dict[str, str]) a dict of attributes
+      default_edge_attrs: (Dict[str, str]) a dict of attributes
     """
     with self._lock:
       self._graph = pydot.Dot()
@@ -141,10 +148,8 @@ class PipelineGraph(object):
       if default_edge_attrs:
         self._graph.set_edge_defaults(**default_edge_attrs)
 
-      # A dict from vertex name to the corresponding pydot.Node object
-      self._vertex_refs = {}
-      # A dict from edge name to the corresponding pydot.Edge object
-      self._edge_refs = {}
+      self._vertex_refs = {}  # Maps vertex name to pydot.Node
+      self._edge_refs = {}  # Maps vertex name pairs to pydot.Edge
 
       for vertex, vertex_attrs in vertex_dict.items():
         vertex_ref = pydot.Node(vertex, **vertex_attrs)
@@ -160,16 +165,23 @@ class PipelineGraph(object):
 
     Args:
       vertex_dict: (Dict[str, Dict[str, str]]) maps vertex names to attributes
-      edge_dict: (Dict[str, Dict[str, str]]) maps edge names to attributes
+      edge_dict: This should be
+          Either (Dict[str, Dict[str, str]]) which maps edge names to attributes
+          Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
+          attributes
     """
+    def set_attrs(ref, attrs):
+      for attr_name, attr_val in attrs.items():
+        ref.set(attr_name, attr_val)
+
     with self._lock:
       if vertex_dict:
         for vertex, vertex_attrs in vertex_dict.items():
-          vertex_ref = self._vertex_refs[vertex]
-          for attr_name, attr_val in vertex_attrs.items():
-            vertex_ref.set(attr_name, attr_val)
+          set_attrs(self._vertex_refs[vertex], vertex_attrs)
       if edge_dict:
         for edge, edge_attrs in edge_dict.items():
-          edge_ref = self._edge_refs[edge]
-          for attr_name, attr_val in edge_attrs.items():
-            edge_ref.set(attr_name, attr_val)
+          if isinstance(edge, tuple):
+            set_attrs(self._edge_refs[edge], edge_attrs)
+          else:
+            for vertex_pair in self._edge_to_vertex_pairs[edge]:
+              set_attrs(self._edge_refs[vertex_pair], edge_attrs)
