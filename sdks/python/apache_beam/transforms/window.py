@@ -52,11 +52,11 @@ from __future__ import absolute_import
 import abc
 from builtins import object
 from builtins import range
+from functools import total_ordering
 
 from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
-from past.builtins import cmp
 
 from apache_beam.coders import coders
 from apache_beam.portability import common_urns
@@ -196,24 +196,28 @@ class BoundedWindow(object):
     raise NotImplementedError
 
   def __ne__(self, other):
-    return (cmp(self.end, other.end)
-            or cmp(hash(self), hash(other))) != 0
+    #  Order first by endpoint, then arbitrarily
+    return self.end != other.end or hash(self) != hash(other)
 
   def __lt__(self, other):
-    return (cmp(self.end, other.end)
-            or cmp(hash(self), hash(other))) < 0
+    if self.end != other.end:
+      return self.end < other.end
+    return hash(self) < hash(other)
 
   def __le__(self, other):
-    return (cmp(self.end, other.end)
-            or cmp(hash(self), hash(other))) <= 0
+    if self.end != other.end:
+      return self.end <= other.end
+    return hash(self) <= hash(other)
 
   def __gt__(self, other):
-    return (cmp(self.end, other.end)
-            or cmp(hash(self), hash(other))) > 0
+    if self.end != other.end:
+      return self.end > other.end
+    return hash(self) > hash(other)
 
   def __ge__(self, other):
-    return (cmp(self.end, other.end)
-            or cmp(hash(self), hash(other))) >= 0
+    if self.end != other.end:
+      return self.end >= other.end
+    return hash(self) >= hash(other)
 
   def __hash__(self):
     raise NotImplementedError
@@ -235,10 +239,15 @@ class IntervalWindow(BoundedWindow):
     self.start = Timestamp.of(start)
 
   def __hash__(self):
-    return hash((self.start, self.end))
+    return hash((self.start, self.end, type(self)))
 
   def __eq__(self, other):
-    return self.start == other.start and self.end == other.end
+    return (self.start == other.start
+            and self.end == other.end
+            and type(self) == type(other))
+
+  def __ne__(self, other):
+    return not self == other
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))
@@ -251,6 +260,7 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -272,24 +282,14 @@ class TimestampedValue(object):
     return hash((type(self), self.value, self.timestamp))
 
   def __ne__(self, other):
-    return (cmp(type(self), type(other)) or cmp(
-        (self.value, self.timestamp), (other.value, other.timestamp))) != 0
+    return not self == other
 
   def __lt__(self, other):
-    return (cmp(type(self), type(other)) or cmp(
-        (self.value, self.timestamp), (other.value, other.timestamp))) < 0
-
-  def __le__(self, other):
-    return (cmp(type(self), type(other)) or cmp(
-        (self.value, self.timestamp), (other.value, other.timestamp))) <= 0
-
-  def __gt__(self, other):
-    return (cmp(type(self), type(other)) or cmp(
-        (self.value, self.timestamp), (other.value, other.timestamp))) > 0
-
-  def __ge__(self, other):
-    return (cmp(type(self), type(other)) or cmp(
-        (self.value, self.timestamp), (other.value, other.timestamp))) >= 0
+    if type(self) != type(other):
+      return type(self) < type(other)
+    if self.value != other.value:
+      return self.value < other.value
+    return self.timestamp < other.timestamp
 
 
 class GlobalWindow(BoundedWindow):
@@ -314,6 +314,9 @@ class GlobalWindow(BoundedWindow):
   def __eq__(self, other):
     # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
+
+  def __ne__(self, other):
+    return not self == other
 
 
 class NonMergingWindowFn(WindowFn):
@@ -450,6 +453,9 @@ class SlidingWindows(NonMergingWindowFn):
               and self.offset == other.offset
               and self.period == other.period)
 
+  def __ne__(self, other):
+    return not self == other
+
   def __hash__(self):
     return hash((type(self), self.offset, self.period))
 
@@ -519,6 +525,9 @@ class Sessions(WindowFn):
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
+
+  def __ne__(self, other):
+    return not self == other
 
   def __hash__(self):
     return hash((type(self), self.gap_size))
