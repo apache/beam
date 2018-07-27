@@ -238,7 +238,7 @@ class WriteToPubSub(PTransform):
   """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self, topic, with_attributes, id_label=None,
+  def __init__(self, topic, with_attributes=False, id_label=None,
                timestamp_attribute=None):
     """Initializes ``WriteToPubSub``.
 
