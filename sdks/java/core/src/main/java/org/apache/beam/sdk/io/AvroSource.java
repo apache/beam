@@ -108,14 +108,14 @@ import org.apache.commons.compress.utils.IOUtils;
  * the start offset of the block is greater than or equal to the start offset of the source and less
  * than the end offset of the source.
  *
- * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.5.jar},
+ * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.8.jar},
  * which has been marked as optional in the Maven {@code sdk/pom.xml}.
  *
  * <pre>{@code
  * <dependency>
  *   <groupId>org.tukaani</groupId>
  *   <artifactId>xz</artifactId>
- *   <version>1.5</version>
+ *   <version>1.8</version>
  * </dependency>
  * }</pre>
  *
