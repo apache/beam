@@ -561,3 +561,84 @@ classes which reside under `"org[.]apache[.]beam[.].*Test.*"`,
 `"org[.]apache[.]beam[.].*IT"` or `"java[.]lang.*"`, belong to neither
 of the packages: `org.apache.beam.x`, `org.apache.beam.y`, `org.apache.beam.z`,
 nor equal to `Other.class`.
+
+## Best practices for writing tests {#best_practices}
+
+The following best practices help you to write reliable and maintainable tests.
+
+### Aim for one failure path
+
+An ideal test has one failure path. When you create your tests, minimize the
+possible reasons for a test failure. A developer can debug a problem more
+easily when there are fewer failure paths.
+
+### Avoid non-deterministic code
+
+Reliable tests are predictable and deterministic. Tests that contain
+non-deterministic code are hard to debug and are often flaky. Non-deterministic
+code includes the use of randomness, time, and multithreading.
+
+To avoid non-deterministic code, mock the corresponding methods or classes.
+
+### Use descriptive test names
+
+Helpful test names contain details about your test, such as test parameters and
+the expected result. Ideally, a developer can read the test name and know where
+the buggy code is and how to reproduce the bug.
+
+An easy and effective way to name your methods is to use these three questions:
+
+*   What you are testing?
+*   What are the parameters of the test?
+*   What is the expected result of the test?
+
+For example, consider a scenario where you want to add a test for the
+`Divide` method:
+
+```java
+float Divide(float dividend, float divisor) {
+  return dividend / divisor;
+}
+
+...
+
+@Test
+void <--TestMethodName-->() {
+    assertThrows(Divide(10, 0))
+}
+```
+
+If you use a simple test name, such as `testDivide()`, you are missing important
+information such as the expected action, parameter information, and expected
+test result. As a result, triaging a test failure requires you to look at the
+test implementation to see what the test does.
+
+Instead, use a name such as `invokingDivideWithDivisorEqualToZeroThrowsException()`,
+which specifies:
+
+*   the expected action of the test (`invokingDivide`)
+*   details about important parameters (the divisor is zero)
+*   the expected result (the test throws an exception)
+
+If this test fails, you can look at the descriptive test name to find the most
+probable cause of the failure. In addition, test frameworks and test result
+dashboards use the test name when reporting test results. Descriptive names
+enable contributors to look at test suite results and easily see what
+features are failing.
+
+Long method names are not a problem for test code. Test names are rarely used
+(usually when you triage and debug), and when you do need to look at a
+test, it is helpful to have descriptive names.
+
+
+### Use a pre-commit test if possible
+
+Post-commit tests validate that Beam works correctly in broad variety of
+scenarios. The tests catch errors that are hard to predict in the design and
+implementation stages
+
+However, we often write a test to verify a specific scenario. In this situation,
+it is usually possible to implement the test as a unit test or a component test.
+You can add your unit tests or component tests to the pre-commit test suite, and
+the pre-commit test results give you faster code health feedback during the
+development stage, when a bug is cheap to fix.
