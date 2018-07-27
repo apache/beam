@@ -155,17 +155,11 @@ rat {
 }
 check.dependsOn rat
 
-task deleteCorruptZookeeperFile(type:Exec) {
-  commandLine 'rm', '-rf', '/home/jenkins/.m2/repository/org/apache/zookeeper/zookeeper/3.4.6/'
-}
-
-
 // Define root pre/post commit tasks simplifying what is needed
 // to be specified on the commandline when executing locally.
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
 task javaPreCommit() {
-  dependsOn ":deleteCorruptZookeeperFile"
   dependsOn ":rat"
   // We need to list the model/* builds since sdks/java/core doesn't
   // depend on any of the model.
