@@ -186,7 +186,7 @@ public class SyntheticBoundedIO {
       for (int i = 0; i < relativeSizes.length; ++i) {
         relativeSizes[i] =
             sourceOptions.bundleSizeDistribution.sample(
-                sourceOptions.hashFunction.hashInt(i).asLong());
+                sourceOptions.hashFunction().hashInt(i).asLong());
       }
 
       // Generate offset ranges proportional to the relative sizes.
@@ -307,7 +307,7 @@ public class SyntheticBoundedIO {
       // close to each other. To make seeds fed into the Random objects unrelated,
       // we use a hashing function to map the position to its corresponding hashcode,
       // and use the hashcode as a seed to feed into the Random object.
-      long hashCodeOfPosition = hashFunction.hashLong(position).asLong();
+      long hashCodeOfPosition = hashFunction().hashLong(position).asLong();
       return new Record(genKvPair(hashCodeOfPosition), nextDelay(hashCodeOfPosition));
     }
 
@@ -402,7 +402,7 @@ public class SyntheticBoundedIO {
       currentKvPair = record.kv;
       // TODO: add a separate distribution for the sleep time of reading the first record
       // (e.g.,"open" the files).
-      long hashCodeOfVal = options.hashFunction.hashBytes(currentKvPair.getValue()).asLong();
+      long hashCodeOfVal = options.hashFunction().hashBytes(currentKvPair.getValue()).asLong();
       Random random = new Random(hashCodeOfVal);
       SyntheticUtils.delay(
           record.sleepMsec, options.cpuUtilizationInMixedDelay, options.delayType, random);
