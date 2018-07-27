@@ -28,9 +28,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -337,4 +340,75 @@ public class JoinTest {
     assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
   }
+
+  @Test
+  public void testBuildTypePropagation() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 2);
+    Dataset<String> right = Util.createMockDataset(flow, 3);
+
+    TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
+    TypeDescriptor<String> outputType = TypeDescriptors.strings();
+
+    Dataset<Pair<Integer, String>> joined =
+        Join.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length, keyType)
+            .using(
+                (String l, String r, Collector<String> c) -> {
+                  // no-op
+                }, outputType)
+            .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+
+    TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
+  }
+
+  @Test
+  public void testBuild_LeftJoinTypePropagation() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
+    TypeDescriptor<String> outputType = TypeDescriptors.strings();
+
+    LeftJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length, keyType)
+        .using(
+            (String l, Optional<String> r, Collector<String> c) -> {
+              // no-op
+            }, outputType)
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+
+    TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
+  }
+
+  @Test
+  public void testBuild_RightJoinTypePropagation() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
+    TypeDescriptor<String> outputType = TypeDescriptors.strings();
+
+    RightJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length, keyType)
+        .using(
+            (Optional<String> l, String r, Collector<String> c) -> {
+              // no-op
+            }, outputType)
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+
+    TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
+  }
+
 }

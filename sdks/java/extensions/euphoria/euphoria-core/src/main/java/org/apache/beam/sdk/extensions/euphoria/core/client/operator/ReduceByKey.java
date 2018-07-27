@@ -319,8 +319,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     default WindowByBuilder<InputT, K, V, V> combineBy(
-        CombinableReduceFunction<V> reducer, TypeDescriptor<V> typeHint) {
-      return reduceBy(toReduceFunctor(reducer), typeHint);
+        CombinableReduceFunction<V> reducer, TypeDescriptor<V> outType) {
+      return reduceBy(toReduceFunctor(reducer), outType);
     }
   }
 
@@ -342,7 +342,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
 
     ReduceFunctor<V, OutputT> reducer;
     @Nullable
-    TypeDescriptor<OutputT> outputTypeDescriptor;
+    TypeDescriptor<OutputT> outputType;
 
     @Nullable
     BinaryFunction<V, V, Integer> valuesComparator;
@@ -444,7 +444,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       paramsCasted.valueExtractor = UnaryFunction.identity();
       paramsCasted.valueType = TypeUtils.getDatasetElementType(paramsCasted.input);
       paramsCasted.reducer = Objects.requireNonNull(reducer);
-      paramsCasted.outputTypeDescriptor = outType;
+      paramsCasted.outputType = outType;
       return new WithSortedValuesBuilder<>(paramsCasted);
     }
 
@@ -473,6 +473,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
           (BuilderParams<InputT, K, V, OutputT, ?>) params;
 
       paramsCasted.reducer = Objects.requireNonNull(reducer);
+      paramsCasted.outputType = outType;
 
       return new WithSortedValuesBuilder<>(paramsCasted);
     }
@@ -593,7 +594,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
               params.reducer,
               params.valuesComparator,
               Sets.newHashSet(outputHints),
-              TypeUtils.pairs(params.keyType, params.outputTypeDescriptor)
+              TypeUtils.pairs(params.keyType, params.outputType)
           );
       flow.add(reduce);
       return reduce.output();
