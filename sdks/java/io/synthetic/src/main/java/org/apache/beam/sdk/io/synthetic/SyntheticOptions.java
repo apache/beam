@@ -160,7 +160,7 @@ public class SyntheticOptions implements Serializable {
    * The hash function is used to generate seeds that are fed into the random number generators and
    * the sleep time distributions.
    */
-  @JsonIgnore public transient HashFunction hashFunction;
+  @JsonIgnore private transient HashFunction hashFunction;
 
   /**
    * SyntheticOptions supports several delay distributions including uniform, normal, exponential,
@@ -217,7 +217,15 @@ public class SyntheticOptions implements Serializable {
   @JsonDeserialize
   public void setSeed(int seed) {
     this.seed = seed;
-    this.hashFunction = Hashing.murmur3_128(seed);
+  }
+
+  public HashFunction hashFunction() {
+    // due to field's transiency initialize when null.
+    if (hashFunction == null) {
+      this.hashFunction = Hashing.murmur3_128(seed);
+    }
+
+    return hashFunction;
   }
 
   static class SamplerDeserializer extends JsonDeserializer<Sampler> {
@@ -298,7 +306,6 @@ public class SyntheticOptions implements Serializable {
         hotKeyFraction >= 0,
         "hotKeyFraction should be a non-negative number, but found %s",
         hotKeyFraction);
-    checkArgument(hashFunction != null, "hashFunction hasn't been initialized.");
     if (hotKeyFraction > 0) {
       int intBytes = Integer.SIZE / 8;
       checkArgument(
