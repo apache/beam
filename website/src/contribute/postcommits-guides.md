@@ -18,60 +18,57 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Post-commit tests processes guides
+# Post-commit test task guides
 
-## Finding person to fix post-commit tests failures {#find_specialist}
+These guides provide steps for common post-commit test failure tasks.
 
-Finding proper person to triage the test failure might not be a trivial task.
-However there are some guidelines.
+## Finding someone to triage a post-commit test failure {#find_specialist}
 
-1.  If you can do it -- go for it.
-1.  Check GitHub blame on files with problematic code.
-1.  Reach out to
-    [Slack chat](https://the-asf.slack.com/messages/C9H0YNP3P/apps/A0F7VRFKN/).
-1.  Reach out to dev@beam.apache.org.
+To find the proper person to triage a test failure, you can use these
+suggestions:
 
+1.  If you can triage it yourself, go for it.
+1.  Look at the GitHub blame for the files with problematic code.
+1.  Ask in the [Beam Slack chat](https://the-asf.slack.com/messages/C9H0YNP3P/apps/A0F7VRFKN/).
+1.  Write to the dev list: dev@beam.apache.org
 
-## Rolling back commit {#rollback}
+## Rolling back a commit {#rollback}
 
-Most likely, you are on this page because there is a failing post-commit test
-and you want to rollback culprit commit.
+Rolling back is usually the fastest way to fix a failing test.  However it is
+is often inconvenient for the original author. To help the author fix the
+issue, follow these steps when you rollback someone's change.
 
-Since rolling back someones change might be inconvenient for the person that
-made the original change, we ask you to do some extra steps. These steps are
-intended to help that person fix the issue that caused test failure and get his
-feature back in line.
-
-1.  Rollback the PR
-1.  Create JIRA task with information on why the code rolled back, links to
-    corresponding Tests failure task, triage information, any other relevant
-    information. Assign this task to original PR author.
-1.  Consider re-opening Jira ticket that was closed by original PR if any.
-1.  Send notification email with information of roll-back, links to original PR,
-    roll-back PR, reasons for roll-back to:
+1.  Rollback the PR.
+1.  Create a JIRA issue that contains the following information:
+    * the reason for the rollback
+    * a link to the test failure's JIRA issue
+    * triage information
+    * any other relevant details
+1.  Assign the new JIRA issue to the original PR author.
+1.  Consider re-opening the JIRA issue associated with the original PR (if
+    there is one).
+1.  Send a notification email with information about the rollback, links to the
+    original PR and the rollback PR, and the reasons for the rollback to:
     *   dev@beam.apache.org
-    *   Original PR author and committer of that PR.
-1.  Close test-failure Jira task. Your work is done here.
+    *   the original PR author and the committer of the PR
+1.  Close the test failure JIRA issue. Your work is done here!
+
+## Disabling a failing test {#disabling}
+
+If a test fails, our first priority is to rollback the problematic code and fix
+the issue. However, if both: rollback and fix will take awhile to implement, it
+is safer to temporarily disable the test until the fix is ready.
+
+Use caution when deciding to disable a test. When tests are disabled,
+contributors are no longer developing on top of fully tested code. If you decide
+to disable a test, use the following guidelines:
+
+*   Notify the dev@beam.apache.org mailing list. Describe the problem and let
+    everyone know which test you are disabling.
+*   Implement the fix and get the test back online as soon as possible.
+
+While the test is disabled, contributors should not push code to the failing
+test's coverage area. The code area is not properly tested until you fix the
+test.
 
 
-## Disabling failing test {#disabling}
-
-Usually we want our tests green. If they eventually turn red, we fix them or do
-rollback.
-
-However sometimes it might take us too much time to fix some specific test. In
-this situation it might be feasible to disable a single test, so that the rest
-of the suite give valid health signal.
-
-However this should be done with great caution, since disabling a test means
-that we build upon shaky, not fully tested foundation.
-
-Because of this we want to do some extra precautions if we decide to follow this
-path:
-
-*   Notify everyone on dev list that some test is being disabled and describe
-    the problem.
-*   It is everyones job at this point to avoid pushing more code to the area
-    that failing test covered, since this code will not be properly tested at
-    this point.
-*   Do the fix and get the test back in line as soon as possible.
