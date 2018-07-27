@@ -102,6 +102,7 @@ class PubSubMessageMatcher(BaseMatcher):
     while time.time() - start_time <= timeout:
       pulled = subscription.pull(max_messages=MAX_MESSAGES_IN_ONE_PULL)
       for ack_id, message in pulled:
+        subscription.acknowledge([ack_id])
         if not self.with_attributes:
           total_messages.append(message.data)
           continue
@@ -116,7 +117,6 @@ class PubSubMessageMatcher(BaseMatcher):
                                       'expected attribute not found.')
         total_messages.append(msg)
 
-        subscription.acknowledge([ack_id])
       if len(total_messages) >= expected_num:
         return total_messages
       time.sleep(1)

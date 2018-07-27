@@ -187,7 +187,7 @@ class ReadFromPubSub(PTransform):
     return self.to_runner_api_pickled(context)
 
 
-@deprecated(since='2.6.0', extra_message='Use ReadFromPubSub instead.')
+@deprecated(since='2.7.0', extra_message='Use ReadFromPubSub instead.')
 def ReadStringsFromPubSub(topic=None, subscription=None, id_label=None):
   return _ReadStringsFromPubSub(topic, subscription, id_label)
 
@@ -210,7 +210,7 @@ class _ReadStringsFromPubSub(PTransform):
     return p
 
 
-@deprecated(since='2.6.0', extra_message='Use WriteToPubSub instead.')
+@deprecated(since='2.7.0', extra_message='Use WriteToPubSub instead.')
 def WriteStringsToPubSub(topic):
   return _WriteStringsToPubSub(topic)
 
