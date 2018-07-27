@@ -58,8 +58,9 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   public SyntheticStep(Options options) {
     options.validate();
     this.options = options;
+    Random rand = new Random();
     // use a random id so that a pipeline could have multiple SyntheticSteps
-    this.idAndThroughput = KV.of(new Random().nextLong(), options.maxWorkerThroughput);
+    this.idAndThroughput = KV.of(rand.nextLong(), options.maxWorkerThroughput);
   }
 
   private KV<byte[], byte[]> outputElement(
