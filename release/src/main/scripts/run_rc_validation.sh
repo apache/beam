@@ -24,6 +24,7 @@ WORKING_BRANCH=
 LOCAL_CLONE_DIR=rc_validations
 BEAM_ROOT_DIR=beam
 GIT_REPO_URL=https://github.com/apache/beam.git
+PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
 
 echo "[Input Required] Please enter the release version: "
 read RELEASE
@@ -121,7 +122,7 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "-----------------Setting Up Service Account------------------------"
   echo "Please go to GCP IAM console under your project(${USER_GCP_PROJECT})."
-  echo "Create a service account as project owner."
+  echo "Create a service account as project owner, if you don't have one."
   echo "[Input Required] Please enter your service account name:"
   read USER_SERVICE_ACCOUNT_NAME
   SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
@@ -167,4 +168,171 @@ if [[ $confirmation = "y" ]]; then
   Run Python ReleaseCandidate"
 
   echo "[NOTE] If there is no jenkins job started, please comment generated PR with: Run Python ReleaseCandidate"
+fi
+
+echo "==============Starting Python Leaderboard & GameStates Validations==============="
+echo "This task asks for GCP resources. Do you want to proceed? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  cd ~/${LOCAL_CLONE_DIR}
+
+  echo "---------------------Downloading Python Staging RC----------------------------"
+  wget -r --no-paraent -A 'apache-beam-${RELEASE}.zip*' ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE}/python/
+  ls | grep 'apache-beam-${RELEASE}'
+
+  echo "--------------------------Verifying Hashes------------------------------------"
+  sha512sum -c apache-beam-${RELEASE}.zip.sha512
+
+  echo "----------------------------Building Python SDK-------------------------------"
+  sudo apt-get install unzip
+  unzip apache-beam-${RELEASE}.zip
+  cd apache-beam-${RELEASE}
+  python setup.py sdist
+
+  echo "---------------------------Setting up virtualenv------------------------------"
+  pip install --upgrade pip
+  pip install --upgrade setuptools
+  pip install --upgrade virtualenv
+  virtualenv beam_env
+  . beam_env/bin/activate
+
+  echo "--------------------------Installing Python SDK-------------------------------"
+  pip install dist/apache-beam-${RELEASE}.tar.gz
+  pip install dist/apache-beam-${RELEASE}.tar.gz[gcp]
+
+  echo "----------------------------Setting up GCP Sources----------------------------"
+  echo "[GCP Project Required] Please input your GCP project:"
+  read USER_GCP_PROJECT
+  MOBILE_GAME_GCS_BUCKET=gs://${USER}_${RELEASE}_python_validations_bucket
+  MOBILE_GAME_DATASET=${USER}_${RELEASE}_python_validations
+  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-python-topic-1
+  gsutil mb -p ${USER_GCP_PROJECT} ${MOBILE_GAME_GCS_BUCKET}
+  gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
+
+  echo "-----------------Setting Up Service Account------------------------"
+  echo "Please go to GCP IAM console under your project(${USER_GCP_PROJECT})."
+  echo "Create a service account as project owner, if you don't have one."
+  echo "[Input Required] Please enter your service account name:"
+  read USER_SERVICE_ACCOUNT_NAME
+  SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
+  gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_NAME}@${USER_GCP_PROJECT}
+  export GOOGLE_APPLICATION_CREDENTIALS=pwd/${SERVICE_ACCOUNT_KEY_JSON}
+
+  echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
+  cd ~
+  if [[ -z `ls -a ~ | grep ".m2"` ]]; then
+    mkdir .m2
+  fi
+  cd .m2
+  if [[ ! -z `ls -a ~/.m2/ | grep "settings.xml"` ]]; then
+    mv settings.xml settings_backup.xml
+  fi
+  touch settings.xml
+  echo "<settings>" >> settings.xml
+  echo "  <profiles>" >> settings.xml
+  echo "    <profile>" >> settings.xml
+  echo "      <id>release-repo</id>" >> settings.xml
+  echo "      <activation>" >> settings.xml
+  echo "        <activeByDefault>true</activeByDefault>" >> settings.xml
+  echo "      </activation>" >> settings.xml
+  echo "      <repositories>" >> settings.xml
+  echo "        <repository>" >> settings.xml
+  echo "          <id>Release ${RELEASE} RC${RC_NUM}</id>" >> settings.xml
+  echo "          <name>Release ${RELEASE} RC${RC_NUM}</name>" >> settings.xml
+  echo "          <url>${REPO_URL}</url>" >> settings.xml
+  echo "        </repository>" >> settings.xml
+  echo "      </repositories>" >> settings.xml
+  echo "    </profile>" >> settings.xml
+  echo "  </profiles>" >> settings.xml
+  echo "</settings>" >> settings.xml
+
+  echo "----------------------Starting Pubsub Java Injector--------------------------"
+  mvn archetype:generate \
+      -DarchetypeGroupId=org.apache.beam \
+      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+      -DarchetypeVersion=${RELEASE} \
+      -DgroupId=org.example \
+      -DartifactId=word-count-beam \
+      -Dversion="0.1" \
+      -Dpackage=org.apache.beam.examples \
+      -DinteractiveMode=false \
+      -DarchetypeCatalog=internal
+
+  echo "A new terminal will pop up and start a java top injector."
+  gnome-terminal -x sh -c 'mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector -Dexec.args="${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC} none"; exec bash'
+
+  cd ~/${LOCAL_CLONE_DIR}/apache-beam-${RELEASE}/
+
+  echo "----------------Starting Leaderboard with DirectRunner-----------------------"
+  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  echo "This is a streaming job. This task will be launched in a separate terminal."
+  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.leader_board --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${USER}_test; exec bash'
+
+  echo "Please wait for at least 5 mins to let results get populated."
+  echo "How to verify results:"
+  echo "1. Check whether there is any error messages in the task running terminal."
+  echo "2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
+  echo "3. Check whether leader_board_users has data, retrieving BigQuery data as below: "
+  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_users
+  echo "4. Check whether leader_board_teams has data, retrieving BigQuery data as below:"
+  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
+
+  echo "If you have verified all items listed above, please terminate the python job."
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+
+  echo "----------------Starting Leaderboard with DataflowRunner---------------------"
+  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  echo "This is a streaming job. This task will be launched in a separate terminal."
+  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.leader_board --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${MOBILE_GAME_DATASET} --runner DataflowRunner --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ --sdk_location dist/*; exec bash'
+
+  echo "Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
+  echo "How to verify results:"
+  echo "1. Goto your Dataflow job console and check whether there is any error."
+  echo "2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
+  echo "3. Check whether leader_board_users has data, retrieving BigQuery data as below: "
+  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_users
+  echo "4. Check whether leader_board_teams has data, retrieving BigQuery data as below:"
+  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
+
+  echo "If you have verified all items listed above, please terminate this job in Dataflow Console."
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+
+  FIXED_WINDOW_DURATION=15
+
+  echo "------------------Starting GameStats with DirectRunner-----------------------"
+  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+
+  echo "This is a streaming job. This task will be launched in a separate terminal."
+  echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
+  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.game_stats --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${MOBILE_GAME_DATASET} --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash'
+
+  echo "Please wait for at least 20 mins to let results get populated."
+  echo "How to verify results:"
+  echo "1. Check whether there is any error messages in the task running terminal."
+  echo "2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
+  echo "3. Check whether game_stats_teams has data, retrieving BigQuery data as below: "
+  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_teams
+  echo "4. Check whether game_stats_sessions has data, retrieving BigQuery data as below:"
+  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
+
+  echo "If you have verified all items listed above, please terminate the python job."
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+
+  echo "-------------------Starting GameStats with DataflowRunner--------------------"
+  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  echo "This is a streaming job. This task will be launched in a separate terminal."
+  echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
+  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.game_stats --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${MOBILE_GAME_DATASET} --runner DataflowRunner --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ --sdk_location dist/* --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash'
+
+  echo "Please wait for at least 30 mins to let results get populated."
+  echo "How to verify results:"
+  echo "1. Goto your Dataflow job console and check whether there is any error."
+  echo "2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
+  echo "3. Check whether game_stats_teams has data, retrieving BigQuery data as below: "
+  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_teams
+  echo "4. Check whether game_stats_sessions has data, retrieving BigQuery data as below:"
+  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
+
+  echo "If you have verified all items listed above, please terminate the python job."
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 fi
