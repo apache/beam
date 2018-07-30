@@ -118,6 +118,8 @@ public class FnHarness {
     }
     OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
+    channelFactory =
+        channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)));
     main(
         id,
         options,
@@ -152,11 +154,7 @@ public class FnHarness {
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
-          new BeamFnDataGrpcClient(
-              options,
-              channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)))
-                  ::forDescriptor,
-              outboundObserverFactory);
+          new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(
