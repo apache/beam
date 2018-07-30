@@ -56,8 +56,7 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
                pipeline_proto,
                required_transforms=None,
                referenced_pcollections=None,
-               cached_pcollections=None,
-               pcollection_stats=None):
+               cached_pcollections=None):
     """Constructor of PipelineGraph.
 
     Examples:
@@ -78,7 +77,6 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     self._required_transforms = required_transforms or {}
     self._referenced_pcollections = referenced_pcollections or {}
     self._cached_pcollections = cached_pcollections or set()
-    self._pcollection_stats = pcollection_stats or {}
 
     super(InteractivePipelineGraph, self).__init__(
         pipeline_proto=pipeline_proto,
@@ -97,7 +95,34 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     except ImportError:
       print(str(self._get_graph()))
 
+  def update_pcollection_stats(self, pcollection_stats):
+    """Updates PCollection stats.
+
+    Args:
+      pcollection_stats: (dict of dict) maps PCollection IDs to informations. In
+          particular, we only care about the field 'sample' which should be a
+          the PCollection result in as a list.
+    """
+    edge_dict = {}
+    for pcoll_id, stats in pcollection_stats.items():
+      attrs = {}
+      pcoll_list = stats['sample']
+      if pcoll_list:
+        attrs['label'] = format_sample(pcoll_list, 1)
+        attrs['labeltooltip'] = format_sample(pcoll_list, 10)
+      else:
+        attrs['label'] = '?'
+      edge_dict[pcoll_id] = attrs
+
+    self._update_graph(edge_dict=edge_dict)
+
   def _generate_graph_update_dicts(self):
+    """Generate updates specific to interactive pipeline.
+
+    Returns:
+      vertex_dict: (Dict[str, Dict[str, str]]) maps vertex name to attributes
+      edge_dict: (Dict[str, Dict[str, str]]) maps vertex name to attributes
+    """
     transforms = self._pipeline_proto.components.transforms
 
     transform_dict = {}  # maps PTransform IDs to properties
@@ -125,23 +150,10 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
       }
 
       for pcoll_id in transform.outputs.values():
-        properties = {
+        pcoll_dict[pcoll_id] = {
             'cached': pcoll_id in self._cached_pcollections,
             'referenced': pcoll_id in self._referenced_pcollections
         }
-
-        # TODO(qinyeli): Enable updating pcollection_stats instead of creating a
-        # new instance every time when pcollection_stats changes.
-        properties.update(self._pcollection_stats.get(pcoll_id, {}))
-
-        if pcoll_id not in self._consumers:
-          invisible_leaf = 'leaf%s' % (hash(pcoll_id) % 10000)
-          pcoll_dict[(transform.unique_name, invisible_leaf)] = properties
-        else:
-          for consumer in self._consumers[pcoll_id]:
-            producer_name = transform.unique_name
-            consumer_name = transforms[consumer].unique_name
-            pcoll_dict[(producer_name, consumer_name)] = properties
 
     def vertex_properties_to_attributes(vertex):
       """Converts PCollection properties to DOT vertex attributes."""
@@ -164,12 +176,6 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
         attrs['color'] = 'black'
       else:
         attrs['color'] = 'grey'
-
-      if 'sample' in edge:
-        attrs['label'] = format_sample(edge['sample'], 1)
-        attrs['labeltooltip'] = format_sample(edge['sample'], 10)
-      else:
-        attrs['label'] = '?'
       return attrs
 
     vertex_dict = {}  # maps vertex names to attributes
@@ -179,7 +185,7 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
       vertex_dict[transform_name] = vertex_properties_to_attributes(
           transform_properties)
 
-    for pcoll_name, pcoll_properties in pcoll_dict.items():
-      edge_dict[pcoll_name] = edge_properties_to_attributes(pcoll_properties)
+    for pcoll_id, pcoll_properties in pcoll_dict.items():
+      edge_dict[pcoll_id] = edge_properties_to_attributes(pcoll_properties)
 
     return vertex_dict, edge_dict
