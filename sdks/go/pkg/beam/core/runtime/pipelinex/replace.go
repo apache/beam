@@ -30,11 +30,11 @@ import (
 // modified.
 func Update(p *pb.Pipeline, values *pb.Components) (*pb.Pipeline, error) {
 	ret := shallowClonePipeline(p)
-	reflectx.MergeMaps(ret.Components.Transforms, values.Transforms)
-	reflectx.MergeMaps(ret.Components.Pcollections, values.Pcollections)
-	reflectx.MergeMaps(ret.Components.WindowingStrategies, values.WindowingStrategies)
-	reflectx.MergeMaps(ret.Components.Coders, values.Coders)
-	reflectx.MergeMaps(ret.Components.Environments, values.Environments)
+	reflectx.UpdateMap(ret.Components.Transforms, values.Transforms)
+	reflectx.UpdateMap(ret.Components.Pcollections, values.Pcollections)
+	reflectx.UpdateMap(ret.Components.WindowingStrategies, values.WindowingStrategies)
+	reflectx.UpdateMap(ret.Components.Coders, values.Coders)
+	reflectx.UpdateMap(ret.Components.Environments, values.Environments)
 	return Normalize(ret)
 }
 

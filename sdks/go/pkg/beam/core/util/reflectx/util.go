@@ -62,31 +62,31 @@ func ShallowClone(v interface{}) interface{} {
 	}
 }
 
-// MergeMaps merges two maps of type map[K]*V, with the second overwriting values
+// UpdateMap merges two maps of type map[K]*V, with the second overwriting values
 // into the first (and mutating it). If the overwriting value is nil, the key is
 // deleted.
-func MergeMaps(a, b interface{}) {
-	if b == nil {
+func UpdateMap(base, updates interface{}) {
+	if updates == nil {
 		return // ok: nop
 	}
-	if a == nil {
-		panic("main map cannot be nil")
+	if base == nil {
+		panic("base map cannot be nil")
 	}
 
-	m := reflect.ValueOf(a)
-	o := reflect.ValueOf(b)
+	m := reflect.ValueOf(base)
+	o := reflect.ValueOf(updates)
 
 	if o.Type().Kind() != reflect.Map || m.Type() != o.Type() {
-		panic(fmt.Sprintf("invalid types for map merge: %v != %v", m.Type(), o.Type()))
+		panic(fmt.Sprintf("invalid types for map update: %v != %v", m.Type(), o.Type()))
 	}
 
 	keys := o.MapKeys()
 	for _, key := range keys {
 		val := o.MapIndex(key)
-		if !val.IsNil() {
-			m.SetMapIndex(key, val)
-		} else {
+		if val.IsNil() {
 			m.SetMapIndex(key, reflect.Value{}) // delete
+		} else {
+			m.SetMapIndex(key, val)
 		}
 	}
 }

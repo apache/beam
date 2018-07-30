@@ -55,7 +55,7 @@ func emit2Fn(elm int, emit, emit2 func(int)) {
 	emit2(elm + 2)
 }
 
-// MultiEmitParDo tests dubble emit form output DoFns.
+// MultiEmitParDo tests double emit form output DoFns.
 func MultiEmitParDo() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
