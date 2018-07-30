@@ -478,7 +478,7 @@ class MutationGroupEncoder {
           if (isNull) {
             m.set(fieldName).to((Timestamp) null);
           } else {
-            int seconds = VarInt.decodeInt(bis);
+            long seconds = VarInt.decodeLong(bis);
             int nanoseconds = VarInt.decodeInt(bis);
             m.set(fieldName).to(Timestamp.ofTimeSecondsAndNanos(seconds, nanoseconds));
           }
