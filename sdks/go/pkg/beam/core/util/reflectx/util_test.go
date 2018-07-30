@@ -63,9 +63,9 @@ func TestMergeMaps(t *testing.T) {
 	for _, test := range tests {
 		orig := fmt.Sprintf("%v", test.a) // print before mutation
 
-		MergeMaps(test.a, test.b)
+		UpdateMap(test.a, test.b)
 		if !reflect.DeepEqual(test.a, test.exp) {
-			t.Errorf("MergeMaps(%v,%v) = %v, want %v", orig, test.b, test.a, test.exp)
+			t.Errorf("UpdateMap(%v,%v) = %v, want %v", orig, test.b, test.a, test.exp)
 		}
 	}
 }

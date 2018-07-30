@@ -290,11 +290,11 @@ func (x *translator) wrapCoder(pcol *pb.PCollection, c *coder.Coder) *graphx.Cod
 	ws := x.comp.WindowingStrategies[pcol.WindowingStrategyId]
 	wc, err := x.coders.WindowCoder(ws.WindowCoderId)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to decode window coder %v for windowing strategy %v: %v", ws.WindowCoderId, pcol.WindowingStrategyId, err))
 	}
 	ret, err := graphx.EncodeCoderRef(coder.NewW(c, wc))
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to wrap coder %v for windowing strategy %v: %v", c, pcol.WindowingStrategyId, err))
 	}
 	return ret
 }

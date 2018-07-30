@@ -24,15 +24,6 @@ func Keys(m map[string]string) []string {
 	return keys
 }
 
-// AnyKey returns a key of a map[string]string. Panics
-// if the map is empty.
-func AnyKey(m map[string]string) string {
-	for k := range m {
-		return k
-	}
-	panic("map empty")
-}
-
 // Values returns the values of a map[string]string.
 func Values(m map[string]string) []string {
 	var values []string

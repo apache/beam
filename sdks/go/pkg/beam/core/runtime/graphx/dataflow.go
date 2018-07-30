@@ -57,7 +57,7 @@ func WrapIterable(c *CoderRef) *CoderRef {
 	return &CoderRef{Type: streamType, Components: []*CoderRef{c}, IsStreamLike: true}
 }
 
-// WrapWindowed adds an windowed coder for Dataflow collections.
+// WrapWindowed adds a windowed coder for Dataflow collections.
 func WrapWindowed(c *CoderRef, wc *coder.WindowCoder) *CoderRef {
 	w, err := encodeWindowCoder(wc)
 	if err != nil {
