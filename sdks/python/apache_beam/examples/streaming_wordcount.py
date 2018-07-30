@@ -60,10 +60,16 @@ def run(argv=None):
 
   # Read from PubSub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadFromPubSub(
-        subscription=known_args.input_subscription)
+    messages = (p
+                | beam.io.ReadFromPubSub(
+                    subscription=known_args.input_subscription)
+                .with_output_types(six.binary_type))
   else:
-    lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+    messages = (p
+                | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+                .with_output_types(six.binary_type))
+
+  lines = messages | 'decode' >> beam.Map(lambda x: x.decode('utf-8'))
 
   # Count the occurrences of each word.
   def count_ones(word_ones):
@@ -83,7 +89,10 @@ def run(argv=None):
     (word, count) = word_count
     return '%s: %d' % (word, count)
 
-  output = counts | 'format' >> beam.Map(format_result)
+  output = (counts
+            | 'format' >> beam.Map(format_result)
+            | 'encode' >> beam.Map(lambda x: x.encode('utf-8'))
+            .with_output_types(six.binary_type))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
