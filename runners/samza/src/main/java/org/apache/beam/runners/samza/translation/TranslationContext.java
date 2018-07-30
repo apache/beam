@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.samza.operators.MessageStream;
+import org.apache.samza.operators.OutputStream;
 import org.apache.samza.operators.StreamGraph;
 
 /**
@@ -63,7 +64,14 @@ public class TranslationContext {
   public <OutT> void registerInputMessageStream(PValue pvalue) {
     // We only register dummySource if it is actually used (determined by a call to getDummyStream).
     if (!pvalue.equals(dummySource)) {
-      doRegisterInputMessageStream(pvalue);
+      doRegisterInputMessageStream(pvalue, getIdForPValue(pvalue));
+    }
+  }
+
+  public <OutT> void registerInputMessageStreamById(PValue pvalue, String streamId) {
+    // We only register dummySource if it is actually used (determined by a call to getDummyStream).
+    if (!pvalue.equals(dummySource)) {
+      doRegisterInputMessageStream(pvalue, streamId);
     }
   }
 
@@ -77,7 +85,7 @@ public class TranslationContext {
 
   public MessageStream<OpMessage<String>> getDummyStream() {
     if (!messsageStreams.containsKey(dummySource)) {
-      doRegisterInputMessageStream(dummySource);
+      doRegisterInputMessageStream(dummySource, getIdForPValue(dummySource));
     }
 
     return getMessageStream(dummySource);
@@ -162,12 +170,15 @@ public class TranslationContext {
     return this.options;
   }
 
-  private <OutT> void doRegisterInputMessageStream(PValue pvalue) {
+  public <OutT> OutputStream<OutT> getOutputStreamById(String outputStreamId) {
+    return streamGraph.getOutputStream(outputStreamId);
+  }
+
+  private <OutT> void doRegisterInputMessageStream(PValue pvalue, String streamId) {
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<OutT>> typedStream =
         streamGraph
-            .<org.apache.samza.operators.KV<?, OpMessage<OutT>>>getInputStream(
-                getIdForPValue(pvalue))
+            .<org.apache.samza.operators.KV<?, OpMessage<OutT>>>getInputStream(streamId)
             .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(pvalue, typedStream);
