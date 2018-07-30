@@ -159,10 +159,12 @@ func (p *Plan) String() string {
 
 // Metrics returns a snapshot of input progress of the plan, and associated metrics.
 func (p *Plan) Metrics() *fnpb.Metrics {
-	snapshot := p.source.Progress()
+	transforms := make(map[string]*fnpb.Metrics_PTransform)
 
-	transforms := map[string]*fnpb.Metrics_PTransform{
-		snapshot.ID: &fnpb.Metrics_PTransform{
+	if p.source != nil {
+		snapshot := p.source.Progress()
+
+		transforms[snapshot.ID] = &fnpb.Metrics_PTransform{
 			ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
 				Measured: &fnpb.Metrics_PTransform_Measured{
 					OutputElementCounts: map[string]int64{
@@ -170,7 +172,7 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 					},
 				},
 			},
-		},
+		}
 	}
 
 	for _, pt := range p.parDoIds {

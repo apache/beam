@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"sync/atomic"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -39,10 +41,13 @@ func IsWorkerCompatibleBinary() (string, bool) {
 	return "", false
 }
 
+var unique int32
+
 // BuildTempWorkerBinary creates a local worker binary in the tmp directory
 // for linux/amd64. Caller responsible for deleting the binary.
 func BuildTempWorkerBinary(ctx context.Context) (string, error) {
-	filename := filepath.Join(os.TempDir(), fmt.Sprintf("beam-go-%v", time.Now().UnixNano()))
+	id := atomic.AddInt32(&unique, 1)
+	filename := filepath.Join(os.TempDir(), fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
 	if err := BuildWorkerBinary(ctx, filename); err != nil {
 		return "", err
 	}

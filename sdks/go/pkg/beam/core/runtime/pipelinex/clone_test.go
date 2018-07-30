@@ -13,46 +13,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package regression
+package pipelinex
 
 import (
+	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-func TestDirectParDo(t *testing.T) {
-	if err := ptest.Run(DirectParDo()); err != nil {
-		t.Error(err)
+func TestShallowClonePTransform(t *testing.T) {
+	tests := []*pb.PTransform{
+		{},
+		{UniqueName: "a"},
+		{Spec: &pb.FunctionSpec{Urn: "foo"}},
+		{Subtransforms: []string{"a", "b"}},
+		{Inputs: map[string]string{"a": "b"}},
+		{Outputs: map[string]string{"a": "b"}},
 	}
-}
 
-func TestEmitParDo(t *testing.T) {
-	if err := ptest.Run(EmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMultiEmitParDo(t *testing.T) {
-	if err := ptest.Run(MultiEmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMixedOutputParDo(t *testing.T) {
-	if err := ptest.Run(MixedOutputParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestDirectParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(DirectParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestEmitParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(EmitParDoAfterGBK()); err != nil {
-		t.Error(err)
+	for _, test := range tests {
+		actual := ShallowClonePTransform(test)
+		if !reflect.DeepEqual(actual, test) {
+			t.Errorf("ShallowClonePCollection(%v) = %v, want id", test, actual)
+		}
 	}
 }
