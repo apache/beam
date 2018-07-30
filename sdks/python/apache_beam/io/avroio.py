@@ -53,6 +53,8 @@ import avro
 from avro import io as avroio
 from avro import datafile
 from avro import schema
+from fastavro.read import block_reader
+from fastavro.write import Writer
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink
@@ -441,9 +443,6 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
       start_offset = 0
 
     with self.open_file(file_name) as f:
-      # TODO(BEAM-4749): fastavro fails to install in MacOS.
-      from fastavro.read import block_reader  # pylint: disable=wrong-import-position
-
       blocks = block_reader(f)
       sync_marker = blocks._header['sync']
 
@@ -597,9 +596,6 @@ class _AvroSink(filebasedsink.FileBasedSink):
 class _FastAvroSink(_AvroSink):
   """A sink for avro files that uses the `fastavro` library"""
   def open(self, temp_path):
-    # TODO(BEAM-4749): fastavro fails to install in MacOS.
-    from fastavro.write import Writer  # pylint: disable=wrong-import-position
-
     file_handle = super(_AvroSink, self).open(temp_path)
     return Writer(file_handle, self._schema.to_json(), self._codec)
 
