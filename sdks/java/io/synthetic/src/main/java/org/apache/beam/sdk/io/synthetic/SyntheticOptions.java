@@ -345,7 +345,7 @@ public class SyntheticOptions implements Serializable {
       // Generate hot key.
       // An integer is randomly selected from the range [0, numHotKeys-1] with equal probability.
       int randInt = random.nextInt((int) numHotKeys);
-      ByteBuffer.wrap(key).putInt(hashFunction.hashInt(randInt).asInt());
+      ByteBuffer.wrap(key).putInt(hashFunction().hashInt(randInt).asInt());
     } else {
       // Note that the random generated key might be a hot key.
       // But the probability of being a hot key is very small.

@@ -65,7 +65,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
 
   private KV<byte[], byte[]> outputElement(
       byte[] inputKey, byte[] inputVal, long hashCodeOfVal, int index, Random rnd) {
-    long seed = options.hashFunction.hashLong(hashCodeOfVal + index).asLong();
+    long seed = options.hashFunction().hashLong(hashCodeOfVal + index).asLong();
     Duration delayMsec = Duration.millis(options.nextDelay(seed));
     long sleepMillis = 0;
     while (delayMsec.getMillis() > 0) {
@@ -104,7 +104,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
     int decimalPart = (int) options.outputRecordsPerInputRecord;
     double fractionalPart = options.outputRecordsPerInputRecord - decimalPart;
     // Use the hashcode of val as seed to make the test deterministic.
-    long hashCodeOfVal = options.hashFunction.hashBytes(val).asLong();
+    long hashCodeOfVal = options.hashFunction().hashBytes(val).asLong();
     Random random = new Random(hashCodeOfVal);
     int i;
     for (i = 0; i < decimalPart; i++) {
