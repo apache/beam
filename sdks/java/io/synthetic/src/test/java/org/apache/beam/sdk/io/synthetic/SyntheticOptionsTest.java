@@ -59,7 +59,7 @@ public class SyntheticOptionsTest {
     assertEquals(0.25, syntheticOptions.hotKeyFraction, 0);
     assertEquals(10, syntheticOptions.nextDelay(syntheticOptions.seed));
     assertEquals(12345, syntheticOptions.seed);
-    assertNotNull(syntheticOptions.hashFunction);
+    assertNotNull(syntheticOptions.hashFunction());
   }
 
   @Test
