@@ -224,6 +224,7 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
+                         triggerOnCommit = false,
                          String buildSchedule = '0 */6 * * *',
                          notifyAddress = 'commits@beam.apache.org') {
 
@@ -231,7 +232,13 @@ class CommonJobProperties {
     context.triggers {
       // By default runs every 6 hours.
       cron(buildSchedule)
+
+      if (triggerOnCommit){
+        githubPush()
+      }
     }
+
+
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
