@@ -13,46 +13,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package regression
+package stringx
 
-import (
-	"testing"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-)
-
-func TestDirectParDo(t *testing.T) {
-	if err := ptest.Run(DirectParDo()); err != nil {
-		t.Error(err)
+// Keys returns the domain of a map[string]string.
+func Keys(m map[string]string) []string {
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
 	}
+	return keys
 }
 
-func TestEmitParDo(t *testing.T) {
-	if err := ptest.Run(EmitParDo()); err != nil {
-		t.Error(err)
+// Values returns the values of a map[string]string.
+func Values(m map[string]string) []string {
+	var values []string
+	for _, v := range m {
+		values = append(values, v)
 	}
+	return values
 }
 
-func TestMultiEmitParDo(t *testing.T) {
-	if err := ptest.Run(MultiEmitParDo()); err != nil {
-		t.Error(err)
+// AnyValue returns a value of a map[string]string. Panics
+// if the map is empty.
+func AnyValue(m map[string]string) string {
+	for _, v := range m {
+		return v
 	}
+	panic("map empty")
 }
 
-func TestMixedOutputParDo(t *testing.T) {
-	if err := ptest.Run(MixedOutputParDo()); err != nil {
-		t.Error(err)
+// SingleValue returns the single value of a map[string]string.
+// Panics if the map does not contain exactly one value.
+func SingleValue(m map[string]string) string {
+	if len(m) != 1 {
+		panic("map not singleton")
 	}
-}
-
-func TestDirectParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(DirectParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestEmitParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(EmitParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
+	return AnyValue(m)
 }

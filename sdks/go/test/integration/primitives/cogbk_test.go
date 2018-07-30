@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package regression
+package primitives
 
 import (
 	"testing"
@@ -21,38 +21,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
-func TestDirectParDo(t *testing.T) {
-	if err := ptest.Run(DirectParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestEmitParDo(t *testing.T) {
-	if err := ptest.Run(EmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMultiEmitParDo(t *testing.T) {
-	if err := ptest.Run(MultiEmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMixedOutputParDo(t *testing.T) {
-	if err := ptest.Run(MixedOutputParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestDirectParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(DirectParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestEmitParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(EmitParDoAfterGBK()); err != nil {
+func TestCoGBK(t *testing.T) {
+	if err := ptest.Run(CoGBK()); err != nil {
 		t.Error(err)
 	}
 }

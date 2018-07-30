@@ -13,46 +13,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package regression
+package primitives
 
 import (
-	"testing"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 )
 
-func TestDirectParDo(t *testing.T) {
-	if err := ptest.Run(DirectParDo()); err != nil {
-		t.Error(err)
-	}
+// Flatten tests flatten.
+func Flatten() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	a := beam.Create(s, 1, 2, 3)
+	b := beam.Create(s, 4, 5, 6)
+	c := beam.Create(s, 7, 8, 9)
+
+	flat := beam.Flatten(s, a, b, c)
+	passert.Sum(s, flat, "flat", 9, 45)
+
+	return p
 }
 
-func TestEmitParDo(t *testing.T) {
-	if err := ptest.Run(EmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
+// FlattenDups tests flatten with the same input multiple times.
+func FlattenDup() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
 
-func TestMultiEmitParDo(t *testing.T) {
-	if err := ptest.Run(MultiEmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
+	a := beam.Create(s, 1, 2, 3)
+	b := beam.Create(s, 4, 5, 6)
 
-func TestMixedOutputParDo(t *testing.T) {
-	if err := ptest.Run(MixedOutputParDo()); err != nil {
-		t.Error(err)
-	}
-}
+	flat := beam.Flatten(s, a, b, a)
+	passert.Sum(s, flat, "flat", 9, 27)
 
-func TestDirectParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(DirectParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestEmitParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(EmitParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
+	return p
 }
