@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobIdResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -148,7 +149,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
 
     String projectId = ref.getProjectId();
     Job lastFailedCopyJob = null;
-    String jobId = jobIdPrefix + "-0";
+    RetryJobId jobId = new RetryJobId(jobIdPrefix, 0);
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
     BackOff backoff =
@@ -163,7 +164,10 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     do {
       ++i;
       JobReference jobRef =
-          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+          new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
       LOG.info("Starting copy job for table {} using  {}, attempt {}", ref, jobRef, i);
       try {
         jobService.startCopyJob(jobRef, copyConfig);
