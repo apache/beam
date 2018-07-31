@@ -109,42 +109,46 @@ if [[ $confirmation = "y" ]]; then
 fi
 
 echo "===================Starting Java Mobile Game====================="
-echo "[GCP Project Required] Please input your GCP project:"
-read USER_GCP_PROJECT
-MOBILE_GAME_DATASET=${USER}_${RELEASE}_java_validations
-MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-java-topic-1
-echo "Please review following GCP sources setup: "
-echo "Using GCP project: ${USER_GCP_PROJECT}"
-echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
-echo "Will create Pubsub topic: ${MOBILE_GMAE_PUBSUB_TOPIC}"
-echo "[Confirmation Required] Do you want to run validations with configurations above? [y|N]"
+echo "[Confirmation Required] This task asks for GCP resources."
+echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
-  echo "-----------------Setting Up Service Account------------------------"
-  echo "Please go to GCP IAM console under your project(${USER_GCP_PROJECT})."
-  echo "Create a service account as project owner, if you don't have one."
-  echo "[Input Required] Please enter your service account name:"
-  read USER_SERVICE_ACCOUNT_NAME
-  SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
-  gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_NAME}@${USER_GCP_PROJECT}
-  export GOOGLE_APPLICATION_CREDENTIALS=pwd/${SERVICE_ACCOUNT_KEY_JSON}
+  echo "[GCP Project Required] Please input your GCP project:"
+  read USER_GCP_PROJECT
+  MOBILE_GAME_DATASET=${USER}_${RELEASE}_java_validations
+  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-java-topic-1
+  echo "Please review following GCP sources setup: "
+  echo "Using GCP project: ${USER_GCP_PROJECT}"
+  echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
+  echo "Will create Pubsub topic: ${MOBILE_GMAE_PUBSUB_TOPIC}"
+  echo "[Confirmation Required] Do you want to run validations with configurations above? [y|N]"
+  read confirmation
+  if [[ $confirmation = "y" ]]; then
+    echo "-----------------Setting Up Service Account------------------------"
+    echo "Please go to GCP IAM console under your project(${USER_GCP_PROJECT})."
+    echo "Create a service account as project owner, if you don't have one."
+    echo "[Input Required] Please enter your service account email:"
+    read USER_SERVICE_ACCOUNT_EMAIL
+    SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
+    gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
+    export GOOGLE_APPLICATION_CREDENTIALS=pwd/${SERVICE_ACCOUNT_KEY_JSON}
 
-  echo "-------------------Creating BigQuery Dataset-----------------------"
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    echo "-------------------Creating BigQuery Dataset-----------------------"
+    bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
-  echo "----------------------Creating Pubsub Topic------------------------"
-  gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
+    echo "----------------------Creating Pubsub Topic------------------------"
+    gcloud alpha pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
+    gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
 
-  echo "[Current task] Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
-  ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-  -Prepourl=${REPO_URL} \
-  -Pver= ${RELEASE} \
-  -PgcpProject=${USER_GCP_PROJECT} \
-  -PgcsBucket=gs://dataflow-samples/game/gaming_data1.csv \
-  -PbqDataset=${MOBILE_GAME_DATASET} -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC}
-
-  echo "-------------------Cleaning Up BigQuery Dataset-------------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    echo "[Current task] Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
+    ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+    -Prepourl=${REPO_URL} \
+    -Pver= ${RELEASE} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PgcsBucket=gs://dataflow-samples/game/gaming_data1.csv \
+    -PbqDataset=${MOBILE_GAME_DATASET} -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC}
+  fi
 fi
 
 echo "==================Starting Python Quickstart and MobileGame==================="
@@ -162,7 +166,7 @@ if [[ $confirmation = "y" ]]; then
   git add empty_file.txt
   git commit -m "Add empty file in order to create PR"
   git push -f ${USER_REMOTE_URL}
-  hub pull-request -b apache:master -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
+  hub pull-request -b apache:${RELEASE_BRANCH} -h boyuanzz:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
 
 
   Run Python ReleaseCandidate"
@@ -177,8 +181,8 @@ if [[ $confirmation = "y" ]]; then
   cd ~/${LOCAL_CLONE_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"
-  wget -r --no-paraent -A 'apache-beam-${RELEASE}.zip*' ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE}/python/
-  ls | grep 'apache-beam-${RELEASE}'
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE}/python/apache-beam-${RELEASE}.zip
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE}/python/apache-beam-${RELEASE}.zip.sha512
 
   echo "--------------------------Verifying Hashes------------------------------------"
   sha512sum -c apache-beam-${RELEASE}.zip.sha512
@@ -207,16 +211,25 @@ if [[ $confirmation = "y" ]]; then
   MOBILE_GAME_DATASET=${USER}_${RELEASE}_python_validations
   MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-python-topic-1
   gsutil mb -p ${USER_GCP_PROJECT} ${MOBILE_GAME_GCS_BUCKET}
+  gcloud alpha pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
   gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
 
-  echo "-----------------Setting Up Service Account------------------------"
+  echo "-----------------------Setting Up Service Account-----------------------------"
   echo "Please go to GCP IAM console under your project(${USER_GCP_PROJECT})."
   echo "Create a service account as project owner, if you don't have one."
-  echo "[Input Required] Please enter your service account name:"
-  read USER_SERVICE_ACCOUNT_NAME
+  echo "[Input Required] Please enter your service account email:"
+  read USER_SERVICE_ACCOUNT_EMAIL
   SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
-  gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_NAME}@${USER_GCP_PROJECT}
+  gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}N
   export GOOGLE_APPLICATION_CREDENTIALS=pwd/${SERVICE_ACCOUNT_KEY_JSON}
+
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+  cp ~/.bashrc ~/.bashrc_backup
+  echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
+  echo "export MOBILE_GAME_DATASET=${MOBILE_GAME_DATASET}" >> ~/.bashrc
+  echo "export MOBILE_GAME_PUBSUB_TOPIC=${MOBILE_GAME_PUBSUB_TOPIC}" >> ~/.bashrc
+  echo "export MOBILE_GAME_GCS_BUCKET=${MOBILE_GAME_GCS_BUCKET}" >> ~/.bashrc
+  echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
   cd ~
@@ -247,6 +260,7 @@ if [[ $confirmation = "y" ]]; then
   echo "</settings>" >> settings.xml
 
   echo "----------------------Starting Pubsub Java Injector--------------------------"
+  cd ~/${LOCAL_CLONE_DIR}
   mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
@@ -258,12 +272,17 @@ if [[ $confirmation = "y" ]]; then
       -DinteractiveMode=false \
       -DarchetypeCatalog=internal
 
+  cd word-count-beam
   echo "A new terminal will pop up and start a java top injector."
-  gnome-terminal -x sh -c 'mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector -Dexec.args="${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC} none"; exec bash'
+  gnome-terminal -x sh -c 'source ~/.bashrc; mvn compile exec:java \
+  -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+  -Dexec.args="${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC} none"; \
+  exec bash'
 
   cd ~/${LOCAL_CLONE_DIR}/apache-beam-${RELEASE}/
 
   echo "----------------Starting Leaderboard with DirectRunner-----------------------"
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   echo "This is a streaming job. This task will be launched in a separate terminal."
   gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.leader_board --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${USER}_test; exec bash'
@@ -278,12 +297,20 @@ if [[ $confirmation = "y" ]]; then
   bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
 
   echo "If you have verified all items listed above, please terminate the python job."
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
   echo "----------------Starting Leaderboard with DataflowRunner---------------------"
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   echo "This is a streaming job. This task will be launched in a separate terminal."
-  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.leader_board --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${MOBILE_GAME_DATASET} --runner DataflowRunner --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ --sdk_location dist/*; exec bash'
+  gnome-terminal -x sh -c \
+  'python -m apache_beam.examples.complete.game.leader_board \
+  --project=${USER_GCP_PROJECT} \
+  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+  --dataset ${MOBILE_GAME_DATASET} \
+  --runner DataflowRunner \
+  --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
+  --sdk_location dist/*; \
+  exec bash'
 
   echo "Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
   echo "How to verify results:"
@@ -295,16 +322,24 @@ if [[ $confirmation = "y" ]]; then
   bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
 
   echo "If you have verified all items listed above, please terminate this job in Dataflow Console."
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  echo "[Confirmation Required] Please enter done to proceed into next step"
+  read confirmation
 
   FIXED_WINDOW_DURATION=15
 
   echo "------------------Starting GameStats with DirectRunner-----------------------"
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
   echo "This is a streaming job. This task will be launched in a separate terminal."
   echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
-  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.game_stats --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${MOBILE_GAME_DATASET} --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash'
+  gnome-terminal -x sh -c \
+  'python -m apache_beam.examples.complete.game.game_stats \
+  --project=${USER_GCP_PROJECT} \
+  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+  --dataset ${MOBILE_GAME_DATASET} \
+  --fixed_window_duration ${FIXED_WINDOW_DURATION}; \
+  exec bash'
 
   echo "Please wait for at least 20 mins to let results get populated."
   echo "How to verify results:"
@@ -316,13 +351,23 @@ if [[ $confirmation = "y" ]]; then
   bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
 
   echo "If you have verified all items listed above, please terminate the python job."
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  echo "[Confirmation Required] Please enter done to proceed into next step"
+  read confirmation
 
   echo "-------------------Starting GameStats with DataflowRunner--------------------"
+  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   echo "This is a streaming job. This task will be launched in a separate terminal."
   echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
-  gnome-terminal -x sh -c 'python -m apache_beam.examples.complete.game.game_stats --project=${USER_GCP_PROJECT} --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} --dataset ${MOBILE_GAME_DATASET} --runner DataflowRunner --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ --sdk_location dist/* --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash'
+  gnome-terminal -x sh -c \
+  'python -m apache_beam.examples.complete.game.game_stats \
+  --project=${USER_GCP_PROJECT} \
+  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+  --dataset ${MOBILE_GAME_DATASET} \
+  --runner DataflowRunner \
+  --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
+  --sdk_location dist/* \
+  --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash'
 
   echo "Please wait for at least 30 mins to let results get populated."
   echo "How to verify results:"
@@ -334,5 +379,6 @@ if [[ $confirmation = "y" ]]; then
   bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
 
   echo "If you have verified all items listed above, please terminate the python job."
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  echo "[Confirmation Required] Please enter done to proceed into next step"
+  read confirmation
 fi
