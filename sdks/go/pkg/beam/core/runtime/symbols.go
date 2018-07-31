@@ -33,35 +33,34 @@ var (
 )
 
 func init() {
-	Resolver = &deferedDefaultResolver{r: failResolver(false)}
+	// defer initialization of the default resolver. This way
+	// the symbol table isn't read in unless strictly necessary.
+	Resolver = &deferedResolver{initFn: initResolver}
 }
 
-// deferedDefaultResolver doesn't initialize it's state until its
-// first Sym2Addr call. This way, if the exported Resolver package
-// var is overidden by a user, the symbol table is never brought
-// into memory.
-type deferedDefaultResolver struct {
-	r    SymbolResolver
-	init sync.Once
+type deferedResolver struct {
+	initFn func() SymbolResolver
+	r      SymbolResolver
+	init   sync.Once
 }
 
-func (d *deferedDefaultResolver) Sym2Addr(name string) (uintptr, error) {
-	d.init.Do(d.initResolver)
+func (d *deferedResolver) Sym2Addr(name string) (uintptr, error) {
+	d.init.Do(func() {
+		d.r = d.initFn()
+	})
 	return d.r.Sym2Addr(name)
 }
 
-func (d *deferedDefaultResolver) initResolver() {
+func initResolver() SymbolResolver {
 	// First try the Linux location, since it's the most reliable.
 	if r, err := symtab.New("/proc/self/exe"); err == nil {
-		d.r = r
-		return
+		return r
 	}
 	// For other OS's this works in most cases we need.
 	if r, err := symtab.New(os.Args[0]); err == nil {
-		d.r = r
-		return
+		return r
 	}
-	d.r = failResolver(false)
+	return failResolver(false)
 }
 
 // SymbolResolver resolves a symbol to an unsafe address.
