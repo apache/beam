@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
@@ -38,8 +41,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,7 +151,17 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     String jobId = jobIdPrefix + "-0";
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
-    for (int i = 0; i < maxRetryJobs; ++i) {
+    BackOff backoff =
+        BackOffAdapter.toGcpBackOff(
+            FluentBackoff.DEFAULT
+                .withMaxRetries(maxRetryJobs)
+                .withInitialBackoff(Duration.standardSeconds(1))
+                .withMaxBackoff(Duration.standardMinutes(1))
+                .backoff());
+    Sleeper sleeper = Sleeper.DEFAULT;
+    int i = 0;
+    do {
+      ++i;
       JobReference jobRef =
           new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
       LOG.info("Starting copy job for table {} using  {}, attempt {}", ref, jobRef, i);
@@ -195,12 +211,21 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
                   "Unexpected status [%s] of load job: %s.",
                   jobStatus, BigQueryHelpers.jobToPrettyString(copyJob)));
       }
-    }
+    } while (nextBackOff(sleeper, backoff));
     throw new RuntimeException(
         String.format(
             "Failed to create copy job with id prefix %s, "
                 + "reached max retries: %d, last failed copy job: %s.",
             jobIdPrefix, maxRetryJobs, BigQueryHelpers.jobToPrettyString(lastFailedCopyJob)));
+  }
+
+  /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+  private static boolean nextBackOff(Sleeper sleeper, BackOff backoff) throws InterruptedException {
+    try {
+      return BackOffUtils.next(sleeper, backoff);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   static void removeTemporaryTables(DatasetService tableService, List<TableReference> tempTables) {
