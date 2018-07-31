@@ -16,36 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas.utils;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.Row;
 
-/**
- * Helper class to hold {@link Schema} and {@link FieldValueGetter}s which were used to create it.
- *
- * <p>This is used in {@link RowFactory} to create instances of {@link Row}s.
- */
-class SchemaGetters {
-  private Schema schema;
-  private List<FieldValueGetter> fieldValueGetters;
-
-  SchemaGetters(Schema schema, List<FieldValueGetter> fieldValueGetters) {
-    this.schema = schema;
-    this.fieldValueGetters = fieldValueGetters;
-  }
-
-  /** Returns a {@link Schema}. */
-  Schema schema() {
-    return schema;
-  }
-
-  /**
-   * Returns the list of {@link FieldValueGetter}s which were used to create {@link
-   * SchemaGetters#schema()}.
-   */
-  List<FieldValueGetter> valueGetters() {
-    return fieldValueGetters;
+/** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
+public class JavaBeanGetterFactory implements FieldValueGetterFactory {
+  @Override
+  public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getGetters(targetClass, schema);
   }
 }

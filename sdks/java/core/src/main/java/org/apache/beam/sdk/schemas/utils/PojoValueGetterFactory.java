@@ -15,17 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.values.reflect;
 
-import java.io.Serializable;
+package org.apache.beam.sdk.schemas.utils;
+
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
+import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * Interface for factories generating getter wrappers. See {@link GeneratedGetterFactory} or {@link
- * ReflectionGetterFactory}.
- */
-interface GetterFactory extends Serializable {
-
-  /** Generates getters for {@code clazz}. */
-  List<FieldValueGetter> generateGetters(Class clazz);
+/** A factory for creating {@link FieldValueGetter} objects for a POJO. */
+public class PojoValueGetterFactory implements FieldValueGetterFactory {
+  @Override
+  public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
+    return POJOUtils.getGetters(targetClass, schema);
+  }
 }

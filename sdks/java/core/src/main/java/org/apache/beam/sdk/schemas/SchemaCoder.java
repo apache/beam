@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
@@ -55,6 +56,12 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
     return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
+  }
+
+  /** Returns a {@link SchemaCoder} for {@link Row} classes. */
+  public static SchemaCoder<Row> of(Schema schema) {
+    return new SchemaCoder<>(
+        schema, SerializableFunctions.identity(), SerializableFunctions.identity());
   }
 
   /** Returns the schema associated with this type. */

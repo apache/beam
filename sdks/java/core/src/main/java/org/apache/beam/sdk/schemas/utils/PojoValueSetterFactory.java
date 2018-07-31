@@ -16,26 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas.utils;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Internal;
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>Interface for factories used to create record types based on getters.
- *
- * <p>Different implementations can have different ways of mapping getter types to coders. For
- * example Beam SQL uses custom mapping via java.sql.Types.
- *
- * <p>Default implementation is {@link DefaultSchemaFactory}. It returns instances of {@link
- * Schema}, mapping {@link FieldValueGetter#type()} to known coders.
- */
-@Internal
-public interface SchemaFactory extends Serializable {
-
-  /** Create a {@link Schema} for the list of the pojo field getters. */
-  Schema createSchema(Iterable<FieldValueGetter> getters);
+/** A factory for creating {@link FieldValueSetter} objects for a POJO. */
+public class PojoValueSetterFactory implements FieldValueSetterFactory {
+  @Override
+  public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
+    return POJOUtils.getSetters(targetClass, schema);
+  }
 }

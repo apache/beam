@@ -24,11 +24,11 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -107,7 +107,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       validateWindowIsSupported(windowedStream);
 
       Schema keySchema = exKeyFieldsSchema(input.getRowType());
-      RowCoder keyCoder = keySchema.getRowCoder();
+      SchemaCoder<Row> keyCoder = SchemaCoder.of(keySchema);
       PCollection<KV<Row, Row>> exCombineByStream =
           windowedStream
               .apply(
@@ -117,7 +117,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                           keySchema, windowFieldIndex, groupSet)))
               .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
 
-      RowCoder aggCoder = exAggFieldsSchema().getRowCoder();
+      SchemaCoder<Row> aggCoder = SchemaCoder.of(exAggFieldsSchema());
 
       PCollection<KV<Row, Row>> aggregatedStream =
           exCombineByStream
@@ -134,7 +134,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
                       CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      mergedStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
       return mergedStream;
     }

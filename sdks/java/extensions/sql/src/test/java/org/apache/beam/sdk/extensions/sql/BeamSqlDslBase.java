@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
@@ -128,22 +129,31 @@ public class BeamSqlDslBase {
   @Before
   public void preparePCollections() {
     boundedInput1 =
-        PBegin.in(pipeline)
-            .apply(
-                "boundedInput1", Create.of(rowsInTableA).withCoder(schemaInTableA.getRowCoder()));
+        pipeline.apply(
+            "boundedInput1",
+            Create.of(rowsInTableA)
+                .withSchema(
+                    schemaInTableA,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
 
     boundedInput2 =
-        PBegin.in(pipeline)
-            .apply(
-                "boundedInput2",
-                Create.of(rowsInTableA.get(0)).withCoder(schemaInTableA.getRowCoder()));
+        pipeline.apply(
+            "boundedInput2",
+            Create.of(rowsInTableA.get(0))
+                .withSchema(
+                    schemaInTableA,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
   private PCollection<Row> prepareUnboundedPCollection1() {
-    TestStream.Builder<Row> values = TestStream.create(schemaInTableA.getRowCoder());
+    TestStream.Builder<Row> values =
+        TestStream.create(
+            schemaInTableA, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     for (Row row : rowsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
@@ -158,7 +168,9 @@ public class BeamSqlDslBase {
   }
 
   private PCollection<Row> prepareUnboundedPCollection2() {
-    TestStream.Builder<Row> values = TestStream.create(schemaInTableA.getRowCoder());
+    TestStream.Builder<Row> values =
+        TestStream.create(
+            schemaInTableA, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     Row row = rowsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));

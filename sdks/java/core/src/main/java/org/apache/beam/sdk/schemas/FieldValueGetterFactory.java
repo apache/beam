@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas;
 
-import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertSame;
-
+import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.schemas.Schema;
-import org.junit.Test;
 
-/** Unit tests for {@link SchemaGetters}. */
-public class SchemaGettersTest {
-
-  @Test
-  public void testGetters() {
-    Schema schema = Schema.builder().build();
-    List<FieldValueGetter> fieldValueGetters = emptyList();
-
-    SchemaGetters getters = new SchemaGetters(schema, fieldValueGetters);
-
-    assertSame(schema, getters.schema());
-    assertSame(fieldValueGetters, getters.valueGetters());
-  }
+/**
+ * A factory interface for creating {@link org.apache.beam.sdk.schemas.FieldValueGetter} objects
+ * corresponding to a class.
+ */
+public interface FieldValueGetterFactory extends Serializable {
+  /**
+   * Returns a list of {@link org.apache.beam.sdk.schemas.FieldValueGetter}s for the target class.
+   *
+   * <p>The returned list is ordered by the order of matching fields in the schema.
+   */
+  List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema);
 }

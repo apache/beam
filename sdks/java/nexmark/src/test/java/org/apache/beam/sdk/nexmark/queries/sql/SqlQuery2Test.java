@@ -18,26 +18,21 @@
 
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
-
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit tests for {@link SqlQuery2}. */
 public class SqlQuery2Test {
-
-  private static final ModelFieldsAdapter<Bid> BID_ADAPTER = ADAPTERS.get(Bid.class);
 
   private static final List<Bid> BIDS =
       ImmutableList.of(
@@ -75,8 +70,7 @@ public class SqlQuery2Test {
 
   @Test
   public void testSkipsEverySecondElement() throws Exception {
-    PCollection<Event> bids =
-        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery2(2))).containsInAnyOrder(BIDS_EVEN);
 
@@ -85,8 +79,7 @@ public class SqlQuery2Test {
 
   @Test
   public void testSkipsEveryThirdElement() throws Exception {
-    PCollection<Event> bids =
-        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery2(3))).containsInAnyOrder(BIDS_EVERY_THIRD);
 
@@ -94,7 +87,7 @@ public class SqlQuery2Test {
   }
 
   private static Bid newBid(long id) {
-    return new Bid(id, 3L, 100L, 432342L + id, "extra_" + id);
+    return new Bid(id, 3L, 100L, new Instant(432342L + id), "extra_" + id);
   }
 
   private static AuctionPrice newAuctionPrice(Bid bid) {
