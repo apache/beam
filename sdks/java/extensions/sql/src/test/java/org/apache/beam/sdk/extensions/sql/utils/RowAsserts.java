@@ -38,6 +38,16 @@ public class RowAsserts {
     };
   }
 
+  /** Asserts result contains single row with an long field. */
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(long expected) {
+    return records -> {
+      Row row = Iterables.getOnlyElement(records);
+      assertNotNull(row);
+      assertEquals(expected, (long) row.getInt64(0));
+      return null;
+    };
+  }
+
   /** Asserts result contains single row with a double field. */
   public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
       double expected, double delta) {

@@ -244,33 +244,43 @@ public class BeamAggregationTransforms implements Serializable {
     public AggregationAccumulator addInput(AggregationAccumulator accumulator, Row input) {
       AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
+        CombineFn aggregator = aggregators.get(idx);
+        Object element = accumulator.accumulatorElements.get(idx);
+
         if (sourceFieldExps.get(idx) instanceof BeamSqlInputRefExpression) {
           BeamSqlInputRefExpression exp = (BeamSqlInputRefExpression) sourceFieldExps.get(idx);
-          deltaAcc.accumulatorElements.add(
-              aggregators
-                  .get(idx)
-                  .addInput(
-                      accumulator.accumulatorElements.get(idx),
-                      exp.evaluate(input, null, BeamSqlExpressionEnvironments.empty()).getValue()));
+          Object value =
+              exp.evaluate(input, null, BeamSqlExpressionEnvironments.empty()).getValue();
+
+          // every aggregator ignores null values, e.g., COUNT(NULL) is always zero
+          if (value != null) {
+            Object delta = aggregator.addInput(element, value);
+            deltaAcc.accumulatorElements.add(delta);
+          } else {
+            deltaAcc.accumulatorElements.add(element);
+          }
         } else if (sourceFieldExps.get(idx) instanceof KV) {
-          /**
+          /*
            * If source expression is type of KV pair, we bundle the value of two expressions into KV
            * pair and pass it to aggregator's addInput method.
            */
           KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
               (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
-          deltaAcc.accumulatorElements.add(
-              aggregators
-                  .get(idx)
-                  .addInput(
-                      accumulator.accumulatorElements.get(idx),
-                      KV.of(
-                          exp.getKey()
-                              .evaluate(input, null, BeamSqlExpressionEnvironments.empty())
-                              .getValue(),
-                          exp.getValue()
-                              .evaluate(input, null, BeamSqlExpressionEnvironments.empty())
-                              .getValue())));
+
+          Object key =
+              exp.getKey().evaluate(input, null, BeamSqlExpressionEnvironments.empty()).getValue();
+
+          Object value =
+              exp.getValue()
+                  .evaluate(input, null, BeamSqlExpressionEnvironments.empty())
+                  .getValue();
+
+          // ignore aggregator if either key or value is null, e.g., COVAR_SAMP(x, NULL) is null
+          if (key != null && value != null) {
+            deltaAcc.accumulatorElements.add(aggregator.addInput(element, KV.of(key, value)));
+          } else {
+            deltaAcc.accumulatorElements.add(element);
+          }
         }
       }
       return deltaAcc;
