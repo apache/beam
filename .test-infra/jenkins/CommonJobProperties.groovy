@@ -224,9 +224,9 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-                         triggerOnCommit = false,
                          String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'commits@beam.apache.org') {
+                         notifyAddress = 'commits@beam.apache.org',
+                         triggerOnCommit = false) {
 
     // Set build triggers
     context.triggers {
