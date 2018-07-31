@@ -190,6 +190,8 @@ public class CalciteUtils {
   private static RelDataType toRelDataType(
       RelDataTypeFactory dataTypeFactory, Schema schema, int fieldIndex) {
     Schema.Field field = schema.getField(fieldIndex);
-    return toRelDataType(dataTypeFactory, field.getType());
+    RelDataType type = toRelDataType(dataTypeFactory, field.getType());
+
+    return dataTypeFactory.createTypeWithNullability(type, field.getNullable());
   }
 }
