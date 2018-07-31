@@ -79,6 +79,13 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.6.0 (2018-07-31)
+Official [source code download](https://dist.apache.org/repos/dist/release/beam/2.6.0/apache-beam-2.6.0-source-release.zip)
+[SHA-512](https://dist.apache.org/repos/dist/release/beam/2.6.0/apache-beam-2.6.0-source-release.zip.sha512)
+[signature](https://dist.apache.org/repos/dist/release/beam/2.6.0/apache-beam-2.6.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12343392).
+
 ### 2.5.0 (2018-06-06)
 Official [source code download](https://dist.apache.org/repos/dist/release/beam/2.5.0/apache-beam-2.5.0-source-release.zip)
 [SHA-512](https://dist.apache.org/repos/dist/release/beam/2.5.0/apache-beam-2.5.0-source-release.zip.sha512)
