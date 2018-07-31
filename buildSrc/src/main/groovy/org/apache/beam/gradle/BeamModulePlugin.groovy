@@ -790,7 +790,7 @@ artifactId=${project.name}
               url "file://${project.rootProject.projectDir}/testPublication/"
             }
             maven {
-              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease()
+              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
                       ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
                       : 'https://repository.apache.org/content/repositories/snapshots')
 
@@ -812,7 +812,7 @@ artifactId=${project.name}
               // </settings>
               def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
               if (settingsXml.exists()) {
-                def serverId = (isRelease() ? 'apache.releases.https' : 'apache.snapshots.https')
+                def serverId = (isRelease(project) ? 'apache.releases.https' : 'apache.snapshots.https')
                 def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
                 if (m2SettingCreds) {
                   credentials {
