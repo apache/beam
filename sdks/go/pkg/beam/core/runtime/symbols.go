@@ -27,24 +27,41 @@ import (
 
 var (
 	// Resolver is the accessible symbol resolver the runtime uses to find functions.
-	Resolver         SymbolResolver
-	cache            = make(map[string]interface{})
-	mu               sync.Mutex
-	initResolverOnce sync.Once
+	Resolver SymbolResolver
+	cache    = make(map[string]interface{})
+	mu       sync.Mutex
 )
 
-func initResolver() {
+func init() {
+	Resolver = &deferedDefaultResolver{r: failResolver(false)}
+}
+
+// deferedDefaultResolver doesn't initialize it's state until its
+// first Sym2Addr call. This way, if the exported Resolver package
+// var is overidden by a user, the symbol table is never brought
+// into memory.
+type deferedDefaultResolver struct {
+	r    SymbolResolver
+	init sync.Once
+}
+
+func (d *deferedDefaultResolver) Sym2Addr(name string) (uintptr, error) {
+	d.init.Do(d.initResolver)
+	return d.r.Sym2Addr(name)
+}
+
+func (d *deferedDefaultResolver) initResolver() {
 	// First try the Linux location, since it's the most reliable.
 	if r, err := symtab.New("/proc/self/exe"); err == nil {
-		Resolver = r
+		d.r = r
 		return
 	}
 	// For other OS's this works in most cases we need.
 	if r, err := symtab.New(os.Args[0]); err == nil {
-		Resolver = r
+		d.r = r
 		return
 	}
-	Resolver = failResolver(false)
+	d.r = failResolver(false)
 }
 
 // SymbolResolver resolves a symbol to an unsafe address.
@@ -78,8 +95,6 @@ func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
 	if val, exists := cache[name]; exists {
 		return val, nil
 	}
-
-	initResolverOnce.Do(initResolver)
 
 	ptr, err := Resolver.Sym2Addr(name)
 	if err != nil {
