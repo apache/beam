@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -67,8 +68,40 @@ public class SchemaRegistry {
   private final Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
   private final ArrayDeque<SchemaProvider> providers;
 
+  class PerTypeRegisteredProvider implements SchemaProvider {
+    private Map<TypeDescriptor, SchemaProvider> providers = Maps.newHashMap();
+
+    void registerProvider(TypeDescriptor typeDescriptor, SchemaProvider schemaProvider) {
+      providers.put(typeDescriptor, schemaProvider);
+    }
+
+    @Nullable
+    @Override
+    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+      SchemaProvider schemaProvider = providers.get(typeDescriptor);
+      return (schemaProvider != null) ? schemaProvider.schemaFor(typeDescriptor) : null;
+    }
+
+    @Nullable
+    @Override
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+      SchemaProvider schemaProvider = providers.get(typeDescriptor);
+      return (schemaProvider != null) ? schemaProvider.toRowFunction(typeDescriptor) : null;
+    }
+
+    @Nullable
+    @Override
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+      SchemaProvider schemaProvider = providers.get(typeDescriptor);
+      return (schemaProvider != null) ? schemaProvider.fromRowFunction(typeDescriptor) : null;
+    }
+  }
+
+  private PerTypeRegisteredProvider perTypeRegisteredProviders = new PerTypeRegisteredProvider();
+
   private SchemaRegistry() {
     providers = new ArrayDeque<>(REGISTERED_SCHEMA_PROVIDERS);
+    providers.addFirst(perTypeRegisteredProviders);
   }
 
   public static SchemaRegistry createDefault() {
@@ -102,6 +135,57 @@ public class SchemaRegistry {
    */
   public void registerSchemaProvider(SchemaProvider schemaProvider) {
     providers.addFirst(schemaProvider);
+  }
+
+  /** Register a {@link SchemaProvider} to be used for a specific type. * */
+  public <T> void registerSchemaProvider(Class<T> clazz, SchemaProvider schemaProvider) {
+    registerSchemaProvider(TypeDescriptor.of(clazz), schemaProvider);
+  }
+
+  /** Register a {@link SchemaProvider} to be used for a specific type. * */
+  public <T> void registerSchemaProvider(
+      TypeDescriptor<T> typeDescriptor, SchemaProvider schemaProvider) {
+    perTypeRegisteredProviders.registerProvider(typeDescriptor, schemaProvider);
+  }
+
+  /**
+   * Register a POJO type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match field names in the POJO, and all fields must be
+   * mutable (i.e. no final fields).
+   */
+  public <T> void registerPOJO(Class<T> clazz) {
+    registerPOJO(TypeDescriptor.of(clazz));
+  }
+
+  /**
+   * Register a POJO type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match field names in the POJO, and all fields must be
+   * mutable (i.e. no final fields).
+   */
+  public <T> void registerPOJO(TypeDescriptor<T> typeDescriptor) {
+    registerSchemaProvider(typeDescriptor, new JavaFieldSchema());
+  }
+
+  /**
+   * Register a JavaBean type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match getter names in the bean, and all getters must have
+   * matching setters.
+   */
+  public <T> void registerJavaBean(Class<T> clazz) {
+    registerJavaBean(TypeDescriptor.of(clazz));
+  }
+
+  /**
+   * Register a JavaBean type for automatic schema inference.
+   *
+   * <p>Currently schema field names will match getter names in the bean, and all getters must have
+   * matching setters.
+   */
+  public <T> void registerJavaBean(TypeDescriptor<T> typeDescriptor) {
+    registerSchemaProvider(typeDescriptor, new JavaBeanSchema());
   }
 
   /**
@@ -151,13 +235,13 @@ public class SchemaRegistry {
     return getProviderResult((SchemaProvider p) -> p.toRowFunction(typeDescriptor));
   }
 
-  /** Rerieve the function that converts a {@link Row} object to an object of the specified type. */
+  /** Retrieve the function that converts a {@link Row} object to the specified type. */
   public <T> SerializableFunction<Row, T> getFromRowFunction(Class<T> clazz)
       throws NoSuchSchemaException {
     return getFromRowFunction(TypeDescriptor.of(clazz));
   }
 
-  /** Rerieve the function that converts a {@link Row} object to an object of the specified type. */
+  /** Retrieve the function that converts a {@link Row} object to the specified type. */
   public <T> SerializableFunction<Row, T> getFromRowFunction(TypeDescriptor<T> typeDescriptor)
       throws NoSuchSchemaException {
     SchemaEntry entry = entries.get(typeDescriptor);
