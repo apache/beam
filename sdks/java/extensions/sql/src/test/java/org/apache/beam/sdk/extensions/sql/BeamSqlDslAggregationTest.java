@@ -34,13 +34,13 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -102,9 +102,13 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .getRows();
 
     boundedInput3 =
-        PBegin.in(pipeline)
-            .apply(
-                "boundedInput3", Create.of(rowsInTableB).withCoder(schemaInTableB.getRowCoder()));
+        pipeline.apply(
+            "boundedInput3",
+            Create.of(rowsInTableB)
+                .withSchema(
+                    schemaInTableB,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
   }
 
   /** GROUP-BY with single aggregation function with bounded PCollection. */
@@ -363,7 +367,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> input =
         pipeline.apply(
-            TestStream.create(inputSchema.getRowCoder())
+            TestStream.create(
+                    inputSchema, SerializableFunctions.identity(), SerializableFunctions.identity())
                 .addElements(
                     Row.withSchema(inputSchema)
                         .addValues(1, FORMAT.parseDateTime("2017-01-01 01:01:01"))

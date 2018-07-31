@@ -66,9 +66,7 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
       Schema outputSchema = CalciteUtils.toBeamSchema(getRowType());
 
       PCollection<Row> uncollected =
-          upstream
-              .apply(ParDo.of(new UncollectDoFn(outputSchema)))
-              .setCoder(outputSchema.getRowCoder());
+          upstream.apply(ParDo.of(new UncollectDoFn(outputSchema))).setRowSchema(outputSchema);
 
       return uncollected;
     }

@@ -16,23 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect;
+package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
+import java.lang.reflect.Type;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * <p>An interface to access a field of a class.
+ * <p>An interface to set a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
+ * <p>Implementations of this interface are generated at runtime to map Row fields back into objet
+ * fields.
  */
 @Internal
-public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
-  ValueT get(ObjectT object);
+public interface FieldValueSetter<ObjectT, ValueT> extends Serializable {
+  /** Sets the specified field on object to value. */
+  void set(ObjectT object, @Nullable ValueT value);
 
+  /** Returns the name of the field. */
   String name();
 
+  /** Returns the field type. */
   Class type();
+
+  /** If the field is a container type, returns the element type. */
+  @Nullable
+  Type elementType();
+
+  /** If the field is a map type, returns the key type. */
+  @Nullable
+  Type mapKeyType();
+
+  /** If the field is a map type, returns the key type. */
+  @Nullable
+  Type mapValueType();
 }
