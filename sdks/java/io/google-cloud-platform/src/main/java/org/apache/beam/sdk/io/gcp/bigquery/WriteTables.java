@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -56,6 +59,8 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -63,6 +68,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -265,9 +271,20 @@ class WriteTables<DestinationT>
     Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
+
+    BackOff backoff =
+        BackOffAdapter.toGcpBackOff(
+            FluentBackoff.DEFAULT
+                .withMaxRetries(maxRetryJobs)
+                .withInitialBackoff(Duration.standardSeconds(1))
+                .withMaxBackoff(Duration.standardMinutes(1))
+                .backoff());
+    Sleeper sleeper = Sleeper.DEFAULT;
     // First attempt is always jobIdPrefix-0.
     String jobId = jobIdPrefix + "-0";
-    for (int i = 0; i < maxRetryJobs; ++i) {
+    int i = 0;
+    do {
+      ++i;
       JobReference jobRef =
           new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
 
@@ -330,12 +347,21 @@ class WriteTables<DestinationT>
                   "Unexpected status [%s] of load job: %s.",
                   loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
       }
-    }
+    } while (nextBackOff(sleeper, backoff));
     throw new RuntimeException(
         String.format(
             "Failed to create load job with id prefix %s, "
                 + "reached max retries: %d, last failed load job: %s.",
             jobIdPrefix, maxRetryJobs, BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
+  }
+
+  /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+  private static boolean nextBackOff(Sleeper sleeper, BackOff backoff) throws InterruptedException {
+    try {
+      return BackOffUtils.next(sleeper, backoff);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   static void removeTemporaryFiles(Iterable<String> files) throws IOException {
