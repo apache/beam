@@ -130,12 +130,12 @@ public class BigQueryHelpers {
           LOG.info("job status for {} not found, so retrying with that job id", jobId);
           return new RetryJobIdResult(jobId, true);
         }
-        if ("PENDING".equals(jobStatus.getState())) {
+        if ("PENDING".equals(jobStatus.getState()) || "RUNNING".equals(jobStatus.getState())) {
           // The job id has been issued and is currently pending. This can happen after receiving
           // an error from the load or copy job creation (e.g. that error might come because the
           // job already exists). Return to the caller which job id is pending (it might not be the
           // one passed in) so the caller can then wait for this job to finish.
-          LOG.info("job {} in pending state, so continuing with that job id", jobId);
+          LOG.info("job {} in pending or running state, so continuing with that job id", jobId);
           return new RetryJobIdResult(jobId, false);
         }
         if (jobStatus.getErrorResult() == null
