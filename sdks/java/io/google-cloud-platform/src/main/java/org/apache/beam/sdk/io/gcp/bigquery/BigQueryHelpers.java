@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -39,9 +40,12 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A set of helper functions and classes used by {@link BigQueryIO}. */
 public class BigQueryHelpers {
@@ -54,6 +58,102 @@ public class BigQueryHelpers {
       "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
           + " an earlier stage of the pipeline, this validation can be disabled using"
           + " #withoutValidation.";
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryHelpers.class);
+
+  // Given a potential failure and a current job-id, return the next job-id to be used on retry.
+  // Algorithm is as follows (given input of job_id_prefix-N)
+  //   If BigQuery has no status for job_id_prefix-n, we should retry with the same id.
+  //   If job-id-prefix-n is in the PENDING or successful states, no retry is needed.
+  //   Otherwise (job-id-prefix-n completed with errors), try again with job-id-prefix-(n+1)
+  //
+  // We continue to loop through these job ids until we find one that has either succeed, or that
+  // has not been issued yet.
+  static class RetryJobIdResult {
+    public final RetryJobId jobId;
+    public final boolean shouldRetry;
+
+    public RetryJobIdResult(RetryJobId jobId, boolean shouldRetry) {
+      this.jobId = jobId;
+      this.shouldRetry = shouldRetry;
+    }
+  }
+
+  static class RetryJobId {
+    private final String jobIdPrefix;
+    private final int retryIndex;
+
+    public RetryJobId(String jobIdPrefix, int retryIndex) {
+      this.jobIdPrefix = jobIdPrefix;
+      this.retryIndex = retryIndex;
+    }
+
+    public String getJobIdPrefix() {
+      return jobIdPrefix;
+    }
+
+    public int getRetryIndex() {
+      return retryIndex;
+    }
+
+    public String getJobId() {
+      return jobIdPrefix + "-" + retryIndex;
+    }
+
+    @Override
+    public String toString() {
+      return getJobId();
+    }
+  }
+
+  static RetryJobIdResult getRetryJobId(
+      RetryJobId currentJobId, String projectId, String bqLocation, JobService jobService)
+      throws InterruptedException {
+    for (int retryIndex = currentJobId.getRetryIndex(); ; retryIndex++) {
+      RetryJobId jobId = new RetryJobId(currentJobId.getJobIdPrefix(), retryIndex);
+      JobReference jobRef =
+          new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+      try {
+        Job loadJob = jobService.getJob(jobRef);
+        if (loadJob == null) {
+          LOG.info("job id {} not found, so retrying with that id", jobId);
+          // This either means that the original job was never properly issued (on the first
+          // iteration of the loop) or that we've found a retry id that has not been used yet. Try
+          // again with this job id.
+          return new RetryJobIdResult(jobId, true);
+        }
+        JobStatus jobStatus = loadJob.getStatus();
+        if (jobStatus == null) {
+          LOG.info("job status for {} not found, so retrying with that job id", jobId);
+          return new RetryJobIdResult(jobId, true);
+        }
+        if ("PENDING".equals(jobStatus.getState()) || "RUNNING".equals(jobStatus.getState())) {
+          // The job id has been issued and is currently pending. This can happen after receiving
+          // an error from the load or copy job creation (e.g. that error might come because the
+          // job already exists). Return to the caller which job id is pending (it might not be the
+          // one passed in) so the caller can then wait for this job to finish.
+          LOG.info("job {} in pending or running state, so continuing with that job id", jobId);
+          return new RetryJobIdResult(jobId, false);
+        }
+        if (jobStatus.getErrorResult() == null
+            && (jobStatus.getErrors() == null || jobStatus.getErrors().isEmpty())) {
+          // Import succeeded. No retry needed.
+          LOG.info("job {} succeeded, so not retrying ", jobId);
+          return new RetryJobIdResult(jobId, false);
+        }
+        // This job has failed, so we assume the data cannot enter BigQuery. We will check the next
+        // job in the sequence (with the same unique prefix) to see if is either pending/succeeded
+        // or can be used to generate a retry job.
+        LOG.info("job {} is failed. Checking the next job id.", jobId);
+      } catch (IOException e) {
+        LOG.info("caught exception while querying job {}", jobId);
+        return new RetryJobIdResult(jobId, true);
+      }
+    }
+  }
 
   /** Status of a BigQuery job or request. */
   enum Status {
