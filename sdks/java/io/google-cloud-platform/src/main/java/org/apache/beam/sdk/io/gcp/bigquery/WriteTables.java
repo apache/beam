@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobIdResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -281,12 +282,15 @@ class WriteTables<DestinationT>
                 .backoff());
     Sleeper sleeper = Sleeper.DEFAULT;
     // First attempt is always jobIdPrefix-0.
-    String jobId = jobIdPrefix + "-0";
+    RetryJobId jobId = new RetryJobId(jobIdPrefix, 0);
     int i = 0;
     do {
       ++i;
       JobReference jobRef =
-          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+          new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
 
       LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
       try {

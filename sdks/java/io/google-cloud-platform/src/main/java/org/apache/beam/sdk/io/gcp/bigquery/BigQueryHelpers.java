@@ -70,27 +70,52 @@ public class BigQueryHelpers {
   // We continue to loop through these job ids until we find one that has either succeed, or that
   // has not been issued yet.
   static class RetryJobIdResult {
-    public final String jobId;
+    public final RetryJobId jobId;
     public final boolean shouldRetry;
 
-    public RetryJobIdResult(String jobId, boolean shouldRetry) {
+    public RetryJobIdResult(RetryJobId jobId, boolean shouldRetry) {
       this.jobId = jobId;
       this.shouldRetry = shouldRetry;
     }
   }
 
+  static class RetryJobId {
+    private final String jobIdPrefix;
+    private final int retryIndex;
+
+    public RetryJobId(String jobIdPrefix, int retryIndex) {
+      this.jobIdPrefix = jobIdPrefix;
+      this.retryIndex = retryIndex;
+    }
+
+    public String getJobIdPrefix() {
+      return jobIdPrefix;
+    }
+
+    public int getRetryIndex() {
+      return retryIndex;
+    }
+
+    public String getJobId() {
+      return jobIdPrefix + "-" + retryIndex;
+    }
+
+    @Override
+    public String toString() {
+      return getJobId();
+    }
+  }
+
   static RetryJobIdResult getRetryJobId(
-      String currentJobId, String projectId, String bqLocation, JobService jobService)
+      RetryJobId currentJobId, String projectId, String bqLocation, JobService jobService)
       throws InterruptedException {
-    // Job ids should always be of the form <job_id_prefix>-<retry_count>
-    int dashIndex = currentJobId.lastIndexOf('-');
-    String jobIdPrefix = currentJobId.substring(0, dashIndex);
-    int currentRetry =
-        Integer.parseInt(currentJobId.substring(dashIndex + 1, currentJobId.length()));
-    for (int retryIndex = currentRetry; ; retryIndex++) {
-      String jobId = jobIdPrefix + "-" + retryIndex;
+    for (int retryIndex = currentJobId.getRetryIndex(); ; retryIndex++) {
+      RetryJobId jobId = new RetryJobId(currentJobId.getJobIdPrefix(), retryIndex);
       JobReference jobRef =
-          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+          new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
       try {
         Job loadJob = jobService.getJob(jobRef);
         if (loadJob == null) {

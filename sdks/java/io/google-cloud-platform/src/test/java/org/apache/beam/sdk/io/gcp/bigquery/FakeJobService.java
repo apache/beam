@@ -260,15 +260,17 @@ public class FakeJobService implements JobService, Serializable {
         }
         try {
           ++job.getJobCount;
-          if (numFailures < numFailuresExpected) {
-            ++numFailures;
-            throw new Exception("Failure number " + numFailures);
-          }
+          if (!"FAILED".equals(job.job.getStatus().getState())) {
+            if (numFailures < numFailuresExpected) {
+              ++numFailures;
+              throw new Exception("Failure number " + numFailures);
+            }
 
-          if (job.getJobCount == GET_JOBS_TRANSITION_INTERVAL + 1) {
-            job.job.getStatus().setState("RUNNING");
-          } else if (job.getJobCount == 2 * GET_JOBS_TRANSITION_INTERVAL + 1) {
-            job.job.setStatus(runJob(job.job));
+            if (job.getJobCount == GET_JOBS_TRANSITION_INTERVAL + 1) {
+              job.job.getStatus().setState("RUNNING");
+            } else if (job.getJobCount == 2 * GET_JOBS_TRANSITION_INTERVAL + 1) {
+              job.job.setStatus(runJob(job.job));
+            }
           }
         } catch (Exception e) {
           job.job
