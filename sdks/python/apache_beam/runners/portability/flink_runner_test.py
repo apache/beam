@@ -28,9 +28,7 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 
-
 if __name__ == '__main__':
-
   # Run as
   #
   # python -m apache_beam.runners.portability.flink_runner_test \
@@ -72,7 +70,6 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-4781")
 
     # Inherits all other tests.
-
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
