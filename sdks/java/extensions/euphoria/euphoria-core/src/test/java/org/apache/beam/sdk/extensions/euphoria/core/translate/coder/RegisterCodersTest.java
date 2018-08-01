@@ -34,30 +34,24 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit test of {@link RegisterCoders}.
- */
+/** Unit test of {@link RegisterCoders}. */
 public class RegisterCodersTest {
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testCodersRegistration() throws CannotProvideCoderException {
 
     DummyTestCoder<FirstTestDataType> firstCoder = new DummyTestCoder<>();
-    DummyTestCoder<ParametrizedTestDataType<String>> parametrizedCoder =
-        new DummyTestCoder<>();
+    DummyTestCoder<ParametrizedTestDataType<String>> parametrizedCoder = new DummyTestCoder<>();
 
-    RegisterCoders
-        .to(pipeline)
-        .setKryoClassRegistrar((k) -> {
-          k.register(KryoSerializedTestType.class);
-        })
+    RegisterCoders.to(pipeline)
+        .setKryoClassRegistrar(
+            (k) -> {
+              k.register(KryoSerializedTestType.class);
+            })
         .registerCoder(FirstTestDataType.class, firstCoder)
-        .registerCoder(
-            new TypeDescriptor<ParametrizedTestDataType<String>>() {
-            }, parametrizedCoder)
+        .registerCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {}, parametrizedCoder)
         .done();
 
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
@@ -68,21 +62,19 @@ public class RegisterCodersTest {
         coderRegistry.getCoder(KryoSerializedTestType.class);
     Assert.assertTrue(actualKryoTypeCoder instanceof KryoCoder);
 
-    Coder<ParametrizedTestDataType<String>> parametrizedTypeActualCoder = coderRegistry
-        .getCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {
-        });
+    Coder<ParametrizedTestDataType<String>> parametrizedTypeActualCoder =
+        coderRegistry.getCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {});
     Assert.assertSame(parametrizedCoder, parametrizedTypeActualCoder);
-
   }
 
   @Test
   public void testKryoCoderTheSameSecondTime() throws CannotProvideCoderException {
 
-    RegisterCoders
-        .to(pipeline)
-        .setKryoClassRegistrar((k) -> {
-          k.register(KryoSerializedTestType.class);
-        })
+    RegisterCoders.to(pipeline)
+        .setKryoClassRegistrar(
+            (k) -> {
+              k.register(KryoSerializedTestType.class);
+            })
         .done();
 
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
@@ -96,29 +88,27 @@ public class RegisterCodersTest {
     Assert.assertTrue(secondReturnedKryoTypeCoder instanceof KryoCoder);
 
     Assert.assertSame(firstReturnedKryoTypeCoder, secondReturnedKryoTypeCoder);
-
   }
 
   @Test
   public void testKryoRegisterCodeDecode() throws CannotProvideCoderException, IOException {
 
-    RegisterCoders
-        .to(pipeline)
-        .setKryoClassRegistrar((k) -> {
-          k.register(SimpleDataClassWithEquality.class);
-        })
+    RegisterCoders.to(pipeline)
+        .setKryoClassRegistrar(
+            (k) -> {
+              k.register(SimpleDataClassWithEquality.class);
+            })
         .done();
 
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
 
-    Coder<SimpleDataClassWithEquality> coder = coderRegistry
-        .getCoder(SimpleDataClassWithEquality.class);
+    Coder<SimpleDataClassWithEquality> coder =
+        coderRegistry.getCoder(SimpleDataClassWithEquality.class);
     Assert.assertTrue(coder instanceof KryoCoder);
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-    SimpleDataClassWithEquality originalValue =
-        new SimpleDataClassWithEquality("asdkjsadui");
+    SimpleDataClassWithEquality originalValue = new SimpleDataClassWithEquality("asdkjsadui");
 
     coder.encode(originalValue, outputStream);
 
@@ -129,20 +119,13 @@ public class RegisterCodersTest {
 
     Assert.assertNotNull(decodedValue);
     Assert.assertEquals(originalValue, decodedValue);
-
   }
 
-  private static class FirstTestDataType {
+  private static class FirstTestDataType {}
 
-  }
+  private static class KryoSerializedTestType {}
 
-  private static class KryoSerializedTestType {
-
-  }
-
-  private static class ParametrizedTestDataType<T> {
-
-  }
+  private static class ParametrizedTestDataType<T> {}
 
   private static class SimpleDataClassWithEquality {
 

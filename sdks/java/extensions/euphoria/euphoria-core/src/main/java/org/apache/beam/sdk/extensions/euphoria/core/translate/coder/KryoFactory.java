@@ -31,22 +31,17 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
  */
 class KryoFactory {
 
-  /**
-   * Initial size of byte buffers in {@link Output}, {@link Input}.
-   */
+  /** Initial size of byte buffers in {@link Output}, {@link Input}. */
   private static final int DEFAULT_BUFFER_SIZE = 4096;
 
   /**
    * No-op {@link IdentifiedRegistrar}. Use of this registrar degrades performance since {@link
    * Kryo} needs to serialize fully specified class name instead of id.
-   * <p>
-   * {@link #getOrCreateKryo(IdentifiedRegistrar)} returns {@link Kryo}  which allows for
-   * serialization of unregistered classes when this {@link IdentifiedRegistrar} is used to call
-   * it.
-   * </p>
+   *
+   * <p>{@link #getOrCreateKryo(IdentifiedRegistrar)} returns {@link Kryo} which allows for
+   * serialization of unregistered classes when this {@link IdentifiedRegistrar} is used to call it.
    */
-  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.of((k) -> {
-  });
+  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.of((k) -> {});
 
   private static Kryo createKryo(IdentifiedRegistrar registrarWithId) {
     final Kryo instance = new Kryo();
@@ -65,43 +60,36 @@ class KryoFactory {
     return instance;
   }
 
-  private static ThreadLocal<Output> threadLocalOutput = ThreadLocal.withInitial(
-      () -> new Output(DEFAULT_BUFFER_SIZE, -1)
-  );
+  private static ThreadLocal<Output> threadLocalOutput =
+      ThreadLocal.withInitial(() -> new Output(DEFAULT_BUFFER_SIZE, -1));
 
-  private static ThreadLocal<Input> threadLocalInput = ThreadLocal.withInitial(
-      () -> new Input(DEFAULT_BUFFER_SIZE)
-  );
+  private static ThreadLocal<Input> threadLocalInput =
+      ThreadLocal.withInitial(() -> new Input(DEFAULT_BUFFER_SIZE));
 
   /**
    * We need an instance of {@link KryoRegistrar} to do actual {@link Kryo} registration. But since
    * every other instance of the same implementation of {@link KryoRegistrar} should do the same
    * classes registration, we use {@link IdentifiedRegistrar IdentifiedRegistrar's} Id as a key.
    *
-   * {@link ThreadLocal} is utilized to allow re-usability of {@link Kryo} by many instances of
+   * <p>{@link ThreadLocal} is utilized to allow re-usability of {@link Kryo} by many instances of
    * {@link KryoCoder}.
-   *
    */
-  private static Map<Integer, ThreadLocal<Kryo>> kryoByRegistrarId =
-      new HashMap<>();
-
+  private static Map<Integer, ThreadLocal<Kryo>> kryoByRegistrarId = new HashMap<>();
 
   /**
    * Returns {@link Kryo} instance which has classes registered by this {@code registrar} or
    * previously given {@link KryoRegistrar} instance of the same type. The returned instance is
    * either created by this call or returned from cache.
-   * <p>
-   * If given {@code registrar} is {@link #NO_OP_REGISTRAR} then returned kryo allows for
+   *
+   * <p>If given {@code registrar} is {@link #NO_OP_REGISTRAR} then returned kryo allows for
    * (de)serialization of unregistered classes. That is not otherwise allowed.
-   * </p>
    */
   static Kryo getOrCreateKryo(IdentifiedRegistrar registrarWithId) {
     Objects.requireNonNull(registrarWithId);
 
     synchronized (kryoByRegistrarId) {
-
-      ThreadLocal<Kryo> kryoThreadLocal = kryoByRegistrarId
-          .computeIfAbsent(registrarWithId.getId(), (k) -> new ThreadLocal<>());
+      ThreadLocal<Kryo> kryoThreadLocal =
+          kryoByRegistrarId.computeIfAbsent(registrarWithId.getId(), (k) -> new ThreadLocal<>());
 
       Kryo kryoInstance = kryoThreadLocal.get();
       if (kryoInstance == null) {
@@ -120,5 +108,4 @@ class KryoFactory {
   static Output getKryoOutput() {
     return threadLocalOutput.get();
   }
-
 }
