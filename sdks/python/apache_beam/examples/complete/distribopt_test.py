@@ -21,10 +21,10 @@ import logging
 import unittest
 import os
 import tempfile
+from mock import MagicMock, patch
 from ast import literal_eval as make_tuple
 
 import numpy as np
-from apache_beam.examples.complete.distribopt.distribopt import distribopt
 from apache_beam.testing.util import open_shards
 
 
@@ -42,12 +42,6 @@ EXPECTED_MAPPING = {
     'OP05': 'A'
 }
 
-EXPECTED_PROD_PARAMS = {
-    'A': [0.0, 0.0, 1.0],
-    'B': [0.5615161, 0.4050802, 0.6702959],
-    'C': [1.0, 0.0, 0.0]
-}
-
 
 class DistribOptimizationTest(unittest.TestCase):
 
@@ -60,10 +54,22 @@ class DistribOptimizationTest(unittest.TestCase):
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
     self.create_file(os.path.join(temp_folder, 'input.txt'), FILE_CONTENTS)
+
     # Run pipeline
-    distribopt.run([
-        '--input=%s/input.txt' % temp_folder,
-        '--output', os.path.join(temp_folder, 'result')])
+    # Avoid dependency on SciPy
+    scipy_mock = MagicMock()
+    scipy_mock.optimize.minimize = MagicMock(return_value=MagicMock(x=np.ones(3)))
+    modules = {
+      'scipy': scipy_mock,
+      'scipy.optimize': scipy_mock.optimize
+    }
+
+    with patch.dict('sys.modules', modules):
+      from apache_beam.examples.complete import distribopt
+      distribopt.run([
+          '--input=%s/input.txt' % temp_folder,
+          '--output', os.path.join(temp_folder, 'result')])
+
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
         lines = result_file.readlines()
@@ -73,11 +79,11 @@ class DistribOptimizationTest(unittest.TestCase):
 
     # parse result line and verify optimum
     optimum = make_tuple(lines[0])
-    self.assertAlmostEqual(optimum['cost'], 454.07219, places=3)
+    self.assertAlmostEqual(optimum['cost'], 454.39597, places=3)
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
     production = optimum['production']
     for plant in ['A', 'B', 'C']:
-        np.testing.assert_almost_equal(production[plant], EXPECTED_PROD_PARAMS[plant])
+        np.testing.assert_almost_equal(production[plant], np.ones(3))
 
 
 if __name__ == '__main__':

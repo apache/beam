@@ -156,7 +156,6 @@ class CreateGrid(beam.PTransform):
       grid = np.vstack(map(np.ravel, np.meshgrid(*grid_coordinates))).T
       crops = [rec['crop'] for rec in records]
       greenhouses = [rec[0] for rec in records[0]['transport_costs']]
-      mappings = []
       for point in grid:
         # translate back to greenhouse label
         mapping = self._coordinates_to_greenhouse(point, greenhouses, crops)
