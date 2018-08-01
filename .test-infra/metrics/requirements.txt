@@ -1,0 +1,30 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+
+cachetools==2.1.0
+certifi==2018.4.16
+chardet==3.0.4
+expiringdict-with-default==1.1.7
+google-api-core==1.2.1
+google-auth==1.5.0
+google-cloud-bigquery==1.4.0
+google-cloud-core==0.28.1
+google-resumable-media==0.3.1
+googleapis-common-protos==1.5.3
+idna==2.7
+protobuf==3.6.0
+pyasn1==0.4.3
+pyasn1-modules==0.2.2
+pytz==2018.5
+requests==2.19.1
+rsa==3.4.2
+six==1.11.0
+urllib3==1.23
