@@ -26,15 +26,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import org.junit.Test;
 
-/**
- * Unit tests of {@link IdentifiedRegistrar}.
- */
+/** Unit tests of {@link IdentifiedRegistrar}. */
 public class IdentifiedRegistrarTest {
 
   @Test
   public void testSerializationRetainsId() throws IOException, ClassNotFoundException {
-    IdentifiedRegistrar registrarWithIdOriginal = IdentifiedRegistrar.of((k) -> {
-    });
+    IdentifiedRegistrar registrarWithIdOriginal = IdentifiedRegistrar.of((k) -> {});
 
     ByteArrayOutputStream outStr = new ByteArrayOutputStream();
     ObjectOutputStream oss = new ObjectOutputStream(outStr);
@@ -47,7 +44,5 @@ public class IdentifiedRegistrarTest {
     IdentifiedRegistrar registrarDeserialized = (IdentifiedRegistrar) ois.readObject();
 
     assertEquals(registrarWithIdOriginal.getId(), registrarDeserialized.getId());
-
   }
-
 }

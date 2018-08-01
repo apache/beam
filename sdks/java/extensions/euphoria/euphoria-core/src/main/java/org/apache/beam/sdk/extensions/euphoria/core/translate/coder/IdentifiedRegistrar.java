@@ -25,13 +25,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * {@link KryoRegistrar} enriched by Id.
  *
- * <p>
- * New instances of the same (possibly lambda) implementation of {@link KryoRegistrar} may be
+ * <p>New instances of the same (possibly lambda) implementation of {@link KryoRegistrar} may be
  * created by (de)serialization. And since lambda expressions do not retain their type (instance of
  * {@link Class}) after deserialization, we need something else to avoid creation of more {@link
  * Kryo} instances then really needed. That is why any given {@link KryoRegistrar} instance is
  * enriched by Id.
- * </p>
  */
 class IdentifiedRegistrar implements Serializable {
 
@@ -40,8 +38,7 @@ class IdentifiedRegistrar implements Serializable {
   private final int id;
   private final KryoRegistrar registrar;
 
-  private IdentifiedRegistrar(int id,
-      KryoRegistrar registrar) {
+  private IdentifiedRegistrar(int id, KryoRegistrar registrar) {
     this.id = id;
     this.registrar = registrar;
   }
