@@ -296,7 +296,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   /**
    * Sets a schema on this PCollection.
    *
-   * <p>Can only be called on a {@link PCollection<Row>}.
+   * <p>Can only be called on a {@link PCollection}.
    */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setRowSchema(Schema schema) {
