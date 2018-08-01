@@ -68,8 +68,8 @@ public class SchemaRegistry {
   private final Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
   private final ArrayDeque<SchemaProvider> providers;
 
-  class PerTypeRegisteredProvider implements SchemaProvider {
-    private Map<TypeDescriptor, SchemaProvider> providers = Maps.newHashMap();
+  private static class PerTypeRegisteredProvider implements SchemaProvider {
+    private final Map<TypeDescriptor, SchemaProvider> providers = Maps.newHashMap();
 
     void registerProvider(TypeDescriptor typeDescriptor, SchemaProvider schemaProvider) {
       providers.put(typeDescriptor, schemaProvider);
@@ -97,7 +97,8 @@ public class SchemaRegistry {
     }
   }
 
-  private PerTypeRegisteredProvider perTypeRegisteredProviders = new PerTypeRegisteredProvider();
+  private final PerTypeRegisteredProvider perTypeRegisteredProviders =
+      new PerTypeRegisteredProvider();
 
   private SchemaRegistry() {
     providers = new ArrayDeque<>(REGISTERED_SCHEMA_PROVIDERS);
