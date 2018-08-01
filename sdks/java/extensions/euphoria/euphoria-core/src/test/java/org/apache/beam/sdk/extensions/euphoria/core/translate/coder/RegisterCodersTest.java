@@ -31,27 +31,21 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit test of {@link RegisterCoders}.
- */
+/** Unit test of {@link RegisterCoders}. */
 public class RegisterCodersTest {
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testCodersRegistration() throws CannotProvideCoderException {
 
     DummyTestCoder<FirstTestDataType> firstCoder = new DummyTestCoder<>();
-    DummyTestCoder<ParametrizedTestDataType<String>> parametrizedCoder =
-        new DummyTestCoder<>();
+    DummyTestCoder<ParametrizedTestDataType<String>> parametrizedCoder = new DummyTestCoder<>();
 
-    RegisterCoders
-        .to(pipeline)
+    RegisterCoders.to(pipeline)
         .registerCoder(FirstTestDataType.class, firstCoder)
         .registerCoder(SecondTestDataType.class)
-        .registerCoder(
-            new TypeDescriptor<ParametrizedTestDataType<String>>() { }, parametrizedCoder)
+        .registerCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {}, parametrizedCoder)
         .done();
 
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
@@ -62,24 +56,16 @@ public class RegisterCodersTest {
         coderRegistry.getCoder(SecondTestDataType.class);
     Assert.assertTrue(actualSecondTypeCoder instanceof ClassAwareKryoCoder);
 
-    Coder<ParametrizedTestDataType<String>> parametrizedTypeActualCoder = coderRegistry
-        .getCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {
-        });
+    Coder<ParametrizedTestDataType<String>> parametrizedTypeActualCoder =
+        coderRegistry.getCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {});
     Assert.assertSame(parametrizedCoder, parametrizedTypeActualCoder);
-
   }
 
-  private static class FirstTestDataType {
+  private static class FirstTestDataType {}
 
-  }
+  private static class SecondTestDataType {}
 
-  private static class SecondTestDataType {
-
-  }
-
-  private static class ParametrizedTestDataType<T> {
-
-  }
+  private static class ParametrizedTestDataType<T> {}
 
   private static class DummyTestCoder<T> extends Coder<T> {
 

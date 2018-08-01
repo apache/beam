@@ -39,8 +39,7 @@ public class RegisterCoders extends CoderProvider {
   private final Map<Class<?>, Coder<?>> classToCoder;
 
   private RegisterCoders(
-      Map<TypeDescriptor, Coder<?>> typeToCoder,
-      Map<Class<?>, Coder<?>> classToCoder) {
+      Map<TypeDescriptor, Coder<?>> typeToCoder, Map<Class<?>, Coder<?>> classToCoder) {
     this.typeToCoder = typeToCoder;
     this.classToCoder = classToCoder;
   }
@@ -54,8 +53,9 @@ public class RegisterCoders extends CoderProvider {
   }
 
   @Override
-  public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
-      List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+  public <T> Coder<T> coderFor(
+      TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+      throws CannotProvideCoderException {
 
     // try to obtain most specific coder by type descriptor
     Coder<?> coder = typeToCoder.get(typeDescriptor);
@@ -67,8 +67,8 @@ public class RegisterCoders extends CoderProvider {
     }
 
     if (coder == null) {
-      throw new CannotProvideCoderException(String.format(
-          "No coder for given type descriptor '%s' found.", typeDescriptor));
+      throw new CannotProvideCoderException(
+          String.format("No coder for given type descriptor '%s' found.", typeDescriptor));
     }
 
     @SuppressWarnings("unchecked")
@@ -79,9 +79,7 @@ public class RegisterCoders extends CoderProvider {
 
   // ----------------------------- builder chain
 
-  /**
-   * Builder which defines all the registration methods.
-   */
+  /** Builder which defines all the registration methods. */
   public interface RegisterBuilder {
 
     /**
@@ -113,18 +111,13 @@ public class RegisterCoders extends CoderProvider {
      */
     <T> RegisterBuilder registerCoder(Class<T> clazz);
 
-    /**
-     * Effectively ends coders registration. No coders registration is done without it.
-     */
+    /** Effectively ends coders registration. No coders registration is done without it. */
     void done();
   }
 
   // ----------------------------- builder itself
 
-
-  /**
-   * Builder of {@link RegisterCoders}.
-   */
+  /** Builder of {@link RegisterCoders}. */
   public static class Builder implements RegisterBuilder {
 
     private final Pipeline pipeline;
@@ -164,5 +157,4 @@ public class RegisterCoders extends CoderProvider {
       pipeline.getCoderRegistry().registerCoderProvider(registerCoders);
     }
   }
-
 }

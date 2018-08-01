@@ -33,14 +33,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFuncti
 import org.apache.commons.compress.utils.BoundedInputStream;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
-/**
- * {@link Coder} which encodes/decodes objects of given {@link Class} through {@link Kryo}.
- */
+/** {@link Coder} which encodes/decodes objects of given {@link Class} through {@link Kryo}. */
 public class ClassAwareKryoCoder<T> extends Coder<T> {
 
-  /**
-   * Initial size of byte buffers in {@link Output}, {@link Input}.
-   */
+  /** Initial size of byte buffers in {@link Output}, {@link Input}. */
   private static final int DEFAULT_BUFFER_SIZE = 4096;
 
   // this factory needs to be serializable, since the Coder itself is
@@ -54,12 +50,10 @@ public class ClassAwareKryoCoder<T> extends Coder<T> {
 
   private static ThreadLocal<Kryo> threadLocalKryo = ThreadLocal.withInitial(KRYO_FACTORY::apply);
 
-  private static ThreadLocal<Output> threadLocalOutput = ThreadLocal.withInitial(
-      () -> new Output(DEFAULT_BUFFER_SIZE, -1)
-  );
-  private static ThreadLocal<Input> threadLocalInput = ThreadLocal.withInitial(
-      () -> new Input(DEFAULT_BUFFER_SIZE)
-  );
+  private static ThreadLocal<Output> threadLocalOutput =
+      ThreadLocal.withInitial(() -> new Output(DEFAULT_BUFFER_SIZE, -1));
+  private static ThreadLocal<Input> threadLocalInput =
+      ThreadLocal.withInitial(() -> new Input(DEFAULT_BUFFER_SIZE));
 
   private Class<T> clazz;
 
@@ -84,7 +78,6 @@ public class ClassAwareKryoCoder<T> extends Coder<T> {
     // write length of encoded object first to get ability to limit read in decode() to one object
     dos.writeInt(output.position());
     outStream.write(output.getBuffer(), 0, output.position());
-
   }
 
   @Override
@@ -113,5 +106,4 @@ public class ClassAwareKryoCoder<T> extends Coder<T> {
   public Class<T> getClazz() {
     return clazz;
   }
-
 }
