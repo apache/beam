@@ -42,7 +42,6 @@ public class RegisterCoders extends CoderProvider {
   private final Map<Class<?>, Coder<?>> classToCoder;
   private final IdentifiedRegistrar kryoRegistrarWithId;
 
-
   private RegisterCoders(
       Map<TypeDescriptor, Coder<?>> typeToCoder,
       Map<Class<?>, Coder<?>> classToCoder,
@@ -51,7 +50,6 @@ public class RegisterCoders extends CoderProvider {
     this.classToCoder = classToCoder;
     this.kryoRegistrarWithId = IdentifiedRegistrar.of(kryoRegistrar);
   }
-
 
   public static KryoBuilder to(Pipeline pipeline) {
     return new Builder(Objects.requireNonNull(pipeline));
@@ -62,8 +60,9 @@ public class RegisterCoders extends CoderProvider {
   }
 
   @Override
-  public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
-      List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+  public <T> Coder<T> coderFor(
+      TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+      throws CannotProvideCoderException {
 
     // try to obtain most specific coder by type descriptor
     Coder<?> coder = typeToCoder.get(typeDescriptor);
@@ -80,8 +79,8 @@ public class RegisterCoders extends CoderProvider {
     }
 
     if (coder == null) {
-      throw new CannotProvideCoderException(String.format(
-          "No coder for given type descriptor '%s' found.", typeDescriptor));
+      throw new CannotProvideCoderException(
+          String.format("No coder for given type descriptor '%s' found.", typeDescriptor));
     }
 
     @SuppressWarnings("unchecked")
@@ -112,9 +111,7 @@ public class RegisterCoders extends CoderProvider {
 
   // ----------------------------- builder chain
 
-  /**
-   * Builder which allows to se {@link KryoRegistrar}.
-   */
+  /** Builder which allows to se {@link KryoRegistrar}. */
   public interface KryoBuilder extends RegisterBuilder {
 
     /**
@@ -124,9 +121,7 @@ public class RegisterCoders extends CoderProvider {
     RegisterBuilder setKryoClassRegistrar(KryoRegistrar registrar);
   }
 
-  /**
-   * Builder which defines all non {@link com.esotericsoftware.kryo.Kryo} registration methods.
-   */
+  /** Builder which defines all non {@link com.esotericsoftware.kryo.Kryo} registration methods. */
   public interface RegisterBuilder {
 
     /**
@@ -149,18 +144,13 @@ public class RegisterCoders extends CoderProvider {
      */
     <T> RegisterBuilder registerCoder(Class<T> clazz, Coder<T> coder);
 
-    /**
-     * Effectively ends coders registration. No coders registration is done without it.
-     */
+    /** Effectively ends coders registration. No coders registration is done without it. */
     void done();
   }
 
   // ----------------------------- builder itself
 
-
-  /**
-   * Builder of {@link RegisterCoders}.
-   */
+  /** Builder of {@link RegisterCoders}. */
   public static class Builder implements RegisterBuilder, KryoBuilder {
 
     private final Pipeline pipeline;
@@ -201,5 +191,4 @@ public class RegisterCoders extends CoderProvider {
       pipeline.getCoderRegistry().registerCoderProvider(registerCoders);
     }
   }
-
 }

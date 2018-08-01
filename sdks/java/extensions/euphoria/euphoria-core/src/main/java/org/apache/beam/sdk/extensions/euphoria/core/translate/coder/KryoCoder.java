@@ -38,10 +38,9 @@ public class KryoCoder<T> extends CustomCoder<T> {
 
   /**
    * Client-defined class registrations to {@link Kryo}.
-   * <p>
-   * {@link KryoCoder} needs it to be able to create a {@link Kryo} instance with correct class
+   *
+   * <p>{@link KryoCoder} needs it to be able to create a {@link Kryo} instance with correct class
    * registrations after its deserialization.
-   * </p>
    */
   private final IdentifiedRegistrar registrarWithId;
 
@@ -74,9 +73,11 @@ public class KryoCoder<T> extends CustomCoder<T> {
     try {
       kryo.writeClassAndObject(output, value);
     } catch (IllegalArgumentException e) {
-      throw new CoderException(String.format("Cannot encode given object of type '%s'. "
-              + "Forgotten kryo registration is possible explanation.",
-          (value == null) ? null : value.getClass().getSimpleName()), e);
+      throw new CoderException(
+          String.format(
+              "Cannot encode given object of type '%s'. Forgotten kryo registration is possible explanation.",
+              (value == null) ? null : value.getClass().getSimpleName()),
+          e);
     }
 
     DataOutputStream dos = new DataOutputStream(outStream);
@@ -107,16 +108,17 @@ public class KryoCoder<T> extends CustomCoder<T> {
       return outObject;
 
     } catch (KryoException e) {
-      throw new CoderException(String.format(
-          "Cannot decode object of length %d bytes from input stream. "
-              + "Forgotten kryo registration is possible explanation.", lengthOfDecodedObject), e);
+      throw new CoderException(
+          String.format(
+              "Cannot decode object of length %d bytes from input stream. "
+                  + "Forgotten kryo registration is possible explanation.",
+              lengthOfDecodedObject),
+          e);
     }
-
   }
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     // nop
   }
-
 }

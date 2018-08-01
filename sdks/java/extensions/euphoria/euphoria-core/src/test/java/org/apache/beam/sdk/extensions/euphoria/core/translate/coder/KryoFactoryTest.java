@@ -26,9 +26,7 @@ import java.io.ObjectOutputStream;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * A set of unit {@link KryoFactory} tests.
- */
+/** A set of unit {@link KryoFactory} tests. */
 public class KryoFactoryTest {
 
   @Test
@@ -49,16 +47,12 @@ public class KryoFactoryTest {
     ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(outStr.toByteArray()));
 
     @SuppressWarnings("unchecked")
-    IdentifiedRegistrar deserializedRegistrar =
-        (IdentifiedRegistrar) ois.readObject();
+    IdentifiedRegistrar deserializedRegistrar = (IdentifiedRegistrar) ois.readObject();
 
     Kryo secondKryo = KryoFactory.getOrCreateKryo(deserializedRegistrar);
 
     Assert.assertSame(firstKryo, secondKryo);
   }
 
-  private static class TestClass {
-
-  }
-
+  private static class TestClass {}
 }
