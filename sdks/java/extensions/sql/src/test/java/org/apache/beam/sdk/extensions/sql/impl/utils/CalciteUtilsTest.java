@@ -124,4 +124,48 @@ public class CalciteUtilsTest {
     assertEquals(SqlTypeName.VARBINARY, fields.get("f9").getSqlTypeName());
     assertEquals(SqlTypeName.VARCHAR, fields.get("f10").getSqlTypeName());
   }
+
+  @Test
+  public void testRoundTripBeamSchema() {
+    final Schema schema =
+        Schema.builder()
+            .addField("f1", Schema.FieldType.BYTE)
+            .addField("f2", Schema.FieldType.INT16)
+            .addField("f3", Schema.FieldType.INT32)
+            .addField("f4", Schema.FieldType.INT64)
+            .addField("f5", Schema.FieldType.FLOAT)
+            .addField("f6", Schema.FieldType.DOUBLE)
+            .addField("f7", Schema.FieldType.DECIMAL)
+            .addField("f8", Schema.FieldType.BOOLEAN)
+            .addField("f9", Schema.FieldType.BYTES)
+            .addField("f10", Schema.FieldType.STRING)
+            .build();
+
+    final Schema out =
+        CalciteUtils.toSchema(CalciteUtils.toCalciteRowType(schema, dataTypeFactory));
+
+    assertEquals(schema, out);
+  }
+
+  @Test
+  public void testRoundTripBeamNullableSchema() {
+    final Schema schema =
+        Schema.builder()
+            .addNullableField("f1", Schema.FieldType.BYTE)
+            .addNullableField("f2", Schema.FieldType.INT16)
+            .addNullableField("f3", Schema.FieldType.INT32)
+            .addNullableField("f4", Schema.FieldType.INT64)
+            .addNullableField("f5", Schema.FieldType.FLOAT)
+            .addNullableField("f6", Schema.FieldType.DOUBLE)
+            .addNullableField("f7", Schema.FieldType.DECIMAL)
+            .addNullableField("f8", Schema.FieldType.BOOLEAN)
+            .addNullableField("f9", Schema.FieldType.BYTES)
+            .addNullableField("f10", Schema.FieldType.STRING)
+            .build();
+
+    final Schema out =
+        CalciteUtils.toSchema(CalciteUtils.toCalciteRowType(schema, dataTypeFactory));
+
+    assertEquals(schema, out);
+  }
 }

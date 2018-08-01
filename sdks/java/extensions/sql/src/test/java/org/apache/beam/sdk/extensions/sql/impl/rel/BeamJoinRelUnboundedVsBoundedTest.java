@@ -184,13 +184,17 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id=o2.order_id";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
+
     rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("helloworld")));
+
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "sum_site_id",
-                    Schema.FieldType.STRING, "buyer")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("sum_site_id", Schema.FieldType.INT32)
+                        .addNullableField("buyer", Schema.FieldType.STRING)
+                        .build())
                 .addRows(1, 3, "james", 2, 5, "bond", 3, 3, null)
                 .getStringRows());
     pipeline.run();
@@ -225,9 +229,11 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "sum_site_id",
-                    Schema.FieldType.STRING, "buyer")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("sum_site_id", Schema.FieldType.INT32)
+                        .addNullableField("buyer", Schema.FieldType.STRING)
+                        .build())
                 .addRows(1, 3, "james", 2, 5, "bond", 3, 3, null)
                 .getStringRows());
     pipeline.run();

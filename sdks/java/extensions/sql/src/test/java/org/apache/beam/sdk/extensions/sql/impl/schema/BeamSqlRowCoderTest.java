@@ -54,7 +54,7 @@ public class BeamSqlRowCoderTest {
             .add("col_boolean", SqlTypeName.BOOLEAN)
             .build();
 
-    Schema beamSchema = CalciteUtils.toBeamSchema(relDataType);
+    Schema beamSchema = CalciteUtils.toSchema(relDataType);
 
     Row row =
         Row.withSchema(beamSchema)
