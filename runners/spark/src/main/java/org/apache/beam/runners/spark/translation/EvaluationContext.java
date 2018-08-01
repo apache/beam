@@ -239,7 +239,7 @@ public class EvaluationContext {
   }
 
   /**
-   * Retrun the current views creates in the pipepline.
+   * Return the current views creates in the pipeline.
    *
    * @return SparkPCollectionView
    */
@@ -248,7 +248,7 @@ public class EvaluationContext {
   }
 
   /**
-   * Adds/Replaces a view to the current views creates in the pipepline.
+   * Adds/Replaces a view to the current views creates in the pipeline.
    *
    * @param view - Identifier of the view
    * @param value - Actual value of the view
