@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // See build_rules.gradle for documentation on default build tasks
 // and properties that are enabled in addition to natures
 // that can be applied to configure a project for certain common
@@ -82,7 +81,19 @@ if (!gradle.startParameter.isOffline()) {
   apply plugin: "com.gradle.build-scan"
 }
 
+// Apply a task dependency visualization plugin which creates a ".dot" file containing the
+// task dependencies for the current build. This command can help create a visual representation:
+//   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
+//
+// See https://github.com/mmalohlava/gradle-visteg for further details.
+apply plugin: "cz.malohlava.visteg"
+
+// This plugin provides a task to determine which dependencies have updates.
+// Additionally, the plugin checks for updates to Gradle itself.
+//
+// See https://github.com/ben-manes/gradle-versions-plugin for further details.
 apply plugin: 'com.github.ben-manes.versions'
+
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
@@ -133,6 +144,9 @@ rat {
     "website/src/_sass/bootstrap/**/*",
     "website/src/js/bootstrap*.js",
     "website/src/js/bootstrap/**/*",
+
+    // Ignore ownership files
+    "ownership/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -144,8 +158,11 @@ rat {
     exclusions.addAll(gitIgnoreExcludes)
   }
 
-  plainOutput = true
-  xmlOutput = false
+  // Combining verbose with only XML output has each failing license logged.
+  // See https://github.com/eskatos/creadur-rat-gradle/issues/8 for further details.
+  verbose = true
+  plainOutput = false
+  xmlOutput = true
   htmlOutput = false
   failOnError = true
   excludes = exclusions
@@ -166,6 +183,7 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
 }
 
 task javaPostCommit() {

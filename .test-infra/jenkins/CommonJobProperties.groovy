@@ -173,7 +173,8 @@ class CommonJobProperties {
     }
   }
 
-  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
+  // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
+  static void setGradleSwitches(context, maxWorkers = 12) {
     def defaultSwitches = [
       // Gradle log verbosity enough to diagnose basic build issues
       "--info",
@@ -188,16 +189,9 @@ class CommonJobProperties {
 
     // Ensure that parallel workers don't exceed total available memory.
 
-    // TODO(BEAM-4230): OperatingSystemMXBeam incorrectly reports total memory; hard-code for now
-    // Jenkins machines are GCE n1-highmem-16, with 104 GB of memory
-    // def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
-    // def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
-    def totalMemoryMb = 104 * 1024
-    // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
-    // machine memory.
-    def totalExecutorMemoryMb = totalMemoryMb / 2
-    def perWorkerMemoryMb = totalExecutorMemoryMb / maxWorkers
-    context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
+    // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
+    context.switches("-Dorg.gradle.jvmargs=-Xms2g")
+    context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
   }
 
   // Sets common config for PreCommit jobs.
@@ -231,13 +225,20 @@ class CommonJobProperties {
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
                          String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'commits@beam.apache.org') {
+                         notifyAddress = 'commits@beam.apache.org',
+                         triggerOnCommit = false) {
 
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(buildSchedule)
+
+      if (triggerOnCommit){
+        githubPush()
+      }
     }
+
+
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
@@ -266,6 +267,7 @@ class CommonJobProperties {
       bigquery_table: 'beam_performance.pkb_results',
       k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
       k8s_get_wait_interval: 10,
+      python_binary: '$WORKSPACE/.beam_env/bin/python',
       temp_dir: '$WORKSPACE',
       // Use source cloned by Jenkins and not clone it second time (redundantly).
       beam_location: '$WORKSPACE/src',
@@ -310,22 +312,28 @@ class CommonJobProperties {
     context.steps {
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
-        shell('rm -rf .env')
+        shell('rm -rf .beam_env')
+        shell('rm -rf .perfkit_env')
 
         // create new VirtualEnv, inherit already existing packages
-        shell('virtualenv .env --system-site-packages')
+        shell('virtualenv .beam_env --system-site-packages')
+        shell('virtualenv .perfkit_env --system-site-packages')
 
         // update setuptools and pip
-        shell('.env/bin/pip install --upgrade setuptools pip')
+        shell('.beam_env/bin/pip install --upgrade setuptools pip')
+        shell('.perfkit_env/bin/pip install --upgrade setuptools pip')
 
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-        // Install Perfkit benchmark requirements.
-        shell('.env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
+
         // Install job requirements for Python SDK.
-        shell('.env/bin/pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test]')
+        shell('.beam_env/bin/pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test]')
+
+        // Install Perfkit benchmark requirements.
+        shell('.perfkit_env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
+
         // Launch performance test.
-        shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
+        shell(".perfkit_env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
 

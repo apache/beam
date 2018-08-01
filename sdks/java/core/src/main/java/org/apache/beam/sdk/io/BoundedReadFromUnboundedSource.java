@@ -20,22 +20,25 @@ package org.apache.beam.sdk.io;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.Serializable;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -52,7 +55,6 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   private final long maxNumRecords;
   private final @Nullable Duration maxReadTime;
 
-  private final BoundedSource<ValueWithRecordId<T>> adaptedSource;
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT
           .withInitialBackoff(Duration.millis(10))
@@ -82,27 +84,27 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     this.source = source;
     this.maxNumRecords = maxNumRecords;
     this.maxReadTime = maxReadTime;
-    this.adaptedSource =
-        new AutoValue_BoundedReadFromUnboundedSource_UnboundedToBoundedSourceAdapter.Builder()
-            .setSource(source)
-            .setMaxNumRecords(maxNumRecords)
-            .setMaxReadTime(maxReadTime)
-            .build();
-  }
-
-  /**
-   * Returns an adapted {@link BoundedSource} wrapping the underlying {@link UnboundedSource}, with
-   * the specified bounds on number of records and read time.
-   */
-  @Experimental
-  public BoundedSource<ValueWithRecordId<T>> getAdaptedSource() {
-    return adaptedSource;
   }
 
   @Override
   public PCollection<T> expand(PBegin input) {
+    Coder<Shard<T>> shardCoder = SerializableCoder.of((Class<Shard<T>>) (Class) Shard.class);
     PCollection<ValueWithRecordId<T>> read =
-        Pipeline.applyTransform(input, Read.from(getAdaptedSource()));
+        input
+            .apply(
+                "Create",
+                Create.of(
+                        new AutoValue_BoundedReadFromUnboundedSource_Shard.Builder<T>()
+                            .setSource(source)
+                            .setMaxNumRecords(maxNumRecords)
+                            .setMaxReadTime(maxReadTime)
+                            .build())
+                    .withCoder(shardCoder))
+            .apply("Split", ParDo.of(new SplitFn<>()))
+            .setCoder(shardCoder)
+            .apply("Reshuffle", Reshuffle.viaRandomKey())
+            .apply("Read", ParDo.of(new ReadFn<>()))
+            .setCoder(ValueWithRecordId.ValueWithRecordIdCoder.of(source.getOutputCoder()));
     if (source.requiresDeduping()) {
       read =
           read.apply(
@@ -131,34 +133,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
         .include("source", source);
   }
 
-  /**
-   * Adapter that wraps the underlying {@link UnboundedSource} with the specified bounds on number
-   * of records and read time into a {@link BoundedSource}.
-   */
-  @AutoValue
-  abstract static class UnboundedToBoundedSourceAdapter<T>
-      extends BoundedSource<ValueWithRecordId<T>> {
-    @Nullable
-    abstract UnboundedSource<T, ?> getSource();
-
-    abstract long getMaxNumRecords();
-
-    @Nullable
-    abstract Duration getMaxReadTime();
-
-    abstract Builder<T> toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder<T> {
-      abstract Builder<T> setSource(UnboundedSource<T, ?> source);
-
-      abstract Builder<T> setMaxNumRecords(long maxNumRecords);
-
-      abstract Builder<T> setMaxReadTime(@Nullable Duration maxReadTime);
-
-      abstract UnboundedToBoundedSourceAdapter<T> build();
-    }
-
+  private static class SplitFn<T> extends DoFn<Shard<T>, Shard<T>> {
     /**
      * Divide the given number of records into {@code numSplits} approximately equal parts that sum
      * to {@code numRecords}.
@@ -181,136 +156,97 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
       return (int) Math.min(maxSplits, numRecords / recordsPerSplit + 1);
     }
 
-    @Override
-    public List<? extends BoundedSource<ValueWithRecordId<T>>> split(
-        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      List<UnboundedToBoundedSourceAdapter<T>> result = new ArrayList<>();
-      int numInitialSplits = numInitialSplits(getMaxNumRecords());
-      List<? extends UnboundedSource<T, ?>> splits = getSource().split(numInitialSplits, options);
+    @ProcessElement
+    public void process(
+        @Element Shard<T> shard, OutputReceiver<Shard<T>> out, PipelineOptions options)
+        throws Exception {
+      int numInitialSplits = numInitialSplits(shard.getMaxNumRecords());
+      List<? extends UnboundedSource<T, ?>> splits =
+          shard.getSource().split(numInitialSplits, options);
       int numSplits = splits.size();
-      long[] numRecords = splitNumRecords(getMaxNumRecords(), numSplits);
+      long[] numRecords = splitNumRecords(shard.getMaxNumRecords(), numSplits);
       for (int i = 0; i < numSplits; i++) {
-        result.add(
-            toBuilder()
+        out.output(
+            shard
+                .toBuilder()
                 .setSource(splits.get(i))
                 .setMaxNumRecords(numRecords[i])
-                .setMaxReadTime(getMaxReadTime())
+                .setMaxReadTime(shard.getMaxReadTime())
                 .build());
       }
-      return result;
     }
+  }
 
-    @Override
-    public long getEstimatedSizeBytes(PipelineOptions options) {
-      // No way to estimate bytes, so returning 0.
-      return 0L;
-    }
-
-    @Override
-    public Coder<ValueWithRecordId<T>> getOutputCoder() {
-      return ValueWithRecordId.ValueWithRecordIdCoder.of(getSource().getOutputCoder());
-    }
-
-    @Override
-    public void validate() {
-      getSource().validate();
-    }
-
-    @Override
-    public BoundedReader<ValueWithRecordId<T>> createReader(PipelineOptions options)
-        throws IOException {
-      return new Reader(getSource().createReader(options, null));
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      builder.delegate(getSource());
-    }
-
-    private class Reader extends BoundedReader<ValueWithRecordId<T>> {
-      private long recordsRead = 0L;
-
-      @Nullable private Instant endTime;
-
-      private UnboundedSource.UnboundedReader<T> reader;
-
-      private Reader(UnboundedSource.UnboundedReader<T> reader) {
-        this.recordsRead = 0L;
-        if (getMaxReadTime() != null) {
-          this.endTime = Instant.now().plus(getMaxReadTime());
-        } else {
-          this.endTime = null;
-        }
-        this.reader = reader;
+  private static class ReadFn<T> extends DoFn<Shard<T>, ValueWithRecordId<T>> {
+    @ProcessElement
+    public void process(
+        @Element Shard<T> shard, OutputReceiver<ValueWithRecordId<T>> out, PipelineOptions options)
+        throws Exception {
+      Instant endTime =
+          shard.getMaxReadTime() == null ? null : Instant.now().plus(shard.getMaxReadTime());
+      if (shard.getMaxNumRecords() <= 0
+          || (shard.getMaxReadTime() != null && shard.getMaxReadTime().getMillis() == 0)) {
+        return;
       }
 
-      @Override
-      public boolean start() throws IOException {
-        if (getMaxNumRecords() <= 0
-            || (getMaxReadTime() != null && getMaxReadTime().getMillis() == 0)) {
-          return false;
-        }
-
-        recordsRead++;
-        if (reader.start()) {
-          return true;
-        } else {
-          return advanceWithBackoff();
-        }
-      }
-
-      @Override
-      public boolean advance() throws IOException {
-        if (recordsRead >= getMaxNumRecords()) {
-          finalizeCheckpoint();
-          return false;
-        }
-        recordsRead++;
-        return advanceWithBackoff();
-      }
-
-      private boolean advanceWithBackoff() throws IOException {
-        // Try reading from the source with exponential backoff
-        BackOff backoff = BACKOFF_FACTORY.backoff();
-        long nextSleep = backoff.nextBackOffMillis();
-        while (nextSleep != BackOff.STOP) {
-          if (endTime != null && Instant.now().isAfter(endTime)) {
-            finalizeCheckpoint();
-            return false;
+      try (UnboundedSource.UnboundedReader<T> reader =
+          SerializableUtils.clone(shard.getSource()).createReader(options, null)) {
+        for (long i = 0L; i < shard.getMaxNumRecords(); ++i) {
+          boolean available = (i == 0) ? reader.start() : reader.advance();
+          if (!available && !advanceWithBackoff(reader, endTime)) {
+            break;
           }
-          if (reader.advance()) {
-            return true;
-          }
-          Uninterruptibles.sleepUninterruptibly(nextSleep, TimeUnit.MILLISECONDS);
-          nextSleep = backoff.nextBackOffMillis();
+          out.outputWithTimestamp(
+              new ValueWithRecordId<T>(reader.getCurrent(), reader.getCurrentRecordId()),
+              reader.getCurrentTimestamp());
         }
-        finalizeCheckpoint();
-        return false;
-      }
-
-      private void finalizeCheckpoint() throws IOException {
         reader.getCheckpointMark().finalizeCheckpoint();
       }
+    }
 
-      @Override
-      public ValueWithRecordId<T> getCurrent() throws NoSuchElementException {
-        return new ValueWithRecordId<>(reader.getCurrent(), reader.getCurrentRecordId());
+    private boolean advanceWithBackoff(UnboundedReader<T> reader, Instant endTime)
+        throws IOException {
+      // Try reading from the source with exponential backoff
+      BackOff backoff = BACKOFF_FACTORY.backoff();
+      long nextSleep = backoff.nextBackOffMillis();
+      while (true) {
+        if (nextSleep == BackOff.STOP || (endTime != null && Instant.now().isAfter(endTime))) {
+          return false;
+        }
+        if (reader.advance()) {
+          return true;
+        }
+        Uninterruptibles.sleepUninterruptibly(nextSleep, TimeUnit.MILLISECONDS);
+        nextSleep = backoff.nextBackOffMillis();
       }
+    }
+  }
 
-      @Override
-      public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return reader.getCurrentTimestamp();
-      }
+  /**
+   * Adapter that wraps the underlying {@link UnboundedSource} with the specified bounds on number
+   * of records and read time into a {@link BoundedSource}.
+   */
+  @AutoValue
+  abstract static class Shard<T> implements Serializable {
+    @Nullable
+    abstract UnboundedSource<T, ?> getSource();
 
-      @Override
-      public void close() throws IOException {
-        reader.close();
-      }
+    abstract long getMaxNumRecords();
 
-      @Override
-      public BoundedSource<ValueWithRecordId<T>> getCurrentSource() {
-        return UnboundedToBoundedSourceAdapter.this;
-      }
+    @Nullable
+    abstract Duration getMaxReadTime();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setSource(UnboundedSource<T, ?> source);
+
+      abstract Builder<T> setMaxNumRecords(long maxNumRecords);
+
+      abstract Builder<T> setMaxReadTime(@Nullable Duration maxReadTime);
+
+      abstract Shard<T> build();
     }
   }
 }

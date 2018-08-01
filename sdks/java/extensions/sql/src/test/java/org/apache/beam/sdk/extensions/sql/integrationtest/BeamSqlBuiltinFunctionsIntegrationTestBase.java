@@ -31,12 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -107,7 +107,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               2147483647,
               9223372036854775807L)
           .buildIOReader(pipeline.begin())
-          .setCoder(ROW_TYPE.getRowCoder());
+          .setRowSchema(ROW_TYPE);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -286,7 +286,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       public PDone expand(PBegin begin) {
         PCollection<Boolean> result =
             begin
-                .apply(Create.of(DUMMY_ROW).withCoder(RowCoder.of(DUMMY_SCHEMA)))
+                .apply(
+                    Create.of(DUMMY_ROW)
+                        .withSchema(
+                            DUMMY_SCHEMA,
+                            SerializableFunctions.identity(),
+                            SerializableFunctions.identity()))
                 .apply(SqlTransform.query("SELECT " + expr))
                 .apply(MapElements.into(TypeDescriptors.booleans()).via(row -> row.getBoolean(0)));
 

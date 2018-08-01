@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -292,6 +293,19 @@ public class PCollection<T> extends PValueBase implements PValue {
     return this;
   }
 
+  /**
+   * Sets a schema on this PCollection.
+   *
+   * <p>Can only be called on a {@link PCollection<Row>}.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public PCollection<T> setRowSchema(Schema schema) {
+    return setSchema(
+        schema,
+        (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
+        (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
+  }
+
   /** Sets a {@link Schema} on this {@link PCollection}. */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
@@ -361,12 +375,21 @@ public class PCollection<T> extends PValueBase implements PValue {
   private IsBounded isBounded;
 
   /** A local {@link TupleTag} used in the expansion of this {@link PValueBase}. */
-  private final TupleTag<?> tag = new TupleTag<>();
+  private final TupleTag<?> tag;
 
   private PCollection(Pipeline p, WindowingStrategy<?, ?> windowingStrategy, IsBounded isBounded) {
     super(p);
     this.windowingStrategy = windowingStrategy;
     this.isBounded = isBounded;
+    this.tag = new TupleTag<>();
+  }
+
+  private PCollection(
+      Pipeline p, WindowingStrategy<?, ?> windowingStrategy, IsBounded isBounded, TupleTag<?> tag) {
+    super(p);
+    this.windowingStrategy = windowingStrategy;
+    this.isBounded = isBounded;
+    this.tag = tag;
   }
 
   /**
@@ -402,6 +425,21 @@ public class PCollection<T> extends PValueBase implements PValue {
       IsBounded isBounded,
       @Nullable Coder<T> coder) {
     PCollection<T> res = new PCollection<>(pipeline, windowingStrategy, isBounded);
+    if (coder != null) {
+      res.setCoder(coder);
+    }
+    return res;
+  }
+
+  /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
+  @Internal
+  public static <T> PCollection<T> createPrimitiveOutputInternal(
+      Pipeline pipeline,
+      WindowingStrategy<?, ?> windowingStrategy,
+      IsBounded isBounded,
+      @Nullable Coder<T> coder,
+      TupleTag<?> tag) {
+    PCollection<T> res = new PCollection<>(pipeline, windowingStrategy, isBounded, tag);
     if (coder != null) {
       res.setCoder(coder);
     }

@@ -29,6 +29,7 @@ import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /**
@@ -222,7 +223,8 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
 
     Event event;
     if (rem < GeneratorConfig.PERSON_PROPORTION) {
-      event = new Event(nextPerson(newEventId, random, adjustedEventTimestamp, config));
+      event =
+          new Event(nextPerson(newEventId, random, new DateTime(adjustedEventTimestamp), config));
     } else if (rem < GeneratorConfig.PERSON_PROPORTION + GeneratorConfig.AUCTION_PROPORTION) {
       event =
           new Event(

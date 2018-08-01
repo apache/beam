@@ -42,6 +42,9 @@ class OffsetRange(object):
 
     return self.start == other.start and self.stop == other.stop
 
+  def __hash__(self):
+    return hash((type(self), self.start, self.stop))
+
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
     max_split_size = max(desired_num_offsets_per_split,

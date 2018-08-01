@@ -20,9 +20,11 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import codecs
 import logging
 import math
 import threading
+from builtins import zip
 
 from past.builtins import long
 
@@ -402,7 +404,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
       s += '\0' * (prec - len(s))
     else:
       s = s[:prec]
-    return int(s.encode('hex'), 16)
+    return int(codecs.encode(s, 'hex'), 16)
 
   @staticmethod
   def _string_from_int(i, prec):
@@ -410,4 +412,4 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     Inverse of _string_to_int.
     """
     h = '%x' % i
-    return ('0' * (2 * prec - len(h)) + h).decode('hex')
+    return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')

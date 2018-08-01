@@ -20,7 +20,6 @@ cimport cython
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
-from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
 cdef WindowedValue _globally_windowed_value
@@ -46,7 +45,6 @@ cdef class Operation(object):
   cdef object consumers
   cdef readonly counter_factory
   cdef public metrics_container
-  cdef public ScopedMetricsContainer scoped_metrics_container
   # Public for access by Fn harness operations.
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers

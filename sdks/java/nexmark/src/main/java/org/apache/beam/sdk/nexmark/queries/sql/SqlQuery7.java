@@ -17,18 +17,17 @@
  */
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.ToRow;
+import org.apache.beam.sdk.nexmark.model.Event.Type;
+import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -75,25 +74,13 @@ public class SqlQuery7 extends PTransform<PCollection<Event>, PCollection<Bid>> 
 
   @Override
   public PCollection<Bid> expand(PCollection<Event> allEvents) {
-    RowCoder bidRecordCoder = getBidRowCoder();
-
     PCollection<Row> bids =
         allEvents
             .apply(Filter.by(IS_BID))
-            .apply(getName() + ".ToRow", ToRow.parDo())
-            .setCoder(bidRecordCoder);
+            .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
 
-    PCollection<Row> queryResultsRows =
-        PCollectionTuple.of(new TupleTag<>("Bid"), bids).apply(query);
-
-    return queryResultsRows.apply(bidParDo()).setCoder(Bid.CODER);
-  }
-
-  private RowCoder getBidRowCoder() {
-    return ADAPTERS.get(Bid.class).getSchema().getRowCoder();
-  }
-
-  private ParDo.SingleOutput<Row, Bid> bidParDo() {
-    return ADAPTERS.get(Bid.class).parDo();
+    return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
+        .apply(query)
+        .apply(Convert.fromRows(Bid.class));
   }
 }

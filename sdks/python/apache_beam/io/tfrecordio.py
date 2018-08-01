@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import codecs
 import logging
 import struct
 from builtins import object
@@ -120,24 +121,24 @@ class _TFRecordUtil(object):
     # Validate all length related payloads.
     if len(buf) != buf_length_expected:
       raise ValueError('Not a valid TFRecord. Fewer than %d bytes: %s' %
-                       (buf_length_expected, buf.encode('hex')))
+                       (buf_length_expected, codecs.encode(buf, 'hex')))
     length, length_mask_expected = struct.unpack('<QI', buf)
     length_mask_actual = cls._masked_crc32c(buf[:8])
     if length_mask_actual != length_mask_expected:
       raise ValueError('Not a valid TFRecord. Mismatch of length mask: %s' %
-                       buf.encode('hex'))
+                       codecs.encode(buf, 'hex'))
 
     # Validate all data related payloads.
     buf_length_expected = length + 4
     buf = file_handle.read(buf_length_expected)
     if len(buf) != buf_length_expected:
       raise ValueError('Not a valid TFRecord. Fewer than %d bytes: %s' %
-                       (buf_length_expected, buf.encode('hex')))
+                       (buf_length_expected, codecs.encode(buf, 'hex')))
     data, data_mask_expected = struct.unpack('<%dsI' % length, buf)
     data_mask_actual = cls._masked_crc32c(data)
     if data_mask_actual != data_mask_expected:
       raise ValueError('Not a valid TFRecord. Mismatch of data mask: %s' %
-                       buf.encode('hex'))
+                       codecs.encode(buf, 'hex'))
 
     # All validation checks passed.
     return data

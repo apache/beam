@@ -61,9 +61,6 @@ public class SyntheticOptions implements Serializable {
     MIXED,
   }
 
-  /** Mapper for (de)serializing JSON. */
-  private static final ObjectMapper MAPPER = new ObjectMapper();
-
   /**
    * Wrapper over a distribution. Unfortunately commons-math does not provide a common interface
    * over both RealDistribution and IntegerDistribution, and we sometimes need one and sometimes the
@@ -160,7 +157,7 @@ public class SyntheticOptions implements Serializable {
    * The hash function is used to generate seeds that are fed into the random number generators and
    * the sleep time distributions.
    */
-  @JsonIgnore public transient HashFunction hashFunction;
+  @JsonIgnore private transient HashFunction hashFunction;
 
   /**
    * SyntheticOptions supports several delay distributions including uniform, normal, exponential,
@@ -180,11 +177,11 @@ public class SyntheticOptions implements Serializable {
    *       representing the mean of this exponentially distributed delay in milliseconds.
    *   <li>The zipf distribution is specified through
    *       "delayDistribution":{"type":"zipf","param":param,"multiplier":multiplier}, where param is
-   *       a number > 1 and multiplier just scales the output of the distribution. By default, the
-   *       multiplier is 1. Parameters closer to 1 produce dramatically more skewed results. E.g.
-   *       given 100 samples, the min will almost always be 1, while max with param 3 will usually
-   *       be below 10; with param 2 max will usually be between several dozen and several hundred;
-   *       with param 1.5, thousands to millions.
+   *       a number &gt; 1 and multiplier just scales the output of the distribution. By default,
+   *       the multiplier is 1. Parameters closer to 1 produce dramatically more skewed results.
+   *       E.g. given 100 samples, the min will almost always be 1, while max with param 3 will
+   *       usually be below 10; with param 2 max will usually be between several dozen and several
+   *       hundred; with param 1.5, thousands to millions.
    *   <li>The constant sleep time per record is specified through
    *       "delayDistribution":{"type":"const","const":const} where const is a non-negative number
    *       representing the constant sleep time in milliseconds.
@@ -217,7 +214,15 @@ public class SyntheticOptions implements Serializable {
   @JsonDeserialize
   public void setSeed(int seed) {
     this.seed = seed;
-    this.hashFunction = Hashing.murmur3_128(seed);
+  }
+
+  public HashFunction hashFunction() {
+    // due to field's transiency initialize when null.
+    if (hashFunction == null) {
+      this.hashFunction = Hashing.murmur3_128(seed);
+    }
+
+    return hashFunction;
   }
 
   static class SamplerDeserializer extends JsonDeserializer<Sampler> {
@@ -298,7 +303,6 @@ public class SyntheticOptions implements Serializable {
         hotKeyFraction >= 0,
         "hotKeyFraction should be a non-negative number, but found %s",
         hotKeyFraction);
-    checkArgument(hashFunction != null, "hashFunction hasn't been initialized.");
     if (hotKeyFraction > 0) {
       int intBytes = Integer.SIZE / 8;
       checkArgument(
@@ -314,7 +318,7 @@ public class SyntheticOptions implements Serializable {
   @Override
   public String toString() {
     try {
-      return MAPPER.writeValueAsString(this);
+      return new ObjectMapper().writeValueAsString(this);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

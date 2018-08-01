@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link Schema} describes the fields in {@link Row}. */
@@ -184,8 +183,28 @@ public class Schema implements Serializable {
         && Objects.equals(getFields(), other.getFields());
   }
 
+  enum EquivalenceNullablePolicy {
+    SAME,
+    WEAKEN,
+    IGNORE
+  };
+
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
+    return equivalent(other, EquivalenceNullablePolicy.SAME);
+  }
+
+  /** Returns true if this Schema can be assigned to another Schema. * */
+  public boolean assignableTo(Schema other) {
+    return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
+  }
+
+  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
+  public boolean assignableToIgnoreNullable(Schema other) {
+    return equivalent(other, EquivalenceNullablePolicy.IGNORE);
+  }
+
+  private boolean equivalent(Schema other, EquivalenceNullablePolicy nullablePolicy) {
     if (other.getFieldCount() != getFieldCount()) {
       return false;
     }
@@ -205,7 +224,7 @@ public class Schema implements Serializable {
     for (int i = 0; i < otherFields.size(); ++i) {
       Field otherField = otherFields.get(i);
       Field actualField = actualFields.get(i);
-      if (!otherField.equivalent(actualField)) {
+      if (!otherField.equivalent(actualField, nullablePolicy)) {
         return false;
       }
     }
@@ -552,10 +571,16 @@ public class Schema implements Serializable {
           && Objects.equals(getNullable(), other.getNullable());
     }
 
-    private boolean equivalent(Field otherField) {
-      return otherField.getName().equals(getName())
-          && otherField.getNullable().equals(getNullable())
-          && getType().equivalent(otherField.getType());
+    private boolean equivalent(Field otherField, EquivalenceNullablePolicy nullablePolicy) {
+      if (nullablePolicy == EquivalenceNullablePolicy.SAME
+          && !otherField.getNullable().equals(getNullable())) {
+        return false;
+      } else if (nullablePolicy == EquivalenceNullablePolicy.WEAKEN) {
+        if (getNullable() && !otherField.getNullable()) {
+          return false;
+        }
+      }
+      return otherField.getName().equals(getName()) && getType().equivalent(otherField.getType());
     }
 
     @Override
@@ -578,11 +603,6 @@ public class Schema implements Serializable {
 
   private static Schema fromFields(List<Field> fields) {
     return new Schema(fields);
-  }
-
-  /** Return the coder for a {@link Row} with this schema. */
-  public RowCoder getRowCoder() {
-    return RowCoder.of(this);
   }
 
   /** Return the list of all field names. */

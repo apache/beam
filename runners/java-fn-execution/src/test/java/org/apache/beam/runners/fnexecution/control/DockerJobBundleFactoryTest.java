@@ -122,8 +122,8 @@ public class DockerJobBundleFactoryTest {
             loggingServer,
             retrievalServer,
             provisioningServer)) {
-      StageBundleFactory<?> bf1 = bundleFactory.forStage(getExecutableStage(environment));
-      StageBundleFactory<?> bf2 = bundleFactory.forStage(getExecutableStage(environment));
+      StageBundleFactory bf1 = bundleFactory.forStage(getExecutableStage(environment));
+      StageBundleFactory bf2 = bundleFactory.forStage(getExecutableStage(environment));
       // NOTE: We hang on to stage bundle references to ensure their underlying environments are not
       // garbage collected. For additional safety, we print the factories to ensure the referernces
       // are not optimized away.

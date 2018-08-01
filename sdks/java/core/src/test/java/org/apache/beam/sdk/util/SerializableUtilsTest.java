@@ -30,8 +30,6 @@ import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,10 +57,9 @@ public class SerializableUtilsTest {
   public void customClassLoader() throws Exception {
     // define a classloader with test-classes in it
     final ClassLoader testLoader = Thread.currentThread().getContextClassLoader();
-    final ClassLoader loader = new InterceptingUrlClassLoader(testLoader, MySource.class.getName());
-    final Class<?> source =
-        loader.loadClass("org.apache.beam.sdk.util.SerializableUtilsTest$MySource");
-    assertNotSame(source.getClassLoader(), MySource.class.getClassLoader());
+    final ClassLoader loader = new InterceptingUrlClassLoader(testLoader, Foo.class.getName());
+    final Class<?> source = loader.loadClass(Foo.class.getName());
+    assertNotSame(source.getClassLoader(), Foo.class.getClassLoader());
 
     // validate if the caller set the classloader that it works well
     final Serializable customLoaderSourceInstance =
@@ -151,21 +148,5 @@ public class SerializableUtilsTest {
   /**
    * a sample class to test framework serialization, {@see SerializableUtilsTest#customClassLoader}.
    */
-  public static class MySource extends BoundedSource<String> {
-    @Override
-    public List<? extends BoundedSource<String>> split(
-        final long desiredBundleSizeBytes, final PipelineOptions options) throws Exception {
-      return null;
-    }
-
-    @Override
-    public long getEstimatedSizeBytes(final PipelineOptions options) throws Exception {
-      return 0;
-    }
-
-    @Override
-    public BoundedReader<String> createReader(final PipelineOptions options) throws IOException {
-      return null;
-    }
-  }
+  public static class Foo implements Serializable {}
 }

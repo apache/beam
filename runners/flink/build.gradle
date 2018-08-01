@@ -35,6 +35,7 @@ evaluationDependsOn(":beam-runners-core-java")
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
+  //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
@@ -45,7 +46,7 @@ configurations {
   validatesRunner
 }
 
-def flink_version = "1.5.0"
+def flink_version = "1.5.2"
 
 dependencies {
   compile library.java.guava
@@ -79,6 +80,7 @@ dependencies {
   shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest project(":beam-sdks-java-harness")
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
@@ -111,7 +113,6 @@ def createValidatesRunnerTask(Map m) {
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       }
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }

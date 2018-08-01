@@ -133,6 +133,38 @@ public class NetworksTest {
   }
 
   @Test
+  public void testTopologicalOrderWithFeedbackArcs() throws Exception {
+    MutableNetwork<String, String> network = createNetwork();
+    network.addEdge("F", "B", "FB");
+    Iterable<String> sortedNodes = Networks.topologicalOrder(network);
+    Map<String, Integer> nodeToPosition = new HashMap<>(Iterables.size(sortedNodes));
+    int i = 0;
+    for (String node : sortedNodes) {
+      nodeToPosition.put(node, i);
+      i += 1;
+    }
+
+    for (String node : network.nodes()) {
+      for (String descendant :
+          Sets.difference(
+              Networks.reachableNodes(network, ImmutableSet.of(node), Collections.emptySet()),
+              Sets.newHashSet(node))) {
+        if (!Networks.reachableNodes(network, ImmutableSet.of(descendant), Collections.emptySet())
+            .contains(node)) {
+          // We only reliably compare nodes outside of a loop.
+          assertThat(
+              String.format(
+                  "Expected position of node %s to be before descendant %s,"
+                      + " order returned %s for network %s",
+                  node, descendant, sortedNodes, network),
+              nodeToPosition.get(descendant),
+              greaterThan(nodeToPosition.get(node)));
+        }
+      }
+    }
+  }
+
+  @Test
   public void testReachableNodesWithEmptyNetwork() {
     assertThat(
         Networks.reachableNodes(

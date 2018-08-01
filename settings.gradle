@@ -53,7 +53,7 @@ project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-c
 include ":beam-runners-google-cloud-dataflow-java-examples"
 project(":beam-runners-google-cloud-dataflow-java-examples").dir = file("runners/google-cloud-dataflow-java/examples")
 include ":beam-runners-google-cloud-dataflow-java-examples-streaming"
-project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples")
+project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples-streaming")
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
 include "beam-runners-local-java-core"
@@ -138,6 +138,8 @@ include "beam-sdks-java-io-kafka"
 project(":beam-sdks-java-io-kafka").dir = file("sdks/java/io/kafka")
 include "beam-sdks-java-io-kinesis"
 project(":beam-sdks-java-io-kinesis").dir = file("sdks/java/io/kinesis")
+include "beam-sdks-java-io-kudu"
+project(":beam-sdks-java-io-kudu").dir = file("sdks/java/io/kudu")
 include "beam-sdks-java-io-mongodb"
 project(":beam-sdks-java-io-mongodb").dir = file("sdks/java/io/mongodb")
 include "beam-sdks-java-io-mqtt"

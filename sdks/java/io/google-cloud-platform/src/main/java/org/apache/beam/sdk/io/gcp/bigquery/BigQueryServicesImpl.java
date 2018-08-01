@@ -257,8 +257,16 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .get(jobRef.getProjectId(), jobRef.getJobId())
                   .setLocation(jobRef.getLocation())
                   .execute();
+          if (job == null) {
+            LOG.info("Still waiting for BigQuery job {} to start", jobRef);
+            continue;
+          }
           JobStatus status = job.getStatus();
-          if (status != null && "DONE".equals(status.getState())) {
+          if (status == null) {
+            LOG.info("Still waiting for BigQuery job {} to enter pending state", jobRef);
+            continue;
+          }
+          if ("DONE".equals(status.getState())) {
             LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;
           }
@@ -655,14 +663,15 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    long insertAll(
+    <T> long insertAll(
         TableReference ref,
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         BackOff backoff,
         final Sleeper sleeper,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -766,7 +775,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
               } else {
-                failedInserts.add(rowsToPublish.get(errorIndex));
+                errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
           }
@@ -803,12 +812,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public long insertAll(
+    public <T> long insertAll(
         TableReference ref,
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -817,7 +827,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           BackOffAdapter.toGcpBackOff(INSERT_BACKOFF_FACTORY.backoff()),
           Sleeper.DEFAULT,
           retryPolicy,
-          failedInserts);
+          failedInserts,
+          errorContainer);
     }
 
     @Override

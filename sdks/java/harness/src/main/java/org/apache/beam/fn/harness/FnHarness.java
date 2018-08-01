@@ -19,8 +19,10 @@
 package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import java.util.EnumMap;
 import java.util.List;
+import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.RegisterHandler;
@@ -116,6 +118,8 @@ public class FnHarness {
     }
     OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
+    channelFactory =
+        channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)));
     main(
         id,
         options,

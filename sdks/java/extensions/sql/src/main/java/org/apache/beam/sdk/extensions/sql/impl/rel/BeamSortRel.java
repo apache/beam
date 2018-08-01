@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -166,7 +167,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         return upstream
             .apply(Window.into(new GlobalWindows()))
             .apply(new LimitTransform<>())
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
       } else {
 
         WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
@@ -200,7 +201,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
         return rawStream
             .apply("flatten", Flatten.iterables())
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+            .setSchema(
+                CalciteUtils.toBeamSchema(getRowType()),
+                SerializableFunctions.identity(),
+                SerializableFunctions.identity());
       }
     }
   }
