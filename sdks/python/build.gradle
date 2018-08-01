@@ -260,6 +260,18 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+task flinkCompatibilityMatrix() {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-sdks-python-container:docker'
+  dependsOn ':beam-runners-flink_2.11-job-server:jar'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath}"
+    }
+  }
+}
+
 task postCommit() {
   dependsOn "preCommit"
   dependsOn "localWordCount"
