@@ -18,12 +18,15 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import logging
+import shutil
 import sys
+import tempfile
 import unittest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
@@ -35,6 +38,7 @@ if __name__ == '__main__':
   #     /path/to/job_server.jar \
   #     [FlinkRunnerTest.test_method, ...]
   flinkJobServerJar = sys.argv.pop(1)
+  streaming = sys.argv.pop(1).lower() == 'streaming'
 
   # This is defined here to only be run when we invoke this file explicitly.
   class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
@@ -43,12 +47,16 @@ if __name__ == '__main__':
 
     @classmethod
     def _subprocess_command(cls, port):
-      return [
-          'java',
-          '-jar', flinkJobServerJar,
-          '--artifacts-dir', '/tmp/flink',
-          '--job-host', 'localhost:%s' % port,
-      ]
+      tmp_dir = tempfile.mkdtemp(prefix='flinktest')
+      try:
+        return [
+            'java',
+            '-jar', flinkJobServerJar,
+            '--artifacts-dir', tmp_dir,
+            '--job-host', 'localhost:%s' % port,
+        ]
+      finally:
+        shutil.rmtree(tmp_dir)
 
     @classmethod
     def get_runner(cls):
@@ -58,6 +66,8 @@ if __name__ == '__main__':
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
       options.view_as(SetupOptions).sdk_location = 'container'
+      if streaming:
+        options.view_as(StandardOptions).streaming = True
       return options
 
     # Can't read host files from within docker, read a "local" file there.
