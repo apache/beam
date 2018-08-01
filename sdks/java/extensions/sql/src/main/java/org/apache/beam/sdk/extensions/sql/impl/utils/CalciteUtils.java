@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
@@ -90,12 +88,8 @@ public class CalciteUtils {
           FieldType.STRING, SqlTypeName.VARCHAR);
 
   /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
-  public static Schema toBeamSchema(RelDataType tableInfo) {
-    return tableInfo
-        .getFieldList()
-        .stream()
-        .map(CalciteUtils::toBeamSchemaField)
-        .collect(toSchema());
+  public static Schema toSchema(RelDataType tableInfo) {
+    return tableInfo.getFieldList().stream().map(CalciteUtils::toField).collect(Schema.toSchema());
   }
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
@@ -134,6 +128,14 @@ public class CalciteUtils {
     }
   }
 
+  public static Schema.Field toField(RelDataTypeField calciteField) {
+    return toField(calciteField.getName(), calciteField.getType());
+  }
+
+  public static Schema.Field toField(String name, RelDataType calciteType) {
+    return Schema.Field.of(name, toFieldType(calciteType)).withNullable(calciteType.isNullable());
+  }
+
   public static FieldType toFieldType(RelDataType calciteType) {
     switch (calciteType.getSqlTypeName()) {
       case ARRAY:
@@ -143,17 +145,11 @@ public class CalciteUtils {
         return FieldType.map(
             toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
       case ROW:
-        return FieldType.row(toBeamSchema(calciteType));
+        return FieldType.row(toSchema(calciteType));
 
       default:
         return toFieldType(calciteType.getSqlTypeName());
     }
-  }
-
-  public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
-    FieldType fieldType = toFieldType(calciteField.getType());
-    // TODO: We should support Calcite's nullable annotations.
-    return Schema.Field.of(calciteField.getName(), fieldType).withNullable(true);
   }
 
   /** Create an instance of {@code RelDataType} so it can be used to create a table. */

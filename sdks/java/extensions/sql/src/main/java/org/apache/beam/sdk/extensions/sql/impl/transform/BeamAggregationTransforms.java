@@ -146,7 +146,7 @@ public class BeamAggregationTransforms implements Serializable {
         String aggName = aggCall.right;
 
         if (call.getArgList().size() == 2) {
-          /**
+          /*
            * handle the case of aggregation function has two parameters and use KV pair to bundle
            * two corresponding expressions.
            */
@@ -171,8 +171,9 @@ public class BeamAggregationTransforms implements Serializable {
           sourceFieldExps.add(sourceExp);
         }
 
-        FieldType typeDescriptor = CalciteUtils.toFieldType(call.type);
-        fields.add(Schema.Field.of(aggName, typeDescriptor));
+        Schema.Field field = CalciteUtils.toField(aggName, call.type);
+        Schema.TypeName fieldTypeName = field.getType().getTypeName();
+        fields.add(field);
 
         switch (call.getAggregation().getName()) {
           case "COUNT":
@@ -193,22 +194,17 @@ public class BeamAggregationTransforms implements Serializable {
             break;
           case "VAR_POP":
             aggregators.add(
-                VarianceFn.newPopulation(
-                    BigDecimalConverter.forSqlType(typeDescriptor.getTypeName())));
+                VarianceFn.newPopulation(BigDecimalConverter.forSqlType(fieldTypeName)));
             break;
           case "VAR_SAMP":
-            aggregators.add(
-                VarianceFn.newSample(BigDecimalConverter.forSqlType(typeDescriptor.getTypeName())));
+            aggregators.add(VarianceFn.newSample(BigDecimalConverter.forSqlType(fieldTypeName)));
             break;
           case "COVAR_POP":
             aggregators.add(
-                CovarianceFn.newPopulation(
-                    BigDecimalConverter.forSqlType(typeDescriptor.getTypeName())));
+                CovarianceFn.newPopulation(BigDecimalConverter.forSqlType(fieldTypeName)));
             break;
           case "COVAR_SAMP":
-            aggregators.add(
-                CovarianceFn.newSample(
-                    BigDecimalConverter.forSqlType(typeDescriptor.getTypeName())));
+            aggregators.add(CovarianceFn.newSample(BigDecimalConverter.forSqlType(fieldTypeName)));
             break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
