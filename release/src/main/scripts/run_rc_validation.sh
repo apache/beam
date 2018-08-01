@@ -30,10 +30,10 @@ echo "[Input Required] Please enter the release version: "
 read RELEASE
 RELEASE_BRANCH=release-${RELEASE}
 WORKING_BRANCH=release-${RELEASE}-RC${RC_NUM}_validations
-echo "[Input Required] Please enter the release candidate number(1-3): "
+echo "[Input Required] Please enter the release candidate number(e.g. 1): "
 read RC_NUM
 echo "[Input Required] Please copy the repo URL from the vote email sent out by Release Manager:"
-echo "The URL should look like: https://repository.apache.org/content/repositories/orgapachebeam-\${KEY}"
+echo "The URL should look like: https://repository.apache.org/content/repositories/orgapachebeam-0000"
 read REPO_URL
 
 echo "====================Checking Environment Variables================="
@@ -116,6 +116,8 @@ if [[ $confirmation = "y" ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with DataflowRunner"
   echo "*************************************************************"
+  gcloud auth application-default login
+  gcloud config set project ${USER_GCP_PROJECT}
   ./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE} \
@@ -143,8 +145,8 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "[GCP Project Required] Please input your GCP project:"
   read USER_GCP_PROJECT
-  MOBILE_GAME_DATASET=${USER}_${RELEASE}_java_validations
-  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-java-topic-1
+  MOBILE_GAME_DATASET=${USER}_java_validations
+  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-1
   echo "Please review following GCP sources setup: "
   echo "Using GCP project: ${USER_GCP_PROJECT}"
   echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
@@ -171,14 +173,14 @@ if [[ $confirmation = "y" ]]; then
     gcloud alpha pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
     gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
 
-    ehoc "**************************************************************************"
+    echo "**************************************************************************"
     echo "* Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
-    ehoc "**************************************************************************"
+    echo "**************************************************************************"
     ./gradlew :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow \
     -Prepourl=${REPO_URL} \
-    -Pver= ${RELEASE} \
+    -Pver=${RELEASE} \
     -PgcpProject=${USER_GCP_PROJECT} \
-    -PgcsBucket=gs://dataflow-samples/game/gaming_data1.csv \
+    -PgcsBucket=clouddfe-boyuanz \
     -PbqDataset=${MOBILE_GAME_DATASET} -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC}
   fi
 fi
@@ -255,8 +257,8 @@ if [[ $confirmation = "y" ]]; then
   gcloud config set project ${USER_GCP_PROJECT}
 
   MOBILE_GAME_GCS_BUCKET=gs://${USER}_python_validations_bucket
-  MOBILE_GAME_DATASET=${USER}_${RELEASE}_python_validations
-  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-${RELEASE}-python-topic-1
+  MOBILE_GAME_DATASET=${USER}_python_validations
+  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-python-topic-1
   gsutil mb -p ${USER_GCP_PROJECT} ${MOBILE_GAME_GCS_BUCKET}
   gcloud alpha pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
   gcloud alpha pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
@@ -335,130 +337,147 @@ if [[ $confirmation = "y" ]]; then
   cd ~/${LOCAL_CLONE_DIR}/apache-beam-${RELEASE}/
 
   echo "----------------Starting Leaderboard with DirectRunner-----------------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  echo "This is a streaming job. This task will be launched in a separate terminal."
-  gnome-terminal -x sh -c \
-  "echo '*****************************************************';
-   echo '* Running Python Leaderboard with DirectRunner';
-   echo '*****************************************************';
-  python -m apache_beam.examples.complete.game.leader_board \
-  --project=${USER_GCP_PROJECT} \
-  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
-  --dataset ${USER}_test;
-  exec bash"
-
-  echo "***************************************************************"
-  echo "* Please wait for at least 5 mins to let results get populated."
-  echo "* How to verify results:"
-  echo "* 1. Check whether there is any error messages in the task running terminal."
-  echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
-  echo "* 3. Check whether leader_board_users has data, retrieving BigQuery data as below: "
-  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_users
-  echo "* 4. Check whether leader_board_teams has data, retrieving BigQuery data as below:"
-  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
-  echo "***************************************************************"
-
-  echo "If you have verified all items listed above, please terminate the python job."
-  echo "[Confirmation Required] Please enter done to proceed into next step"
+  echo "[Confirmation Required] Do you want to proceed? [y|N]"
   read confirmation
+  if [[ $confirmation = "y" ]]; then
+    bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    echo "This is a streaming job. This task will be launched in a separate terminal."
+    gnome-terminal -x sh -c \
+    "echo '*****************************************************';
+     echo '* Running Python Leaderboard with DirectRunner';
+     echo '*****************************************************';
+    python -m apache_beam.examples.complete.game.leader_board \
+    --project=${USER_GCP_PROJECT} \
+    --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+    --dataset ${MOBILE_GAME_DATASET};
+    exec bash"
+
+    echo "***************************************************************"
+    echo "* Please wait for at least 5 mins to let results get populated."
+    echo "***************************************************************"
+    echo "* How to verify results:"
+    echo "* 1. Check whether there is any error messages in the task running terminal."
+    echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
+    echo "* 3. Check whether leader_board_users has data, retrieving BigQuery data as below: "
+    bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_users
+    echo "* 4. Check whether leader_board_teams has data, retrieving BigQuery data as below:"
+    bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
+    echo "***************************************************************"
+
+    echo "If you have verified all items listed above, please terminate the python job."
+    echo "[Confirmation Required] Please enter done to proceed into next step"
+    read confirmation
+  fi
 
   echo "----------------Starting Leaderboard with DataflowRunner---------------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  echo "This is a streaming job. This task will be launched in a separate terminal."
-  gnome-terminal -x sh -c \
-  "echo '*****************************************************';
-   echo '* Running Python Leaderboard with DataflowRunner';
-   echo '*****************************************************';
-  python -m apache_beam.examples.complete.game.leader_board \
-  --project=${USER_GCP_PROJECT} \
-  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
-  --dataset ${MOBILE_GAME_DATASET} \
-  --runner DataflowRunner \
-  --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
-  --sdk_location dist/*; \
-  exec bash"
-
-  echo "***************************************************************"
-  echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
-  echo "* How to verify results:"
-  echo "* 1. Goto your Dataflow job console and check whether there is any error."
-  echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
-  echo "* 3. Check whether leader_board_users has data, retrieving BigQuery data as below: "
-  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_users
-  echo "* 4. Check whether leader_board_teams has data, retrieving BigQuery data as below:"
-  bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
-  echo "***************************************************************"
-
-  echo "If you have verified all items listed above, please terminate this job in Dataflow Console."
-  echo "[Confirmation Required] Please enter done to proceed into next step"
+  echo "[Confirmation Required] Do you want to proceed? [y|N]"
   read confirmation
+  if [[ $confirmation = "y" ]]; then
+    bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    echo "This is a streaming job. This task will be launched in a separate terminal."
+    gnome-terminal -x sh -c \
+    "echo '*****************************************************';
+     echo '* Running Python Leaderboard with DataflowRunner';
+     echo '*****************************************************';
+    python -m apache_beam.examples.complete.game.leader_board \
+    --project=${USER_GCP_PROJECT} \
+    --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+    --dataset ${MOBILE_GAME_DATASET} \
+    --runner DataflowRunner \
+    --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
+    --sdk_location dist/*; \
+    exec bash"
+
+    echo "***************************************************************"
+    echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
+    echo "* How to verify results:"
+    echo "* 1. Goto your Dataflow job console and check whether there is any error."
+    echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
+    echo "* 3. Check whether leader_board_users has data, retrieving BigQuery data as below: "
+    bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_users
+    echo "* 4. Check whether leader_board_teams has data, retrieving BigQuery data as below:"
+    bq head -n 10 ${MOBILE_GAME_DATASET}.leader_board_teams
+    echo "***************************************************************"
+
+    echo "If you have verified all items listed above, please terminate this job in Dataflow Console."
+    echo "[Confirmation Required] Please enter done to proceed into next step"
+    read confirmation
+  fi
 
   FIXED_WINDOW_DURATION=15
 
   echo "------------------Starting GameStats with DirectRunner-----------------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-
-  echo "This is a streaming job. This task will be launched in a separate terminal."
-  echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
-  gnome-terminal -x sh -c \
-  "echo '*****************************************************';
-   echo '* Running GameStats with DirectRunner';
-   echo '*****************************************************';
-  python -m apache_beam.examples.complete.game.game_stats \
-  --project=${USER_GCP_PROJECT} \
-  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
-  --dataset ${MOBILE_GAME_DATASET} \
-  --fixed_window_duration ${FIXED_WINDOW_DURATION}; \
-  exec bash"
-
-  echo "***************************************************************"
-  echo "* Please wait for at least 20 mins to let results get populated."
-  echo "* How to verify results:"
-  echo "* 1. Check whether there is any error messages in the task running terminal."
-  echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
-  echo "* 3. Check whether game_stats_teams has data, retrieving BigQuery data as below: "
-  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_teams
-  echo "* 4. Check whether game_stats_sessions has data, retrieving BigQuery data as below:"
-  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
-  echo "***************************************************************"
-
-  echo "If you have verified all items listed above, please terminate the python job."
-  echo "[Confirmation Required] Please enter done to proceed into next step"
+  echo "[Confirmation Required] Do you want to proceed? [y|N]"
   read confirmation
+  if [[ $confirmation = "y" ]]; then
+    bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+
+    echo "This is a streaming job. This task will be launched in a separate terminal."
+    echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
+    gnome-terminal -x sh -c \
+    "echo '*****************************************************';
+     echo '* Running GameStats with DirectRunner';
+     echo '*****************************************************';
+    python -m apache_beam.examples.complete.game.game_stats \
+    --project=${USER_GCP_PROJECT} \
+    --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+    --dataset ${MOBILE_GAME_DATASET} \
+    --fixed_window_duration ${FIXED_WINDOW_DURATION}; \
+    exec bash"
+
+    echo "***************************************************************"
+    echo "* Please wait for at least 20 mins to let results get populated."
+    echo "* How to verify results:"
+    echo "* 1. Check whether there is any error messages in the task running terminal."
+    echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
+    echo "* 3. Check whether game_stats_teams has data, retrieving BigQuery data as below: "
+    bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_teams
+    echo "* 4. Check whether game_stats_sessions has data, retrieving BigQuery data as below:"
+    bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
+    echo "***************************************************************"
+
+    echo "If you have verified all items listed above, please terminate the python job."
+    echo "[Confirmation Required] Please enter done to proceed into next step"
+    read confirmation
+  fi
 
   echo "-------------------Starting GameStats with DataflowRunner--------------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  echo "This is a streaming job. This task will be launched in a separate terminal."
-  echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
-  gnome-terminal -x sh -c \
-  "echo '*****************************************************';
-   echo '* Running GameStats with DataflowRunner';
-   echo '*****************************************************';
-  python -m apache_beam.examples.complete.game.game_stats \
-  --project=${USER_GCP_PROJECT} \
-  --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
-  --dataset ${MOBILE_GAME_DATASET} \
-  --runner DataflowRunner \
-  --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
-  --sdk_location dist/* \
-  --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash"
-
-  echo "***************************************************************"
-  echo "* Please wait for at least 30 mins to let results get populated."
-  echo "* How to verify results:"
-  echo "* 1. Goto your Dataflow job console and check whether there is any error."
-  echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
-  echo "* 3. Check whether game_stats_teams has data, retrieving BigQuery data as below: "
-  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_teams
-  echo "* 4. Check whether game_stats_sessions has data, retrieving BigQuery data as below:"
-  bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
-  echo "***************************************************************"
-
-  echo "If you have verified all items listed above, please terminate the python job."
-  echo "[Confirmation Required] Please enter done to proceed into next step"
+  echo "[Confirmation Required] Do you want to proceed? [y|N]"
   read confirmation
+  if [[ $confirmation = "y" ]]; then
+    bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+    echo "This is a streaming job. This task will be launched in a separate terminal."
+    echo "Streaming job is running with fixed_window_duration=${FIXED_WINDOW_DURATION}"
+    gnome-terminal -x sh -c \
+    "echo '*****************************************************';
+     echo '* Running GameStats with DataflowRunner';
+     echo '*****************************************************';
+    python -m apache_beam.examples.complete.game.game_stats \
+    --project=${USER_GCP_PROJECT} \
+    --topic projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC} \
+    --dataset ${MOBILE_GAME_DATASET} \
+    --runner DataflowRunner \
+    --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
+    --sdk_location dist/* \
+    --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash"
+
+    echo "***************************************************************"
+    echo "* Please wait for at least 30 mins to let results get populated."
+    echo "* How to verify results:"
+    echo "* 1. Goto your Dataflow job console and check whether there is any error."
+    echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
+    echo "* 3. Check whether game_stats_teams has data, retrieving BigQuery data as below: "
+    bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_teams
+    echo "* 4. Check whether game_stats_sessions has data, retrieving BigQuery data as below:"
+    bq head -n 10 ${MOBILE_GAME_DATASET}.game_stats_sessions
+    echo "***************************************************************"
+
+    echo "If you have verified all items listed above, please terminate the python job."
+    echo "[Confirmation Required] Please enter done to proceed into next step"
+    read confirmation
+  fi
 fi
