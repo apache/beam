@@ -106,7 +106,8 @@ public class FullJoin {
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        UnaryFunction<LeftT, K> leftKeyExtractor,
+        UnaryFunction<RightT, K> rightKeyExtractor,
         TypeDescriptor<K> keyType) {
 
       @SuppressWarnings("unchecked")
@@ -121,8 +122,7 @@ public class FullJoin {
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor,
-        UnaryFunction<RightT, K> rightKeyExtractor) {
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
       return by(leftKeyExtractor, rightKeyExtractor, null);
     }
   }

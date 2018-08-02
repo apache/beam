@@ -357,7 +357,8 @@ public class JoinTest {
             .using(
                 (String l, String r, Collector<String> c) -> {
                   // no-op
-                }, outputType)
+                },
+                outputType)
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
@@ -380,7 +381,8 @@ public class JoinTest {
         .using(
             (String l, Optional<String> r, Collector<String> c) -> {
               // no-op
-            }, outputType)
+            },
+            outputType)
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
@@ -403,12 +405,12 @@ public class JoinTest {
         .using(
             (Optional<String> l, String r, Collector<String> c) -> {
               // no-op
-            }, outputType)
+            },
+            outputType)
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
 
     TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
   }
-
 }

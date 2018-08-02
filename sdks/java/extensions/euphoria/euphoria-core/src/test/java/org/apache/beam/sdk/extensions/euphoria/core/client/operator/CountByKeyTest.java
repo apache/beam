@@ -132,15 +132,9 @@ public class CountByKeyTest {
     TypeDescriptor<Long> outputType = TypeDescriptors.longs();
     TypeDescriptor<String> keyType = TypeDescriptors.strings();
     Dataset<Pair<String, Long>> counted =
-        CountByKey
-            .named("CountByKey1")
-            .of(dataset)
-            .keyBy(s -> s, keyType)
-            .output();
-
+        CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s, keyType).output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     TypePropagationAssert.assertOperatorTypeAwareness(count, outputType, keyType);
   }
-
 }
