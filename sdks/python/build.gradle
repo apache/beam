@@ -261,10 +261,16 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
 }
 
 task postCommit() {
-  dependsOn "preCommit"
+  /*dependsOn "preCommit"
   dependsOn "localWordCount"
   dependsOn "hdfsIntegrationTest"
-  dependsOn "postCommitITTests"
+  dependsOn "postCommitITTests"*/
+  doLast {
+    exec {
+        commandLine 'python2 --version'
+        commandLine 'python3 --version'
+    }
+  }
 }
 
 task dependencyUpdates(dependsOn: ':dependencyUpdates') {
