@@ -59,7 +59,7 @@ class WordExtractingDoFn(beam.DoFn):
     text_line = element.strip()
     if not text_line:
       self.empty_line_counter.inc(1)
-    words = re.findall(r'[A-Za-z0-9\']+', text_line)
+    words = re.findall(r'[\w\']+', text_line, re.UNICODE)
     for w in words:
       self.words_counter.inc()
       self.word_lengths_counter.inc(len(w))
