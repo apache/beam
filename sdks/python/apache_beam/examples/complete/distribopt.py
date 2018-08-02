@@ -15,24 +15,26 @@
 # limitations under the License.
 #
 
-"""Example illustrating the use of Apache Beam for solving distributing optimization tasks.
+"""Example illustrating the use of Apache Beam for solving distributing
+optimization tasks.
 
-This example solves an optimization problem which consists of distributing a number of
-crops to grow in several greenhouses. The decision where to grow the crop has an impact on
-the production parameters associated with the greenhouse, which affects the total cost of
-production at the greenhouse. Additionally, each crop needs to be transported to a customer
-so the decision where to grow the crop has an impact on the transportation costs as well.
+This example solves an optimization problem which consists of distributing a
+number of crops to grow in several greenhouses. The decision where to grow the
+crop has an impact on the production parameters associated with the greenhouse,
+which affects the total cost of production at the greenhouse. Additionally,
+each crop needs to be transported to a customer so the decision where to grow
+the crop has an impact on the transportation costs as well.
 
-This type of optimization problems are known as mixed-integer programs as they exist of discrete
-parameters (do we produce a crop in greenhouse A, B or C?) and continuous parameters (the
-greenhouse production parameters).
+This type of optimization problems are known as mixed-integer programs as they
+exist of discrete parameters (do we produce a crop in greenhouse A, B or C?)
+and continuous parameters (the greenhouse production parameters).
 
-Running this example requires NumPy and SciPy. The input consists of a CSV file with the following
-columns (Tx representing the transporation cost/unit if the crop is produced in greenhouse x):
-Crop name, Quantity, Ta, Tb, Tc, ....
+Running this example requires NumPy and SciPy. The input consists of a CSV file
+with the following columns (Tx representing the transporation cost/unit if the
+crop is produced in greenhouse x): Crop name, Quantity, Ta, Tb, Tc, ....
 
-Example input file with 5 crops and 3 greenhouses (a transporation cost of 0 forbids production
-of the crop in a greenhouse):
+Example input file with 5 crops and 3 greenhouses (a transporation cost of 0
+forbids production of the crop in a greenhouse):
 OP01,8,12,0,12
 OP02,30,14,3,12
 OP03,25,7,3,14
@@ -41,10 +43,15 @@ OP05,19,1,7,10
 
 The pipeline consists of three phases:
   - Creating a grid of mappings (assignment of each crop to a greenhouse)
-  - For each mapping and each greenhouse, optimization of the production parameters for cost,
-    addition of the transporation costs, and aggregation of the costs for each mapping.
+  - For each mapping and each greenhouse, optimization of the production
+    parameters for cost, addition of the transporation costs, and aggregation
+    of the costs for each mapping.
   - Selecting the mapping with the lowest cost.
 """
+
+from __future__ import absolute_import
+from __future__ import division
+
 import argparse
 import logging
 import string
@@ -77,13 +84,14 @@ class Simulator(object):
                               [1091, 8732, 5547],
                               [381, 5743, 8828]])
 
-    a0 = np.array([1.0, 1.2, 3.0, 3.2])
-    coeff = np.sum(np.cos(np.dot(np.atleast_2d(a0).T, self.quantities[None, :])), axis=1)
+    a0 = np.array([[1.0, 1.2, 3.0, 3.2]])
+    coeff = np.sum(np.cos(np.dot(a0.T, self.quantities[None, :])), axis=1)
     self.alpha = coeff / np.sum(coeff)
 
   def simulate(self, xc):
     # Map the input parameter to a cost for each crop.
-    f = -np.sum(self.alpha * np.exp(-np.sum(self.A * np.square(xc - self.P), axis=1)))
+    weighted_distance = np.sum(self.A * np.square(xc - self.P), axis=1)
+    f = -np.sum(self.alpha * np.exp(-weighted_distance))
     return np.square(f) * np.log(self.quantities)
 
 
@@ -100,20 +108,21 @@ class CreateGrid(beam.PTransform):
   """
 
   class PreGenerateMappings(beam.DoFn):
-    """ParDo implementation which consumes 2 records of an element and forms a small sub grid.
+    """ParDo implementation forming based on two elements a small sub grid.
 
     This facilitates parallellization of the grid generation.
-    Emits two PCollections: the subgrid represented as collection of lists of two tuples,
-    and a list of remaining records. Both serve as an input to GenerateMappings.
+    Emits two PCollections: the subgrid represented as collection of lists of
+    two tuples, and a list of remaining records. Both serve as an input to
+    GenerateMappings.
     """
 
     def process(self, element):
       records = list(element[1])
       # Split of 2 crops and pre-generate the subgrid.
       # Select the crop with highest number of possible greenhouses:
-      # in case two crops with only a single possible greenhouse were selected the subgrid
-      # would consist of only 1 element.
-      best_split = np.argsort([-len(rec['transport_costs']) for rec in records])[:2]
+      # in case two crops with only a single possible greenhouse were selected
+      # the subgrid would consist of only 1 element.
+      best_split = np.argsort([-len(r['transport_costs']) for r in records])[:2]
       rec1 = records[best_split[0]]
       rec2 = records[best_split[1]]
 
@@ -130,7 +139,7 @@ class CreateGrid(beam.PTransform):
       yield pvalue.TaggedOutput('combine', remaining)
 
   class GenerateMappings(beam.DoFn):
-    """ParDo implementation to generate all possible mappings (assignments of crops to greenhouses).
+    """ParDo implementation to generate all possible mappings.
 
     Input: output of PreGenerateMappings
     Output: tuples of the form (mapping_identifier, {crop -> greenhouse})
@@ -149,11 +158,11 @@ class CreateGrid(beam.PTransform):
       grid_coordinates = []
       for rec in records:
         # Get indices for available greenhouses (w.r.t crops)
-        filtered = [i for i, available in enumerate(rec['transport_costs']) if available[1]]
+        filtered = [i for i, av in enumerate(rec['transport_costs']) if av[1]]
         grid_coordinates.append(filtered)
 
-      # Generate all mappings and .
-      grid = np.vstack(map(np.ravel, np.meshgrid(*grid_coordinates))).T
+      # Generate all mappings
+      grid = np.vstack(list(map(np.ravel, np.meshgrid(*grid_coordinates)))).T
       crops = [rec['crop'] for rec in records]
       greenhouses = [rec[0] for rec in records[0]['transport_costs']]
       for point in grid:
@@ -171,14 +180,15 @@ class CreateGrid(beam.PTransform):
         | 'pair one' >> beam.Map(lambda x: (1, x))
         | 'group all records' >> beam.GroupByKey()
         | 'split one of' >> beam.ParDo(self.PreGenerateMappings())
-                              .with_outputs('splitted', 'combine')
+        .with_outputs('splitted', 'combine')
     )
 
     # Create mappings, and prevent fusion (this limits the parallelization
     # in the optimization step)
     mappings = (
         o.splitted
-        | 'create mappings' >> beam.ParDo(self.GenerateMappings(), pvalue.AsSingleton(o.combine))
+        | 'create mappings' >> beam.ParDo(self.GenerateMappings(),
+                                          pvalue.AsSingleton(o.combine))
         | 'prevent fusion' >> beam.Reshuffle()
     )
 
@@ -210,6 +220,7 @@ class OptimizeGrid(beam.PTransform):
         key = (mapping_identifier, greenhouse)
         yield (key, crops)
 
+
   class OptimizeProductParameters(beam.DoFn):
     """Solve the optimization task to determine optimal production parameters.
     Input: ((mapping_identifier, greenhouse), [(crop, quantity),...])
@@ -222,7 +233,7 @@ class OptimizeGrid(beam.PTransform):
     def _optimize_production_parameters(sim):
       # setup initial starting point & bounds
       x0 = 0.5 * np.ones(3)
-      bounds = zip(np.zeros(3), np.ones(3))
+      bounds = list(zip(np.zeros(3), np.ones(3)))
 
       # Run L-BFGS-B optimizer
       result = minimize(lambda x: np.sum(sim.simulate(x)), x0, bounds=bounds)
@@ -243,8 +254,10 @@ class OptimizeGrid(beam.PTransform):
     mappings, quantities = inputs
     opt = (
         mappings
-        | 'optimization tasks' >> beam.ParDo(self.CreateOptimizationTasks(), pvalue.AsDict(quantities))
-        | 'optimize' >> beam.ParDo(self.OptimizeProductParameters()).with_outputs('costs', 'solution')
+        | 'optimization tasks' >> beam.ParDo(self.CreateOptimizationTasks(),
+                                             pvalue.AsDict(quantities))
+        | 'optimize' >> beam.ParDo(self.OptimizeProductParameters())
+        .with_outputs('costs', 'solution')
     )
     return opt
 
@@ -285,9 +298,9 @@ def parse_input(line):
     transport_costs.append(info)
 
   return {
-    'crop': columns[0],
-    'quantity': int(columns[1]),
-    'transport_costs': transport_costs
+      'crop': columns[0],
+      'quantity': int(columns[1]),
+      'transport_costs': transport_costs
   }
 
 
@@ -325,10 +338,17 @@ def run(argv=None):
     )
 
     # Create two pcollections, used as side inputs
-    transport = records | 'create transport' >> beam.ParDo(CreateTransportData())
-    quantities = records | 'create quantities' >> beam.Map(lambda r: (r['crop'], r['quantity']))
+    transport = (
+        records
+        | 'create transport' >> beam.ParDo(CreateTransportData())
+    )
 
-    # Generate all mappings and optimize greenhouse production parameters for each
+    quantities = (
+        records
+        | 'create quantities' >> beam.Map(lambda r: (r['crop'], r['quantity']))
+    )
+
+    # Generate all mappings and optimize greenhouse production parameters
     mappings = records | CreateGrid()
     opt = (mappings, quantities) | OptimizeGrid()
 
@@ -345,16 +365,19 @@ def run(argv=None):
     # Join cost, mapping and production settings solution on mapping identifier.
     # Then select best.
     join_operands = {
-      'cost': costs,
-      'production': opt.solution,
-      'mapping': mappings
+        'cost': costs,
+        'production': opt.solution,
+        'mapping': mappings
     }
     best = (
         join_operands
         | 'join' >> beam.CoGroupByKey()
-        | 'select best' >> beam.CombineGlobally(min, key=lambda x: x[1]['cost']).without_defaults()
+        | 'select best' >> beam.CombineGlobally(min, key=lambda x: x[1]['cost'])
+        .without_defaults()
         | 'format output' >> beam.Map(format_output)
     )
+
+    # pylint: disable=expression-not-assigned
     best | 'write optimum' >> beam.io.WriteToText(known_args.output)
 
 

@@ -17,12 +17,14 @@
 
 """Test for the distrib_optimization example."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 import os
 import tempfile
-from mock import MagicMock, patch
 from ast import literal_eval as make_tuple
+from mock import MagicMock, patch
 
 import numpy as np
 from apache_beam.testing.util import open_shards
@@ -58,10 +60,11 @@ class DistribOptimizationTest(unittest.TestCase):
     # Run pipeline
     # Avoid dependency on SciPy
     scipy_mock = MagicMock()
-    scipy_mock.optimize.minimize = MagicMock(return_value=MagicMock(x=np.ones(3)))
+    result_mock = MagicMock(x=np.ones(3))
+    scipy_mock.optimize.minimize = MagicMock(return_value=result_mock)
     modules = {
-      'scipy': scipy_mock,
-      'scipy.optimize': scipy_mock.optimize
+        'scipy': scipy_mock,
+        'scipy.optimize': scipy_mock.optimize
     }
 
     with patch.dict('sys.modules', modules):
@@ -72,7 +75,7 @@ class DistribOptimizationTest(unittest.TestCase):
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
-        lines = result_file.readlines()
+      lines = result_file.readlines()
 
     # Only 1 result
     self.assertEqual(len(lines), 1)
@@ -83,7 +86,7 @@ class DistribOptimizationTest(unittest.TestCase):
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
     production = optimum['production']
     for plant in ['A', 'B', 'C']:
-        np.testing.assert_almost_equal(production[plant], np.ones(3))
+      np.testing.assert_almost_equal(production[plant], np.ones(3))
 
 
 if __name__ == '__main__':
