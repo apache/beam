@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package dataflowlib translates a Beam pipeline model to the
+// Dataflow API job model, for submission to Google Cloud Dataflow.
 package dataflowlib
 
 import (
@@ -28,6 +30,7 @@ import (
 	df "google.golang.org/api/dataflow/v1b3"
 )
 
+// Execute submits a pipeline as a Dataflow job.
 func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (string, error) {
 	// (1) Upload Go binary to GCS.
 
