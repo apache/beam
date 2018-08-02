@@ -39,7 +39,7 @@ public interface FlinkExecutableStageContext {
     return BatchFlinkExecutableStageContext.BatchFactory.INSTANCE;
   }
 
-  <InputT> StageBundleFactory<InputT> getStageBundleFactory(ExecutableStage executableStage);
+  StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
 
   StateRequestHandler getStateRequestHandler(
       ExecutableStage executableStage, RuntimeContext runtimeContext);

@@ -130,7 +130,8 @@ public class Convert {
                   registry.getToRowFunction(outputTypeDescriptor),
                   registry.getFromRowFunction(outputTypeDescriptor));
           // assert matches input schema.
-          if (!outputSchemaCoder.getSchema().equivalent(input.getSchema())) {
+          // TODO: Properly handle nullable.
+          if (!outputSchemaCoder.getSchema().assignableToIgnoreNullable(input.getSchema())) {
             throw new RuntimeException(
                 "Cannot convert between types that don't have equivalent schemas."
                     + " input schema: "

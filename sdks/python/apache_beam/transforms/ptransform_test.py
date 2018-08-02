@@ -180,7 +180,9 @@ class PTransformTest(unittest.TestCase):
     assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-3544): Disable this test in streaming temporarily.
+  # Remove sickbay-streaming tag after it's resolved.
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_read_metrics(self):
     from apache_beam.io.utils import CountingSource
 

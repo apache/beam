@@ -34,9 +34,11 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -121,7 +123,10 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     public Coder<Row> rowCoder() {
-      return tableWithRows.table.getSchema().getRowCoder();
+      return SchemaCoder.of(
+          tableWithRows.table.getSchema(),
+          SerializableFunctions.identity(),
+          SerializableFunctions.identity());
     }
 
     @Override

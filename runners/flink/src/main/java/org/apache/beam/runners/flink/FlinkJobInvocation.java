@@ -92,7 +92,7 @@ public class FlinkJobInvocation implements JobInvocation {
   }
 
   private PipelineResult runPipeline() throws Exception {
-    MetricsEnvironment.setMetricsSupported(true);
+    MetricsEnvironment.setMetricsSupported(false);
 
     LOG.info("Translating pipeline to Flink program.");
     // Fused pipeline proto.

@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -30,10 +29,13 @@ import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Test for {@code BeamSortRel}. */
 public class BeamSortRelTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
+
+  @Rule public final ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void prepare() {
@@ -259,8 +261,11 @@ public class BeamSortRelTest extends BaseRelTest {
     pipeline.run().waitUntilFinish();
   }
 
-  @Test(expected = ParseException.class)
-  public void testOrderBy_exception() throws Exception {
+  @Test
+  public void testOrderBy_exception() {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("`ORDER BY` is only supported for GlobalWindows");
+
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "
             + " order_id, COUNT(*) "

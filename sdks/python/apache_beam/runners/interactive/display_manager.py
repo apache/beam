@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import threading
 import time
 
@@ -66,22 +67,17 @@ class DisplayManager(object):
           transform ID to transforms that leads to visible results.
     """
     # Every parameter except cache_manager is expected to remain constant.
-    self._pipeline_info = pipeline_info
-    self._pipeline_proto = pipeline_proto
-    self._caches_used = caches_used
     self._cache_manager = cache_manager
     self._referenced_pcollections = referenced_pcollections
-    self._required_transforms = required_transforms
+    self._pipeline_graph = interactive_pipeline_graph.InteractivePipelineGraph(
+        pipeline_proto,
+        required_transforms=required_transforms,
+        referenced_pcollections=referenced_pcollections,
+        cached_pcollections=caches_used)
 
-    self._pcollection_stats = {}
-
-    self._producers = {}
-    for _, transform in pipeline_proto.components.transforms.items():
-      for pcoll_id in transform.outputs.values():
-        self._producers[pcoll_id] = transform.unique_name
-
-    # To be printed.
-    self._status = (
+    # _text_to_print keeps track of information to be displayed.
+    self._text_to_print = collections.OrderedDict()
+    self._text_to_print['summary'] = (
         'Using %s cached PCollections\nExecuting %s of %s '
         'transforms.') % (
             len(caches_used), len(required_transforms) - len(caches_used) - 1,
@@ -89,7 +85,23 @@ class DisplayManager(object):
                 t for t in pipeline_proto.components.transforms.values()
                 if not t.subtransforms
             ]))
-    self._text_samples = []
+    self._text_to_print.update(
+        {pcoll_id: "" for pcoll_id in referenced_pcollections})
+
+    # _pcollection_stats maps pcoll_id to
+    # { 'cache_label': cache_label, version': version, 'sample': pcoll_in_list }
+    self._pcollection_stats = {}
+    for pcoll_id in pipeline_info.all_pcollections():
+      self._pcollection_stats[pcoll_id] = {
+          'cache_label': pipeline_info.derivation(pcoll_id).cache_label(),
+          'version': -1,
+          'sample': []
+      }
+
+    self._producers = {}
+    for _, transform in pipeline_proto.components.transforms.items():
+      for pcoll_id in transform.outputs.values():
+        self._producers[pcoll_id] = transform.unique_name
 
     # For periodic update.
     self._lock = threading.Lock()
@@ -107,39 +119,36 @@ class DisplayManager(object):
       force: (bool) whether to force updating when no stats change happens.
     """
     with self._lock:
-      new_stats = {}
-      for pcoll_id in self._pipeline_info.all_pcollections():
-        cache_label = self._pipeline_info.derivation(pcoll_id).cache_label()
-        if (pcoll_id not in self._pcollection_stats and
-            self._cache_manager.exists('sample', cache_label)):
-          contents = list(
-              self._cache_manager.read('sample', cache_label))
-          new_stats[pcoll_id] = {'sample': contents}
+      stats_updated = False
+
+      for pcoll_id, stats in self._pcollection_stats.items():
+        cache_label = stats['cache_label']
+        version = stats['version']
+
+        if force or not self._cache_manager.is_latest_version(
+            version, 'sample', cache_label):
+          pcoll_list, version = self._cache_manager.read('sample', cache_label)
+          stats['sample'] = pcoll_list
+          stats['version'] = version
+          stats_updated = True
+
           if pcoll_id in self._referenced_pcollections:
-            self._text_samples.append(str(
+            self._text_to_print[pcoll_id] = (str(
                 '%s produced %s' % (
                     self._producers[pcoll_id],
-                    interactive_pipeline_graph.format_sample(contents, 5))))
-      if force or new_stats:
+                    interactive_pipeline_graph.format_sample(pcoll_list, 5))))
+
+      if force or stats_updated:
         if IPython:
           IPython.core.display.clear_output(True)
 
-        self._pcollection_stats.update(new_stats)
-        # TODO(qinyeli): Enable updating pipeline graph instead of constructing
-        # everytime, if it worths.
-
-        pipeline_graph = interactive_pipeline_graph.InteractivePipelineGraph(
-            self._pipeline_proto,
-            required_transforms=self._required_transforms,
-            referenced_pcollections=self._referenced_pcollections,
-            cached_pcollections=self._caches_used,
-            pcollection_stats=self._pcollection_stats)
-        pipeline_graph.display_graph()
+        self._pipeline_graph.update_pcollection_stats(self._pcollection_stats)
+        self._pipeline_graph.display_graph()
 
         _display_progress('Running...')
-        _display_progress(self._status)
-        for text_sample in self._text_samples:
-          _display_progress(text_sample)
+        for text in self._text_to_print.values():
+          if text != "":
+            _display_progress(text)
 
   def start_periodic_update(self):
     """Start a thread that periodically updates the display."""
@@ -157,5 +166,5 @@ class DisplayManager(object):
 
   def stop_periodic_update(self):
     """Stop periodically updating the display."""
-    self.update_display()
+    self.update_display(True)
     self._periodic_update = False

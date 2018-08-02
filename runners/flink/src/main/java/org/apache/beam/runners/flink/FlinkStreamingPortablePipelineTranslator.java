@@ -296,9 +296,9 @@ public class FlinkStreamingPortablePipelineTranslator
           e);
     }
 
-    WindowedValueCoder<KV<K, V>> inputCoder =
+    WindowedValueCoder<KV<K, V>> windowedInputCoder =
         (WindowedValueCoder) instantiateCoder(inputPCollectionId, pipeline.getComponents());
-    KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
+    KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) windowedInputCoder.getValueCoder();
 
     SingletonKeyedWorkItemCoder<K, V> workItemCoder =
         SingletonKeyedWorkItemCoder.of(
@@ -433,17 +433,18 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException(e);
     }
 
-    String inputPCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
+    String inputPCollectionId = stagePayload.getInput();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-2930
+    if (stagePayload.getSideInputsCount() > 0) {
+      throw new UnsupportedOperationException(
+          "[BEAM-2930] streaming translator does not support side inputs: " + transform);
+    }
 
     Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newLinkedHashMap();
     Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newLinkedHashMap();
     // TODO: does it matter which output we designate as "main"
-    TupleTag<OutputT> mainOutputTag;
-    if (!outputs.isEmpty()) {
-      mainOutputTag = new TupleTag(outputs.keySet().iterator().next());
-    } else {
-      mainOutputTag = null;
-    }
+    final TupleTag<OutputT> mainOutputTag =
+        outputs.isEmpty() ? null : new TupleTag(outputs.keySet().iterator().next());
 
     // associate output tags with ids, output manager uses these Integer ids to serialize state
     BiMap<String, Integer> outputIndexMap =
@@ -470,7 +471,7 @@ public class FlinkStreamingPortablePipelineTranslator
         context.getDataStreamOrThrow(inputPCollectionId);
 
     // TODO: coder for side input push back
-    final Coder<WindowedValue<InputT>> inputCoder = null;
+    final Coder<WindowedValue<InputT>> windowedInputCoder = null;
     CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
         (!outputs.isEmpty())
             ? new CoderTypeInformation(outputCoders.get(mainOutputTag.getId()))
@@ -491,7 +492,9 @@ public class FlinkStreamingPortablePipelineTranslator
     DoFnOperator<InputT, OutputT> doFnOperator =
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
-            inputCoder,
+            windowedInputCoder,
+            null,
+            Collections.emptyMap(),
             mainOutputTag,
             additionalOutputTags,
             outputManagerFactory,

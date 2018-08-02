@@ -38,6 +38,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -67,6 +68,8 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> additionalOutputTags;
+  private final Coder<InputT> inputCoder;
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
@@ -77,6 +80,8 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param options The {@link SerializablePipelineOptions}.
    * @param mainOutputTag The main output {@link TupleTag}.
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
+   * @param inputCoder The coder for the input.
+   * @param outputCoders A map of all output coders.
    * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
    * @param stateful Stateful {@link DoFn}.
@@ -88,6 +93,8 @@ public class MultiDoFnFunction<InputT, OutputT>
       SerializablePipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful) {
@@ -97,6 +104,8 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.options = options;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
+    this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
     this.stateful = stateful;
@@ -150,8 +159,8 @@ public class MultiDoFnFunction<InputT, OutputT>
             mainOutputTag,
             additionalOutputTags,
             context,
-            null,
-            Collections.emptyMap(),
+            inputCoder,
+            outputCoders,
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =

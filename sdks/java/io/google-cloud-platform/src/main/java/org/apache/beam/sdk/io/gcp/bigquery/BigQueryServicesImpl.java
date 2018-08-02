@@ -257,8 +257,16 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .get(jobRef.getProjectId(), jobRef.getJobId())
                   .setLocation(jobRef.getLocation())
                   .execute();
+          if (job == null) {
+            LOG.info("Still waiting for BigQuery job {} to start", jobRef);
+            continue;
+          }
           JobStatus status = job.getStatus();
-          if (status != null && "DONE".equals(status.getState())) {
+          if (status == null) {
+            LOG.info("Still waiting for BigQuery job {} to enter pending state", jobRef);
+            continue;
+          }
+          if ("DONE".equals(status.getState())) {
             LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;
           }

@@ -69,6 +69,15 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean testShadowJar = false
 
     /**
+     * Controls whether the shadow jar is validated to not contain any classes outside the org.apache.beam namespace.
+     * This protects artifact jars from leaking dependencies classes causing conflicts for users.
+     *
+     * Note that this can be disabled for subprojects that produce application artifacts that are not intended to
+     * be depended on by users.
+     */
+    boolean validateShadowJar = true
+
+    /**
      * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
      * Users can compose their closure with the default closure via:
      * DEFAULT_SHADOW_CLOSURE << {
@@ -250,12 +259,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
-    // Apply a task dependency visualization plugin which creates a ".dot" file in the build directory
-    // giving the task dependencies for the current build. Unfortunately this creates a ".dot" file
-    // in each sub-projects report output directory.
-    // See https://github.com/mmalohlava/gradle-visteg for further details.
-    project.apply plugin: "cz.malohlava.visteg"
-
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
     // repository. This offline repository satisfies all Gradle build dependencies and Java
     // project dependencies. The offline repository is placed within $rootDir/offline-repo
@@ -292,9 +295,10 @@ class BeamModulePlugin implements Plugin<Project> {
     // These versions are defined here because they represent
     // a dependency version which should match across multiple
     // Maven artifacts.
+    def generated_grpc_beta_version = "0.19.0"
+    def generated_grpc_ga_version = "1.18.0"
     def google_cloud_bigdataoss_version = "1.4.5"
-    def bigtable_version = "1.0.0"
-    def bigtable_proto_version = "1.0.0-pre3"
+    def bigtable_version = "1.4.0"
     def google_clients_version = "1.23.0"
     def google_auth_version = "0.10.0"
     def grpc_version = "1.13.1"
@@ -306,8 +310,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def hadoop_version = "2.7.3"
     def jackson_version = "2.9.5"
     def spark_version = "2.3.1"
-    def spanner_grpc_version = "0.19.0"
-    def pubsub_grpc_version = "1.18.0"
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
     def postgres_version = "42.2.2"
@@ -336,7 +338,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
-        bigtable_protos                             : "com.google.cloud.bigtable:bigtable-protos:$bigtable_proto_version",
+        bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.8.11",
         commons_compress                            : "org.apache.commons:commons-compress:1.16.1",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
@@ -373,7 +375,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
-        grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$pubsub_grpc_version",
+        grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty:$grpc_version",
@@ -408,8 +410,8 @@ class BeamModulePlugin implements Plugin<Project> {
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
-        proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:$pubsub_grpc_version",
-        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$spanner_grpc_version",
+        proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:$generated_grpc_ga_version",
+        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$generated_grpc_beta_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos",
         slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
         slf4j_simple                                : "org.slf4j:slf4j-simple:1.7.25",
@@ -452,6 +454,7 @@ class BeamModulePlugin implements Plugin<Project> {
       dependencies {
         include(dependency(project.library.java.guava))
       }
+      // guava uses the com.google.common and com.google.thirdparty package namespaces
       relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
         // com.google.common is too generic, need to exclude guava-testlib
         exclude "com.google.common.collect.testing.**"
@@ -459,6 +462,7 @@ class BeamModulePlugin implements Plugin<Project> {
         exclude "com.google.common.testing.**"
         exclude "com.google.common.util.concurrent.testing.**"
       }
+      relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
     }
 
     // Configures a project with a default set of plugins that should apply to all Java projects.
@@ -711,6 +715,24 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
+      }
+
+      if (configuration.validateShadowJar) {
+        project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
+          inputs.files project.configurations.shadow.artifacts.files
+          doLast {
+            project.configurations.shadow.artifacts.files.each {
+              FileTree exposedClasses = project.zipTree(it).matching {
+                include "**/*.class"
+                exclude "org/apache/beam/**"
+              }
+              if (exposedClasses.files) {
+                throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+              }
+            }
+          }
+        }
+        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
       }
 
       if ((isRelease(project) || project.hasProperty('publishing')) &&
@@ -1175,7 +1197,7 @@ artifactId=${project.name}
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.2.0" }
+          artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
         plugins {
@@ -1288,14 +1310,14 @@ artifactId=${project.name}
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.5.1" }
+          artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.12.0" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.13.1" }
         }
 
         generateProtoTasks {
@@ -1329,23 +1351,6 @@ artifactId=${project.name}
         compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.12.3'
         shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
       }
-
-      project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: ['shadowJar', 'shadowTestJar']) {
-        inputs.files project.configurations.shadow.artifacts.files
-        inputs.files project.configurations.shadowTest.artifacts.files
-        doLast {
-          (project.configurations.shadow.artifacts.files + project.configurations.shadowTest.artifacts.files).each {
-            FileTree exposedClasses = project.zipTree(it).matching {
-              include "**/*.class"
-              exclude "org/apache/beam/**"
-            }
-            if (exposedClasses.files) {
-              throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
-            }
-          }
-        }
-      }
-      project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
 
       // TODO(BEAM-4544): Integrate intellij support into this.
     }

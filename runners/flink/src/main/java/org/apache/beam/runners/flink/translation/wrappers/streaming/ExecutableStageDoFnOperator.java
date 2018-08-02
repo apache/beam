@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
+import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +76,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   public ExecutableStageDoFnOperator(
       String stepName,
-      Coder<WindowedValue<InputT>> inputCoder,
+      Coder<WindowedValue<InputT>> windowedInputCoder,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -89,7 +92,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     super(
         new NoOpDoFn(),
         stepName,
+        windowedInputCoder,
         inputCoder,
+        outputCoders,
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,
@@ -132,11 +137,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     checkState(
         stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
-    try (RemoteBundle<InputT> bundle =
+    try (RemoteBundle bundle =
         stageBundleFactory.getBundle(
             new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
       logger.debug(String.format("Sending value: %s", element));
-      bundle.getInputReceiver().accept(element);
+      // TODO(BEAM-4681): Add support to Flink to support portable timers.
+      Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(element);
     }
   }
 

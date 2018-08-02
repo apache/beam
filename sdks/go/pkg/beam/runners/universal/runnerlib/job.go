@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -46,6 +47,7 @@ type JobOptions struct {
 // Prepare prepares a job to the given job service. It returns the preparation id
 // artifact staging endpoint, and staging token if successful.
 func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
+	hooks.SerializeHooksToOptions()
 	raw := runtime.RawOptionsWrapper{
 		Options:     beam.PipelineOptions.Export(),
 		AppName:     opt.Name,

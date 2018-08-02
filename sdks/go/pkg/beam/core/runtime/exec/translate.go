@@ -452,6 +452,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 		u = &WindowInto{UID: b.idgen.New(), Fn: wfn, Out: out[0]}
 
+	case graphx.URNFlatten:
+		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
+
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
 		if err != nil {

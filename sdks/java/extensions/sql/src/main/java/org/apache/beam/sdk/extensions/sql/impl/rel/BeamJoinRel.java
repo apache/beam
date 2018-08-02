@@ -28,13 +28,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -146,7 +146,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       if (isSideInputJoin()) {
         checkArgument(pinput.size() == 1, "More than one input received for side input join");
         return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0))
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
       }
 
       Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
@@ -169,7 +169,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Schema extractKeySchema =
           pairs.stream().map(pair -> leftSchema.getField(pair.getKey())).collect(toSchema());
 
-      Coder extractKeyRowCoder = extractKeySchema.getRowCoder();
+      SchemaCoder<Row> extractKeyRowCoder = SchemaCoder.of(extractKeySchema);
 
       // BeamSqlRow -> KV<BeamSqlRow, BeamSqlRow>
       PCollection<KV<Row, Row>> extractedLeftRows =
@@ -288,7 +288,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         joinedRows
             .apply(
                 "JoinParts2WholeRow", MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
     return ret;
   }
 
@@ -327,7 +327,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
                         new BeamJoinTransforms.SideInputJoinDoFn(
                             joinType, rightNullRow, rowsView, swapped))
                     .withSideInputs(rowsView))
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
     return ret;
   }
