@@ -1287,7 +1287,7 @@ artifactId=${project.name}
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc { // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.5.1" }
+          artifact = "com.google.protobuf:protoc:3.6.0" }
 
         // Configure the codegen plugins
         plugins {

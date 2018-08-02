@@ -20,7 +20,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
         include(dependency('com.google.guava:guava:20.0'))
-        include(dependency('com.google.protobuf:protobuf-java:3.5.1'))
+        include(dependency('com.google.protobuf:protobuf-java:3.6.0'))
     }
     // We specifically relocate beam-sdks-extensions-protobuf under a vendored namespace
     // but also vendor guava and protobuf to the same vendored namespace as the model/*
@@ -51,7 +51,7 @@ compileJava {
 
 dependencies {
     compile 'com.google.guava:guava:20.0'
-    compile 'com.google.protobuf:protobuf-java:3.5.1'
+    compile 'com.google.protobuf:protobuf-java:3.6.0'
     shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
 }
 
