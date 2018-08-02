@@ -24,30 +24,24 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * Operator with single input.
- */
+/** Operator with single input. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class SingleInputOperator<InputT, OutputT> extends Operator<InputT, OutputT> {
 
   protected final Dataset<InputT> input;
 
-  protected SingleInputOperator(String name, Flow flow, Dataset<InputT> input,
-      TypeDescriptor<OutputT> outputType) {
+  protected SingleInputOperator(
+      String name, Flow flow, Dataset<InputT> input, TypeDescriptor<OutputT> outputType) {
     super(name, flow, outputType);
     this.input = input;
   }
 
-  /**
-   * @return the (only) input dataset of this operator
-   */
+  /** @return the (only) input dataset of this operator */
   public Dataset<InputT> input() {
     return input;
   }
 
-  /**
-   * @return all of this operator's input as single element collection
-   */
+  /** @return all of this operator's input as single element collection */
   @Override
   public Collection<Dataset<InputT>> listInputs() {
     return Collections.singletonList(input);

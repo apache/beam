@@ -54,9 +54,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * Dataset<String> both = Union.named("XS-AND-YS").of(xs, ys).output();
  * }</pre>
  *
- * <p>The "both" dataset from the above example can now be processed with an operator expecting
- * only a single input dataset, e.g. {@link FlatMap}, which will then effectively process both "xs"
- * and "ys".
+ * <p>The "both" dataset from the above example can now be processed with an operator expecting only
+ * a single input dataset, e.g. {@link FlatMap}, which will then effectively process both "xs" and
+ * "ys".
  *
  * <p>Note: the order of the dataset does not matter. Indeed, the order of the elements themselves
  * in the union is intentionally not specified at all.
@@ -64,9 +64,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input datasets
- * <li>{@code output ...................} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input datasets
+ *   <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -82,7 +82,11 @@ public class Union<InputT> extends Operator<InputT, InputT> {
   }
 
   @SuppressWarnings("unchecked")
-  Union(String name, Flow flow, List<Dataset<InputT>> dataSets, Set<OutputHint> outputHints,
+  Union(
+      String name,
+      Flow flow,
+      List<Dataset<InputT>> dataSets,
+      Set<OutputHint> outputHints,
       TypeDescriptor<InputT> outputType) {
     super(name, flow, outputType);
     checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
@@ -150,9 +154,7 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     return dataSets;
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
 
     private final String name;
@@ -195,7 +197,6 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     private final List<Dataset<InputT>> dataSets;
     private final TypeDescriptor<InputT> outputType;
 
-
     OutputBuilder(String name, List<Dataset<InputT>> dataSets) {
       checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
       checkArgument(
@@ -218,8 +219,8 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
       final Flow flow = dataSets.get(0).getFlow();
-      final Union<InputT> union = new Union<>(name, flow, dataSets,
-          Sets.newHashSet(outputHints), outputType);
+      final Union<InputT> union =
+          new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints), outputType);
       flow.add(union);
       return union.output();
     }

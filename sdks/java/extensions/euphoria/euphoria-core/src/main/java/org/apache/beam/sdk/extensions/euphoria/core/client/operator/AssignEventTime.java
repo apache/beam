@@ -92,7 +92,12 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(
         new FlatMap<>(
-            getName(), getFlow(), input, (i, c) -> c.collect(i), eventTimeFn, getHints(),
+            getName(),
+            getFlow(),
+            input,
+            (i, c) -> c.collect(i),
+            eventTimeFn,
+            getHints(),
             outputType));
   }
 
@@ -104,9 +109,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     return eventTimeFn;
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -121,9 +124,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<InputT> {
 
     private final String name;
@@ -165,7 +166,12 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
       Flow flow = input.getFlow();
 
       AssignEventTime<InputT> op =
-          new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet(outputHints),
+          new AssignEventTime<>(
+              name,
+              flow,
+              input,
+              eventTimeFn,
+              Sets.newHashSet(outputHints),
               TypeUtils.getDatasetElementType(input));
 
       flow.add(op);

@@ -35,7 +35,10 @@ public abstract class ElementWiseOperator<InputT, OutputT>
   protected final Dataset<OutputT> output;
 
   protected ElementWiseOperator(
-      String name, Flow flow, Dataset<InputT> input, Set<OutputHint> outputHints,
+      String name,
+      Flow flow,
+      Dataset<InputT> input,
+      Set<OutputHint> outputHints,
       TypeDescriptor<OutputT> outputType) {
     super(name, flow, input, outputType);
     this.output = createOutput(input, outputHints);

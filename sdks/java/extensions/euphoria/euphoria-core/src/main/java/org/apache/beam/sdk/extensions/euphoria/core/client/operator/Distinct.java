@@ -75,7 +75,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class Distinct<InputT, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
+        InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
 
   Distinct(
       String name,
@@ -87,8 +87,16 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, outputType, mapper, outputType, windowing,
-        euphoriaWindowing, outputHints);
+    super(
+        name,
+        flow,
+        input,
+        outputType,
+        mapper,
+        outputType,
+        windowing,
+        euphoriaWindowing,
+        outputHints);
   }
 
   /**
@@ -132,12 +140,15 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
             euphoriaWindowing,
             (CombinableReduceFunction<Void>) e -> null,
             Collections.emptySet(),
-            TypeUtils.pairs(outputType, TypeDescriptors.nulls())
-        );
+            TypeUtils.pairs(outputType, TypeDescriptors.nulls()));
 
     MapElements format =
         new MapElements<>(
-            getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst, getHints(),
+            getName() + "::" + "Map",
+            flow,
+            reduce.output(),
+            Pair::getFirst,
+            getHints(),
             outputType);
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
@@ -206,14 +217,13 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     public <OutputT> WindowingBuilder<InputT, OutputT> mapped(
         UnaryFunction<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputTypeDescriptor) {
 
-      @SuppressWarnings("unchecked") BuilderParams<InputT, OutputT, ?> paramsCasted =
-          (BuilderParams<InputT, OutputT, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuilderParams<InputT, OutputT, ?> paramsCasted = (BuilderParams<InputT, OutputT, ?>) params;
 
       paramsCasted.mapper = Objects.requireNonNull(mapper);
       paramsCasted.outputTypeDescriptor = outputTypeDescriptor;
 
       return new WindowingBuilder<>(paramsCasted);
-
     }
 
     @Override

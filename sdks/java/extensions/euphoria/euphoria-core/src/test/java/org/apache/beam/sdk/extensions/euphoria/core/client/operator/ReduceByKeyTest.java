@@ -241,7 +241,7 @@ public class ReduceByKeyTest {
   }
 
   @Test
-  public void testRBKTypePropagation(){
+  public void testRBKTypePropagation() {
     Flow flow1 = Flow.create("TEST1");
     Dataset<String> dataset = Util.createMockDataset(flow1, 2);
 
@@ -269,7 +269,5 @@ public class ReduceByKeyTest {
 
     rbk = (ReduceByKey) flow2.operators().iterator().next();
     TypePropagationAssert.assertOperatorTypeAwareness(rbk, reducedOutputType, keyType, valueType);
-
   }
-
 }
