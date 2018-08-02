@@ -32,7 +32,8 @@ from apache_beam.testing.util import open_shards
 
 class WordCountTest(unittest.TestCase):
 
-  SAMPLE_TEXT = u'a b c a b a\nacento gráfico\nJuly 30, 2018\n\n aa bb cc aa bb aa'
+  SAMPLE_TEXT = (
+      u'a b c a b a\nacento gráfico\nJuly 30, 2018\n\n aa bb cc aa bb aa')
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
