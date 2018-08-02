@@ -175,8 +175,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               preparation.pipeline(), preparation.options(), request.getRetrievalToken());
       String invocationId = invocation.getId();
 
-      invocation.addTerminationListener(
-          (state, id) -> {
+      invocation.addStateListener(
+          (state) -> {
+            if (!JobInvocation.isTerminated(state)) return;
             String stagingSessionToken = stagingSessionTokens.get(preparationId);
             stagingSessionTokens.remove(preparationId);
             if (cleanupJobFn != null) {

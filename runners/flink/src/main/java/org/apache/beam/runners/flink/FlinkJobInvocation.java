@@ -68,7 +68,6 @@ public class FlinkJobInvocation implements JobInvocation {
   private final List<String> filesToStage;
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
-  private List<BiConsumer<JobState.Enum, String>> terminationObservers;
 
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
@@ -88,7 +87,6 @@ public class FlinkJobInvocation implements JobInvocation {
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
     this.stateObservers = new ArrayList<>();
-    this.terminationObservers = new ArrayList<>();
   }
 
   private PipelineResult runPipeline() throws Exception {
@@ -205,17 +203,6 @@ public class FlinkJobInvocation implements JobInvocation {
   }
 
   @Override
-  public synchronized void addTerminationListener(
-      BiConsumer<JobState.Enum, String> terminatedStateObserver) {
-    if (JobInvocation.isTerminated(getState())) {
-      LOG.info("short-circuiting termination call in state " + getState() + " for job " + getId());
-      terminatedStateObserver.accept(getState(), getId());
-    } else {
-      terminationObservers.add(terminatedStateObserver);
-    }
-  }
-
-  @Override
   public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
     LOG.warn("addMessageObserver() not yet implemented.");
   }
@@ -224,11 +211,6 @@ public class FlinkJobInvocation implements JobInvocation {
     this.jobState = state;
     for (Consumer<JobState.Enum> observer : stateObservers) {
       observer.accept(state);
-    }
-    if (JobInvocation.isTerminated(state)) {
-      for (BiConsumer<JobState.Enum, String> observer : terminationObservers) {
-        observer.accept(state, getId());
-      }
     }
   }
 

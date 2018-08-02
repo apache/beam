@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+
+import java.util.function.Consumer;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
 public interface JobInvocation {
@@ -40,9 +40,6 @@ public interface JobInvocation {
 
   /** Listen for job state changes with a {@link Consumer}. */
   void addStateListener(Consumer<Enum> stateStreamObserver);
-
-  /** Subscribe to a message about a job finishing. */
-  void addTerminationListener(BiConsumer<JobState.Enum, String> terminatedStateObserver);
 
   /** Listen for job messages with a {@link Consumer}. */
   void addMessageListener(Consumer<JobMessage> messageStreamObserver);
