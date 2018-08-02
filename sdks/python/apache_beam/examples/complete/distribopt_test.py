@@ -20,15 +20,16 @@
 from __future__ import absolute_import
 
 import logging
-import unittest
 import os
 import tempfile
+import unittest
 from ast import literal_eval as make_tuple
-from mock import MagicMock, patch
 
 import numpy as np
-from apache_beam.testing.util import open_shards
+from mock import MagicMock
+from mock import patch
 
+from apache_beam.testing.util import open_shards
 
 FILE_CONTENTS = 'OP01,8,12,0,12\n' \
                 'OP02,30,14,3,12\n' \
