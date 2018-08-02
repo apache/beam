@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
-
-import java.util.function.Consumer;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
 public interface JobInvocation {
