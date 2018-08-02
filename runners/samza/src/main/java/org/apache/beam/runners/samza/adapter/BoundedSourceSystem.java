@@ -392,8 +392,7 @@ public class BoundedSourceSystem {
 
   /**
    * A {@link SystemFactory} that produces a {@link BoundedSourceSystem} for a particular {@link
-   * BoundedSource} registered in {@link Config} via {@link #createConfigFor(String, BoundedSource,
-   * Coder, String)}.
+   * BoundedSource} registered in {@link Config}.
    */
   public static class Factory<T> implements SystemFactory {
     @Override
