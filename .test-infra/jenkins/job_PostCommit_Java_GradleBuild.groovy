@@ -27,9 +27,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java
 
   description('Runs PostCommit tests on the Java SDK.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 

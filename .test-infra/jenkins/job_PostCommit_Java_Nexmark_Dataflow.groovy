@@ -25,12 +25,6 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
         'Dataflow Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Dataflow runner.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-  throttleConcurrentBuilds {
-    maxTotal(10)
-  }
-
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 

@@ -26,9 +26,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go Pos
   './gradlew :goPostCommit', this) {
   description('Runs Go PostCommit tests against master.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(
     delegate,
