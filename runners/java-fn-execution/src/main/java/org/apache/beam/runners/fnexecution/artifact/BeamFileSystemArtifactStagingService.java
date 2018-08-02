@@ -340,9 +340,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         return MAPPER.writeValueAsString(this);
       } catch (JsonProcessingException e) {
         String message =
-            String.format(
-                "Error %s occurred while serializing %s", e.getMessage(), this
-            );
+            String.format("Error %s occurred while serializing %s", e.getMessage(), this);
         throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(message));
       }
     }
