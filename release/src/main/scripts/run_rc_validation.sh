@@ -39,7 +39,7 @@ read REPO_URL
 echo "====================Checking Environment Variables================="
 echo "running validations on release ${RELEASE} RC${RC_NUM}."
 echo "repo URL for this RC: ${REPO_URL}"
-echo "[Confirmation Required] Do you confirm all infos above are correct? [y|N]"
+echo "[Confirmation Required] Do you confirm all information above are correct? [y|N]"
 read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
@@ -56,7 +56,6 @@ git checkout ${RELEASE_BRANCH}
 git checkout -b ${WORKING_BRANCH}
 
 echo "====================Starting Java Quickstart======================="
-
 echo "[Current task] Java quickstart with direct runner"
 echo "[Confirmation Required] Do you want to start this task? [y|N]"
 read confirmation
@@ -105,26 +104,6 @@ if [[ $confirmation = "y" ]]; then
   -Pver=${RELEASE}
 fi
 
-echo "[Current task] Java quickstart with Dataflow runner"
-echo "[Confirmation Required] Do you want to start this task? [y|N]"
-read confirmation
-if [[ $confirmation = "y" ]]; then
-  echo "[GCP Project Required] Please input your GCP project:"
-  read USER_GCP_PROJECT
-  echo "[GCP GCS Bucket Required] Please input your GCS bucket: "
-  read USER_GCS_BUCKET
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with DataflowRunner"
-  echo "*************************************************************"
-  gcloud auth application-default login
-  gcloud config set project ${USER_GCP_PROJECT}
-  ./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE} \
-  -PgcpProject=${USER_GCP_PROJECT} \
-  -PgcsBucket=${USER_GCS_BUCKET}
-fi
-
 echo "====================Checking Google Cloud SDK======================"
 if [[ -z `which gcloud` ]]; then
   echo "You don't have Google Cloud SDK installed."
@@ -138,6 +117,30 @@ if [[ -z `which gcloud` ]]; then
 fi
 gcloud --version
 
+echo "[Current task] Java quickstart with Dataflow runner"
+echo "[Confirmation Required] Do you want to start this task? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  echo "[GCP Project Required] Please input your GCP project:"
+  read USER_GCP_PROJECT
+  echo "[GCP GCS Bucket Required] Please input your GCS bucket: "
+  read USER_GCS_BUCKET
+  echo "[gcloud Login Required] Please login into your gcp account: "
+  gcloud auth application-default login
+  GOOGLE_APPLICATION_CREDENTIALS=~/.config/gcloud/application_default_credentials.json
+
+  echo "*************************************************************"
+  echo "* Running Java Quickstart with DataflowRunner"
+  echo "*************************************************************"
+  gcloud auth application-default login
+  gcloud config set project ${USER_GCP_PROJECT}
+  ./gradlew :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow \
+  -Prepourl=${REPO_URL} \
+  -Pver=${RELEASE} \
+  -PgcpProject=${USER_GCP_PROJECT} \
+  -PgcsBucket=${USER_GCS_BUCKET}
+fi
+
 echo "===================Starting Java Mobile Game====================="
 echo "[Confirmation Required] This task asks for GCP resources."
 echo "Do you want to proceed? [y|N]"
@@ -145,6 +148,8 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "[GCP Project Required] Please input your GCP project:"
   read USER_GCP_PROJECT
+  echo "[GCP GCS Bucket Required] Please input your GCS bucket: "
+  read USER_GCS_BUCKET
   MOBILE_GAME_DATASET=${USER}_java_validations
   MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-1
   echo "Please review following GCP sources setup: "
@@ -180,7 +185,7 @@ if [[ $confirmation = "y" ]]; then
     -Prepourl=${REPO_URL} \
     -Pver=${RELEASE} \
     -PgcpProject=${USER_GCP_PROJECT} \
-    -PgcsBucket=clouddfe-boyuanz \
+    -PgcsBucket=${USER_GCS_BUCKET} \
     -PbqDataset=${MOBILE_GAME_DATASET} -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC}
   fi
 fi
@@ -355,6 +360,8 @@ if [[ $confirmation = "y" ]]; then
 
     echo "***************************************************************"
     echo "* Please wait for at least 5 mins to let results get populated."
+    echo "* Sleeping for 5 mins"
+    sleep 5m
     echo "***************************************************************"
     echo "* How to verify results:"
     echo "* 1. Check whether there is any error messages in the task running terminal."
@@ -392,6 +399,8 @@ if [[ $confirmation = "y" ]]; then
 
     echo "***************************************************************"
     echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
+    echo "* Sleeping for 10 mins"
+    sleep 10m
     echo "* How to verify results:"
     echo "* 1. Goto your Dataflow job console and check whether there is any error."
     echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has leader_board_users and leader_board_teams table."
@@ -402,11 +411,12 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate this job in Dataflow Console."
-    echo "[Confirmation Required] Please enter done to proceed into next step"
+    echo "[Confirmation Required] Please enter y to proceed into next step"
     read confirmation
   fi
 
-  FIXED_WINDOW_DURATION=15
+  # [BEAM-4518]
+  FIXED_WINDOW_DURATION=20
 
   echo "------------------Starting GameStats with DirectRunner-----------------------"
   echo "[Confirmation Required] Do you want to proceed? [y|N]"
@@ -429,7 +439,9 @@ if [[ $confirmation = "y" ]]; then
     exec bash"
 
     echo "***************************************************************"
-    echo "* Please wait for at least 20 mins to let results get populated."
+    echo "* Please wait for at least 25 mins to let results get populated."
+    echo "* Sleeping for 25mins"
+    sleep 25m
     echo "* How to verify results:"
     echo "* 1. Check whether there is any error messages in the task running terminal."
     echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
@@ -440,7 +452,7 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate the python job."
-    echo "[Confirmation Required] Please enter done to proceed into next step"
+    echo "[Confirmation Required] Please enter y to proceed into next step"
     read confirmation
   fi
 
@@ -467,6 +479,8 @@ if [[ $confirmation = "y" ]]; then
 
     echo "***************************************************************"
     echo "* Please wait for at least 30 mins to let results get populated."
+    echo "* Sleeping for 30 mins"
+    sleep 30m
     echo "* How to verify results:"
     echo "* 1. Goto your Dataflow job console and check whether there is any error."
     echo "* 2. Goto your BigQuery console and check whether your ${MOBILE_GAME_DATASET} has game_stats_teams and game_stats_sessions table."
@@ -477,7 +491,21 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate the python job."
-    echo "[Confirmation Required] Please enter done to proceed into next step"
+    echo "[Confirmation Required] Please enter y to proceed into next step"
     read confirmation
   fi
 fi
+
+echo "===========================Final Cleanup==========================="
+echo "* Restoring ~/.m2/settings.xml"
+if [[ ! -z `ls -a ~/.m2/settings_backup.xml` ]]; then
+  rm ~/.m2/settings.xml
+  cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
+fi
+echo "* Restoring ~/.bashrc"
+if [[ ! -z `ls -a ~/.bashrc_backup` ]]; then
+  rm ~/.bashrc
+  cp ~/.bashrc_backup ~/.bashrc
+fi
+
+rm -rf ~/{LOCAL_CLONE_DIR}
