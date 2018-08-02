@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.synthetic;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.io.synthetic.SyntheticUtils.delay;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.cache.CacheBuilder;
@@ -50,10 +51,28 @@ import org.joda.time.Duration;
  * }</pre>
  */
 public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
+
   private final Options options;
-  private final KV<Long, Long> idAndThroughput; // used when maxWorkerThroughput is set
-  private final Counter throttlingMsecsCounter =
+
+  // used when maxWorkerThroughput is set
+  private final KV<Long, Long> idAndThroughput;
+
+  private final Counter throttlingCounter =
       Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
+
+  /**
+   * Static cache to store one worker level rate limiter for a step. Value in KV is the desired
+   * rate.
+   */
+  private static LoadingCache<KV<Long, Long>, RateLimiter> rateLimiterCache =
+      CacheBuilder.newBuilder()
+          .build(
+              new CacheLoader<KV<Long, Long>, RateLimiter>() {
+                @Override
+                public RateLimiter load(KV<Long, Long> pair) {
+                  return RateLimiter.create(pair.getValue().doubleValue());
+                }
+              });
 
   public SyntheticStep(Options options) {
     options.validate();
@@ -61,40 +80,6 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
     Random rand = new Random();
     // use a random id so that a pipeline could have multiple SyntheticSteps
     this.idAndThroughput = KV.of(rand.nextLong(), options.maxWorkerThroughput);
-  }
-
-  private KV<byte[], byte[]> outputElement(
-      byte[] inputKey, byte[] inputVal, long hashCodeOfVal, int index, Random rnd) {
-    long seed = options.hashFunction().hashLong(hashCodeOfVal + index).asLong();
-    Duration delayMsec = Duration.millis(options.nextDelay(seed));
-    long sleepMillis = 0;
-    while (delayMsec.getMillis() > 0) {
-      sleepMillis +=
-          SyntheticUtils.delay(
-              delayMsec, options.cpuUtilizationInMixedDelay, options.delayType, rnd);
-
-      // Ensure the worker throughput is within the limit (if set).
-      if (options.maxWorkerThroughput < 0
-          || rateLimiterCache.getUnchecked(idAndThroughput).tryAcquire()) {
-        break;
-      } else { // try 1 millis extra delay
-        delayMsec = Duration.millis(1);
-      }
-    }
-
-    if (options.reportThrottlingMicros && sleepMillis > 0) {
-      throttlingMsecsCounter.inc(TimeUnit.MILLISECONDS.toMicros(sleepMillis));
-    }
-
-    if (options.preservesInputKeyDistribution) {
-      // Generate the new byte array value whose hashcode will be
-      // used as seed to initialize a Random object in next stages.
-      byte[] newValue = new byte[inputVal.length];
-      rnd.nextBytes(newValue);
-      return KV.of(inputKey, newValue);
-    } else {
-      return options.genKvPair(seed);
-    }
   }
 
   @ProcessElement
@@ -113,6 +98,47 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
     if (random.nextDouble() < fractionalPart) {
       c.output(outputElement(key, val, hashCodeOfVal, i, random));
     }
+  }
+
+  private KV<byte[], byte[]> outputElement(
+      byte[] inputKey, byte[] inputValue, long inputValueHashcode, int index, Random random) {
+    long seed = options.hashFunction().hashLong(inputValueHashcode + index).asLong();
+    Duration delay = Duration.millis(options.nextDelay(seed));
+    long millisecondsSpentSleeping = 0;
+    while (delay.getMillis() > 0) {
+      millisecondsSpentSleeping +=
+          delay(delay, options.cpuUtilizationInMixedDelay, options.delayType, random);
+
+      if (isWithinThroughputLimit()) {
+        break;
+      } else {
+        // try an extra delay of 1 millisecond
+        delay = Duration.millis(1);
+      }
+    }
+
+    reportThrottlingTimeMetrics(millisecondsSpentSleeping);
+
+    if (options.preservesInputKeyDistribution) {
+      // Generate the new byte array value whose hashcode will be
+      // used as seed to initialize a Random object in next stages.
+      byte[] newValue = new byte[inputValue.length];
+      random.nextBytes(newValue);
+      return KV.of(inputKey, newValue);
+    } else {
+      return options.genKvPair(seed);
+    }
+  }
+
+  private void reportThrottlingTimeMetrics(long milliseconds) {
+    if (options.reportThrottlingMicros && milliseconds > 0) {
+      throttlingCounter.inc(TimeUnit.MILLISECONDS.toMicros(milliseconds));
+    }
+  }
+
+  private boolean isWithinThroughputLimit() {
+    return options.maxWorkerThroughput < 0
+        || rateLimiterCache.getUnchecked(idAndThroughput).tryAcquire();
   }
 
   @StartBundle
@@ -146,9 +172,6 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
      */
     @JsonProperty public boolean preservesInputKeyDistribution;
 
-    /** User-defined tag to annotate synthetic step name. */
-    @JsonProperty public String uniqueTag;
-
     /**
      * An upper limit on throughput across the worker for this step. In a streaming job, it is not
      * easy to tightly control parallelism of a DoFn. It depends on various factors. As a result, it
@@ -180,6 +203,10 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
           outputRecordsPerInputRecord >= 0,
           "outputRecordsPerInputRecord should be a non-negative number, but found %s.",
           outputRecordsPerInputRecord);
+      checkArgument(
+          perBundleDelay >= 0,
+          "perBundleDelay should be a non-negative number, but found %s.",
+          perBundleDelay);
       if (maxWorkerThroughput >= 0) {
         checkArgument(
             perBundleDelay == 0,
@@ -187,18 +214,4 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
       }
     }
   }
-
-  /**
-   * static cache to store one worker level rate limiter for a step. Value in KV is the desired
-   * rate.
-   */
-  private static LoadingCache<KV<Long, Long>, RateLimiter> rateLimiterCache =
-      CacheBuilder.newBuilder()
-          .build(
-              new CacheLoader<KV<Long, Long>, RateLimiter>() {
-                @Override
-                public RateLimiter load(KV<Long, Long> pair) {
-                  return RateLimiter.create(pair.getValue().doubleValue());
-                }
-              });
 }
