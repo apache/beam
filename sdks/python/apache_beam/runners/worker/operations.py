@@ -572,15 +572,14 @@ class FlattenOperation(Operation):
       self.output(o)
 
 
-def create_operation(name_context, spec, counter_factory, step_name,
-                     state_sampler, test_shuffle_source=None,
+def create_operation(name_context, spec, counter_factory, step_name=None,
+                     state_sampler=None, test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
+
+  # TODO(pabloem): Document arguments to this function call.
   if not isinstance(name_context, common.NameContext):
-    # TODO(BEAM-4028): Remove ad-hoc NameContext once all has been migrated.
-    name_context = common.DataflowNameContext(step_name=name_context,
-                                              user_name=step_name,
-                                              system_name=None)
+    name_context = common.NameContext(step_name=name_context)
 
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):
