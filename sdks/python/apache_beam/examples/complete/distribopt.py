@@ -220,7 +220,6 @@ class OptimizeGrid(beam.PTransform):
         key = (mapping_identifier, greenhouse)
         yield (key, crops)
 
-
   class OptimizeProductParameters(beam.DoFn):
     """Solve the optimization task to determine optimal production parameters.
     Input: ((mapping_identifier, greenhouse), [(crop, quantity),...])
