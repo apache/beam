@@ -121,7 +121,7 @@ if [[ $confirmation = "y" ]]; then
   echo "----Creating Hash Value for  apache-beam-${RELEASE}-source-release.zip----"
   sha512sum apache-beam-${RELEASE}-source-release.zip > apache-beam-${RELEASE}-source-release.zip.sha512
 
-  svn add beam/${RELEASE}
+  svn add .
   svn status
   echo "Please confirm these changes are ready to commit: [y|N] "
   read confirmation
@@ -155,7 +155,7 @@ if [[ $confirmation = "y" ]]; then
 
   svn co https://dist.apache.org/repos/dist/dev/beam
   mkdir beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
-  cp apache-beam-${RELEASE}.zip beam/${RELEASE}/python_test/apache-beam-${RELEASE}.zip
+  cp apache-beam-${RELEASE}.zip beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/apache-beam-${RELEASE}.zip
   cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
 
   echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
@@ -230,7 +230,24 @@ if [[ $confirmation = "y" ]]; then
   git commit -m "Update beam-site for release ${RELEASE}"
   git push ${USER_REMOTE_URL}
 
-  hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:asf-site
+  if [[ -z `which hub` ]]; then
+    echo "You don't have hub installed, do you want to install hub with sudo permission? [y|N]"
+    read confirmation
+    if [[ $confirmation = "y" ]]; then
+      HUB_VERSION=2.5.0
+      HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+      wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+      tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+      sudo ./${HUB_ARTIFACTS_NAME}/install
+      echo "eval "$(hub alias -s)"" >> ~/.bashrc
+      rm -rf ${HUB_ARTIFACTS_NAME}*
+    fi
+  fi
+  if [[ -z `which hub` ]]; then
+    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:asf-site
+  else
+    echo "Without hub, you need to create PR manually."
+  fi
 
   echo "Finished v${RELEASE}-RC${RC_NUM} creation."
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
@@ -252,5 +269,5 @@ echo "2.You need to update website updates PR with another commit: src/get-start
 echo "  - add new release download links like commit: "
 echo "    https://github.com/apache/beam-site/commit/29394625ce54f0c5584c3db730d3eb6bf365a80c#diff-abdcc989e94369c2324cf64b66659eda"
 echo "  - update last release download links from release to archive like commit: "
-ehoc "    https://github.com/apache/beam-site/commit/6b9bdb31324d5c0250a79224507da0ea7ae8ccbf#diff-abdcc989e94369c2324cf64b66659eda"
+echo "    https://github.com/apache/beam-site/commit/6b9bdb31324d5c0250a79224507da0ea7ae8ccbf#diff-abdcc989e94369c2324cf64b66659eda"
 echo "3.Start the review-and-vote thread on the dev@ mailing list."
