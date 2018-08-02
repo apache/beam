@@ -57,6 +57,12 @@ public class FlinkJobServerDriver implements Runnable {
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
 
+    @Option(
+      name = "--clean-artifacts-per-job",
+      usage = "When true, remove each job's staged artifacts when it completes"
+    )
+    private Boolean cleanArtifactsPerJob = false;
+
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
     private String flinkMasterUrl = "[auto]";
   }
@@ -181,6 +187,11 @@ public class FlinkJobServerDriver implements Runnable {
                 session, configuration.artifactStagingPath);
           } catch (Exception exn) {
             throw new RuntimeException(exn);
+          }
+        },
+        (String stagingSessionToken) -> {
+          if (configuration.cleanArtifactsPerJob) {
+            artifactStagingServer.getService().removeArtifacts(stagingSessionToken);
           }
         },
         invoker);
