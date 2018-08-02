@@ -42,10 +42,10 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <h3>Builders:</h3>
  *
  * <ol>
- * <li>{@code [named] ..................} give name to the operator [optional]
- * <li>{@code of .......................} input dataset
- * <li>{@code by .......................} apply {@link UnaryPredicate} to input elements
- * <li>{@code output ...................} build output dataset
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code by .......................} apply {@link UnaryPredicate} to input elements
+ *   <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -92,9 +92,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
     return predicate;
   }
 
-  /**
-   * This operator can be implemented using FlatMap.
-   */
+  /** This operator can be implemented using FlatMap. */
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(
@@ -108,12 +106,11 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
               }
             },
             null,
-            getHints(), outputType));
+            getHints(),
+            outputType));
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -128,9 +125,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
     }
   }
 
-  /**
-   * TODO: complete javadoc.
-   */
+  /** TODO: complete javadoc. */
   public static class ByBuilder<InputT> {
 
     private final String name;
@@ -145,7 +140,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
      * Specifies the function that is capable of input elements filtering.
      *
      * @param predicate the function that filters out elements if the return value for the element
-     * is false
+     *     is false
      * @return the next builder to complete the setup of the operator
      */
     public Builders.Output<InputT> by(UnaryPredicate<InputT> predicate) {
@@ -174,7 +169,12 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
       Flow flow = input.getFlow();
 
       Filter<InputT> filter =
-          new Filter<>(name, flow, input, predicate, Sets.newHashSet(outputHints),
+          new Filter<>(
+              name,
+              flow,
+              input,
+              predicate,
+              Sets.newHashSet(outputHints),
               TypeUtils.getDatasetElementType(input));
 
       flow.add(filter);

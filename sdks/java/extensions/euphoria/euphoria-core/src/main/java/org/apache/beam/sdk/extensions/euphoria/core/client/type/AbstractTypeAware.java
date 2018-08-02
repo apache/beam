@@ -24,6 +24,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * TODO: to be removed.
+ *
  * @param <FuncT>
  * @param <T>
  */

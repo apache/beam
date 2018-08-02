@@ -43,11 +43,8 @@ public abstract class Operator<InputT, OutputT> implements Serializable, TypeAwa
 
   protected Set<OutputHint> hints;
 
-  /**
-   * Optional output type descriptor.
-   */
-  @Nullable
-  protected final transient TypeDescriptor<OutputT> outputType;
+  /** Optional output type descriptor. */
+  @Nullable protected final transient TypeDescriptor<OutputT> outputType;
 
   protected Operator(String name, Flow flow, TypeDescriptor<OutputT> outputType) {
     this.name = name;

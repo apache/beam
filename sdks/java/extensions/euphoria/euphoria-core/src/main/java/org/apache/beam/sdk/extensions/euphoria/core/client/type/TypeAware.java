@@ -26,35 +26,28 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * A collection of interfaces which allows access to {@link TypeDescriptor types} of implementing
  * {@link Operator Operators} properties.
  *
- * <p> Note that there is no input typing interface. That is on purpose since all the
- * transformations are chained together and type of input(s) equals to types of previous transform
- * output(s). Source transforms needs to know which type of elements are producing explicitly.
- * </p>
+ * <p>Note that there is no input typing interface. That is on purpose since all the transformations
+ * are chained together and type of input(s) equals to types of previous transform output(s). Source
+ * transforms needs to know which type of elements are producing explicitly.
  */
 public class TypeAware {
   //TODO add test to assert type descriptpr propagation through builders and chain of operators
 
-  /**
-   * Returns {@link TypeDescriptor} of this operator output type.
-   */
+  /** Returns {@link TypeDescriptor} of this operator output type. */
   public interface Output<OutputT> {
 
     TypeDescriptor<OutputT> getOutputType();
   }
 
-  /**
-   * Returns {@link TypeDescriptor} of this operator key type.
-   */
+  /** Returns {@link TypeDescriptor} of this operator key type. */
   public interface Key<KeyT> {
 
     TypeDescriptor<KeyT> getKeyType();
   }
 
-  /**
-   * Returns {@link TypeDescriptor} of this operator value type.
-   */
+  /** Returns {@link TypeDescriptor} of this operator value type. */
   public interface Value<ValueT> {
 
-    TypeDescriptor<ValueT> getValueType(); //TODO implement this in all value operators
+    TypeDescriptor<ValueT> getValueType();
   }
 }

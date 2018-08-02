@@ -78,7 +78,15 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, outputType, extractor, keyType, windowing, euphoriaWindowing,
+    super(
+        name,
+        flow,
+        input,
+        outputType,
+        extractor,
+        keyType,
+        windowing,
+        euphoriaWindowing,
         outputHints);
   }
 
@@ -130,7 +138,6 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     UnaryFunction<InputT, K> keyExtractor;
     TypeDescriptor<K> keyType;
 
-
     private BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
@@ -162,8 +169,8 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public <K> WindowingBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor,
-        TypeDescriptor<K> keyType) {
+    public <K> WindowingBuilder<InputT, K> keyBy(
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, K, ?> paramsCasted = (BuilderParams<InputT, K, ?>) params;
@@ -173,8 +180,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public <K> WindowingBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor) {
+    public <K> WindowingBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
       return keyBy(keyExtractor, null);
     }
   }

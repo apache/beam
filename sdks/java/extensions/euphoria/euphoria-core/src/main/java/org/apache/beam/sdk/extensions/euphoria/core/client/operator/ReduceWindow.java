@@ -78,17 +78,14 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>>
-implements TypeAware.Value<V> {
+        InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>>
+    implements TypeAware.Value<V> {
 
   private static final Byte B_ZERO = (byte) 0;
-  @VisibleForTesting
-  final UnaryFunction<InputT, V> valueExtractor;
-  @Nullable
-  private final TypeDescriptor<V> valueType;
+  @VisibleForTesting final UnaryFunction<InputT, V> valueExtractor;
+  @Nullable private final TypeDescriptor<V> valueType;
 
-  @VisibleForTesting
-  final BinaryFunction<V, V, Integer> valueComparator;
+  @VisibleForTesting final BinaryFunction<V, V, Integer> valueComparator;
   private final ReduceFunctor<V, OutputT> reducer;
 
   private ReduceWindow(
@@ -103,7 +100,14 @@ implements TypeAware.Value<V> {
       ReduceFunctor<V, OutputT> reducer,
       @Nullable BinaryFunction<V, V, Integer> valueComparator) {
 
-    super(name, flow, input, outputTypeDescriptor, e -> B_ZERO, TypeDescriptors.bytes(), windowing,
+    super(
+        name,
+        flow,
+        input,
+        outputTypeDescriptor,
+        e -> B_ZERO,
+        TypeDescriptors.bytes(),
+        windowing,
         euphoriaWindowing,
         Collections.emptySet());
     this.reducer = reducer;
@@ -179,7 +183,8 @@ implements TypeAware.Value<V> {
               (InputT in, Collector<Pair<Window<?>, InputT>> c) -> {
                 c.collect(Pair.of(c.getWindow(), in));
               },
-              null, null);
+              null,
+              null);
       rbk =
           new ReduceByKey<Pair<Window<?>, InputT>, Window<?>, V, OutputT, W>(
               getName() + "::ReduceByKey::attached",
@@ -193,15 +198,15 @@ implements TypeAware.Value<V> {
               null,
               reducer,
               valueComparator,
-              getHints(), null);
+              getHints(),
+              null);
       dag.add(map);
       dag.add(rbk);
     }
 
     MapElements<Pair<Object, OutputT>, OutputT> format =
         new MapElements<Pair<Object, OutputT>, OutputT>(
-            getName() + "::MapElements", getFlow(), (Dataset) rbk.output(),
-            Pair::getSecond, null);
+            getName() + "::MapElements", getFlow(), (Dataset) rbk.output(), Pair::getSecond, null);
 
     dag.add(format);
     return dag;
@@ -223,8 +228,7 @@ implements TypeAware.Value<V> {
     TypeDescriptor<V> valueType;
 
     ReduceFunctor<V, OutputT> reducer;
-    @Nullable
-    TypeDescriptor<OutputT> outputTypeDescriptor;
+    @Nullable TypeDescriptor<OutputT> outputTypeDescriptor;
 
     public BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
@@ -256,8 +260,8 @@ implements TypeAware.Value<V> {
       this.params = new BuilderParams<>(name, input);
     }
 
-    public <V> ReduceBuilder<InputT, V> valueBy(UnaryFunction<InputT, V> valueExtractor,
-        TypeDescriptor<V> valueType) {
+    public <V> ReduceBuilder<InputT, V> valueBy(
+        UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> valueType) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, V, ?, ?> paramsCasted = (BuilderParams<InputT, V, ?, ?>) params;
@@ -342,8 +346,8 @@ implements TypeAware.Value<V> {
 
     public <OutputT> SortableOutputBuilder<InputT, V, OutputT> reduceBy(
         ReduceFunction<V, OutputT> reducer, TypeDescriptor<OutputT> outputTypeDescriptor) {
-      return reduceBy(reduceFunctionToFunctor(Objects.requireNonNull(reducer)),
-          outputTypeDescriptor);
+      return reduceBy(
+          reduceFunctionToFunctor(Objects.requireNonNull(reducer)), outputTypeDescriptor);
     }
 
     public <OutputT> SortableOutputBuilder<InputT, V, OutputT> reduceBy(
@@ -373,8 +377,8 @@ implements TypeAware.Value<V> {
       return combineBy(reducer, null);
     }
 
-    public WindowByBuilder<InputT, V, V> combineBy(CombinableReduceFunction<V> reducer,
-        TypeDescriptor<V> valueTypeDescriptor) {
+    public WindowByBuilder<InputT, V, V> combineBy(
+        CombinableReduceFunction<V> reducer, TypeDescriptor<V> valueTypeDescriptor) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, V, V, ?> paramsCasted = (BuilderParams<InputT, V, V, ?>) params;

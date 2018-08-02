@@ -203,35 +203,38 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
         new MapElements<>(getName() + "::Map-left", flow, left, Either::left, eitherLeftRightType);
 
     final MapElements<RightT, Either<LeftT, RightT>> rightMap =
-        new MapElements<>(getName() + "::Map-right", flow, right, Either::right,
-            eitherLeftRightType);
+        new MapElements<>(
+            getName() + "::Map-right", flow, right, Either::right, eitherLeftRightType);
 
-    final Union<Either<LeftT, RightT>> union = new Union<>(
-        getName() + "::Union", flow, Arrays.asList(leftMap.output(),
-        rightMap.output()), eitherLeftRightType);
+    final Union<Either<LeftT, RightT>> union =
+        new Union<>(
+            getName() + "::Union",
+            flow,
+            Arrays.asList(leftMap.output(), rightMap.output()),
+            eitherLeftRightType);
 
     final ReduceStateByKey<
             Either<LeftT, RightT>, K, Either<LeftT, RightT>, OutputT, StableJoinState, W>
         reduce =
-        new ReduceStateByKey(
-            getName() + "::ReduceStateByKey",
-            flow,
-            union.output(),
-            keyExtractor,
-            keyType,
-            UnaryFunction.identity(),
-            eitherLeftRightType,
-            getWindowing(),
-            euphoriaWindowing,
-            (StateContext context, Collector ctx) -> {
-              StorageProvider storages = context.getStorageProvider();
-              return ctx == null
-                  ? new StableJoinState(storages)
-                  : new EarlyEmittingJoinState(storages, ctx);
-            },
-            new StateSupport.MergeFromStateMerger<>(),
-            outputType,
-            getHints());
+            new ReduceStateByKey(
+                getName() + "::ReduceStateByKey",
+                flow,
+                union.output(),
+                keyExtractor,
+                keyType,
+                UnaryFunction.identity(),
+                eitherLeftRightType,
+                getWindowing(),
+                euphoriaWindowing,
+                (StateContext context, Collector ctx) -> {
+                  StorageProvider storages = context.getStorageProvider();
+                  return ctx == null
+                      ? new StableJoinState(storages)
+                      : new EarlyEmittingJoinState(storages, ctx);
+                },
+                new StateSupport.MergeFromStateMerger<>(),
+                outputType,
+                getHints());
 
     final DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);
@@ -304,7 +307,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        UnaryFunction<LeftT, K> leftKeyExtractor,
+        UnaryFunction<RightT, K> rightKeyExtractor,
         TypeDescriptor<K> keyTypeDescriptor) {
 
       @SuppressWarnings("unchecked")
@@ -318,8 +322,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor,
-        UnaryFunction<RightT, K> rightKeyExtractor) {
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
       return by(leftKeyExtractor, rightKeyExtractor, null);
     }
   }

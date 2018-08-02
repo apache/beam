@@ -209,36 +209,36 @@ class TranslationContext {
   private <T> Coder<T> getOutputCoder(Dataset<T> dataset) {
     //TODO: test this, is this approach right?
     //TODO: Should we somehow automate creation of parametrized PairCoder ??
-//    Operator<?, ?> op = dataset.getProducer();
-//    if (op instanceof FlatMap) {
-//      FlatMap<?, T> m = (FlatMap) op;
-//      return getCoder(m.getFunctor());
-//    } else if (op instanceof Union) {
-//      Union<T> u = (Union) op;
-//      Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));
-//      return getOutputCoder(first);
-//    } else if (op instanceof ReduceByKey) {
-//      ReduceByKey rb = (ReduceByKey) op;
-//      Coder reducerCoder = getCoder(rb.getReducer());
-//      Coder keyCoder = getCoder(rb.getKeyExtractor());
-//      return PairCoder.of(keyCoder, reducerCoder);
-//    } else if (op instanceof ReduceStateByKey) {
-//      ReduceStateByKey rbsk = (ReduceStateByKey) op;
-//      // TODO
-//      return new KryoCoder<>();
-//    } else if (op instanceof WrappedInputPCollectionOperator) {
-//      return ((WrappedInputPCollectionOperator) op).input.getCoder();
-//    } else if (op == null) {
-//      // TODO
-//      return new KryoCoder<>();
-//    } else if (op instanceof Join) {
-//      Join join = (Join) op;
-//      Coder keyCoder = getCoder(join.getLeftKeyExtractor());
-//      Coder outputValueCoder = getCoder(join.getJoiner());
-//      return PairCoder.of(keyCoder, outputValueCoder);
-//    }
-//    // TODO
-//    return new KryoCoder<>();
+    //    Operator<?, ?> op = dataset.getProducer();
+    //    if (op instanceof FlatMap) {
+    //      FlatMap<?, T> m = (FlatMap) op;
+    //      return getCoder(m.getFunctor());
+    //    } else if (op instanceof Union) {
+    //      Union<T> u = (Union) op;
+    //      Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));
+    //      return getOutputCoder(first);
+    //    } else if (op instanceof ReduceByKey) {
+    //      ReduceByKey rb = (ReduceByKey) op;
+    //      Coder reducerCoder = getCoder(rb.getReducer());
+    //      Coder keyCoder = getCoder(rb.getKeyExtractor());
+    //      return PairCoder.of(keyCoder, reducerCoder);
+    //    } else if (op instanceof ReduceStateByKey) {
+    //      ReduceStateByKey rbsk = (ReduceStateByKey) op;
+    //      // TODO
+    //      return new KryoCoder<>();
+    //    } else if (op instanceof WrappedInputPCollectionOperator) {
+    //      return ((WrappedInputPCollectionOperator) op).input.getCoder();
+    //    } else if (op == null) {
+    //      // TODO
+    //      return new KryoCoder<>();
+    //    } else if (op instanceof Join) {
+    //      Join join = (Join) op;
+    //      Coder keyCoder = getCoder(join.getLeftKeyExtractor());
+    //      Coder outputValueCoder = getCoder(join.getJoiner());
+    //      return PairCoder.of(keyCoder, outputValueCoder);
+    //    }
+    //    // TODO
+    //    return new KryoCoder<>();
 
     TypeDescriptor<T> datasetElementType = TypeUtils.getDatasetElementType(dataset);
     if (datasetElementType != null) {

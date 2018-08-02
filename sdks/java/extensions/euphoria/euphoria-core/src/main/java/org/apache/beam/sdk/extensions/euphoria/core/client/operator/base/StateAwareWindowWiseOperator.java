@@ -30,19 +30,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /** Operator with internal state. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
-    InputT,
-    KeyInT,
-    K,
-    OutputT,
-    W extends BoundedWindow,
-    OperatorT extends
-        StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
+        InputT,
+        KeyInT,
+        K,
+        OutputT,
+        W extends BoundedWindow,
+        OperatorT extends StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
     extends WindowWiseOperator<InputT, OutputT, W>
     implements StateAware<KeyInT, K>, TypeAware.Key<K> {
 
   protected final UnaryFunction<KeyInT, K> keyExtractor;
-  @Nullable
-  protected final TypeDescriptor<K> keyType;
+  @Nullable protected final TypeDescriptor<K> keyType;
 
   protected StateAwareWindowWiseOperator(
       String name,

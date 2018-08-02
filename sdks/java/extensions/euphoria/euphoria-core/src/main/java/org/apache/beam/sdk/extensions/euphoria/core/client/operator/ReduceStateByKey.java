@@ -112,15 +112,14 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 public class ReduceStateByKey<
         InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, K, Pair<K, OutputT>, W,
-    ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
+        InputT, InputT, K, Pair<K, OutputT>, W,
+        ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
 
   private final StateFactory<V, OutputT, StateT> stateFactory;
 
   // builder classes used when input is Dataset<InputT> ----------------------
   private final UnaryFunction<InputT, V> valueExtractor;
-  @Nullable
-  private final TypeDescriptor<V> valueType;
+  @Nullable private final TypeDescriptor<V> valueType;
 
   private final StateMerger<V, OutputT, StateT> stateCombiner;
 
@@ -138,7 +137,15 @@ public class ReduceStateByKey<
       StateMerger<V, OutputT, StateT> stateMerger,
       @Nullable TypeDescriptor<Pair<K, OutputT>> outputType,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, outputType, keyExtractor, keyType, windowing, euphoriaWindowing,
+    super(
+        name,
+        flow,
+        input,
+        outputType,
+        keyExtractor,
+        keyType,
+        windowing,
+        euphoriaWindowing,
         outputHints);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
@@ -197,7 +204,6 @@ public class ReduceStateByKey<
     return valueExtractor;
   }
 
-
   /** Parameters of this operator used in builders. */
   public static class BuilderParams<
           InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
@@ -207,21 +213,20 @@ public class ReduceStateByKey<
     Dataset<InputT> input;
 
     UnaryFunction<InputT, K> keyExtractor;
-    @Nullable
-    TypeDescriptor<K> keyType;
+    @Nullable TypeDescriptor<K> keyType;
 
     UnaryFunction<InputT, V> valueExtractor;
-    @Nullable
-    TypeDescriptor<V> valueType;
+    @Nullable TypeDescriptor<V> valueType;
 
     StateFactory<V, OutputT, StateT> stateFactory;
     StateMerger<V, OutputT, StateT> stateMerger;
-    @Nullable
-    TypeDescriptor<OutputT> simpleOutputType;
+    @Nullable TypeDescriptor<OutputT> simpleOutputType;
 
     public BuilderParams(
-        String name, Dataset<InputT> input,
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
+        String name,
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyExtractor,
+        TypeDescriptor<K> keyType) {
 
       this.name = name;
       this.input = input;
@@ -265,12 +270,11 @@ public class ReduceStateByKey<
     public <K> ValueByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
 
-      BuilderParams<InputT, K, ?, ?, ?, ?> params = new BuilderParams<>(
-          name, input, Objects.requireNonNull(keyExtractor), keyType);
+      BuilderParams<InputT, K, ?, ?, ?, ?> params =
+          new BuilderParams<>(name, input, Objects.requireNonNull(keyExtractor), keyType);
 
       return new ValueByBuilder<>(params);
     }
-
   }
 
   /** TODO: complete javadoc. */
@@ -291,9 +295,10 @@ public class ReduceStateByKey<
      *     dataset's elements for later accumulation
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public <V> StateFactoryBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor,
-        TypeDescriptor<V> valueType) {
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
+    public <V> StateFactoryBuilder<InputT, K, V> valueBy(
+        UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> valueType) {
+      @SuppressWarnings("unchecked")
+      final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
           (BuilderParams<InputT, K, V, ?, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
@@ -326,8 +331,8 @@ public class ReduceStateByKey<
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public <OutputT, StateT extends State<V, OutputT>>
-    MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
-        StateFactory<V, OutputT, StateT> stateFactory, TypeDescriptor<OutputT> outputType) {
+        MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
+            StateFactory<V, OutputT, StateT> stateFactory, TypeDescriptor<OutputT> outputType) {
 
       @SuppressWarnings("unchecked")
       final BuilderParams<InputT, K, V, OutputT, StateT, ?> paramsCasted =
@@ -340,11 +345,10 @@ public class ReduceStateByKey<
     }
 
     public <OutputT, StateT extends State<V, OutputT>>
-    MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
-        StateFactory<V, OutputT, StateT> stateFactory) {
+        MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
+            StateFactory<V, OutputT, StateT> stateFactory) {
       return stateFactory(stateFactory, null);
     }
-
   }
 
   /** TODO: complete javadoc. */

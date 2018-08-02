@@ -80,8 +80,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class SumByKey<InputT, K, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>>
-implements TypeAware.Value<Long>{
+        InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>>
+    implements TypeAware.Value<Long> {
 
   private final UnaryFunction<InputT, Long> valueExtractor;
 
@@ -119,8 +119,16 @@ implements TypeAware.Value<Long>{
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, outputType, keyExtractor, keyType,
-        windowing, euphoriaWindowing, outputHints);
+    super(
+        name,
+        flow,
+        input,
+        outputType,
+        keyExtractor,
+        keyType,
+        windowing,
+        euphoriaWindowing,
+        outputHints);
     this.valueExtractor = valueExtractor;
   }
 
@@ -161,7 +169,8 @@ implements TypeAware.Value<Long>{
             windowing,
             euphoriaWindowing,
             Sums.ofLongs(),
-            getHints(), outputType);
+            getHints(),
+            outputType);
     return DAG.of(reduceByKey);
   }
 

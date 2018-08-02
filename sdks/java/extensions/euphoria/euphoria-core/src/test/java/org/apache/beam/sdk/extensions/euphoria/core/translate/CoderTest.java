@@ -96,7 +96,5 @@ public class CoderTest {
             reduceFunctor, TypeUtils.pairs(NotSerializableClass.class, String.class)));
   }
 
-  private static class NotSerializableClass {
-
-  }
+  private static class NotSerializableClass {}
 }

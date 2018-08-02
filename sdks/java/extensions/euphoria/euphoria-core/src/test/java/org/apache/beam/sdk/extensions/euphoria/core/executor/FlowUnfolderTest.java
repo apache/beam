@@ -194,8 +194,9 @@ public class FlowUnfolderTest {
     DAG<Operator<?, ?>> unfolded =
         FlowUnfolder.unfold(
             flow,
-            (Set<Class<? extends Operator<?, ?>>> ) new HashSet<>(
-                (List) Arrays.asList(MyInputOperator.class, MySingleInputOperator.class)));
+            (Set<Class<? extends Operator<?, ?>>>)
+                new HashSet<>(
+                    (List) Arrays.asList(MyInputOperator.class, MySingleInputOperator.class)));
     assertEquals(2, unfolded.size());
     assertEquals(1, unfolded.getRoots().size());
     assertEquals(1, unfolded.getLeafs().size());

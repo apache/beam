@@ -93,7 +93,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>>
+        InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>>
     implements TypeAware.Value<V> {
 
   private final UnaryFunction<InputT, V> valueFn;
@@ -101,7 +101,6 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
   private final UnaryFunction<InputT, ScoreT> scoreFn;
   private final TypeDescriptor<ScoreT> scoreType;
-
 
   TopPerKey(
       Flow flow,
@@ -117,7 +116,15 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       @Nullable Windowing euphoriaWindowing,
       @Nullable TypeDescriptor<Triple<K, V, ScoreT>> outputType,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, outputType, keyExtractor, keyType, windowing, euphoriaWindowing,
+    super(
+        name,
+        flow,
+        input,
+        outputType,
+        keyExtractor,
+        keyType,
+        windowing,
+        euphoriaWindowing,
         outputHints);
 
     this.valueFn = valueFn;
@@ -189,7 +196,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
             flow,
             reduce.output(),
             e -> Triple.of(e.getFirst(), e.getSecond().getFirst(), e.getSecond().getSecond()),
-            getHints(), outputType);
+            getHints(),
+            outputType);
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);
@@ -208,7 +216,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
   /** Parameters of this operator used in builders. */
   private static final class BuiderParams<
-      InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
+          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
       extends WindowingParams<W> {
 
     String name;
@@ -305,8 +313,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     @Override
     public <K> ValueByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
-      @SuppressWarnings("unchecked") BuiderParams<InputT, K, ?, ?, ?> paramsCasted =
-          (BuiderParams<InputT, K, ?, ?, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuiderParams<InputT, K, ?, ?, ?> paramsCasted = (BuiderParams<InputT, K, ?, ?, ?>) params;
 
       paramsCasted.keyFn = requireNonNull(keyExtractor);
       paramsCasted.keyType = keyType;
@@ -330,8 +338,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
     public <V> ScoreByBuilder<InputT, K, V> valueBy(
         UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> valueType) {
-      @SuppressWarnings("unchecked") BuiderParams<InputT, K, V, ?, ?> paramsCasted =
-          (BuiderParams<InputT, K, V, ?, ?>) params;
+      @SuppressWarnings("unchecked")
+      BuiderParams<InputT, K, V, ?, ?> paramsCasted = (BuiderParams<InputT, K, V, ?, ?>) params;
 
       paramsCasted.valueFn = requireNonNull(valueExtractor);
       paramsCasted.valueType = valueType;

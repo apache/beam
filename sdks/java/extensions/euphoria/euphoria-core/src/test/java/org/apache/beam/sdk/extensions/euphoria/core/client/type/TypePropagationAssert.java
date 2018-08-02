@@ -1,19 +1,19 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
-
 import java.lang.reflect.TypeVariable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Assert;
 
-/**
- * Buncg of methods to assert type descriptors in operators.
- */
+/** Buncg of methods to assert type descriptors in operators. */
 public class TypePropagationAssert {
 
-  public static void assertOperatorTypeAwareness(Operator<?, ?> operator,
-      TypeDescriptor<?> outputType, TypeDescriptor<?> keyType, TypeDescriptor<?> valueType) {
+  public static void assertOperatorTypeAwareness(
+      Operator<?, ?> operator,
+      TypeDescriptor<?> outputType,
+      TypeDescriptor<?> keyType,
+      TypeDescriptor<?> valueType) {
 
     if (keyType != null || operator instanceof TypeAware.Key) {
       Assert.assertSame(keyType, ((TypeAware.Key) operator).getKeyType());
@@ -44,9 +44,8 @@ public class TypePropagationAssert {
     assertOperatorTypeAwareness(operator, outputType, null, null);
   }
 
-  public static void assertOperatorTypeAwareness(Operator<?, ?> operator,
-      TypeDescriptor<?> outputType, TypeDescriptor<?> keyType) {
+  public static void assertOperatorTypeAwareness(
+      Operator<?, ?> operator, TypeDescriptor<?> outputType, TypeDescriptor<?> keyType) {
     assertOperatorTypeAwareness(operator, outputType, keyType, null);
   }
-
 }
