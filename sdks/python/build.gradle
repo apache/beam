@@ -267,8 +267,13 @@ task postCommit() {
   dependsOn "postCommitITTests"*/
   doLast {
     exec {
-        commandLine 'python2 --version'
-        commandLine 'python3 --version'
+        commandLine 'python2', '--version'
+    }
+    exec {
+        commandLine 'python3', '--version'
+    }
+    exec {
+        commandLine 'which', 'python3'
     }
   }
 }
