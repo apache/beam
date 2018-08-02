@@ -104,7 +104,7 @@ func emitSumFn(n int, emit func(int)) {
 // BenchmarkParDo_EmitSumFn measures the overhead of invoking a ParDo in a plan.
 //
 // On @lostluck's desktop:
-// BenchmarkParDo_EmitSumFn-12    	 1000000	      1202 ns/op	     529 B/op	       4 allocs/op
+// BenchmarkParDo_EmitSumFn-12    	 1000000	      1070 ns/op	     481 B/op	       3 allocs/op
 func BenchmarkParDo_EmitSumFn(b *testing.B) {
 	fn, err := graph.NewDoFn(emitSumFn)
 	if err != nil {
