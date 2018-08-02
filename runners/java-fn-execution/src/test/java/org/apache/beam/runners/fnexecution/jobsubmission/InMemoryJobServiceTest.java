@@ -108,7 +108,7 @@ public class InMemoryJobServiceTest {
     JobApi.RunJobResponse runResponse = runRecorder.values.get(0);
     assertThat(runResponse.getJobId(), is(TEST_JOB_ID));
 
-    verify(invocation, times(1)).addTerminationListener(any());
+    verify(invocation, times(1)).addStateListener(any());
     verify(invocation, times(1)).start();
   }
 
