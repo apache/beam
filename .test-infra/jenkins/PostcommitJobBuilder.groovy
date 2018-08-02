@@ -55,6 +55,13 @@ class PostcommitJobBuilder {
 
   private void defineGhprbTriggeredJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
     def ghprbBuilds = scope.job(name) {
+
+      // Execute concurrent builds if necessary.
+      concurrentBuild()
+      throttleConcurrentBuilds {
+        maxTotal(3)
+      }
+
       commonJobProperties.setPullRequestBuildTrigger(
         delegate,
         githubUiHint,
