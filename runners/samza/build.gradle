@@ -40,7 +40,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "300.141.25.7"
+def samza_version = "300.141.25.9"
 
 dependencies {
   compile library.java.guava
