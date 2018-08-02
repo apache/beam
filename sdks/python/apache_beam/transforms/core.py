@@ -1358,6 +1358,11 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
   def to_runner_api_parameter(self, context):
+    if self.side_inputs:
+      args, kwargs = util.insert_values_in_args(self.args, self.kwargs,
+                                                self.side_inputs)
+      return (ParDo(CombineValuesDoFn(None, self.fn, None), *args, **kwargs)
+              .to_runner_api_parameter(context))
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
