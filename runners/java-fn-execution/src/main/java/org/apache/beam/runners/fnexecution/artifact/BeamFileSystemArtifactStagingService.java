@@ -153,24 +153,24 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     ResourceId dir = getJobDirResourceId(parsedToken);
     ResourceId manifestResourceId = dir.resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
 
-    LOG.info("Removing dir {}", dir);
+    LOG.debug("Removing dir {}", dir);
 
     ProxyManifest proxyManifest =
         BeamFileSystemArtifactRetrievalService.loadManifest(manifestResourceId);
     for (Location location : proxyManifest.getLocationList()) {
       String uri = location.getUri();
-      LOG.info("Removing artifact: {}", uri);
+      LOG.debug("Removing artifact: {}", uri);
       FileSystems.delete(
           Collections.singletonList(FileSystems.matchNewResource(uri, false /* is directory */)));
     }
 
     ResourceId artifactsResourceId =
         dir.resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
-    LOG.info("Removing artifacts: {}", artifactsResourceId);
+    LOG.debug("Removing artifacts: {}", artifactsResourceId);
     FileSystems.delete(Collections.singletonList(artifactsResourceId));
-    LOG.info("Removing manifest: {}", manifestResourceId);
+    LOG.debug("Removing manifest: {}", manifestResourceId);
     FileSystems.delete(Collections.singletonList(manifestResourceId));
-    LOG.info("Removing empty dir: {}", dir);
+    LOG.debug("Removing empty dir: {}", dir);
     FileSystems.delete(Collections.singletonList(dir));
     LOG.info("Removed dir {}", dir);
   }
@@ -335,12 +335,15 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
       this.basePath = basePath;
     }
 
-    public String encode() throws Exception {
+    public String encode() {
       try {
         return MAPPER.writeValueAsString(this);
       } catch (JsonProcessingException e) {
-        LOG.error("Error {} occurred while serializing {}.", e.getMessage(), this);
-        throw e;
+        String message =
+            String.format(
+                "Error %s occurred while serializing %s", e.getMessage(), this
+            );
+        throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(message));
       }
     }
 
