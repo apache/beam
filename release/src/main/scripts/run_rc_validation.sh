@@ -16,6 +16,28 @@
 #    limitations under the License.
 #
 
+function clean_up(){
+  echo "======================Stopping Pubsub Java Injector========================="
+  echo "Please stop java injector manually."
+  echo "===========================Signing up Spreadsheet==========================="
+  echo "Please open this spreadsheet: https://s.apache.org/beam-release-validation"
+  echo "Please sign up your name in the tests you have ran."
+
+  echo "===========================Final Cleanup==========================="
+  echo "* Restoring ~/.m2/settings.xml"
+  if [[ ! -z `ls -a ~/.m2/settings_backup.xml` ]]; then
+    rm ~/.m2/settings.xml
+    cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
+  fi
+  echo "* Restoring ~/.bashrc"
+  if [[ ! -z `ls -a ~/.bashrc_backup` ]]; then
+    rm ~/.bashrc
+    cp ~/.bashrc_backup ~/.bashrc
+  fi
+
+  rm -rf ~/{LOCAL_CLONE_DIR}
+}
+
 RELEASE=
 REPO_URL=
 RC_NUM=
@@ -338,6 +360,11 @@ if [[ $confirmation = "y" ]]; then
 
   echo "[Confirmation Required] Please enter y to confirm injector running:"
   read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Following tests only can be ran when java injector running."
+    clean_up
+    exit
+  fi
 
   cd ~/${LOCAL_CLONE_DIR}/apache-beam-${RELEASE}/
 
@@ -373,8 +400,13 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate the python job."
-    echo "[Confirmation Required] Please enter done to proceed into next step"
+    echo "[Confirmation Required] Please confirm whether you have stopped this job: [y|N]"
     read confirmation
+    if [[ $confirmation != "y" ]]; then
+      echo "Current job must be terminated in order to proceed into next test."
+      clean_up
+      exit
+    fi
   fi
 
   echo "----------------Starting Leaderboard with DataflowRunner---------------------"
@@ -411,8 +443,13 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate this job in Dataflow Console."
-    echo "[Confirmation Required] Please enter y to proceed into next step"
+    echo "[Confirmation Required] Please confirm whether you have stopped this job: [y|N]"
     read confirmation
+    if [[ $confirmation != "y" ]]; then
+      echo "Current job must be terminated in order to proceed into next test."
+      clean_up
+      exit
+    fi
   fi
 
   # [BEAM-4518]
@@ -452,8 +489,13 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate the python job."
-    echo "[Confirmation Required] Please enter y to proceed into next step"
+    echo "[Confirmation Required] Please confirm whether you have stopped this job: [y|N]"
     read confirmation
+    if [[ $confirmation != "y" ]]; then
+      echo "Current job must be terminated in order to proceed into next test."
+      clean_up
+      exit
+    fi
   fi
 
   echo "-------------------Starting GameStats with DataflowRunner--------------------"
@@ -491,21 +533,14 @@ if [[ $confirmation = "y" ]]; then
     echo "***************************************************************"
 
     echo "If you have verified all items listed above, please terminate the python job."
-    echo "[Confirmation Required] Please enter y to proceed into next step"
+    echo "[Confirmation Required] Please confirm whether you have stopped this job: [y|N]"
     read confirmation
+    if [[ $confirmation != "y" ]]; then
+      echo "Current job must be terminated in order to proceed into next test."
+      clean_up
+      exit
+    fi
   fi
 fi
 
-echo "===========================Final Cleanup==========================="
-echo "* Restoring ~/.m2/settings.xml"
-if [[ ! -z `ls -a ~/.m2/settings_backup.xml` ]]; then
-  rm ~/.m2/settings.xml
-  cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
-fi
-echo "* Restoring ~/.bashrc"
-if [[ ! -z `ls -a ~/.bashrc_backup` ]]; then
-  rm ~/.bashrc
-  cp ~/.bashrc_backup ~/.bashrc
-fi
-
-rm -rf ~/{LOCAL_CLONE_DIR}
+clean_up
