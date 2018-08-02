@@ -45,8 +45,8 @@ type ParDo struct {
 
 	status Status
 	err    errorx.GuardedError
-
-	inv *invoker
+	ctx    context.Context
+	inv    *invoker
 }
 
 func (n *ParDo) ID() UnitID {
@@ -71,8 +71,12 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataManager) er
 		return fmt.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Active
+	// Allocating contexts all the time is expensive, but we seldom re-write them,
+	// and never accept modified contexts from users, so we will cache them per-bundle
+	// per-unit, to avoid the constant allocation overhead.
+	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
-	if err := MultiStartBundle(ctx, id, data, n.Out...); err != nil {
+	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
 	}
 
@@ -87,7 +91,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataManager) er
 
 	// TODO(BEAM-3303): what to set for StartBundle/FinishBundle emitter timestamp?
 
-	if _, err := n.invokeDataFn(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -97,34 +101,31 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 	if n.status != Active {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
-
-	ctx = metrics.SetPTransformID(ctx, n.PID)
-
 	// If the function observes windows, we must invoke it for each window. The expected fast path
 	// is that either there is a single window or the function doesn't observes windows.
 
 	if !mustExplodeWindows(n.inv.fn, elm) {
-		val, err := n.invokeProcessFn(ctx, elm.Windows, elm.Timestamp, &MainInput{Key: elm, Values: values})
+		val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, &MainInput{Key: elm, Values: values})
 		if err != nil {
 			return n.fail(err)
 		}
 
 		// Forward direct output, if any. It is always a main output.
 		if val != nil {
-			return n.Out[0].ProcessElement(ctx, *val)
+			return n.Out[0].ProcessElement(n.ctx, *val)
 		}
 	} else {
 		for _, w := range elm.Windows {
 			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}}
 
-			val, err := n.invokeProcessFn(ctx, wElm.Windows, wElm.Timestamp, &MainInput{Key: wElm, Values: values})
+			val, err := n.invokeProcessFn(n.ctx, wElm.Windows, wElm.Timestamp, &MainInput{Key: wElm, Values: values})
 			if err != nil {
 				return n.fail(err)
 			}
 
 			// Forward direct output, if any. It is always a main output.
 			if val != nil {
-				return n.Out[0].ProcessElement(ctx, *val)
+				return n.Out[0].ProcessElement(n.ctx, *val)
 			}
 		}
 	}
@@ -148,10 +149,10 @@ func (n *ParDo) FinishBundle(ctx context.Context) error {
 	n.status = Up
 	n.inv.Reset()
 
-	if _, err := n.invokeDataFn(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
-	if err := MultiFinishBundle(ctx, n.Out...); err != nil {
+	if err := MultiFinishBundle(n.ctx, n.Out...); err != nil {
 		return n.fail(err)
 	}
 	return nil
