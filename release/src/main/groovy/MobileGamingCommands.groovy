@@ -22,6 +22,8 @@ class MobileGamingCommands {
 
   private TestScripts testScripts
 
+  private static final INPUT_GAMING_DATA = "gs://dataflow-samples/game/5000_gaming_data.csv"
+
   public static final RUNNERS = [DirectRunner: "direct-runner",
     DataflowRunner: "dataflow-runner",
     SparkRunner: "spark-runner",
@@ -104,21 +106,21 @@ class MobileGamingCommands {
 
   private Map getUserScoreArgs(String runner){
     if(runner == "DataflowRunner"){
-      return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+      return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
         output: "gs://${testScripts.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
-    return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+    return [input: INPUT_GAMING_DATA,
       output: "${getUserScoreOutputName(runner)}"]
   }
 
   private Map getHourlyTeamScoreArgs(String runner){
     if(runner == "DataflowRunner"){
-      return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+      return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
         output: "gs://${testScripts.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
-    return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+    return [input: INPUT_GAMING_DATA,
       output: "${getHourlyTeamScoreOutputName(runner)}"]
   }
 
