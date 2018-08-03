@@ -33,4 +33,5 @@ dependencies {
   shadow "org.apache.httpcomponents:httpcore:4.4.5"
   shadow "org.apache.httpcomponents:httpclient:4.5.2"
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  compile group: 'com.google.code.gson', name: 'gson', version: '2.7'
 }
