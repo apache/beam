@@ -25,7 +25,7 @@
 #
 # Execute from the root of the repository: sdks/python/container/run_validatescontainer.sh
 
-echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LCOATION, and PROJECT as desired."
+echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
 
 set -e
 set -v
