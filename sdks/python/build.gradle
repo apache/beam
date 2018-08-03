@@ -280,10 +280,21 @@ flinkCompatibilityMatrix('Batch')
 flinkCompatibilityMatrix('Streaming')
 
 task postCommit() {
-  dependsOn "preCommit"
+  /*dependsOn "preCommit"
   dependsOn "localWordCount"
   dependsOn "hdfsIntegrationTest"
-  dependsOn "postCommitITTests"
+  dependsOn "postCommitITTests"*/
+  doLast {
+    exec {
+        commandLine 'python2', '--version'
+    }
+    exec {
+        commandLine 'python3', '--version'
+    }
+    exec {
+        commandLine 'which', 'python3'
+    }
+  }
 }
 
 task dependencyUpdates(dependsOn: ':dependencyUpdates') {
