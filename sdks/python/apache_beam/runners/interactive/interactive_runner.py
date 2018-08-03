@@ -112,6 +112,11 @@ class InteractiveRunner(runners.PipelineRunner):
 
     def _producing_transforms(pcoll_id, leaf=False):
       """Returns PTransforms (and their names) that produces the given PColl."""
+      if pcoll_id in _producing_transforms.analyzed_pcoll_ids:
+        return
+      else:
+        _producing_transforms.analyzed_pcoll_ids.add(pcoll_id)
+
       derivation = pipeline_info.derivation(pcoll_id)
       if self._cache_manager.exists('full', derivation.cache_label()):
         # If the PCollection is cached, yield ReadCache PTransform that reads
@@ -120,8 +125,8 @@ class InteractiveRunner(runners.PipelineRunner):
           caches_used.add(pcoll_id)
 
           cache_label = pipeline_info.derivation(pcoll_id).cache_label()
-          dummy_pcoll = pipeline | cache.ReadCache(self._cache_manager,
-                                                   cache_label)
+          dummy_pcoll = pipeline | 'Load%s' % cache_label >> cache.ReadCache(
+              self._cache_manager, cache_label)
 
           # Find the top level ReadCache composite PTransform.
           read_cache = dummy_pcoll.producer
@@ -154,6 +159,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     # TODO(qinyeli): Preserve composite structure.
     required_transforms = collections.OrderedDict()
+    _producing_transforms.analyzed_pcoll_ids = set()
     for pcoll_id in desired_pcollections:
       # TODO(qinyeli): Collections consumed by no-output transforms.
       required_transforms.update(_producing_transforms(pcoll_id, True))
@@ -178,24 +184,24 @@ class InteractiveRunner(runners.PipelineRunner):
         self._underlying_runner,
         pipeline._options,  # pylint: disable=protected-access
         return_context=True)
-    pcolls_to_write = {}
-    pcolls_to_sample = {}
 
+    # TODO(qinyeli): cache only top-level pcollections.
     for pcoll_id in pipeline_info.all_pcollections():
       if pcoll_id not in referenced_pcollections:
         continue
       cache_label = pipeline_info.derivation(pcoll_id).cache_label()
-      if pcoll_id in desired_pcollections:
-        pcolls_to_write[cache_label] = context.pcollections.get_by_id(pcoll_id)
-      if pcoll_id in referenced_pcollections:
-        pcolls_to_sample[cache_label] = context.pcollections.get_by_id(pcoll_id)
+      pcoll = context.pcollections.get_by_id(pcoll_id)
 
-    # pylint: disable=expression-not-assigned
-    if pcolls_to_write:
-      pcolls_to_write | cache.WriteCache(self._cache_manager)
-    if pcolls_to_sample:
-      pcolls_to_sample | 'WriteSample' >> cache.WriteCache(
-          self._cache_manager, sample=True, sample_size=SAMPLE_SIZE)
+      if pcoll_id in desired_pcollections:
+        # pylint: disable=expression-not-assigned
+        pcoll | 'CacheFull%s' % cache_label >> cache.WriteCache(
+            self._cache_manager, cache_label)
+
+      if pcoll_id in referenced_pcollections:
+        # pylint: disable=expression-not-assigned
+        pcoll | 'CacheSample%s' % cache_label >> cache.WriteCache(
+            self._cache_manager, cache_label, sample=True,
+            sample_size=SAMPLE_SIZE)
 
     display = display_manager.DisplayManager(
         pipeline_info=pipeline_info,
@@ -350,6 +356,8 @@ class Derivation(object):
     """
     self._inputs = inputs
     self._transform_info = {
+        # TODO(qinyeli): remove name field when collision is resolved.
+        'name': transform_proto.unique_name,
         'urn': transform_proto.spec.urn,
         'payload': transform_proto.spec.payload.decode('latin1')
     }
@@ -364,8 +372,10 @@ class Derivation(object):
 
   def __hash__(self):
     if self._hash is None:
-      self._hash = hash(tuple(sorted(self._transform_info.items()))) + sum(
-          hash(tag) * hash(input) for tag, input in self._inputs.items())
+      self._hash = (hash(tuple(sorted(self._transform_info.items())))
+                    + sum(hash(tag) * hash(input)
+                          for tag, input in self._inputs.items())
+                    + hash(self._output_tag))
     return self._hash
 
   def cache_label(self):
