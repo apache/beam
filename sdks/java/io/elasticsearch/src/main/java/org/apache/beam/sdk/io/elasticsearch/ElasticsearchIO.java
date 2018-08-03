@@ -27,6 +27,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -678,8 +681,17 @@ public class ElasticsearchIO {
       // list behind iterator is empty
       List<String> batch = new ArrayList<>();
       for (JsonNode hit : hits) {
+
         String document = hit.path("_source").toString();
-        batch.add(document);
+        String matchedQueries = hit.path("matched_queries").toString();
+        JsonObject mainDocument = new JsonParser().parse(document).getAsJsonObject();
+        if (matchedQueries == null || matchedQueries.length() == 0) {
+          matchedQueries = "[]";
+        }
+
+        JsonArray matchedQueriesDocument = new JsonParser().parse(matchedQueries).getAsJsonArray();
+        mainDocument.add("matched_queries", matchedQueriesDocument);
+        batch.add(mainDocument.toString());
       }
       batchIterator = batch.listIterator();
       current = batchIterator.next();
