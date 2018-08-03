@@ -34,7 +34,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** An operator base class. All operators extends this class. */
 @Audience(Audience.Type.INTERNAL)
-public abstract class Operator<InputT, OutputT> implements Serializable, TypeAware.Output<OutputT> {
+public abstract class Operator<InputT, OutputT>
+    implements Serializable, Named, TypeAware.Output<OutputT> {
 
   /** Name of the operator. */
   private final String name;
@@ -52,6 +53,7 @@ public abstract class Operator<InputT, OutputT> implements Serializable, TypeAwa
     this.outputType = outputType;
   }
 
+  @Override
   public final String getName() {
     return name;
   }

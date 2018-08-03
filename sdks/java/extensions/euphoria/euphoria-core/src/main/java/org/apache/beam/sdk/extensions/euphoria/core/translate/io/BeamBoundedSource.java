@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedDataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -32,13 +31,15 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   private final BoundedDataSource<T> wrap;
+  private final Coder<T> outputCoder;
 
-  private BeamBoundedSource(BoundedDataSource<T> wrap) {
+  private BeamBoundedSource(BoundedDataSource<T> wrap, Coder<T> outputCoder) {
     this.wrap = Objects.requireNonNull(wrap);
+    this.outputCoder = Objects.requireNonNull(outputCoder);
   }
 
-  public static <T> BeamBoundedSource<T> wrap(BoundedDataSource<T> wrap) {
-    return new BeamBoundedSource<>(wrap);
+  public static <T> BeamBoundedSource<T> wrap(BoundedDataSource<T> wrap, Coder<T> outputCoder) {
+    return new BeamBoundedSource<>(wrap, outputCoder);
   }
 
   @Override
@@ -46,7 +47,7 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
       throws Exception {
     return wrap.split(desiredBundleSizeBytes)
         .stream()
-        .map(BeamBoundedSource::wrap)
+        .map(s -> BeamBoundedSource.wrap(s, outputCoder))
         .collect(Collectors.toList());
   }
 
@@ -96,14 +97,11 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
   }
 
   @Override
-  public void validate() {
-    // TODO
-  }
+  public void validate() {}
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
-    // TODO
-    return new KryoCoder<>();
+  public Coder<T> getOutputCoder() {
+    return outputCoder;
   }
 
   @Override

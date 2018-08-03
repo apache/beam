@@ -189,6 +189,14 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     return functor;
   }
 
+  public Dataset<LeftT> getLeft() {
+    return left;
+  }
+
+  public Dataset<RightT> getRight() {
+    return right;
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
