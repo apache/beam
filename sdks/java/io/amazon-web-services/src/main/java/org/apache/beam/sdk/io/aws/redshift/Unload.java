@@ -1,9 +1,11 @@
 /*
- * Copyright 2017 Kochava, Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -15,12 +17,10 @@
  */
 package org.apache.beam.sdk.io.aws.redshift;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -31,6 +31,8 @@ import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Implements the Redshift SQL UNLOAD command as a {@link DoFn}. Unloads the results of a SQL query
@@ -42,30 +44,27 @@ public abstract class Unload extends DoFn<Void, String> {
   private AWSCredentials awsCredentials;
 
   abstract Redshift.DataSourceConfiguration getDataSourceConfiguration();
+
   abstract char getDelimiter();
+
   abstract Compression getDestinationCompression();
+
   abstract String getSourceQuery();
+
   abstract String getDestination();
 
   public static Builder builder() {
-    return new AutoValue_Unload.Builder()
-        .setDestinationCompression(Compression.UNCOMPRESSED);
+    return new AutoValue_Unload.Builder().setDestinationCompression(Compression.UNCOMPRESSED);
   }
 
-  /**
-   * Builder for {@link Unload}.
-   */
+  /** Builder for {@link Unload}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
-    /**
-     * Sets the data source configuration.
-     */
+    /** Sets the data source configuration. */
     public abstract Builder setDataSourceConfiguration(Redshift.DataSourceConfiguration value);
 
-    /**
-     * Sets the delimiter used in the destination CSV files.
-     */
+    /** Sets the delimiter used in the destination CSV files. */
     public abstract Builder setDelimiter(char value);
 
     /**
@@ -74,21 +73,15 @@ public abstract class Unload extends DoFn<Void, String> {
      */
     public abstract Builder setDestinationCompression(Compression value);
 
-    /**
-     * Sets the source query used to generate the destination files.
-     */
+    /** Sets the source query used to generate the destination files. */
     public abstract Builder setSourceQuery(String value);
 
-    /**
-     * Sets the destination S3 filename prefix.
-     */
+    /** Sets the destination S3 filename prefix. */
     public abstract Builder setDestination(String value);
 
     abstract Unload autoBuild();
 
-    /**
-     * Builds an {@link Unload} object.
-     */
+    /** Builds an {@link Unload} object. */
     public Unload build() {
       Unload unload = autoBuild();
 
@@ -105,8 +98,12 @@ public abstract class Unload extends DoFn<Void, String> {
   @StartBundle
   public void startBundle(StartBundleContext context) {
     if (awsCredentials == null) {
-      awsCredentials = context.getPipelineOptions().as(AwsOptions.class)
-          .getAwsCredentialsProvider().getCredentials();
+      awsCredentials =
+          context
+              .getPipelineOptions()
+              .as(AwsOptions.class)
+              .getAwsCredentialsProvider()
+              .getCredentials();
     }
   }
 
@@ -129,15 +126,17 @@ public abstract class Unload extends DoFn<Void, String> {
       throw new IOException("files already exist at the S3 destination");
     }
 
-    String statementSql = String.format(UNLOAD_STATEMENT_FORMAT,
-        getSourceQuery(),
-        getDestination(),
-        awsCredentials.getAWSAccessKeyId(),
-        awsCredentials.getAWSSecretKey(),
-        getDelimiter(),
-        getDestinationCompression() == Compression.UNCOMPRESSED
-            ? ""
-            : getDestinationCompression().name());
+    String statementSql =
+        String.format(
+            UNLOAD_STATEMENT_FORMAT,
+            getSourceQuery(),
+            getDestination(),
+            awsCredentials.getAWSAccessKeyId(),
+            awsCredentials.getAWSSecretKey(),
+            getDelimiter(),
+            getDestinationCompression() == Compression.UNCOMPRESSED
+                ? ""
+                : getDestinationCompression().name());
 
     try (Connection connection = getDataSourceConfiguration().buildDataSource().getConnection()) {
       try (Statement statement = connection.createStatement()) {
@@ -151,8 +150,8 @@ public abstract class Unload extends DoFn<Void, String> {
     MatchResult createdFiles = FileSystems.match(getDestination() + "**");
     if (createdFiles.status() != MatchResult.Status.OK) {
       throw new IOException(
-          String.format("check for already-existing files returned %s",
-              createdFiles.status().toString()));
+          String.format(
+              "check for already-existing files returned %s", createdFiles.status().toString()));
     }
     for (MatchResult.Metadata metadata : createdFiles.metadata()) {
       context.output(metadata.resourceId().toString());

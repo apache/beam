@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines a IO Connectors for Amazone Web Services Redshift.
- */
+/** Defines a IO Connectors for Amazone Web Services Redshift. */
 package org.apache.beam.sdk.io.aws.redshift;

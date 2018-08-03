@@ -1,9 +1,11 @@
 /*
- * Copyright 2017 Kochava, Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -15,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.redshift;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -24,11 +26,9 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.FluentIterable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -65,14 +65,14 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 
-/**
- * {@link PTransform PTransforms} for reading and writing Redshift tables.
- */
+/** {@link PTransform PTransforms} for reading and writing Redshift tables. */
 public class Redshift {
 
-  private Redshift() {
-  }
+  private Redshift() {}
 
   /**
    * A POJO describing a {@link DataSource}, either providing directly a {@link DataSource} or all
@@ -86,11 +86,7 @@ public class Redshift {
      * easy to gather from flags, etc. Uses the Amazon JDBC driver included in this module.
      */
     public static DataSourceConfiguration create(
-        String endpoint,
-        int port,
-        String database,
-        String user,
-        String password) {
+        String endpoint, int port, String database, String user, String password) {
       checkArgument(0 < port && port < 65536, "port");
       return new AutoValue_Redshift_DataSourceConfiguration.Builder()
           .setEndpoint(checkNotNull(endpoint))
@@ -107,21 +103,32 @@ public class Redshift {
      */
     public static DataSourceConfiguration create(DataSource dataSource) {
       return new AutoValue_Redshift_DataSourceConfiguration.Builder()
-          .setDataSource(checkNotNull(dataSource)).build();
+          .setDataSource(checkNotNull(dataSource))
+          .build();
     }
 
-    /**
-     * Constructs a {@link DataSource} from this config.
-     */
+    /** Constructs a {@link DataSource} from this config. */
     DataSource buildDataSource() {
       if (getDataSource() != null) {
         return getDataSource();
       }
-      com.amazon.redshift.jdbc.DataSource dataSource = new com.amazon.redshift.jdbc.DataSource();
-      dataSource.setURL(getUrl());
-      dataSource.setUserID(getUser());
-      dataSource.setPassword(getPassword());
-      return dataSource;
+
+      // We build the data source by reflection because we cannot include the jar dependency
+      // for legal reasons https://issues.apache.org/jira/browse/LEGAL-456
+      // Users must provide it.
+      try {
+        Class<?> c = Class.forName("com.amazon.redshift.jdbc.DataSource");
+        Object dataSource = c.getDeclaredConstructor().newInstance();
+        Method setURLMethod = c.getDeclaredMethod("setURL", String.class);
+        setURLMethod.invoke(dataSource, getUrl());
+        Method setUserIDMethod = c.getDeclaredMethod("setUserID", String.class);
+        setUserIDMethod.invoke(dataSource, getUser());
+        Method setPasswordMethod = c.getDeclaredMethod("setPassword", String.class);
+        setPasswordMethod.invoke(dataSource, getPassword());
+        return (DataSource) dataSource;
+      } catch (Exception e) {
+        throw new RuntimeException("Cannot instantiate Redshift DataSource", e);
+      }
     }
 
     private String getUrl() {
@@ -130,39 +137,47 @@ public class Redshift {
 
     @Nullable
     abstract String getEndpoint();
+
     @Nullable
     abstract Integer getPort();
+
     @Nullable
     abstract String getDatabase();
+
     @Nullable
     abstract String getUser();
+
     @Nullable
     abstract String getPassword();
+
     @Nullable
     abstract DataSource getDataSource();
 
-    /**
-     * Builds a {@link DataSourceConfiguration}.
-     */
+    /** Builds a {@link DataSourceConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
 
       abstract Builder setEndpoint(String value);
+
       abstract Builder setPort(Integer value);
+
       abstract Builder setDatabase(String value);
+
       abstract Builder setUser(String value);
+
       abstract Builder setPassword(String value);
+
       abstract Builder setDataSource(DataSource value);
+
       abstract DataSourceConfiguration build();
     }
   }
 
-  /**
-   * Interface that converts an object of type {@code T} to/from String arrays.
-   */
+  /** Interface that converts an object of type {@code T} to/from String arrays. */
   public interface RedshiftMarshaller<T> extends Serializable {
 
     T unmarshalFromRedshift(String[] value);
+
     String[] marshalToRedshift(T value);
   }
 
@@ -179,29 +194,27 @@ public class Redshift {
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
     abstract DataSourceConfiguration getDataSourceConfiguration();
+
     abstract Compression getCompression();
+
     abstract String getDestinationTableSpec();
+
     abstract String getS3TempLocationPrefix();
+
     abstract RedshiftMarshaller<T> getRedshiftMarshaller();
+
     abstract Coder<T> getCoder();
 
-    /**
-     * Creates a builder for {@link Write}.
-     */
+    /** Creates a builder for {@link Write}. */
     public static <T> Builder<T> builder() {
-      return new AutoValue_Redshift_Write.Builder<T>()
-          .setCompression(Compression.GZIP);
+      return new AutoValue_Redshift_Write.Builder<T>().setCompression(Compression.GZIP);
     }
 
-    /**
-     * Builder for {@link Write}.
-     */
+    /** Builder for {@link Write}. */
     @AutoValue.Builder
     public abstract static class Builder<T> {
 
-      /**
-       * Sets the data source configuration.
-       */
+      /** Sets the data source configuration. */
       public abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration value);
 
       /**
@@ -210,69 +223,65 @@ public class Redshift {
        */
       public abstract Builder<T> setCompression(Compression value);
 
-      /**
-       * Sets the destination table name, and optional column list.
-       */
+      /** Sets the destination table name, and optional column list. */
       public abstract Builder<T> setDestinationTableSpec(String value);
 
-      /**
-       * Sets the S3 URI prefix for intermediate files.
-       */
+      /** Sets the S3 URI prefix for intermediate files. */
       public abstract Builder<T> setS3TempLocationPrefix(String value);
 
-      /**
-       * Sets the {@link RedshiftMarshaller}.
-       */
+      /** Sets the {@link RedshiftMarshaller}. */
       public abstract Builder<T> setRedshiftMarshaller(RedshiftMarshaller<T> value);
 
-      /**
-       * Sets the {@link Coder} for the resulting {@link PCollection}.
-       */
+      /** Sets the {@link Coder} for the resulting {@link PCollection}. */
       public abstract Builder<T> setCoder(Coder<T> value);
 
-      /**
-       * Builds a {@link Write} object.
-       */
+      /** Builds a {@link Write} object. */
       public abstract Write<T> build();
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
+      PCollection<String> writtenS3Paths =
+          input
+              .apply(
+                  "Marshal data to be copied",
+                  ParDo.of(new UnmarshalFromCsv<>(getRedshiftMarshaller())))
+              .apply(
+                  "PCollection to S3",
+                  TextIO.write()
+                      .to(getS3TempLocationPrefix())
+                      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP)
+                      .<Void>withOutputFilenames())
+              .getPerDestinationOutputFilenames()
+              .apply(Values.create());
 
-      PCollection<String> writtenS3Paths = input
-          .apply("Marshal data to be copied",
-              ParDo.of(new UnmarshalFromCsv<>(getRedshiftMarshaller())))
-          .apply("PCollection to S3",
-              TextIO.write()
-                  .to(getS3TempLocationPrefix())
-                  .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP)
-                  .<Void>withOutputFilenames())
-          .getPerDestinationOutputFilenames()
-          .apply(Values.create());
-
-      PCollectionView<Void> copyComplete = writtenS3Paths
-          .apply("Find common S3 prefix",
-              Combine.globally(new BinaryCombineFn<String>() {
-                @Override
-                public String apply(String left, String right) {
-                  return longestCommonPrefix(left, right);
-                }
-              }))
-          .apply("Redshift COPY",
-              ParDo.of(Copy.builder()
-                  .setDataSourceConfiguration(getDataSourceConfiguration())
-                  .setDestinationTableSpec(getDestinationTableSpec())
-                  .setSourceCompression(getCompression())
-                  .setDelimiter('|')
-                  .build()))
-          .apply(View.asSingleton());
+      PCollectionView<Void> copyComplete =
+          writtenS3Paths
+              .apply(
+                  "Find common S3 prefix",
+                  Combine.globally(
+                      new BinaryCombineFn<String>() {
+                        @Override
+                        public String apply(String left, String right) {
+                          return longestCommonPrefix(left, right);
+                        }
+                      }))
+              .apply(
+                  "Redshift COPY",
+                  ParDo.of(
+                      Copy.builder()
+                          .setDataSourceConfiguration(getDataSourceConfiguration())
+                          .setDestinationTableSpec(getDestinationTableSpec())
+                          .setSourceCompression(getCompression())
+                          .setDelimiter('|')
+                          .build()))
+              .apply(View.asSingleton());
 
       // Cleanup S3 files after they have been consumed.
       // Adding side input causes this subgraph to begin after COPY finishes.
       writtenS3Paths
           .apply(Combine.globally(new StringToListAccumulatorFn()))
-          .apply("Clean up S3",
-              ParDo.of(new Delete()).withSideInputs(copyComplete));
+          .apply("Clean up S3", ParDo.of(new Delete()).withSideInputs(copyComplete));
 
       return PDone.in(input.getPipeline());
     }
@@ -284,7 +293,8 @@ public class Redshift {
       return "";
     }
     int prefixLength = 0;
-    while (a.length() > prefixLength && b.length() > prefixLength
+    while (a.length() > prefixLength
+        && b.length() > prefixLength
         && a.charAt(prefixLength) == b.charAt(prefixLength)) {
       prefixLength++;
     }
@@ -294,8 +304,8 @@ public class Redshift {
   /**
    * Read queries a Redshift database and returns the results as a {@link PCollection}.
    *
-   * <p>This {@link PTransform} queries Redshift with the {@code UNLOAD} command, which generates
-   * S3 objects, then reads the S3 objects as a {@link PCollection}.
+   * <p>This {@link PTransform} queries Redshift with the {@code UNLOAD} command, which generates S3
+   * objects, then reads the S3 objects as a {@link PCollection}.
    *
    * <p>S3 cleanup is managed internally, but if this operation failed for any reason, the S3
    * objects should be cleaned up manually.
@@ -304,26 +314,26 @@ public class Redshift {
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
     abstract DataSourceConfiguration getDataSourceConfiguration();
+
     abstract Compression getCompression();
+
     abstract String getQuery();
+
     abstract String getS3TempLocationPrefix();
+
     abstract RedshiftMarshaller<T> getRedshiftMarshaller();
+
     abstract Coder<T> getCoder();
 
     public static <T> Builder<T> builder() {
-      return new AutoValue_Redshift_Read.Builder<T>()
-          .setCompression(Compression.GZIP);
+      return new AutoValue_Redshift_Read.Builder<T>().setCompression(Compression.GZIP);
     }
 
-    /**
-     * Builds a {@link Read} object.
-     */
+    /** Builds a {@link Read} object. */
     @AutoValue.Builder
     public abstract static class Builder<T> {
 
-      /**
-       * Sets the data source configuration.
-       */
+      /** Sets the data source configuration. */
       public abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration value);
 
       /**
@@ -332,31 +342,21 @@ public class Redshift {
        */
       public abstract Builder<T> setCompression(Compression value);
 
-      /**
-       * Sets the source query used to generate the resulting {@link PCollection}.
-       */
+      /** Sets the source query used to generate the resulting {@link PCollection}. */
       public abstract Builder<T> setQuery(String value);
 
-      /**
-       * Sets the S3 URI prefix for intermediate files.
-       */
+      /** Sets the S3 URI prefix for intermediate files. */
       public abstract Builder<T> setS3TempLocationPrefix(String value);
 
-      /**
-       * Sets the {@link RedshiftMarshaller}.
-       */
+      /** Sets the {@link RedshiftMarshaller}. */
       public abstract Builder<T> setRedshiftMarshaller(RedshiftMarshaller<T> value);
 
-      /**
-       * Sets the {@link Coder} for the resulting {@link PCollection}.
-       */
+      /** Sets the {@link Coder} for the resulting {@link PCollection}. */
       public abstract Builder<T> setCoder(Coder<T> value);
 
       abstract Read<T> autoBuild();
 
-      /**
-       * Builds a {@link Copy} object.
-       */
+      /** Builds a {@link Copy} object. */
       public Read<T> build() {
         Read<T> read = autoBuild();
         checkArgument(!Strings.isNullOrEmpty(read.getQuery()), "query");
@@ -366,54 +366,56 @@ public class Redshift {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      PCollection<String> unloadedS3Paths = input
-          .apply("Null value seed",
-              Create.of((Void) null)) // Guarantees one instance (or more, but not n instances)
-          .apply("Redshift UNLOAD",
-              ParDo.of(Unload.builder()
-                  .setDataSourceConfiguration(getDataSourceConfiguration())
-                  .setSourceQuery(getQuery())
-                  .setDestination(getS3TempLocationPrefix())
-                  .setDestinationCompression(getCompression())
-                  .setDelimiter('|')
-                  .build()
-              ));
+      PCollection<String> unloadedS3Paths =
+          input
+              .apply(
+                  "Null value seed",
+                  Create.of((Void) null)) // Guarantees one instance (or more, but not n instances)
+              .apply(
+                  "Redshift UNLOAD",
+                  ParDo.of(
+                      Unload.builder()
+                          .setDataSourceConfiguration(getDataSourceConfiguration())
+                          .setSourceQuery(getQuery())
+                          .setDestination(getS3TempLocationPrefix())
+                          .setDestinationCompression(getCompression())
+                          .setDelimiter('|')
+                          .build()));
 
-      PCollection<String> unloadedFileContents = unloadedS3Paths
-          .apply("S3 objects to PCollection",
+      PCollection<String> unloadedFileContents =
+          unloadedS3Paths.apply(
+              "S3 objects to PCollection",
               TextIO.readAll()
                   .withCompression(getCompression())
-                  .withMatchConfiguration(
-                      MatchConfiguration.create(EmptyMatchTreatment.DISALLOW)));
+                  .withMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW)));
 
       // Cleanup S3 files after they have been consumed.
       // Adding side input causes this subgraph to begin after TextIO.readAll() finishes.
-      PCollectionView<Void> unloadComplete = unloadedFileContents
-          .apply(Count.globally())
-          .apply(MapElements.via(new SimpleFunction<Long, Void>() {
-            @Override
-            public Void apply(Long input) {
-              return null;
-            }
-          }))
-          .apply(View.asSingleton());
+      PCollectionView<Void> unloadComplete =
+          unloadedFileContents
+              .apply(Count.globally())
+              .apply(
+                  MapElements.via(
+                      new SimpleFunction<Long, Void>() {
+                        @Override
+                        public Void apply(Long input) {
+                          return null;
+                        }
+                      }))
+              .apply(View.asSingleton());
 
       unloadedS3Paths
           .apply(Combine.globally(new StringToListAccumulatorFn()))
-          .apply("Clean up S3",
-              ParDo.of(new Delete()).withSideInputs(unloadComplete));
+          .apply("Clean up S3", ParDo.of(new Delete()).withSideInputs(unloadComplete));
 
       // Unmarshal and return.
       return unloadedFileContents
-          .apply("Unmarshal unloaded data",
-              ParDo.of(new MarshalToCsv<>(getRedshiftMarshaller())))
+          .apply("Unmarshal unloaded data", ParDo.of(new MarshalToCsv<>(getRedshiftMarshaller())))
           .setCoder(getCoder());
     }
   }
 
-  /**
-   * Employs a {@link RedshiftMarshaller} object to convert CSV strings to {@code T} objects.
-   */
+  /** Employs a {@link RedshiftMarshaller} object to convert CSV strings to {@code T} objects. */
   private static class UnmarshalFromCsv<T> extends DoFn<T, String> {
 
     private final ObjectWriter csvWriter;
@@ -421,11 +423,13 @@ public class Redshift {
 
     UnmarshalFromCsv(RedshiftMarshaller<T> marshaller) {
       CsvMapper mapper = new CsvMapper();
-      CsvSchema schema = mapper.schema()
-          .withColumnSeparator('|')
-          .withNullValue(null)
-          .withEscapeChar('\\')
-          .withoutQuoteChar();
+      CsvSchema schema =
+          mapper
+              .schema()
+              .withColumnSeparator('|')
+              .withNullValue(null)
+              .withEscapeChar('\\')
+              .withoutQuoteChar();
       csvWriter = mapper.writerFor(String[].class).with(schema);
       this.marshaller = marshaller;
     }
@@ -433,21 +437,22 @@ public class Redshift {
     @ProcessElement
     public void marshal(ProcessContext context) throws JsonProcessingException {
       String[] nullableValues = marshaller.marshalToRedshift(context.element());
-      String[] values = FluentIterable.from(nullableValues)
-          .transform(input -> {
-            if (input == null) {
-              return "NULL";
-            }
-            return input;
-          }).toArray(String.class);
+      String[] values =
+          FluentIterable.from(nullableValues)
+              .transform(
+                  input -> {
+                    if (input == null) {
+                      return "NULL";
+                    }
+                    return input;
+                  })
+              .toArray(String.class);
       String result = csvWriter.writeValueAsString(values);
       context.output(result);
     }
   }
 
-  /**
-   * Employs a {@link RedshiftMarshaller} object to convert {@code T} objects to CSV strings.
-   */
+  /** Employs a {@link RedshiftMarshaller} object to convert {@code T} objects to CSV strings. */
   private static class MarshalToCsv<T> extends DoFn<String, T> {
 
     private final ObjectReader csvReader;
@@ -455,11 +460,13 @@ public class Redshift {
 
     MarshalToCsv(RedshiftMarshaller<T> marshaller) {
       CsvMapper mapper = new CsvMapper();
-      CsvSchema schema = mapper.schema()
-          .withColumnSeparator('|')
-          .withNullValue(null)
-          .withEscapeChar('\\')
-          .withoutQuoteChar();
+      CsvSchema schema =
+          mapper
+              .schema()
+              .withColumnSeparator('|')
+              .withNullValue(null)
+              .withEscapeChar('\\')
+              .withoutQuoteChar();
       csvReader = mapper.readerFor(String[].class).with(schema);
       this.marshaller = marshaller;
     }
@@ -467,21 +474,22 @@ public class Redshift {
     @ProcessElement
     public void unmarshal(ProcessContext context) throws IOException {
       String[] values = csvReader.readValue(context.element());
-      String[] nullableValues = FluentIterable.from(values)
-          .transform(input -> {
-            if ("NULL".equals(input)) {
-              return null;
-            }
-            return input;
-          }).toArray(String.class);
+      String[] nullableValues =
+          FluentIterable.from(values)
+              .transform(
+                  input -> {
+                    if ("NULL".equals(input)) {
+                      return null;
+                    }
+                    return input;
+                  })
+              .toArray(String.class);
       T result = marshaller.unmarshalFromRedshift(nullableValues);
       context.output(result);
     }
   }
 
-  /**
-   * Reduces {@code PCollection<String>} to {@code PCollection<List<String>>}.
-   */
+  /** Reduces {@code PCollection<String>} to {@code PCollection<List<String>>}. */
   private static class StringToListAccumulatorFn
       extends AccumulatingCombineFn<String, StringToListAccumulator, List<String>> {
 
@@ -497,8 +505,7 @@ public class Redshift {
           ListCoder.of(StringUtf8Coder.of()),
           (CodingFunction<StringToListAccumulator, List<String>>)
               accumulator -> accumulator.accumulator,
-          (CodingFunction<List<String>, StringToListAccumulator>)
-              StringToListAccumulator::new);
+          (CodingFunction<List<String>, StringToListAccumulator>) StringToListAccumulator::new);
     }
   }
 
@@ -531,9 +538,7 @@ public class Redshift {
     }
   }
 
-  /**
-   * Deletes files from S3.
-   */
+  /** Deletes files from S3. */
   private static class Delete extends DoFn<List<String>, Void> {
 
     @ProcessElement
@@ -541,8 +546,7 @@ public class Redshift {
       List<String> s3Paths = context.element();
       List<ResourceId> resourceIds = new ArrayList<>(s3Paths.size());
 
-      List<MatchResult> matchResults =
-          FileSystems.match(s3Paths, EmptyMatchTreatment.DISALLOW);
+      List<MatchResult> matchResults = FileSystems.match(s3Paths, EmptyMatchTreatment.DISALLOW);
       for (MatchResult matchResult : matchResults) {
         for (Metadata metadata : matchResult.metadata()) {
           resourceIds.add(metadata.resourceId());
