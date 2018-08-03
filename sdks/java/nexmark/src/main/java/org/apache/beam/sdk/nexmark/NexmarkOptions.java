@@ -452,4 +452,10 @@ public interface NexmarkOptions
   int getMaxNumWorkers();
 
   void setMaxNumWorkers(int value);
+
+  @Description("Number of queries to run in parallel.")
+  @Default.Integer(1)
+  int getNexmarkParallel();
+
+  void setNexmarkParallel(int value);
 }

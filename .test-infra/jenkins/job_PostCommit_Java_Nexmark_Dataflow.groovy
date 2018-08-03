@@ -39,6 +39,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--nexmarkParallel=16',
               '--streaming=false',
               '--suite=STRESS',
               '--manageResources=false',
@@ -55,6 +56,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--nexmarkParallel=16',
               '--streaming=true',
               '--suite=STRESS',
               '--manageResources=false',
@@ -71,6 +73,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--nexmarkParallel=16',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=STRESS',
@@ -88,6 +91,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--nexmarkParallel=16',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=STRESS',
