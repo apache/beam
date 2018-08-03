@@ -263,7 +263,7 @@ class MeanDoubleAccumulator(object):
       self.count += accumulator.count
 
   def extract_output(self):
-    return self.sum / self.count if self.count else _NAN
+    return self.sum // self.count if self.count else _NAN
 
 
 class SumFloatFn(AccumulatorCombineFn):

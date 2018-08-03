@@ -239,7 +239,7 @@ class IntervalWindow(BoundedWindow):
     self.start = Timestamp.of(start)
 
   def __hash__(self):
-    return hash((self.start, self.end, type(self)))
+    return hash((self.start, self.end))
 
   def __eq__(self, other):
     return (self.start == other.start
@@ -279,14 +279,14 @@ class TimestampedValue(object):
             and self.timestamp == other.timestamp)
 
   def __hash__(self):
-    return hash((type(self), self.value, self.timestamp))
+    return hash((self.value, self.timestamp))
 
   def __ne__(self, other):
     return not self == other
 
   def __lt__(self, other):
     if type(self) != type(other):
-      return type(self) < type(other)
+      return type(self).__name__ < type(other).__name__
     if self.value != other.value:
       return self.value < other.value
     return self.timestamp < other.timestamp
@@ -392,7 +392,7 @@ class FixedWindows(NonMergingWindowFn):
       return self.size == other.size and self.offset == other.offset
 
   def __hash__(self):
-    return hash((type(self), self.size, self.offset))
+    return hash((self.size, self.offset))
 
   def __ne__(self, other):
     return not self == other
@@ -457,7 +457,7 @@ class SlidingWindows(NonMergingWindowFn):
     return not self == other
 
   def __hash__(self):
-    return hash((type(self), self.offset, self.period))
+    return hash((self.offset, self.period))
 
   def to_runner_api_parameter(self, context):
     return (common_urns.sliding_windows.urn,
@@ -530,7 +530,7 @@ class Sessions(WindowFn):
     return not self == other
 
   def __hash__(self):
-    return hash((type(self), self.gap_size))
+    return hash(self.gap_size)
 
   def to_runner_api_parameter(self, context):
     return (common_urns.session_windows.urn,

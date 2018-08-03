@@ -294,7 +294,7 @@ class _DoFnParam(object):
     return False
 
   def __hash__(self):
-    return hash((type(self), self.param_id))
+    return hash(self.param_id)
 
   def __repr__(self):
     return self.param_id
@@ -1672,7 +1672,6 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-
   def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
                timestamp_combiner=None):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
@@ -1719,7 +1718,7 @@ class Windowing(object):
     return False
 
   def __hash__(self):
-    return hash((type(self), self.windowfn, self.accumulation_mode,
+    return hash((self.windowfn, self.accumulation_mode,
                  self.timestamp_combiner))
 
   def is_default(self):
