@@ -595,7 +595,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
       @Override
       public Coder<BoundedWindow> windowCoder() {
-        return new KryoCoder<>();
+        return KryoCoder.withoutClassRegistration();
       }
 
       @Override
@@ -794,7 +794,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
     @Override
     public Coder<CountWindow> windowCoder() {
-      return new KryoCoder<>();
+      return KryoCoder.withoutClassRegistration();
     }
 
     @Override
@@ -977,7 +977,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
     @Override
     public Coder<UniqueWindow> windowCoder() {
-      return new KryoCoder<>();
+      return KryoCoder.withoutClassRegistration();
     }
 
     @Override

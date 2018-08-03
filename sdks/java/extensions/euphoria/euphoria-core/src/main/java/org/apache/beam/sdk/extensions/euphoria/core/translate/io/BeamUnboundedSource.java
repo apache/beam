@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate.io;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,8 +27,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.UnboundedDataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
@@ -37,19 +39,32 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
 
   private final UnboundedDataSource<T, OffsetT> wrap;
   private final int partitionId;
+  private final Coder<T> outputCoder;
+  private final CheckpointMarkCoder<OffsetT> checkpointOffsetCoder;
 
-  private BeamUnboundedSource(UnboundedDataSource<T, OffsetT> wrap) {
-    this(wrap, -1);
+  private BeamUnboundedSource(
+      UnboundedDataSource<T, OffsetT> wrap,
+      Coder<T> outputCoder,
+      Coder<OffsetT> checkpointOffsetCoder) {
+    this(wrap, -1, outputCoder, checkpointOffsetCoder);
   }
 
-  private BeamUnboundedSource(UnboundedDataSource<T, OffsetT> wrap, int partitionId) {
+  private BeamUnboundedSource(
+      UnboundedDataSource<T, OffsetT> wrap,
+      int partitionId,
+      Coder<T> outputCoder,
+      Coder<OffsetT> checkpointOffsetCoder) {
     this.wrap = Objects.requireNonNull(wrap);
     this.partitionId = partitionId;
+    this.outputCoder = outputCoder;
+    this.checkpointOffsetCoder = new CheckpointMarkCoder<>(checkpointOffsetCoder);
   }
 
   public static <T, OffsetT extends Serializable> BeamUnboundedSource<T, OffsetT> wrap(
-      UnboundedDataSource<T, OffsetT> wrap) {
-    return new BeamUnboundedSource<>(wrap);
+      UnboundedDataSource<T, OffsetT> wrap,
+      Coder<T> outputCoder,
+      Coder<OffsetT> checkpointOffsetCoder) {
+    return new BeamUnboundedSource<>(wrap, outputCoder, checkpointOffsetCoder);
   }
 
   @Override
@@ -58,8 +73,8 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
-    return new KryoCoder<>();
+  public Coder<T> getOutputCoder() {
+    return outputCoder;
   }
 
   @Override
@@ -83,7 +98,8 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
       final List<BeamUnboundedSource<T, OffsetT>> splits;
       splits = new ArrayList<>(wrap.getPartitions().size());
       for (int i = 0; i < wrap.getPartitions().size(); i++) {
-        splits.add(new BeamUnboundedSource<>(wrap, i));
+        splits.add(
+            new BeamUnboundedSource<>(wrap, i, outputCoder, checkpointOffsetCoder.offsetTCoder));
       }
       return splits;
     } else {
@@ -158,7 +174,7 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
 
   @Override
   public Coder<BeamCheckpointMark<OffsetT>> getCheckpointMarkCoder() {
-    return new KryoCoder<>();
+    return checkpointOffsetCoder;
   }
 
   /**
@@ -179,5 +195,34 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
     public void finalizeCheckpoint() throws IOException {
       // nop
     }
+  }
+
+  private static class CheckpointMarkCoder<OffsetT> extends Coder<BeamCheckpointMark<OffsetT>> {
+    final Coder<OffsetT> offsetTCoder;
+
+    public CheckpointMarkCoder(Coder<OffsetT> offsetTCoder) {
+      this.offsetTCoder = offsetTCoder;
+    }
+
+    @Override
+    public void encode(BeamCheckpointMark<OffsetT> value, OutputStream outStream)
+        throws CoderException, IOException {
+      offsetTCoder.encode(value.offset, outStream);
+    }
+
+    @Override
+    public BeamCheckpointMark<OffsetT> decode(InputStream inStream)
+        throws CoderException, IOException {
+      OffsetT decodedOffset = offsetTCoder.decode(inStream);
+      return new BeamCheckpointMark<>(decodedOffset);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 }

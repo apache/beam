@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.UnboundedDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.io.BeamBoundedSource;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.io.BeamUnboundedSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.values.PCollection;
 
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
@@ -34,18 +37,37 @@ class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> 
   }
 
   static <T> PCollection<T> doTranslate(DataSource<T> source, TranslationContext context) {
+
+    //It is hard to select any other coder when we do not have any element type information here.
+    Coder<T> outputCoder = context.createKryoCoder();
+
     if (source.isBounded()) {
       return context
           .getPipeline()
           .apply(
-              "read::" + source.hashCode(), Read.from(BeamBoundedSource.wrap(source.asBounded())));
-    } else {
-      return context
-          .getPipeline()
-          .apply(
               "read::" + source.hashCode(),
-              Read.from(BeamUnboundedSource.wrap(source.asUnbounded())));
+              Read.from(BeamBoundedSource.wrap(source.asBounded(), outputCoder)));
+    } else {
+      return translateUnbounded(context, source, outputCoder);
     }
+  }
+
+  private static <T> PCollection<T> translateUnbounded(
+      TranslationContext context, DataSource<T> source, Coder<T> outputCoder) {
+
+    //And now again, how to get more specific coder without any type information?
+    Coder offsetCoder = context.createKryoCoder();
+    UnboundedDataSource<T, ?> unboundedSource = source.asUnbounded();
+    @SuppressWarnings("unchecked")
+    BeamUnboundedSource<T, ?> beamUnboundedSource =
+        BeamUnboundedSource.wrap(unboundedSource, outputCoder, offsetCoder);
+
+    Unbounded<T> unboundedTransform = Read.from(beamUnboundedSource);
+
+    PCollection<T> unbundeded =
+        context.getPipeline().apply("read::" + source.hashCode(), unboundedTransform);
+
+    return unbundeded;
   }
 
   @Override

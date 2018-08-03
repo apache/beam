@@ -77,7 +77,8 @@ public class BeamRunnerWrapper {
       pipeline = ((BeamFlow) flow).getPipeline();
     } else {
       pipeline =
-          FlowTranslator.toPipeline(flow, accumulatorFactory, options, settings, allowedLateness);
+          FlowTranslator.toPipeline(
+              flow, accumulatorFactory, options, settings, allowedLateness, true);
     }
     final PipelineResult result = pipeline.run();
     // TODO handle result

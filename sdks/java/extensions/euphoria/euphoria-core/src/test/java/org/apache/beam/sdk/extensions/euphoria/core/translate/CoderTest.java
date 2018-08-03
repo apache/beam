@@ -22,79 +22,214 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider.Factory;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.PairCoder;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
+import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests getting coder from functions and type aware functions. */
 public class CoderTest {
 
-  private final UnaryFunction<String, String> unaryFunction = a -> a;
-
-  private final TranslationContext translationContext =
+  private final TranslationContext kryoAllowingContext =
       new TranslationContext(
           mock(DAG.class),
           mock(Factory.class),
           TestPipeline.create(),
           mock(Settings.class),
-          Duration.ZERO);
+          Duration.ZERO,
+          true);
+
+  private final TranslationContext noFallbackKryoContext =
+      new TranslationContext(
+          mock(DAG.class),
+          mock(Factory.class),
+          TestPipeline.create(),
+          mock(Settings.class),
+          Duration.ZERO,
+          false);
 
   @Test
-  public void testGetCoder() {
+  public void testGetCoderFromTypeAware() {
+    EverythingAwareClass<String> stringAware =
+        new EverythingAwareClass<>(TypeDescriptors.strings(), "");
 
-    final Coder<String> coder = translationContext.getCoder(unaryFunction);
-    assertEquals(StringUtf8Coder.class, coder.getClass());
+    Coder<String> stringCoder;
 
-    final Coder<String> coder2 =
-        translationContext.getCoder(
-            TypeAwareUnaryFunction.of(unaryFunction, TypeDescriptors.strings()));
-    assertEquals(StringUtf8Coder.class, coder2.getClass());
+    stringCoder = kryoAllowingContext.getOutputCoder(stringAware);
+    assertEquals(StringUtf8Coder.class, stringCoder.getClass());
 
-    BinaryFunctor<Integer, Integer, Integer> binaryFunctor = (a, b, c) -> c.collect(a + b);
-    final Coder<Integer> coder3 = translationContext.getCoder(binaryFunctor);
-    assertEquals(KryoCoder.class, coder3.getClass());
+    stringCoder = kryoAllowingContext.getKeyCoder(stringAware);
+    assertEquals(StringUtf8Coder.class, stringCoder.getClass());
 
-    final Coder<Integer> coder4 =
-        translationContext.getCoder(
-            TypeAwareBinaryFunctor.of(binaryFunctor, TypeDescriptors.integers()));
-    assertEquals(VarIntCoder.class, coder4.getClass());
-
-    ReduceFunctor<Pair<Integer, Integer>, Pair<Integer, String>> reduceFunctor =
-        (in, c) -> c.collect(Pair.of(1, ""));
-    final Coder<Pair<Integer, String>> coder5 = translationContext.getCoder(reduceFunctor);
-    assertEquals(KryoCoder.class, coder5.getClass());
-
-    final UnaryFunction<String, Pair<String, String>> pairUnaryFunction = a -> Pair.of(a, a);
-    final Coder<Pair<String, String>> coder6 = translationContext.getCoder(pairUnaryFunction);
-    assertEquals(SerializableCoder.class, coder6.getClass());
+    stringCoder = kryoAllowingContext.getValueCoder(stringAware);
+    assertEquals(StringUtf8Coder.class, stringCoder.getClass());
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  public void testUnregistredCoder() {
-    ReduceFunctor<Pair<Integer, Integer>, Pair<NotSerializableClass, String>> reduceFunctor =
-        (in, c) -> c.collect(Pair.of(new NotSerializableClass(), ""));
+  @Test
+  public void testGetPairCoder() {
+    EverythingAwareClass<Pair<Integer, String>> stringAware =
+        new EverythingAwareClass<>(
+            TypeUtils.pairs(TypeDescriptors.integers(), TypeDescriptors.strings()), "");
 
-    translationContext.getCoder(
-        TypeAwareReduceFunctor.of(
-            reduceFunctor, TypeUtils.pairs(NotSerializableClass.class, String.class)));
+    Coder<Pair<Integer, String>> pairCoder;
+
+    pairCoder = kryoAllowingContext.getOutputCoder(stringAware);
+    assertPairCoder(pairCoder);
+
+    pairCoder = kryoAllowingContext.getKeyCoder(stringAware);
+    assertPairCoder(pairCoder);
+
+    pairCoder = kryoAllowingContext.getValueCoder(stringAware);
+    assertPairCoder(pairCoder);
   }
 
-  private static class NotSerializableClass {}
+  private void assertPairCoder(Coder<Pair<Integer, String>> pairCoder) {
+    assertEquals(PairCoder.class, pairCoder.getClass());
+    PairCoder<Integer, String> castedCoder = (PairCoder<Integer, String>) pairCoder;
+    assertEquals(VarIntCoder.class, castedCoder.getKeyCoder().getClass());
+    assertEquals(StringUtf8Coder.class, castedCoder.getValueCoder().getClass());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testGetPairCoderFailsWhenKeyCoderNotAvailable() {
+    EverythingAwareClass<Pair<ClassWithoutCoder, String>> stringAware =
+        new EverythingAwareClass<>(
+            TypeUtils.pairs(TypeDescriptor.of(ClassWithoutCoder.class), TypeDescriptors.strings()),
+            "");
+
+    noFallbackKryoContext.getOutputCoder(stringAware);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testGetPairCoderFailsWhenVAlueCoderNotAvailable() {
+    EverythingAwareClass<Pair<Integer, ClassWithoutCoder>> stringAware =
+        new EverythingAwareClass<>(
+            TypeUtils.pairs(TypeDescriptors.integers(), TypeDescriptor.of(ClassWithoutCoder.class)),
+            "");
+
+    noFallbackKryoContext.getOutputCoder(stringAware);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testKryoNotAllowed() {
+    noFallbackKryoContext.getCoderForTypeOrFallbackCoder(null);
+  }
+
+  @Test()
+  public void testKryoAllowed() {
+    Coder<Object> coder = kryoAllowingContext.getCoderForTypeOrFallbackCoder(null);
+
+    Assert.assertNotNull(coder);
+    Assert.assertEquals(KryoCoder.class, coder.getClass());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testUnregisteredCoderWhenKryoNotAllowed() {
+    TypeDescriptor<Pair<ClassWithoutCoder, String>> type =
+        TypeUtils.pairs(ClassWithoutCoder.class, String.class);
+
+    noFallbackKryoContext.getCoderForTypeOrFallbackCoder(type);
+  }
+
+  @Test()
+  public void testUnregisteredCoderWhenKryoAllowed() {
+    TypeDescriptor<Pair<ClassWithoutCoder, String>> type =
+        TypeUtils.pairs(ClassWithoutCoder.class, String.class);
+
+    Coder<Pair<ClassWithoutCoder, String>> coder =
+        kryoAllowingContext.getCoderForTypeOrFallbackCoder(type);
+
+    Assert.assertEquals(KryoCoder.class, coder.getClass());
+  }
+
+  @Test
+  public void testRegisteredCoders() {
+    Pipeline p = TestPipeline.create();
+
+    BeamFlow flow = BeamFlow.of("testFlow", p, true);
+
+    RegisterCoders.to(flow).registerCoder(TestCodeableClass.class, new TestCoder()).done();
+
+    TranslationContext context = flow.getTranslationContext();
+
+    Coder<TestCodeableClass> coder =
+        context.getCoderForTypeOrFallbackCoder(TypeDescriptor.of(TestCodeableClass.class));
+
+    Assert.assertEquals(TestCoder.class, coder.getClass());
+  }
+
+  private static class ClassWithoutCoder {}
+
+  private static class EverythingAwareClass<T>
+      implements TypeAware.Key<T>, TypeAware.Value<T>, TypeAware.Output<T> {
+    private final TypeDescriptor<T> typeToReturn;
+    private final String name;
+
+    public EverythingAwareClass(TypeDescriptor<T> typeToReturn, String name) {
+      this.typeToReturn = typeToReturn;
+      this.name = name;
+    }
+
+    @Override
+    public TypeDescriptor<T> getKeyType() {
+      return typeToReturn;
+    }
+
+    @Override
+    public TypeDescriptor<T> getOutputType() {
+      return typeToReturn;
+    }
+
+    @Override
+    public TypeDescriptor<T> getValueType() {
+      return typeToReturn;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+  }
+
+  private static class TestCodeableClass {};
+
+  private static class TestCoder extends Coder<TestCodeableClass> {
+
+    @Override
+    public void encode(TestCodeableClass value, OutputStream outStream)
+        throws CoderException, IOException {}
+
+    @Override
+    public TestCodeableClass decode(InputStream inStream) throws CoderException, IOException {
+      return null;
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
+  }
 }
