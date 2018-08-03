@@ -325,7 +325,7 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
   }
 
   /**
