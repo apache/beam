@@ -260,22 +260,16 @@ if [[ $confirmation = "y" ]]; then
   echo "--------------------------Verifying Hashes------------------------------------"
   sha512sum -c apache-beam-${RELEASE}.zip.sha512
 
-  echo "----------------------------Building Python SDK-------------------------------"
-  sudo apt-get install unzip
-  unzip apache-beam-${RELEASE}.zip
-  cd apache-beam-${RELEASE}
-  python setup.py sdist
-
   echo "---------------------------Setting up virtualenv------------------------------"
-  pip install --upgrade pip
-  pip install --upgrade setuptools
-  pip install --upgrade virtualenv
+  sudo pip install --upgrade pip
+  sudo pip install --upgrade setuptools
+  sudo pip install --upgrade virtualenv
   virtualenv beam_env
   . beam_env/bin/activate
 
   echo "--------------------------Installing Python SDK-------------------------------"
-  pip install dist/apache-beam-${RELEASE}.tar.gz
-  pip install dist/apache-beam-${RELEASE}.tar.gz[gcp]
+  pip install apache-beam-${RELEASE}.zip
+  pip install apache-beam-${RELEASE}.zip[gcp]
 
   echo "----------------------------Setting up GCP Sources----------------------------"
   echo "[GCP Project Required] Please input your GCP project:"
@@ -295,7 +289,7 @@ if [[ $confirmation = "y" ]]; then
   echo "Create a service account as project owner, if you don't have one."
   echo "[Input Required] Please enter your service account email:"
   read USER_SERVICE_ACCOUNT_EMAIL
-  SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
+  SERVICE_ACCOUNT_KEY_JSON= ${USER}_json_key.json
   gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
   export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/${SERVICE_ACCOUNT_KEY_JSON}
 
@@ -306,6 +300,7 @@ if [[ $confirmation = "y" ]]; then
   echo "export MOBILE_GAME_PUBSUB_TOPIC=${MOBILE_GAME_PUBSUB_TOPIC}" >> ~/.bashrc
   echo "export MOBILE_GAME_GCS_BUCKET=${MOBILE_GAME_GCS_BUCKET}" >> ~/.bashrc
   echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
+  echo "export RELEASE=${RELEASE}" >> ~/.bashrc
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
   cd ~
@@ -366,7 +361,7 @@ if [[ $confirmation = "y" ]]; then
     exit
   fi
 
-  cd ~/${LOCAL_CLONE_DIR}/apache-beam-${RELEASE}/
+  cd ~/${LOCAL_CLONE_DIR}/
 
   echo "----------------Starting Leaderboard with DirectRunner-----------------------"
   echo "[Confirmation Required] Do you want to proceed? [y|N]"
@@ -426,7 +421,7 @@ if [[ $confirmation = "y" ]]; then
     --dataset ${MOBILE_GAME_DATASET} \
     --runner DataflowRunner \
     --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
-    --sdk_location dist/*; \
+    --sdk_location apache-beam-${RELEASE}.zip; \
     exec bash"
 
     echo "***************************************************************"
@@ -516,7 +511,7 @@ if [[ $confirmation = "y" ]]; then
     --dataset ${MOBILE_GAME_DATASET} \
     --runner DataflowRunner \
     --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
-    --sdk_location dist/* \
+    --sdk_location apache-beam-${RELEASE}.zip \
     --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash"
 
     echo "***************************************************************"
