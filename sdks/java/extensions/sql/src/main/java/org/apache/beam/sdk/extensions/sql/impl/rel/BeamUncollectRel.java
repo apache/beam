@@ -63,7 +63,7 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
       // Each row of the input contains a single array of things to be emitted; Calcite knows
       // what the row looks like
-      Schema outputSchema = CalciteUtils.toBeamSchema(getRowType());
+      Schema outputSchema = CalciteUtils.toSchema(getRowType());
 
       PCollection<Row> uncollected =
           upstream.apply(ParDo.of(new UncollectDoFn(outputSchema))).setRowSchema(outputSchema);

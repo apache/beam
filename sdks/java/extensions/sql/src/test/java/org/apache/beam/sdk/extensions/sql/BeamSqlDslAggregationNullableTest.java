@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.apache.beam.sdk.transforms.SerializableFunctions.identity;
+import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -122,12 +122,44 @@ public class BeamSqlDslAggregationNullableTest {
     pipeline.run();
   }
 
-  @Ignore
-  // FIXME [BEAM-5056] [SQL] Nullability of aggregation expressions isn't inferred properly
+  @Test
   public void testAvgGroupByNullable() {
-    String sql = "SELECT AVG(f_int1) FROM PCOLLECTION GROUP BY f_int2";
+    String sql = "SELECT AVG(f_int1), f_int2 FROM PCOLLECTION GROUP BY f_int2";
 
-    boundedInput.apply(SqlTransform.query(sql));
+    PCollection<Row> out = boundedInput.apply(SqlTransform.query(sql));
+    Schema schema = out.getSchema();
+
+    PAssert.that(out)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(null, null).build(),
+            Row.withSchema(schema).addValues(2, 1).build(),
+            Row.withSchema(schema).addValues(1, 5).build(),
+            Row.withSchema(schema).addValues(3, 2).build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testCountGroupByNullable() {
+    String sql = "SELECT COUNT(f_int1) as c, f_int2 FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<Row> out = boundedInput.apply(SqlTransform.query(sql));
+    Schema schema = out.getSchema();
+
+    PAssert.that(out)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(0L, null).build(),
+            Row.withSchema(schema).addValues(1L, 1).build(),
+            Row.withSchema(schema).addValues(1L, 5).build(),
+            Row.withSchema(schema).addValues(1L, 2).build());
+
+    assertEquals(
+        Schema.builder()
+            // COUNT() is never nullable, and calcite knows it
+            .addInt64Field("c")
+            .addNullableField("f_int2", Schema.FieldType.INT32)
+            .build(),
+        schema);
 
     pipeline.run();
   }
