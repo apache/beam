@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.jdbc;
 
-import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.buildArgs;
+import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.toLines;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.hamcrest.collection.IsIn;
@@ -36,7 +36,6 @@ import org.junit.rules.TemporaryFolder;
  * tests for crashes (due to ClassNotFoundException for example). It does not test output.
  */
 public class BeamSqlLineTest {
-  private static final String QUERY_ARG = "-e";
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
@@ -197,26 +196,5 @@ public class BeamSqlLineTest {
             Arrays.asList("2018-07-01 21:26:10", "2"),
             Arrays.asList("2018-07-01 21:26:11", "1")),
         everyItem(IsIn.isOneOf(lines.toArray())));
-  }
-
-  private String[] buildArgs(String... strs) {
-    List<String> argsList = new ArrayList();
-    for (String str : strs) {
-      argsList.add(QUERY_ARG);
-      argsList.add(str);
-    }
-    return argsList.toArray(new String[argsList.size()]);
-  }
-
-  private List<List<String>> toLines(ByteArrayOutputStream outputStream) {
-    List<String> outputLines = Arrays.asList(outputStream.toString().split("\n"));
-    return outputLines.stream().map(BeamSqlLineTest::splitFields).collect(toList());
-  }
-
-  private static List<String> splitFields(String outputLine) {
-    return Arrays.stream(outputLine.split("\\|"))
-        .map(field -> field.trim())
-        .filter(field -> field.length() != 0)
-        .collect(toList());
   }
 }
