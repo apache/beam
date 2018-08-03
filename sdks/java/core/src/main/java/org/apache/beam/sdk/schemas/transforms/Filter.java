@@ -23,6 +23,8 @@ import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -75,6 +77,7 @@ import org.apache.beam.sdk.values.Row;
  *        row -> return row.getDouble("spendOnBooks") + row.getDouble("spendOnMovies") > 100.00));
  * }</pre>
  */
+@Experimental(Kind.SCHEMAS)
 public class Filter {
   public static <T> Inner<T> create() {
     return new Inner<T>();
