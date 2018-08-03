@@ -37,6 +37,7 @@ from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -426,6 +427,7 @@ class BundleProcessor(object):
       self.state_sampler.stop_if_still_running()
 
   def metrics(self):
+    # DEPRECATED
     return beam_fn_api_pb2.Metrics(
         # TODO(robertwb): Rename to progress?
         ptransforms={
@@ -434,16 +436,18 @@ class BundleProcessor(object):
             for transform_id, op in self.ops.items()})
 
   def _fix_output_tags(self, transform_id, metrics):
+    # DEPRECATED
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     # Outputs are still referred to by index, not by name, in many Operations.
     # However, if there is exactly one output, we can fix up the name here.
+
     def fix_only_output_tag(actual_output_tag, mapping):
       if len(mapping) == 1:
         fake_output_tag, count = only_element(list(mapping.items()))
         if fake_output_tag != actual_output_tag:
           del mapping[fake_output_tag]
           mapping[actual_output_tag] = count
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     if len(actual_output_tags) == 1:
       fix_only_output_tag(
           actual_output_tags[0],
@@ -452,6 +456,25 @@ class BundleProcessor(object):
           actual_output_tags[0],
           metrics.active_elements.measured.output_element_counts)
     return metrics
+
+  def monitoring_infos(self):
+    """Returns the list of MonitoringInfos collected processing this bundle."""
+    # Construct a new dict first to remove duplciates.
+    all_monitoring_infos_dict = {}
+    for transform_id, op in self.ops.items():
+      for mi in op.monitoring_infos(transform_id).values():
+        fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
+        all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
+    return list(all_monitoring_infos_dict.values())
+
+  def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    if ('TAG' in monitoring_info.labels and
+        monitoring_info.labels['TAG'] == 'ONLY_OUTPUT'):
+      if len(actual_output_tags) == 1:
+        monitoring_info.labels['TAG'] = actual_output_tags[0]
+    return monitoring_info
 
 
 class BeamTransformFactory(object):
