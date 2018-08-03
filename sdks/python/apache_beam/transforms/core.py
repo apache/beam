@@ -21,12 +21,15 @@ from __future__ import absolute_import
 
 import copy
 import inspect
-import itertools
 import random
 import re
 import types
+from builtins import map
+from builtins import object
+from builtins import range
 
-from six import string_types
+from future.builtins import filter
+from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -81,7 +84,6 @@ __all__ = [
     'Create',
     'Impulse',
     ]
-
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -290,6 +292,9 @@ class _DoFnParam(object):
     if type(self) == type(other):
       return self.param_id == other.param_id
     return False
+
+  def __hash__(self):
+    return hash(self.param_id)
 
   def __repr__(self):
     return self.param_id
@@ -698,7 +703,7 @@ class CallableWrapperCombineFn(CombineFn):
 
     class ReiterableNonEmptyAccumulators(object):
       def __iter__(self):
-        return itertools.ifilter(filter_fn, accumulators)
+        return filter(filter_fn, accumulators)
 
     # It's (weakly) assumed that self._fn is associative.
     return self._fn(ReiterableNonEmptyAccumulators(), *args, **kwargs)
@@ -902,7 +907,8 @@ class ParDo(PTransformWithSideInputs):
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
-      raise ValueError('Unexpected keyword arguments: %s' % main_kw.keys())
+      raise ValueError('Unexpected keyword arguments: %s' %
+                       list(main_kw))
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
@@ -1666,7 +1672,6 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-
   def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
                timestamp_combiner=None):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
@@ -1711,6 +1716,10 @@ class Windowing(object):
           and self.accumulation_mode == other.accumulation_mode
           and self.timestamp_combiner == other.timestamp_combiner)
     return False
+
+  def __hash__(self):
+    return hash((self.windowfn, self.accumulation_mode,
+                 self.timestamp_combiner))
 
   def is_default(self):
     return self._is_default
@@ -1792,7 +1801,7 @@ class WindowInto(ParDo):
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     timestamp_combiner = kwargs.pop('timestamp_combiner', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
     self.windowing = Windowing(
         windowfn, triggerfn, accumulation_mode, timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
@@ -1861,7 +1870,7 @@ class Flatten(PTransform):
     super(Flatten, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
@@ -1906,7 +1915,7 @@ class Create(PTransform):
       value: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(value, string_types):
+    if isinstance(value, (unicode, str, bytes)):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)
     elif isinstance(value, dict):
@@ -1941,7 +1950,7 @@ class Create(PTransform):
 
   @staticmethod
   def _create_source_from_iterable(values, coder):
-    return Create._create_source(map(coder.encode, values), coder)
+    return Create._create_source(list(map(coder.encode, values)), coder)
 
   @staticmethod
   def _create_source(serialized_values, coder):

@@ -43,6 +43,9 @@ import operator
 import os
 import sys
 import threading
+from builtins import hex
+from builtins import object
+from builtins import zip
 from functools import reduce
 
 from google.protobuf import message
@@ -622,7 +625,7 @@ class PTransformWithSideInputs(PTransform):
     super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
+        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
