@@ -102,13 +102,15 @@ class FlowTranslator {
       AccumulatorProvider.Factory accumulatorFactory,
       PipelineOptions options,
       Settings settings,
-      Duration allowedLateness) {
+      Duration allowedLateness,
+      boolean allowKryoCoderAsFallback) {
 
     final Pipeline pipeline = Pipeline.create(options);
     DAG<Operator<?, ?>> dag = toDAG(flow);
 
     final TranslationContext executorContext =
-        new TranslationContext(dag, accumulatorFactory, pipeline, settings, allowedLateness);
+        new TranslationContext(
+            dag, accumulatorFactory, pipeline, settings, allowedLateness, allowKryoCoderAsFallback);
 
     updateContextBy(dag, executorContext);
     return executorContext.getPipeline();

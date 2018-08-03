@@ -594,7 +594,7 @@ public class JoinTest extends AbstractOperatorTest {
 
     @Override
     public Coder<BoundedWindow> windowCoder() {
-      return new KryoCoder<>();
+      return KryoCoder.withoutClassRegistration();
     }
 
     @Override

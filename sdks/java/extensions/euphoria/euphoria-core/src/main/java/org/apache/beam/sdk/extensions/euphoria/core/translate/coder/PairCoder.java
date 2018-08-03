@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.coder;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -107,5 +108,15 @@ public class PairCoder<K, V> extends StructuredCoder<Pair<K, V>> {
     return new TypeDescriptor<Pair<K, V>>() {}.where(
             new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
         .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
+  }
+
+  @VisibleForTesting
+  public Coder<K> getKeyCoder() {
+    return keyCoder;
+  }
+
+  @VisibleForTesting
+  public Coder<V> getValueCoder() {
+    return valueCoder;
   }
 }

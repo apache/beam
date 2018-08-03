@@ -48,7 +48,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
       PCollection<Pair<K, OutputT>> doTranslate(
           ReduceByKey<InputT, K, V, OutputT, W> operator, TranslationContext context) {
 
-    //TODO Could we even do values sorting ?
+    //TODO Could we even do values sorting in Beam ? And do we want it?
     checkState(operator.getValueComparator() == null, "Values sorting is not supported.");
 
     final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
@@ -56,8 +56,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     final ReduceFunctor<V, OutputT> reducer = operator.getReducer();
 
     // ~ resolve coders
-    final Coder<K> keyCoder = context.getCoder(keyExtractor);
-    final Coder<V> valueCoder = context.getCoder(valueExtractor);
+    final Coder<K> keyCoder = context.getKeyCoder(operator);
+    final Coder<V> valueCoder = context.getValueCoder(operator);
 
     final PCollection<InputT> input =
         WindowingUtils.applyWindowingIfSpecified(

@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -62,28 +61,23 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
 
   <K, LeftT, RightT, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>> doTranslate(
       Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
-    Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
+    Coder<K> keyCoder = context.getKeyCoder(operator);
 
     @SuppressWarnings("unchecked")
     final PCollection<LeftT> left = (PCollection<LeftT>) context.getInputs(operator).get(0);
+    Coder<LeftT> leftCoder = context.getCoderBasedOnDatasetElementType(operator.getLeft());
+
     @SuppressWarnings("unchecked")
     final PCollection<RightT> right = (PCollection<RightT>) context.getInputs(operator).get(1);
+    Coder<RightT> rightCoder = context.getCoderBasedOnDatasetElementType(operator.getRight());
 
     final PCollection<KV<K, LeftT>> leftKvInput =
         getKVInputCollection(
-            left,
-            operator.getLeftKeyExtractor(),
-            keyCoder,
-            new KryoCoder<>(),
-            ":extract-keys-left");
+            left, operator.getLeftKeyExtractor(), keyCoder, leftCoder, ":extract-keys-left");
 
     final PCollection<KV<K, RightT>> rightKvInput =
         getKVInputCollection(
-            right,
-            operator.getRightKeyExtractor(),
-            keyCoder,
-            new KryoCoder<>(),
-            ":extract-keys-right");
+            right, operator.getRightKeyExtractor(), keyCoder, rightCoder, ":extract-keys-right");
 
     switch (operator.getType()) {
       case LEFT:

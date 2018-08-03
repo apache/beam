@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Assert;
@@ -42,10 +43,12 @@ public class RegisterCodersTest {
   @Test
   public void testCodersRegistration() throws CannotProvideCoderException {
 
+    BeamFlow flow = BeamFlow.of(pipeline);
+
     DummyTestCoder<FirstTestDataType> firstCoder = new DummyTestCoder<>();
     DummyTestCoder<ParametrizedTestDataType<String>> parametrizedCoder = new DummyTestCoder<>();
 
-    RegisterCoders.to(pipeline)
+    RegisterCoders.to(flow)
         .setKryoClassRegistrar(
             (k) -> {
               k.register(KryoSerializedTestType.class);
@@ -70,7 +73,9 @@ public class RegisterCodersTest {
   @Test
   public void testKryoCoderTheSameSecondTime() throws CannotProvideCoderException {
 
-    RegisterCoders.to(pipeline)
+    BeamFlow flow = BeamFlow.of(pipeline);
+
+    RegisterCoders.to(flow)
         .setKryoClassRegistrar(
             (k) -> {
               k.register(KryoSerializedTestType.class);
@@ -93,7 +98,9 @@ public class RegisterCodersTest {
   @Test
   public void testKryoRegisterCodeDecode() throws CannotProvideCoderException, IOException {
 
-    RegisterCoders.to(pipeline)
+    BeamFlow flow = BeamFlow.of(pipeline);
+
+    RegisterCoders.to(flow)
         .setKryoClassRegistrar(
             (k) -> {
               k.register(SimpleDataClassWithEquality.class);

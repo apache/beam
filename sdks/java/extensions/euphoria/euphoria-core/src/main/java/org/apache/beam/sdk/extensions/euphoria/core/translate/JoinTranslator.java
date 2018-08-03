@@ -21,7 +21,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.common.OperatorTranslatorUtil;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.join.FullJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.join.InnerJoinFn;
@@ -51,29 +50,24 @@ public class JoinTranslator implements OperatorTranslator<Join> {
       PCollection<Pair<K, OutputT>> doTranslate(
           Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
 
-    Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
+    Coder<K> keyCoder = context.getKeyCoder(operator);
 
     // get input data-sets transformed to Pcollections<KV<K,LeftT/RightT>>
     @SuppressWarnings("unchecked")
     final PCollection<LeftT> left = (PCollection<LeftT>) context.getInputs(operator).get(0);
+    Coder<LeftT> leftCoder = context.getCoderBasedOnDatasetElementType(operator.getLeft());
+
     @SuppressWarnings("unchecked")
     final PCollection<RightT> right = (PCollection<RightT>) context.getInputs(operator).get(1);
+    Coder<RightT> rightCoder = context.getCoderBasedOnDatasetElementType(operator.getRight());
 
     PCollection<KV<K, LeftT>> leftKvInput =
         OperatorTranslatorUtil.getKVInputCollection(
-            left,
-            operator.getLeftKeyExtractor(),
-            keyCoder,
-            new KryoCoder<>(),
-            "::extract-keys-left");
+            left, operator.getLeftKeyExtractor(), keyCoder, leftCoder, "::extract-keys-left");
 
     PCollection<KV<K, RightT>> rightKvInput =
         OperatorTranslatorUtil.getKVInputCollection(
-            right,
-            operator.getRightKeyExtractor(),
-            keyCoder,
-            new KryoCoder<>(),
-            "::extract-keys-right");
+            right, operator.getRightKeyExtractor(), keyCoder, rightCoder, "::extract-keys-right");
 
     // and apply the same widowing on input Pcolections since the documentation states:
     //'all of the PCollections you want to group must use the same

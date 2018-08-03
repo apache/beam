@@ -20,30 +20,28 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.Iterables;
-import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Named;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.AbstractTypeAware;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.EuphoriaCoderProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.PairCoder;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -61,19 +59,39 @@ class TranslationContext {
   private final Settings settings;
   private final AccumulatorProvider.Factory accumulatorFactory;
   private DAG<Operator<?, ?>> dag;
+  private final boolean allowKryoCoderAsFallback;
+  private EuphoriaCoderProvider euphoriaCoderProvider;
 
   TranslationContext(
       DAG<Operator<?, ?>> dag,
       AccumulatorProvider.Factory accumulatorFactory,
       Pipeline pipeline,
       Settings settings,
-      Duration allowedLateness) {
+      Duration allowedLateness,
+      boolean allowKryoCoderAsFallback) {
 
     this.dag = dag;
     this.accumulatorFactory = accumulatorFactory;
     this.pipeline = pipeline;
     this.settings = settings;
     this.allowedLateness = allowedLateness;
+    this.allowKryoCoderAsFallback = allowKryoCoderAsFallback;
+  }
+
+  public void setEuphoriaCoderProvider(EuphoriaCoderProvider coderProvider) {
+    Objects.requireNonNull(coderProvider);
+    if (this.euphoriaCoderProvider != null) {
+      throw new IllegalStateException(
+          String.format(
+              "%s already set. Use %s only once per %s.",
+              EuphoriaCoderProvider.class.getSimpleName(),
+              RegisterCoders.class.getSimpleName(),
+              BeamFlow.class.getSimpleName()));
+    }
+
+    pipeline.getCoderRegistry().registerCoderProvider(coderProvider);
+
+    this.euphoriaCoderProvider = coderProvider;
   }
 
   <InputT> PCollection<InputT> getInput(Operator<InputT, ?> operator) {
@@ -105,12 +123,21 @@ class TranslationContext {
   }
 
   <T> void setPCollection(Dataset<T> dataset, PCollection<T> coll) {
+
     final PCollection<?> prev = datasetToPCollection.put(dataset, coll);
     if (prev != null && prev != coll) {
       throw new IllegalStateException("Dataset(" + dataset + ") already materialized.");
     }
-    if (prev == null) {
-      coll.setCoder(getOutputCoder(dataset));
+
+    if (prev != null) {
+      return;
+    }
+
+    TypeDescriptor<T> collElementType = coll.getTypeDescriptor();
+    if (collElementType != null) {
+      coll.setCoder(getCoderForTypeOrFallbackCoder(collElementType));
+    } else {
+      coll.setCoder(getCoderBasedOnDatasetElementType(dataset));
     }
   }
 
@@ -125,76 +152,73 @@ class TranslationContext {
     return pipeline;
   }
 
-  boolean strongTypingEnabled() {
-    return false;
+  public <T> Coder<T> getOutputCoder(TypeAware.Output<T> outputTypeAware) {
+    TypeDescriptor<T> outputType = outputTypeAware.getOutputType();
+
+    return getCoderForTypeOrFallbackCoder(outputTypeAware, outputType, "Output");
   }
 
-  <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunction<InputT, OutputT> unaryFunction) {
+  public <T> Coder<T> getValueCoder(TypeAware.Value<T> valueTypeAware) {
+    TypeDescriptor<T> valueType = valueTypeAware.getValueType();
+    return getCoderForTypeOrFallbackCoder(valueTypeAware, valueType, "Value");
+  }
 
-    if (unaryFunction instanceof TypeAwareUnaryFunction) {
-      return getCoder(
-          ((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeDescriptor());
+  public <T> Coder<T> getKeyCoder(TypeAware.Key<T> keyTypeAware) {
+    TypeDescriptor<T> keyType = keyTypeAware.getKeyType();
+    return getCoderForTypeOrFallbackCoder(keyTypeAware, keyType, "Key");
+  }
+
+  private <T> Coder<T> getCoderForTypeOrFallbackCoder(
+      Named namedTypeSource, TypeDescriptor<T> type, String typeName) {
+
+    if (type == null) {
+      if (allowKryoCoderAsFallback) {
+        return createFallbackKryoCoder();
+      } else {
+        throw new IllegalStateException(
+            String.format(
+                "%s type of '%s'(%s) is unknown and use of fallback Kryo coder is not allowed.",
+                typeName, namedTypeSource.getName(), namedTypeSource.getClass().getSimpleName()));
+      }
     }
 
-    return inferCoderFromLambda(unaryFunction).orElseGet(() -> getFallbackCoder(unaryFunction));
-  }
-
-  private <InputT, OutputT> Coder<OutputT> getCoderBasedOnFunctor(
-      UnaryFunctor<InputT, OutputT> unaryFunctor) {
-    if (unaryFunctor instanceof TypeAwareUnaryFunctor) {
-      return getCoder(((TypeAwareUnaryFunctor<InputT, OutputT>) unaryFunctor).getTypeDescriptor());
+    Class<? super T> rawType = type.getRawType();
+    if (Pair.class.isAssignableFrom(rawType)) {
+      @SuppressWarnings("unchecked")
+      TypeDescriptor<Pair> pairType = (TypeDescriptor<Pair>) type;
+      @SuppressWarnings("unchecked")
+      Coder<T> pairCoder = createPairCoderIfKeyAndValueCodersAvailable(pairType);
+      return pairCoder;
     }
 
-    return getFallbackCoder(unaryFunctor);
+    return getCoderForTypeOrFallbackCoder(type);
   }
 
-  <FuncT, OutputT> Coder<OutputT> getFallbackCoder(FuncT function) {
-    if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("Missing type information for function " + function);
+  private PairCoder createPairCoderIfKeyAndValueCodersAvailable(TypeDescriptor<Pair> type) {
+
+    TypeVariable<Class<Pair>>[] pairTypeParams = Pair.class.getTypeParameters();
+
+    TypeDescriptor<?> keyType = type.resolveType(pairTypeParams[0]);
+    TypeDescriptor<?> valueType = type.resolveType(pairTypeParams[1]);
+
+    Coder<?> keyCoder = getCoderForTypeOrFallbackCoder(keyType);
+    Coder<?> valueCoder = getCoderForTypeOrFallbackCoder(valueType);
+
+    return PairCoder.of(keyCoder, valueCoder);
+  }
+
+  public <T> Coder<T> getCoderForTypeOrFallbackCoder(TypeDescriptor<T> typeHint) {
+
+    if (typeHint == null) {
+      return createFallbackKryoCoder();
     }
-    return new KryoCoder<>();
-  }
 
-  /**
-   * Tries to get OutputT type from unaryFunction and get coder from CoderRegistry. Will get coder
-   * for standard Java types (Double, String, Long, Map, Integer, List etc.)
-   *
-   * @return coder for lambda return type
-   */
-  //TODO remove this
-  <InputT, OutputT> Optional<Coder<OutputT>> inferCoderFromLambda(
-      UnaryFunction<InputT, OutputT> unaryFunction) {
-    return Optional.empty();
-  }
-
-  <LeftT, RightT, OutputT> Coder<OutputT> getCoder(
-      BinaryFunctor<LeftT, RightT, OutputT> binaryFunctor) {
-    if (binaryFunctor instanceof TypeAwareBinaryFunctor) {
-      return getCoder(
-          ((TypeAwareBinaryFunctor<LeftT, RightT, OutputT>) binaryFunctor).getTypeDescriptor());
-    }
-    return getFallbackCoder(binaryFunctor);
-  }
-
-  <InputT, OutputT> Coder<OutputT> getCoder(ReduceFunctor<InputT, OutputT> reduceFunctor) {
-    if (reduceFunctor instanceof AbstractTypeAware) {
-      return getCoder(
-          ((TypeAwareReduceFunctor<InputT, OutputT>) reduceFunctor).getTypeDescriptor());
-    }
-    return getFallbackCoder(reduceFunctor);
-  }
-
-  private <T> Coder<T> getCoder(TypeDescriptor<T> typeHint) {
     try {
       return pipeline.getCoderRegistry().getCoder(typeHint);
     } catch (CannotProvideCoderException e) {
-      throw new IllegalArgumentException("Unable to provide coder for type hint.", e);
+      LOG.info(String.format("Unable to fetch coder for '%s' failing back to Kryo.", typeHint));
+      return createFallbackKryoCoder();
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  private <T> Coder<T> getCoder(Type type) {
-    return getCoder((TypeDescriptor<T>) TypeDescriptor.of(type));
   }
 
   AccumulatorProvider.Factory getAccumulatorFactory() {
@@ -205,47 +229,35 @@ class TranslationContext {
     return settings;
   }
 
-  @SuppressWarnings("unchecked")
-  private <T> Coder<T> getOutputCoder(Dataset<T> dataset) {
-    //TODO: test this, is this approach right?
-    //TODO: Should we somehow automate creation of parametrized PairCoder ??
-    //    Operator<?, ?> op = dataset.getProducer();
-    //    if (op instanceof FlatMap) {
-    //      FlatMap<?, T> m = (FlatMap) op;
-    //      return getCoder(m.getFunctor());
-    //    } else if (op instanceof Union) {
-    //      Union<T> u = (Union) op;
-    //      Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));
-    //      return getOutputCoder(first);
-    //    } else if (op instanceof ReduceByKey) {
-    //      ReduceByKey rb = (ReduceByKey) op;
-    //      Coder reducerCoder = getCoder(rb.getReducer());
-    //      Coder keyCoder = getCoder(rb.getKeyExtractor());
-    //      return PairCoder.of(keyCoder, reducerCoder);
-    //    } else if (op instanceof ReduceStateByKey) {
-    //      ReduceStateByKey rbsk = (ReduceStateByKey) op;
-    //      // TODO
-    //      return new KryoCoder<>();
-    //    } else if (op instanceof WrappedInputPCollectionOperator) {
-    //      return ((WrappedInputPCollectionOperator) op).input.getCoder();
-    //    } else if (op == null) {
-    //      // TODO
-    //      return new KryoCoder<>();
-    //    } else if (op instanceof Join) {
-    //      Join join = (Join) op;
-    //      Coder keyCoder = getCoder(join.getLeftKeyExtractor());
-    //      Coder outputValueCoder = getCoder(join.getJoiner());
-    //      return PairCoder.of(keyCoder, outputValueCoder);
-    //    }
-    //    // TODO
-    //    return new KryoCoder<>();
+  public <T> Coder<T> getCoderBasedOnDatasetElementType(Dataset<T> dataset) {
+    TypeDescriptor<T> elementType = TypeUtils.getDatasetElementType(dataset);
 
-    TypeDescriptor<T> datasetElementType = TypeUtils.getDatasetElementType(dataset);
-    if (datasetElementType != null) {
-      return getCoder(datasetElementType);
-    } else {
-      return new KryoCoder<>();
+    if (elementType == null) {
+      Optional<PCollection<T>> optionalPCollection = getPCollection(dataset);
+      if (optionalPCollection.isPresent()) {
+        elementType = optionalPCollection.get().getTypeDescriptor();
+      }
     }
+
+    return getCoderForTypeOrFallbackCoder(elementType);
+  }
+
+  private <T> KryoCoder<T> createFallbackKryoCoder() {
+
+    if (!allowKryoCoderAsFallback) {
+      throw new IllegalStateException("Using Kryo as fallback coder is not allowed.");
+    }
+
+    return createKryoCoder();
+  }
+
+  public <T> KryoCoder<T> createKryoCoder() {
+
+    if (euphoriaCoderProvider != null) {
+      return euphoriaCoderProvider.createKryoCoderWithRegisteredClasses();
+    }
+
+    return KryoCoder.withoutClassRegistration();
   }
 
   Duration getAllowedLateness(Operator<?, ?> operator) {
@@ -254,5 +266,9 @@ class TranslationContext {
 
   void setTranslationDAG(DAG<Operator<?, ?>> dag) {
     this.dag = dag;
+  }
+
+  public boolean isUseOfKryoCoderAsFallbackAllowed() {
+    return allowKryoCoderAsFallback;
   }
 }

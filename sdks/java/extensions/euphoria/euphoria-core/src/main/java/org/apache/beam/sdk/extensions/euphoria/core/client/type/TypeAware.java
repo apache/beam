@@ -19,6 +19,7 @@
 
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Named;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -34,19 +35,19 @@ public class TypeAware {
   //TODO add test to assert type descriptpr propagation through builders and chain of operators
 
   /** Returns {@link TypeDescriptor} of this operator output type. */
-  public interface Output<OutputT> {
+  public interface Output<OutputT> extends Named {
 
     TypeDescriptor<OutputT> getOutputType();
   }
 
   /** Returns {@link TypeDescriptor} of this operator key type. */
-  public interface Key<KeyT> {
+  public interface Key<KeyT> extends Named {
 
     TypeDescriptor<KeyT> getKeyType();
   }
 
   /** Returns {@link TypeDescriptor} of this operator value type. */
-  public interface Value<ValueT> {
+  public interface Value<ValueT> extends Named {
 
     TypeDescriptor<ValueT> getValueType();
   }

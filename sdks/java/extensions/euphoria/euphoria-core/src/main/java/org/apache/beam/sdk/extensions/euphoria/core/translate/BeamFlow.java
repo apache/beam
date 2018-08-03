@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import java.time.Duration;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.EuphoriaCoderProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.io.BeamWriteSink;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,6 +59,15 @@ public class BeamFlow extends Flow {
    * @param pipeline pipeline to wrap into this flow
    */
   private BeamFlow(String name, Pipeline pipeline) {
+    this(name, pipeline, true);
+  }
+
+  /**
+   * Construct the {@link BeamFlow}.
+   *
+   * @param pipeline pipeline to wrap into this flow
+   */
+  private BeamFlow(String name, Pipeline pipeline, boolean allowKryoCoderAsFallback) {
     super(name, new Settings());
     this.pipeline = pipeline;
     this.context =
@@ -65,10 +76,16 @@ public class BeamFlow extends Flow {
             accumulatorFactory,
             pipeline,
             getSettings(),
-            org.joda.time.Duration.millis(allowedLateness.toMillis()));
+            org.joda.time.Duration.millis(allowedLateness.toMillis()),
+            allowKryoCoderAsFallback);
   }
 
   private <T> BeamFlow(String name, PCollection<T> inputPCollection) {
+    this(name, inputPCollection, true);
+  }
+
+  private <T> BeamFlow(
+      String name, PCollection<T> inputPCollection, boolean allowKryoCoderAsFallback) {
     super(name, new Settings());
     this.pipeline = inputPCollection.getPipeline();
     this.context =
@@ -77,7 +94,8 @@ public class BeamFlow extends Flow {
             accumulatorFactory,
             pipeline,
             getSettings(),
-            org.joda.time.Duration.millis(allowedLateness.toMillis()));
+            org.joda.time.Duration.millis(allowedLateness.toMillis()),
+            allowKryoCoderAsFallback);
 
     wrapFinishedInputPCollection(inputPCollection);
   }
@@ -95,12 +113,33 @@ public class BeamFlow extends Flow {
   /**
    * Create flow from pipeline.
    *
+   * @param pipeline the pipeline to wrap into new flow
+   * @return constructed flow
+   */
+  public static BeamFlow of(Pipeline pipeline, boolean allowKryoCoderAsFallback) {
+    return new BeamFlow(null, pipeline, allowKryoCoderAsFallback);
+  }
+
+  /**
+   * Create flow from pipeline.
+   *
    * @param name name of the flow
    * @param pipeline the pipeline to wrap into new flow
    * @return constructed flow
    */
   public static BeamFlow of(String name, Pipeline pipeline) {
     return new BeamFlow(name, pipeline);
+  }
+
+  /**
+   * Create flow from pipeline.
+   *
+   * @param name name of the flow
+   * @param pipeline the pipeline to wrap into new flow
+   * @return constructed flow
+   */
+  public static BeamFlow of(String name, Pipeline pipeline, boolean allowKryoCoderAsFallback) {
+    return new BeamFlow(name, pipeline, allowKryoCoderAsFallback);
   }
 
   /**
@@ -207,7 +246,8 @@ public class BeamFlow extends Flow {
         accumulatorFactory,
         options,
         getSettings(),
-        org.joda.time.Duration.millis(allowedLateness.toMillis()));
+        org.joda.time.Duration.millis(allowedLateness.toMillis()),
+        context.isUseOfKryoCoderAsFallbackAllowed());
   }
 
   @SuppressWarnings("unchecked")
@@ -335,5 +375,18 @@ public class BeamFlow extends Flow {
   /** @return {@code true} if this flow already has associated {@link Pipeline}. */
   boolean hasPipeline() {
     return pipeline != null;
+  }
+
+  public boolean useKryoCoderAsFallback() {
+    return context.isUseOfKryoCoderAsFallbackAllowed();
+  }
+
+  public void setEuphoriaCoderProvider(EuphoriaCoderProvider coderProvider) {
+    context.setEuphoriaCoderProvider(coderProvider);
+  }
+
+  @VisibleForTesting
+  public TranslationContext getTranslationContext() {
+    return context;
   }
 }
