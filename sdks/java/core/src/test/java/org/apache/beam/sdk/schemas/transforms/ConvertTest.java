@@ -181,7 +181,6 @@ public class ConvertTest {
 
     @Override
     public int hashCode() {
-
       return Objects.hash(yard2, yard1);
     }
   }
