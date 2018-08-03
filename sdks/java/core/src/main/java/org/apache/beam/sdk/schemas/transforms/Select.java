@@ -82,12 +82,12 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     this.fieldAccessDescriptor = fieldAccessDescriptor;
   }
 
-  /** Select a set of top-level field ids from the row. * */
+  /** Select a set of top-level field ids from the row. */
   public static <T> Select<T> fieldIds(Integer... ids) {
     return new Select(FieldAccessDescriptor.withFieldIds(ids));
   }
 
-  /** Select a set of top-level field names from the row. * */
+  /** Select a set of top-level field names from the row. */
   public static <T> Select<T> fieldNames(String... names) {
     return new Select(FieldAccessDescriptor.withFieldNames(names));
   }

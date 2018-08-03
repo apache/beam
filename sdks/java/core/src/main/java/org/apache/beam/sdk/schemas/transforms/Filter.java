@@ -83,12 +83,15 @@ public class Filter {
     return new Inner<T>();
   }
 
-  /** Implementation of the filter. * */
+  /** Implementation of the filter. */
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    Map<String, SerializableFunction<?, Boolean>> fieldNameFilters = Maps.newHashMap();
-    Map<Integer, SerializableFunction<?, Boolean>> fieldIdFilters = Maps.newHashMap();
-    Map<List<String>, SerializableFunction<Row, Boolean>> fieldNamesFilters = Maps.newHashMap();
-    Map<List<Integer>, SerializableFunction<Row, Boolean>> fieldIdsFilters = Maps.newHashMap();
+    private final Map<String, SerializableFunction<?, Boolean>> fieldNameFilters =
+        Maps.newHashMap();
+    private final Map<Integer, SerializableFunction<?, Boolean>> fieldIdFilters = Maps.newHashMap();
+    private final Map<List<String>, SerializableFunction<Row, Boolean>> fieldNamesFilters =
+        Maps.newHashMap();
+    private final Map<List<Integer>, SerializableFunction<Row, Boolean>> fieldIdsFilters =
+        Maps.newHashMap();
 
     /** Set a predicate based on the value of a field, where the field is specified by name. */
     public Inner<T> whereFieldName(String fieldName, SerializableFunction<?, Boolean> predicate) {
@@ -138,8 +141,8 @@ public class Filter {
                   .stream()
                   .flatMap(List::stream)
                   .collect(Collectors.toSet()))) {
-        if (fieldIndex >= schema.getFieldCount()) {
-          throw new RuntimeException(
+        if (fieldIndex >= schema.getFieldCount() || fieldIndex < 0) {
+          throw new IllegalArgumentException(
               "Field index " + fieldIndex + " does not exist in the schema.");
         }
       }
