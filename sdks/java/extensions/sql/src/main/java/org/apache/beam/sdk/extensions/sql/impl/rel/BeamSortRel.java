@@ -20,12 +20,20 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.TreeMultiset;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -35,6 +43,9 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
+import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -120,12 +131,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       nullsFirst.add(rawNullDirection == RelFieldCollation.NullDirection.FIRST);
     }
 
-    if (fetch == null) {
-      throw new UnsupportedOperationException("ORDER BY without a LIMIT is not supported!");
+    if (fetch != null) {
+      RexLiteral fetchLiteral = (RexLiteral) fetch;
+      count = ((BigDecimal) fetchLiteral.getValue()).intValue();
+    } else {
+      count = -1;
     }
-
-    RexLiteral fetchLiteral = (RexLiteral) fetch;
-    count = ((BigDecimal) fetchLiteral.getValue()).intValue();
 
     if (offset != null) {
       RexLiteral offsetLiteral = (RexLiteral) offset;
@@ -161,7 +172,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       //  - GroupByKey (used in Top) is not allowed on unbounded data in global window so ORDER BY ... LIMIT
       //    works only on bounded data.
       //  - Just LIMIT operates on unbounded data, but across windows.
-      if (fieldIndices.size() == 0) {
+      if (fieldIndices.size() == 0) { // LIMIT
         // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
         // Figure out which operations are per-window and which are not.
         return upstream
@@ -169,7 +180,6 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             .apply(new LimitTransform<>())
             .setRowSchema(CalciteUtils.toSchema(getRowType()));
       } else {
-
         WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
         if (!(windowingStrategy.getWindowFn() instanceof GlobalWindows)) {
           throw new UnsupportedOperationException(
@@ -178,25 +188,37 @@ public class BeamSortRel extends Sort implements BeamRelNode {
                   GlobalWindows.class.getSimpleName(), windowingStrategy));
         }
 
-        BeamSqlRowComparator comparator =
-            new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+        PCollection<List<Row>> rawStream;
+        if (count == -1) { // ORDER BY
+          BeamSqlRowComparator comparator =
+              new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
 
-        // first find the top (offset + count)
-        PCollection<List<Row>> rawStream =
-            upstream
-                .apply(
-                    "extractTopOffsetAndFetch",
-                    Top.of(startIndex + count, comparator).withoutDefaults())
-                .setCoder(ListCoder.of(upstream.getCoder()));
-
-        // strip the `leading offset`
-        if (startIndex > 0) {
           rawStream =
-              rawStream
-                  .apply(
-                      "stripLeadingOffset",
-                      ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+              upstream
+                  .apply("sort", Combine.globally(new SortFn(comparator)))
                   .setCoder(ListCoder.of(upstream.getCoder()));
+
+        } else { // ORDER BY LIMIT
+          ReversedBeamSqlRowComparator comparator =
+              new ReversedBeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+
+          // first find the top (offset + count)
+          rawStream =
+              upstream
+                  .apply(
+                      "extractTopOffsetAndFetch",
+                      Top.of(startIndex + count, comparator).withoutDefaults())
+                  .setCoder(ListCoder.of(upstream.getCoder()));
+
+          // strip the `leading offset`
+          if (startIndex > 0) {
+            rawStream =
+                rawStream
+                    .apply(
+                        "stripLeadingOffset",
+                        ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                    .setCoder(ListCoder.of(upstream.getCoder()));
+          }
         }
 
         return rawStream
@@ -253,6 +275,86 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(ctx.element().subList(startIndex, endIndex));
+    }
+  }
+
+  /** All the elements of the result's {@code List} must fit into the memory of a single machine. */
+  private static class SortFunAccumulator
+      implements Accumulator<Row, SortFunAccumulator, List<Row>> {
+
+    public TreeMultiset<Row> treeMultiset;
+
+    public SortFunAccumulator(BeamSqlRowComparator comparator) {
+      treeMultiset = TreeMultiset.create(comparator);
+    }
+
+    public SortFunAccumulator(List<Row> rows, BeamSqlRowComparator comparator) {
+      treeMultiset = TreeMultiset.create(comparator);
+      treeMultiset.addAll(rows);
+    }
+
+    @Override
+    public void addInput(Row input) {
+      treeMultiset.add(input);
+    }
+
+    @Override
+    public void mergeAccumulator(SortFunAccumulator other) {
+      treeMultiset.addAll(other.treeMultiset);
+    }
+
+    @Override
+    public List<Row> extractOutput() {
+      return toList();
+    }
+
+    public List<Row> toList() {
+      List<Row> ret = new ArrayList<>();
+      Iterator<Row> iterator = treeMultiset.iterator();
+      while (iterator.hasNext()) {
+        ret.add(iterator.next());
+      }
+      return ret;
+    }
+  }
+
+  private static class SortFunAccumulatorCoder extends CustomCoder<SortFunAccumulator> {
+    private final ListCoder<Row> listCoder;
+    private final BeamSqlRowComparator comparator;
+
+    public SortFunAccumulatorCoder(BeamSqlRowComparator comparator, Coder<Row> inputCoder) {
+      this.comparator = comparator;
+      this.listCoder = ListCoder.of(inputCoder);
+    }
+
+    @Override
+    public void encode(SortFunAccumulator value, OutputStream outStream)
+        throws CoderException, IOException {
+      listCoder.encode(value.toList(), outStream);
+    }
+
+    @Override
+    public SortFunAccumulator decode(InputStream inStream) throws CoderException, IOException {
+      return new SortFunAccumulator(listCoder.decode(inStream), comparator);
+    }
+  }
+
+  private static class SortFn extends AccumulatingCombineFn<Row, SortFunAccumulator, List<Row>> {
+    private BeamSqlRowComparator comparator;
+
+    public SortFn(BeamSqlRowComparator comparator) {
+      this.comparator = comparator;
+    }
+
+    @Override
+    public SortFunAccumulator createAccumulator() {
+      return new SortFunAccumulator(comparator);
+    }
+
+    @Override
+    public Coder<SortFunAccumulator> getAccumulatorCoder(
+        CoderRegistry registry, Coder<Row> inputCoder) {
+      return new SortFunAccumulatorCoder(comparator, inputCoder);
     }
   }
 
@@ -317,12 +419,30 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           }
         }
 
-        fieldRet *= (orientation.get(i) ? -1 : 1);
+        fieldRet *= (orientation.get(i) ? 1 : -1);
         if (fieldRet != 0) {
           return fieldRet;
         }
       }
       return 0;
+    }
+  }
+
+  private static class ReversedBeamSqlRowComparator implements Comparator<Row>, Serializable {
+    private BeamSqlRowComparator comparator;
+
+    public ReversedBeamSqlRowComparator(
+        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
+      comparator = new BeamSqlRowComparator(fieldsIndices, orientation, nullsFirst);
+    }
+
+    @Override
+    public int compare(Row row1, Row row2) {
+      int ret = comparator.compare(row1, row2);
+      if (ret != 0) {
+        ret *= -1;
+      }
+      return ret;
     }
   }
 }
