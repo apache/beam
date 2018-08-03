@@ -125,7 +125,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                   "combineBy",
                   Combine.perKey(
                       new BeamAggregationTransforms.AggregationAdaptor(
-                          getNamedAggCalls(), CalciteUtils.toBeamSchema(input.getRowType()))))
+                          getNamedAggCalls(), CalciteUtils.toSchema(input.getRowType()))))
               .setCoder(KvCoder.of(keyCoder, aggCoder));
 
       PCollection<Row> mergedStream =
@@ -133,8 +133,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               "mergeRecord",
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
-                      CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
+                      CalciteUtils.toSchema(getRowType()), windowFieldIndex)));
+      mergedStream.setRowSchema(CalciteUtils.toSchema(getRowType()));
 
       return mergedStream;
     }
@@ -164,7 +164,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     /** Type of sub-rowrecord used as Group-By keys. */
     private Schema exKeyFieldsSchema(RelDataType relDataType) {
-      Schema inputSchema = CalciteUtils.toBeamSchema(relDataType);
+      Schema inputSchema = CalciteUtils.toSchema(relDataType);
       return groupSet
           .asList()
           .stream()
@@ -183,9 +183,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     }
 
     private Schema.Field newRowField(Pair<AggregateCall, String> namedAggCall) {
-      return Schema.Field.of(
-              namedAggCall.right, CalciteUtils.toFieldType(namedAggCall.left.getType()))
-          .withNullable(namedAggCall.left.getType().isNullable());
+      return CalciteUtils.toField(namedAggCall.right, namedAggCall.left.getType());
     }
   }
 

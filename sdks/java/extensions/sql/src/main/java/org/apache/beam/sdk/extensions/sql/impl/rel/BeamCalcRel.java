@@ -72,12 +72,12 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
 
       BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamCalcRel.this.getProgram());
 
-      Schema schema = CalciteUtils.toBeamSchema(rowType);
+      Schema schema = CalciteUtils.toSchema(rowType);
       PCollection<Row> projectStream =
           upstream
-              .apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))))
+              .apply(ParDo.of(new CalcFn(executor, CalciteUtils.toSchema(rowType))))
               .setRowSchema(schema);
-      projectStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
+      projectStream.setRowSchema(CalciteUtils.toSchema(getRowType()));
 
       return projectStream;
     }
