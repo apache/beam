@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@code KuduIO} provides a source to read and returns a bounded collection of entities as
  * {@code PCollection&lt;T&gt;}. An entity is built by parsing a Kudu {@link RowResult} using the
- * provided {@link SerializableFunction&lt;RowResult, T&gt;}.
+ * provided {@link SerializableFunction}.
  *
  * <p>The following example illustrates various options for configuring the IO:
  *
@@ -98,8 +98,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to Kudu</h3>
  *
  * <p>The Kudu sink executes a set of operations on a single table. It takes as input a {@link
- * PCollection PCollection&lt;T&gt;} and a {@link FormatFunction&lt;T&gt;} which is responsible for
- * converting the input into an idempotent transformation on a row.
+ * PCollection PCollection} and a {@link FormatFunction} which is responsible for converting the
+ * input into an idempotent transformation on a row.
  *
  * <p>To configure a Kudu sink, you must supply the Kudu master addresses, the table name and a
  * {@link FormatFunction} to convert the input records, for example:
