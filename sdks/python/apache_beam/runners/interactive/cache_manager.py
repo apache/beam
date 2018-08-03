@@ -159,28 +159,28 @@ class ReadCache(beam.PTransform):
 
   def expand(self, pbegin):
     # pylint: disable=expression-not-assigned
-    return pbegin | 'Load%s' % self._label >> beam.io.Read(
+    return pbegin | 'Read' >> beam.io.Read(
         self._cache_manager.source('full', self._label))
 
 
 class WriteCache(beam.PTransform):
   """A PTransform that writes the PCollections to the cache."""
-  def __init__(self, cache_manager, sample=False, sample_size=0):
+  def __init__(self, cache_manager, label, sample=False, sample_size=0):
     self._cache_manager = cache_manager
+    self._label = label
     self._sample = sample
     self._sample_size = sample_size
 
-  def expand(self, pcolls_to_write):
-    for label, pcoll in pcolls_to_write.items():
-      prefix = 'sample' if self._sample else 'full'
-      if not self._cache_manager.exists(prefix, label):
-        if self._sample:
-          pcoll |= 'Sample%s' % label >> (
-              combiners.Sample.FixedSizeGlobally(self._sample_size)
-              | beam.FlatMap(lambda sample: sample))
-        # pylint: disable=expression-not-assigned
-        pcoll | 'Cache%s' % label >> beam.io.Write(
-            self._cache_manager.sink(prefix, label))
+  def expand(self, pcoll):
+    prefix = 'sample' if self._sample else 'full'
+    if not self._cache_manager.exists(prefix, self._label):
+      if self._sample:
+        pcoll |= 'Sample' >> (
+            combiners.Sample.FixedSizeGlobally(self._sample_size)
+            | beam.FlatMap(lambda sample: sample))
+      # pylint: disable=expression-not-assigned
+      return pcoll | 'Write' >> beam.io.Write(
+          self._cache_manager.sink(prefix, self._label))
 
 
 class SafeFastPrimitivesCoder(coders.Coder):
