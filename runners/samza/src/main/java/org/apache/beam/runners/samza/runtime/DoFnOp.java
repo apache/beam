@@ -118,7 +118,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   public void open(
       Config config,
       TaskContext context,
-      TimerRegistry<TimerKey<Void>> timerRegistry,
+      TimerRegistry<KeyedTimerData<Void>> timerRegistry,
       OpEmitter<OutT> emitter) {
     this.pipelineOptions =
         Base64Serializer.deserializeUnchecked(

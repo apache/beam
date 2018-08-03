@@ -22,8 +22,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
@@ -47,17 +45,17 @@ import org.slf4j.LoggerFactory;
 public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaTimerInternalsFactory.class);
 
-  private final Map<TimerKey, KeyedTimerData<K>> timerMap = new HashMap<>();
   private final NavigableSet<KeyedTimerData<K>> eventTimeTimers = new TreeSet<>();
 
   private final Coder<K> keyCoder;
-  private final TimerRegistry<TimerKey<K>> timerRegistry;
+  private final TimerRegistry<KeyedTimerData<K>> timerRegistry;
 
   // TODO: use BoundedWindow.TIMESTAMP_MIN_VALUE when KafkaIO emits watermarks in bounds.
   private Instant inputWatermark = new Instant(Long.MIN_VALUE);
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  public SamzaTimerInternalsFactory(Coder<K> keyCoder, TimerRegistry<TimerKey<K>> timerRegistry) {
+  public SamzaTimerInternalsFactory(
+      Coder<K> keyCoder, TimerRegistry<KeyedTimerData<K>> timerRegistry) {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
   }
@@ -112,17 +110,6 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     while (!eventTimeTimers.isEmpty()
         && eventTimeTimers.first().getTimerData().getTimestamp().isBefore(inputWatermark)) {
       final KeyedTimerData<K> keyedTimerData = eventTimeTimers.pollFirst();
-      final TimerInternals.TimerData timerData = keyedTimerData.getTimerData();
-
-      final TimerKey<K> timerKey =
-          new TimerKey<>(
-              keyedTimerData.getKey(),
-              keyedTimerData.getKeyBytes(),
-              timerData.getNamespace(),
-              timerData.getTimerId());
-
-      timerMap.remove(timerKey);
-
       readyTimers.add(keyedTimerData);
     }
 
@@ -155,31 +142,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     @Override
     public void setTimer(TimerData timerData) {
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
-      final TimerKey<K> timerKey =
-          new TimerKey<>(key, keyBytes, timerData.getNamespace(), timerData.getTimerId());
 
       switch (timerData.getDomain()) {
         case EVENT_TIME:
-          final KeyedTimerData<K> oldTimer = timerMap.get(timerKey);
-
-          if (oldTimer != null) {
-            if (!oldTimer.getTimerData().getDomain().equals(timerData.getDomain())) {
-              throw new IllegalArgumentException(
-                  String.format(
-                      "Attempt to set %s for time domain %s, "
-                          + "but it is already set for time domain %s",
-                      timerData.getTimerId(),
-                      timerData.getDomain(),
-                      oldTimer.getTimerData().getDomain()));
-            }
-            deleteTimer(oldTimer.getTimerData());
-          }
           eventTimeTimers.add(keyedTimerData);
-          timerMap.put(timerKey, keyedTimerData);
           break;
 
         case PROCESSING_TIME:
-          timerRegistry.register(timerKey, timerData.getTimestamp().getMillis());
+          timerRegistry.register(keyedTimerData, timerData.getTimestamp().getMillis());
           break;
 
         default:
@@ -201,19 +171,15 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void deleteTimer(TimerData timerData) {
-      final TimerKey<K> timerKey =
-          new TimerKey<>(key, keyBytes, timerData.getNamespace(), timerData.getTimerId());
+      final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
 
       switch (timerData.getDomain()) {
         case EVENT_TIME:
-          final KeyedTimerData<K> keyedTimerData = timerMap.remove(timerKey);
-          if (keyedTimerData != null) {
-            eventTimeTimers.remove(keyedTimerData);
-          }
+          eventTimeTimers.remove(keyedTimerData);
           break;
 
         case PROCESSING_TIME:
-          timerRegistry.delete(timerKey);
+          timerRegistry.delete(keyedTimerData);
           break;
 
         default:

@@ -97,7 +97,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   public void open(
       Config config,
       TaskContext context,
-      TimerRegistry<TimerKey<K>> timerRegistry,
+      TimerRegistry<KeyedTimerData<K>> timerRegistry,
       OpEmitter<KV<K, OutputT>> emitter) {
     this.pipelineOptions =
         Base64Serializer.deserializeUnchecked(
