@@ -66,10 +66,10 @@ class MobileGamingCommands {
     return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
   }
 
-  public String createPipelineCommand(String exampleName, String runner){
+  public String createPipelineCommand(String exampleName, String runner, String jobName=''){
     return """mvn compile exec:java -q \
       -Dexec.mainClass=org.apache.beam.examples.complete.game.${exampleName} \
-      -Dexec.args=\"${getArgs(exampleName, runner)}\" \
+      -Dexec.args=\"${getArgs(exampleName, runner, jobName)}\" \
       -P${RUNNERS[runner]}"""
   }
 
@@ -80,7 +80,7 @@ class MobileGamingCommands {
   }
 
 
-  private String getArgs(String exampleName, String runner){
+  private String getArgs(String exampleName, String runner, String jobName){
     def args
     switch (exampleName) {
       case "UserScore":
@@ -90,10 +90,10 @@ class MobileGamingCommands {
         args = getHourlyTeamScoreArgs(runner)
         break
       case "LeaderBoard":
-        args = getLeaderBoardArgs(runner)
+        args = getLeaderBoardArgs(runner, jobName)
         break
       case "GameStats":
-        args = getGameStatsArgs(runner)
+        args = getGameStatsArgs(runner, jobName)
         break
       default:
         testScripts.error("Cannot find example ${exampleName} in archetypes.")
@@ -124,21 +124,23 @@ class MobileGamingCommands {
       output: "${getHourlyTeamScoreOutputName(runner)}"]
   }
 
-  private Map getLeaderBoardArgs(String runner){
+  private Map getLeaderBoardArgs(String runner, String jobName){
     return [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       leaderBoardTableName: "leaderboard_${runner}",
-      teamWindowDuration: 5]
+      teamWindowDuration: 5,
+      jobName: jobName]
   }
 
-  private Map getGameStatsArgs(String runner){
+  private Map getGameStatsArgs(String runner, String jobName){
     return [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       fixedWindowDuration: 5,
       userActivityWindowDuration: 5,
       sessionGap: 1,
-      gameStatsTablePrefix: "gamestats_${runner}"]
+      gameStatsTablePrefix: "gamestats_${runner}",
+      jobName: jobName]
   }
 }
