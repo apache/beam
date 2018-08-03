@@ -19,11 +19,18 @@
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import collections
 import contextlib
 import random
 import time
+from builtins import object
+from builtins import range
+from builtins import zip
+
+from future.utils import itervalues
+from past.utils import old_div
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
@@ -114,12 +121,12 @@ class CoGroupByKey(PTransform):
     super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(pvalueish.viewvalues())
+      return pvalueish, tuple(itervalues(pvalueish))
     except AttributeError:
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
@@ -268,12 +275,12 @@ class _BatchSizeEstimator(object):
 
     def div_keys(kv1_kv2):
       (x1, _), (x2, _) = kv1_kv2
-      return x2 / x1
+      return old_div(x2, x1) # TODO(BEAM-4858)
 
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
                    key=div_keys)
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
-    threshold = 2 * len(pairs) / 3
+    threshold = 2 * len(pairs) // 3
     self._data = (
         list(sum(pairs[threshold:], ()))
         + [((x1 + x2) / 2.0, (t1 + t2) / 2.0)
