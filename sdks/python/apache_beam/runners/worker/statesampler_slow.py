@@ -80,6 +80,9 @@ class ScopedState(object):
   def sampled_seconds(self):
     return 1e-9 * self.nsecs
 
+  def sampled_msecs_int(self):
+    return int(1e-6 * self.nsecs)
+
   def __repr__(self):
     return "ScopedState[%s, %s]" % (self.name, self.nsecs)
 
