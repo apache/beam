@@ -30,12 +30,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
-/** Test for {@link Select}. * */
+/** Test for {@link Select}. */
 public class SelectTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  /** flat POJO to selection from. * */
+  /** flat POJO to selection from. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJO1 {
     public String field1 = "field1";
@@ -75,7 +77,7 @@ public class SelectTest {
     }
   };
 
-  /** A pojo matching the schema resulting from selection field1, field3. * */
+  /** A pojo matching the schema resulting from selection field1, field3. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJO1Selected {
     public String field1 = "field1";
@@ -99,14 +101,14 @@ public class SelectTest {
     }
   }
 
-  /** A nested POJO. * */
+  /** A nested POJO. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJO2 {
     public String field1 = "field1";
     public POJO1 field2 = new POJO1();
   }
 
-  /** A pojo matching the schema results from selection field2.*. * */
+  /** A pojo matching the schema results from selection field2.*. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJO2NestedAll {
     public POJO1 field2 = new POJO1();
@@ -129,7 +131,7 @@ public class SelectTest {
     }
   }
 
-  /** A pojo matching the schema results from selection field2.field1, field2.field3. * */
+  /** A pojo matching the schema results from selection field2.field1, field2.field3. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJO2NestedPartial {
     public POJO1Selected field2 = new POJO1Selected();
@@ -151,6 +153,22 @@ public class SelectTest {
 
       return Objects.hash(field2);
     }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectMissingFieldName() {
+    thrown.expect(IllegalArgumentException.class);
+    pipeline.apply(Create.of(new POJO1())).apply(Select.fieldNames("missing"));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectMissingFieldIndex() {
+    thrown.expect(IllegalArgumentException.class);
+    pipeline.apply(Create.of(new POJO1())).apply(Select.fieldIds(42));
+    pipeline.run();
   }
 
   @Test

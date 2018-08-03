@@ -30,10 +30,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
 /** Test for {@link Filter}. * */
 public class FilterTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   /** POJO used to test schemas. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -69,6 +71,26 @@ public class FilterTest {
       return Objects.hash(field1, field2, field3);
     }
   };
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMissingFieldName() {
+    thrown.expect(IllegalArgumentException.class);
+    pipeline
+        .apply(Create.of(new POJO("pass", 52, 2)))
+        .apply(Filter.<POJO>create().whereFieldName("missing", f -> true));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMissingFieldIndex() {
+    thrown.expect(IllegalArgumentException.class);
+    pipeline
+        .apply(Create.of(new POJO("pass", 52, 2)))
+        .apply(Filter.<POJO>create().whereFieldId(23, f -> true));
+    pipeline.run();
+  }
 
   @Test
   @Category(NeedsRunner.class)
