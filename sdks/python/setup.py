@@ -38,7 +38,13 @@ from setuptools.command.test import test
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)  # pylint: disable=exec-used
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
   return global_names['__version__']
 
 
