@@ -17,6 +17,7 @@ package dataflowlib
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"path"
@@ -39,6 +40,7 @@ import (
 const (
 	impulseKind    = "CreateCollection"
 	parDoKind      = "ParallelDo"
+	combineKind    = "CombineValues"
 	flattenKind    = "Flatten"
 	gbkKind        = "GroupByKey"
 	windowIntoKind = "Bucket"
