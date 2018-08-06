@@ -22,8 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.util.MovingFunction;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -36,34 +34,16 @@ import org.slf4j.LoggerFactory;
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);
-  /** Period of samples to determine watermark. */
-  private static final Duration SAMPLE_PERIOD = Duration.standardMinutes(1);
-
-  /** Period of updates to determine watermark. */
-  private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
-
-  /** Constant representing the maximum Kinesis stream retention period. */
-  static final Duration MAX_KINESIS_STREAM_RETENTION_PERIOD = Duration.standardDays(7);
-
-  /** Minimum number of unread messages required before considering updating watermark. */
-  static final int MIN_WATERMARK_MESSAGES = 10;
-
-  /**
-   * Minimum number of SAMPLE_UPDATE periods over which unread messages should be spread before
-   * considering updating watermark.
-   */
-  private static final int MIN_WATERMARK_SPREAD = 2;
 
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
+  private final KinesisWatermark watermark;
+  private final Duration upToDateThreshold;
+  private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
-  private MovingFunction minReadTimestampMsSinceEpoch;
-  private Instant lastWatermark = Instant.now().minus(MAX_KINESIS_STREAM_RETENTION_PERIOD);
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
-  private Duration upToDateThreshold;
-  private Duration backlogBytesCheckThreshold;
   private ShardReadersPool shardReadersPool;
 
   KinesisReader(
@@ -75,6 +55,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         kinesis,
         initialCheckpointGenerator,
         source,
+        new KinesisWatermark(),
         upToDateThreshold,
         Duration.standardSeconds(30));
   }
@@ -83,19 +64,14 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
+      KinesisWatermark watermark,
       Duration upToDateThreshold,
       Duration backlogBytesCheckThreshold) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
+    this.watermark = watermark;
     this.source = source;
-    this.minReadTimestampMsSinceEpoch =
-        new MovingFunction(
-            SAMPLE_PERIOD.getMillis(),
-            SAMPLE_UPDATE.getMillis(),
-            MIN_WATERMARK_SPREAD,
-            MIN_WATERMARK_MESSAGES,
-            Min.ofLongs());
     this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
   }
@@ -121,8 +97,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     currentRecord = shardReadersPool.nextRecord();
     if (currentRecord.isPresent()) {
       Instant approximateArrivalTimestamp = currentRecord.get().getApproximateArrivalTimestamp();
-      minReadTimestampMsSinceEpoch.add(
-          Instant.now().getMillis(), approximateArrivalTimestamp.getMillis());
+      watermark.update(approximateArrivalTimestamp);
       return true;
     }
     return false;
@@ -156,17 +131,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public Instant getWatermark() {
-    Instant now = Instant.now();
-    long readMin = minReadTimestampMsSinceEpoch.get(now.getMillis());
-    if (readMin == Long.MAX_VALUE && shardReadersPool.allShardsUpToDate()) {
-      lastWatermark = now;
-    } else if (minReadTimestampMsSinceEpoch.isSignificant()) {
-      Instant minReadTime = new Instant(readMin);
-      if (minReadTime.isAfter(lastWatermark)) {
-        lastWatermark = minReadTime;
-      }
-    }
-    return lastWatermark;
+    return watermark.getCurrent(shardReadersPool::allShardsUpToDate);
   }
 
   @Override
