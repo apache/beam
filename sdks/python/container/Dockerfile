@@ -42,7 +42,7 @@ RUN apt-get update && \
 #
 RUN \
     # These are packages needed by the Python SDK.
-    # TODO: Would this make more sense as a requirements.txt file?
+    # TODO: This make more sense as a requirements.txt file (BEAM-5076)
     pip install "avro == 1.8.2" && \
     pip install "crcmod == 1.7" && \
     pip install "dill == 0.2.6" && \
