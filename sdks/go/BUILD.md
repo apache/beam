@@ -62,5 +62,7 @@ go get github.com/apache/beam/sdks/go/...
 ```
 Developers must invoke Go for cross-compilation manually, if desired.
 
+If you make changes to templated files you will need to install specialize from sdks/go/cmd/specialize/ on your path.
+
 If you make changes to .proto files, you will need to rebuild the generated code.
 Consult `pkg/beam/model/PROTOBUF.md`.
