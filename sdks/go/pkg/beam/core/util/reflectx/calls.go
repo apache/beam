@@ -17,7 +17,10 @@
 
 package reflectx
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // Generated arity-specialized Func implementations to avoid runtime temporary
 // slices. Code that knows the arity can potentially avoid that overhead in
@@ -57,7 +60,9 @@ func (c *shimFunc0x0) Call0x0() {
 
 func ToFunc0x0(c Func) Func0x0 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 0 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x0); ok {
 		return sc
@@ -98,7 +103,9 @@ func (c *shimFunc0x1) Call0x1() interface{} {
 
 func ToFunc0x1(c Func) Func0x1 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 0 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x1); ok {
 		return sc
@@ -139,7 +146,9 @@ func (c *shimFunc0x2) Call0x2() (interface{}, interface{}) {
 
 func ToFunc0x2(c Func) Func0x2 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 0 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x2); ok {
 		return sc
@@ -180,7 +189,9 @@ func (c *shimFunc0x3) Call0x3() (interface{}, interface{}, interface{}) {
 
 func ToFunc0x3(c Func) Func0x3 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 0 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x3); ok {
 		return sc
@@ -221,7 +232,9 @@ func (c *shimFunc1x0) Call1x0(arg0 interface{}) {
 
 func ToFunc1x0(c Func) Func1x0 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 1 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x0); ok {
 		return sc
@@ -262,7 +275,9 @@ func (c *shimFunc1x1) Call1x1(arg0 interface{}) interface{} {
 
 func ToFunc1x1(c Func) Func1x1 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 1 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x1); ok {
 		return sc
@@ -303,7 +318,9 @@ func (c *shimFunc1x2) Call1x2(arg0 interface{}) (interface{}, interface{}) {
 
 func ToFunc1x2(c Func) Func1x2 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 1 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x2); ok {
 		return sc
@@ -344,7 +361,9 @@ func (c *shimFunc1x3) Call1x3(arg0 interface{}) (interface{}, interface{}, inter
 
 func ToFunc1x3(c Func) Func1x3 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 1 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x3); ok {
 		return sc
@@ -385,7 +404,9 @@ func (c *shimFunc2x0) Call2x0(arg0, arg1 interface{}) {
 
 func ToFunc2x0(c Func) Func2x0 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 2 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x0); ok {
 		return sc
@@ -426,7 +447,9 @@ func (c *shimFunc2x1) Call2x1(arg0, arg1 interface{}) interface{} {
 
 func ToFunc2x1(c Func) Func2x1 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 2 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x1); ok {
 		return sc
@@ -467,7 +490,9 @@ func (c *shimFunc2x2) Call2x2(arg0, arg1 interface{}) (interface{}, interface{})
 
 func ToFunc2x2(c Func) Func2x2 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 2 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x2); ok {
 		return sc
@@ -508,7 +533,9 @@ func (c *shimFunc2x3) Call2x3(arg0, arg1 interface{}) (interface{}, interface{},
 
 func ToFunc2x3(c Func) Func2x3 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 2 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x3); ok {
 		return sc
@@ -549,7 +576,9 @@ func (c *shimFunc3x0) Call3x0(arg0, arg1, arg2 interface{}) {
 
 func ToFunc3x0(c Func) Func3x0 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 3 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x0); ok {
 		return sc
@@ -590,7 +619,9 @@ func (c *shimFunc3x1) Call3x1(arg0, arg1, arg2 interface{}) interface{} {
 
 func ToFunc3x1(c Func) Func3x1 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 3 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x1); ok {
 		return sc
@@ -631,7 +662,9 @@ func (c *shimFunc3x2) Call3x2(arg0, arg1, arg2 interface{}) (interface{}, interf
 
 func ToFunc3x2(c Func) Func3x2 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 3 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x2); ok {
 		return sc
@@ -672,7 +705,9 @@ func (c *shimFunc3x3) Call3x3(arg0, arg1, arg2 interface{}) (interface{}, interf
 
 func ToFunc3x3(c Func) Func3x3 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 3 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x3); ok {
 		return sc
@@ -713,7 +748,9 @@ func (c *shimFunc4x0) Call4x0(arg0, arg1, arg2, arg3 interface{}) {
 
 func ToFunc4x0(c Func) Func4x0 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 4 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x0); ok {
 		return sc
@@ -754,7 +791,9 @@ func (c *shimFunc4x1) Call4x1(arg0, arg1, arg2, arg3 interface{}) interface{} {
 
 func ToFunc4x1(c Func) Func4x1 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 4 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x1); ok {
 		return sc
@@ -795,7 +834,9 @@ func (c *shimFunc4x2) Call4x2(arg0, arg1, arg2, arg3 interface{}) (interface{}, 
 
 func ToFunc4x2(c Func) Func4x2 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 4 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x2); ok {
 		return sc
@@ -836,7 +877,9 @@ func (c *shimFunc4x3) Call4x3(arg0, arg1, arg2, arg3 interface{}) (interface{}, 
 
 func ToFunc4x3(c Func) Func4x3 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 4 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x3); ok {
 		return sc
@@ -877,7 +920,9 @@ func (c *shimFunc5x0) Call5x0(arg0, arg1, arg2, arg3, arg4 interface{}) {
 
 func ToFunc5x0(c Func) Func5x0 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 5 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x0); ok {
 		return sc
@@ -918,7 +963,9 @@ func (c *shimFunc5x1) Call5x1(arg0, arg1, arg2, arg3, arg4 interface{}) interfac
 
 func ToFunc5x1(c Func) Func5x1 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 5 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x1); ok {
 		return sc
@@ -959,7 +1006,9 @@ func (c *shimFunc5x2) Call5x2(arg0, arg1, arg2, arg3, arg4 interface{}) (interfa
 
 func ToFunc5x2(c Func) Func5x2 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 5 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x2); ok {
 		return sc
@@ -1000,7 +1049,9 @@ func (c *shimFunc5x3) Call5x3(arg0, arg1, arg2, arg3, arg4 interface{}) (interfa
 
 func ToFunc5x3(c Func) Func5x3 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 5 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x3); ok {
 		return sc
@@ -1041,7 +1092,9 @@ func (c *shimFunc6x0) Call6x0(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) {
 
 func ToFunc6x0(c Func) Func6x0 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 6 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x0); ok {
 		return sc
@@ -1082,7 +1135,9 @@ func (c *shimFunc6x1) Call6x1(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) in
 
 func ToFunc6x1(c Func) Func6x1 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 6 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x1); ok {
 		return sc
@@ -1123,7 +1178,9 @@ func (c *shimFunc6x2) Call6x2(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (i
 
 func ToFunc6x2(c Func) Func6x2 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 6 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x2); ok {
 		return sc
@@ -1164,7 +1221,9 @@ func (c *shimFunc6x3) Call6x3(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (i
 
 func ToFunc6x3(c Func) Func6x3 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 6 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x3); ok {
 		return sc
@@ -1205,7 +1264,9 @@ func (c *shimFunc7x0) Call7x0(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x0(c Func) Func7x0 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 7 "+
+			"inputs & 0 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x0); ok {
 		return sc
@@ -1246,7 +1307,9 @@ func (c *shimFunc7x1) Call7x1(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x1(c Func) Func7x1 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 7 "+
+			"inputs & 1 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x1); ok {
 		return sc
@@ -1287,7 +1350,9 @@ func (c *shimFunc7x2) Call7x2(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x2(c Func) Func7x2 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 7 "+
+			"inputs & 2 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x2); ok {
 		return sc
@@ -1328,7 +1393,9 @@ func (c *shimFunc7x3) Call7x3(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x3(c Func) Func7x3 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("incompatible func type, expected function of 7 "+
+			"inputs & 3 outputs and instead received a function of %d inputs and %d"+
+			"outputs", c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x3); ok {
 		return sc
