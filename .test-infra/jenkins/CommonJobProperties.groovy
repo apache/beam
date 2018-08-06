@@ -320,6 +320,7 @@ class CommonJobProperties {
         // Clean up environment.
         shell("rm -rf ${perfkit_root}")
         shell("rm -rf ${beam_env}")
+        shell("rm -rf ${perfkit_env}")
 
         // create new VirtualEnv, inherit already existing packages
         shell("virtualenv ${beam_env} --system-site-packages")
