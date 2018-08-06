@@ -294,8 +294,7 @@ public class BeamAggregationTransforms implements Serializable {
         if (sourceFieldExps.get(idx) instanceof Integer) {
           int srcFieldIndex = (Integer) sourceFieldExps.get(idx);
           Coder srcFieldCoder =
-              RowCoder.coderForPrimitiveType(
-                  sourceSchema.getField(srcFieldIndex).getType().getTypeName());
+              RowCoder.coderForFieldType(sourceSchema.getField(srcFieldIndex).getType());
           aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
           // extract coder of two expressions separately.
@@ -305,11 +304,9 @@ public class BeamAggregationTransforms implements Serializable {
           int srcFieldIndexValue = exp.getValue();
 
           Coder srcFieldCoderKey =
-              RowCoder.coderForPrimitiveType(
-                  sourceSchema.getField(srcFieldIndexKey).getType().getTypeName());
+              RowCoder.coderForFieldType(sourceSchema.getField(srcFieldIndexKey).getType());
           Coder srcFieldCoderValue =
-              RowCoder.coderForPrimitiveType(
-                  sourceSchema.getField(srcFieldIndexValue).getType().getTypeName());
+              RowCoder.coderForFieldType(sourceSchema.getField(srcFieldIndexValue).getType());
 
           aggAccuCoderList.add(
               aggregators

@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Instant;
+
 /**
  * Utilities for converting between {@link Schema} field types and {@link TypeDescriptor}s that
  * define Java objects which can represent these field types.
@@ -49,6 +50,7 @@ public class FieldTypeDescriptors {
           .put(TypeName.BOOLEAN, TypeDescriptors.booleans())
           .put(TypeName.BYTES, TypeDescriptor.of(byte[].class))
           .build();
+
   /** Get a {@link TypeDescriptor} from a {@link FieldType}. */
   public static TypeDescriptor javaTypeForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -64,6 +66,7 @@ public class FieldTypeDescriptors {
         return PRIMITIVE_MAPPING.get(fieldType.getTypeName());
     }
   }
+
   /** Get a {@link FieldType} from a {@link TypeDescriptor}. */
   public static FieldType fieldTypeForJavaType(TypeDescriptor typeDescriptor) {
     if (typeDescriptor.isArray()
@@ -93,6 +96,7 @@ public class FieldTypeDescriptors {
         return FieldType.array(fieldTypeForJavaType(typeDescriptor.getComponentType()));
       }
     }
+
     if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
       TypeDescriptor<Collection<?>> collection = typeDescriptor.getSupertype(Collection.class);
       if (collection.getType() instanceof ParameterizedType) {
@@ -102,7 +106,8 @@ public class FieldTypeDescriptors {
         return FieldType.array(fieldTypeForJavaType(TypeDescriptor.of(params[0])));
       }
     }
-    throw new RuntimeException("Coupld not determine array parameter type for field.");
+
+    throw new RuntimeException("Could not determine array parameter type for field.");
   }
 
   private static FieldType getMapFieldType(TypeDescriptor typeDescriptor) {
