@@ -24,18 +24,20 @@ function clean_up(){
   echo "Please sign up your name in the tests you have ran."
 
   echo "===========================Final Cleanup==========================="
-  echo "* Restoring ~/.m2/settings.xml"
   if [[ ! -z `ls -a ~/.m2/settings_backup.xml` ]]; then
     rm ~/.m2/settings.xml
     cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
+    echo "* Restored ~/.m2/settings.xml"
   fi
-  echo "* Restoring ~/.bashrc"
+
   if [[ ! -z `ls -a ~/.bashrc_backup` ]]; then
     rm ~/.bashrc
     cp ~/.bashrc_backup ~/.bashrc
+    echo "* Restored ~/.bashrc"
   fi
 
   rm -rf ~/{LOCAL_CLONE_DIR}
+  echo "* Deleted working dir ~/{LOCAL_CLONE_DIR}"
 }
 
 RELEASE=
@@ -261,9 +263,9 @@ if [[ $confirmation = "y" ]]; then
   sha512sum -c apache-beam-${RELEASE}.zip.sha512
 
   echo "---------------------------Setting up virtualenv------------------------------"
-  sudo pip install --upgrade pip
-  sudo pip install --upgrade setuptools
-  sudo pip install --upgrade virtualenv
+  sudo `which pip` install --upgrade pip
+  sudo `which pip` install --upgrade setuptools
+  sudo `which pip` install --upgrade virtualenv
   virtualenv beam_env
   . beam_env/bin/activate
 
@@ -289,11 +291,13 @@ if [[ $confirmation = "y" ]]; then
   echo "Create a service account as project owner, if you don't have one."
   echo "[Input Required] Please enter your service account email:"
   read USER_SERVICE_ACCOUNT_EMAIL
-  SERVICE_ACCOUNT_KEY_JSON= ${USER}_json_key.json
+  SERVICE_ACCOUNT_KEY_JSON=${USER}_json_key.json
   gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_KEY_JSON} --iam-account ${USER_SERVICE_ACCOUNT_EMAIL}
   export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/${SERVICE_ACCOUNT_KEY_JSON}
 
   echo "-----------------------Setting up Shell Env Vars------------------------------"
+  # [BEAM-4518]
+  FIXED_WINDOW_DURATION=20
   cp ~/.bashrc ~/.bashrc_backup
   echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
   echo "export MOBILE_GAME_DATASET=${MOBILE_GAME_DATASET}" >> ~/.bashrc
@@ -301,6 +305,8 @@ if [[ $confirmation = "y" ]]; then
   echo "export MOBILE_GAME_GCS_BUCKET=${MOBILE_GAME_GCS_BUCKET}" >> ~/.bashrc
   echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
   echo "export RELEASE=${RELEASE}" >> ~/.bashrc
+  echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
+
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
   cd ~
@@ -446,9 +452,6 @@ if [[ $confirmation = "y" ]]; then
       exit
     fi
   fi
-
-  # [BEAM-4518]
-  FIXED_WINDOW_DURATION=20
 
   echo "------------------Starting GameStats with DirectRunner-----------------------"
   echo "[Confirmation Required] Do you want to proceed? [y|N]"
