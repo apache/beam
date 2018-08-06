@@ -30,7 +30,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>This provider finds (recursively) all public getters and setters in a Java object, and creates
  * schemas and rows that bind to those fields. The field order in the schema is not guaranteed to
- * match the method order in the class.
+ * match the method order in the class. The Java object is expected to have implemented a correct
+ * .equals() method. TODO: Validate equals() method is provided, and if not generate a "slow" equals
+ * method based on * the schema.
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
