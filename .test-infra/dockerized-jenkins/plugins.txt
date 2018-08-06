@@ -19,6 +19,7 @@ nodelabelparameter
 envinject
 build-timeout
 throttle-concurrents
+JiraTestResultReporter
 
 active-directory
 analysis-core
