@@ -689,6 +689,8 @@ Each dashboard contains:
 
 [Nexmark performance spark runner](https://apache-beam-testing.appspot.com/explore?dashboard=5138380291571712)
 
+[Nexmark performance dataflow runner](https://apache-beam-testing.appspot.com/explore?dashboard=5670405876482048)
+
 
 ### Output size dashboards links
 
@@ -697,4 +699,6 @@ Each dashboard contains:
 [Nexmark output size flink runner](https://apache-beam-testing.appspot.com/explore?dashboard=5731568492478464)
 
 [Nexmark output size spark runner](https://apache-beam-testing.appspot.com/explore?dashboard=5163657986048000)
+
+[Nexmark output size dataflow runner](https://apache-beam-testing.appspot.com/explore?dashboard=5647201107705856)
 
