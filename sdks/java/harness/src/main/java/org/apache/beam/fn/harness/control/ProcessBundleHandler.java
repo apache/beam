@@ -146,7 +146,7 @@ public class ProcessBundleHandler {
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-      HashSet<String> processedPTransformIds,
+      Set<String> processedPTransformIds,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
       BundleSplitListener splitListener)
