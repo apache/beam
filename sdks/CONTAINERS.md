@@ -130,7 +130,7 @@ USER_REQUIREMENTS=~/my_req.txt ./sdks/python/scripts/add_requirements.sh
 
 Once your custom container is built, remember to upload it to the registry of your choice.
 
-If you build a custom container when you run your job you will want to specify instead of the default latest container, so for example Holden would specify:
+If you build a custom container when you run your job you will need to specify instead of the default latest container, so for example Holden would specify:
 
 ```
 --worker_harness_container_image=holden-docker-apache.bintray.io/beam/python-with-requirements
