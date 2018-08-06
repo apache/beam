@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 
+
+
 /**
  * This class is to be used for defining jobs for post- and pre-commit tests.
  *
@@ -48,6 +50,7 @@ class PostcommitJobBuilder {
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
+
     }
 
     autoBuilds.with(jobDefinition)
