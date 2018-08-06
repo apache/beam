@@ -6,7 +6,7 @@ excerpt_separator: <!--more-->
 categories: blog
 authors:
   - lkuligin
-  - julienphalip
+  - jphalip
 ---
 
 In this post, you'll learn about the current state of support for input streaming connectors in [Apache Beam](https://beam.apache.org/). For more context, you'll also learn about the corresponding state of support in [Apache Spark](https://spark.apache.org/).<!--more-->
