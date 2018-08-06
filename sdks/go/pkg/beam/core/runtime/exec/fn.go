@@ -25,7 +25,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // MainInput is the main input and is unfolded in the invocation, if present.
@@ -150,10 +149,7 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	// (4) Invoke
-	ret, err := reflectx.CallNoPanic(fn.Fn, args)
-	if err != nil {
-		return nil, err
-	}
+	ret := fn.Fn.Call(args)
 	if n.errIdx >= 0 && ret[n.errIdx] != nil {
 		return nil, ret[n.errIdx].(error)
 	}
