@@ -104,6 +104,11 @@ public class RowCoder extends CustomCoder<Row> {
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {}
 
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
   /** Returns the coder used for a given primitive type. */
   public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
     return (Coder<T>) CODER_MAP.get(typeName);
