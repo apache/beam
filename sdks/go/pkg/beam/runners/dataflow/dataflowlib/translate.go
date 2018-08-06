@@ -17,6 +17,7 @@ package dataflowlib
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"path"
@@ -39,6 +40,7 @@ import (
 const (
 	impulseKind    = "CreateCollection"
 	parDoKind      = "ParallelDo"
+	combineKind    = "CombineValues"
 	flattenKind    = "Flatten"
 	gbkKind        = "GroupByKey"
 	windowIntoKind = "Bucket"
@@ -166,6 +168,37 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		prop.ParallelInput = x.pcollections[in]
 		prop.SerializedFn = id // == reference into the proto pipeline
 		return append(steps, x.newStep(id, parDoKind, prop)), nil
+	case graphx.URNCombinePerKey:
+		// Dataflow uses a GBK followed by a CombineValues to determine when it can lift.
+		// To achieve this, we use the combine composite's subtransforms, and modify the
+		// Combine ParDo with the CombineValues kind, set its SerializedFn to map to the
+		// composite payload, and the accumulator coding.
+		if len(t.Subtransforms) != 2 {
+			return nil, fmt.Errorf("invalid CombinePerKey, expected 2 subtransforms but got %d in %v", len(t.Subtransforms), t)
+		}
+		steps, err := x.translateTransforms(fmt.Sprintf("%v%v/", trunk, path.Base(t.UniqueName)), t.Subtransforms)
+		if err != nil {
+			return nil, fmt.Errorf("invalid CombinePerKey, couldn't extract GBK from %v: %v", t, err)
+		}
+		var payload pb.CombinePayload
+		if err := proto.Unmarshal(t.Spec.Payload, &payload); err != nil {
+			return nil, fmt.Errorf("invalid Combine payload for %v: %v", t, err)
+		}
+
+		c, err := x.coders.Coder(payload.AccumulatorCoderId)
+		if err != nil {
+			return nil, fmt.Errorf("invalid Combine payload , missing Accumulator Coder %v: %v", t, err)
+		}
+		enc, err := graphx.EncodeCoderRef(c)
+		if err != nil {
+			return nil, fmt.Errorf("invalid Combine payload, couldn't encode Accumulator Coder %v: %v", t, err)
+		}
+		json.Unmarshal([]byte(steps[1].Properties), &prop)
+		prop.Encoding = enc
+		prop.SerializedFn = id
+		steps[1].Kind = combineKind
+		steps[1].Properties = newMsg(prop)
+		return steps, nil
 
 	case graphx.URNFlatten:
 		for _, in := range t.Inputs {
@@ -177,7 +210,6 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		in := stringx.SingleValue(t.Inputs)
 
 		prop.ParallelInput = x.pcollections[in]
-		prop.DisallowCombinerLifting = true
 		prop.SerializedFn = encodeSerializedFn(x.extractWindowingStrategy(in))
 		return []*df.Step{x.newStep(id, gbkKind, prop)}, nil
 
@@ -224,8 +256,6 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		}
 
 	default:
-		// TODO: graphx.URNCombinePerKey:
-
 		if len(t.Subtransforms) > 0 {
 			return x.translateTransforms(fmt.Sprintf("%v%v/", trunk, path.Base(t.UniqueName)), t.Subtransforms)
 		}
