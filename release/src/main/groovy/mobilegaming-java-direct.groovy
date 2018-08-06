@@ -74,8 +74,9 @@ def InjectorThread = Thread.start() {
   t.run(mobileGamingCommands.createInjectorCommand())
 }
 
+jobName = "leaderboard-validation-" + new Date().getTime() + "-" + new Random().nextInt(1000)
 def LeaderBoardThread = Thread.start() {
-  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner))
+  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
 }
 
 // verify outputs in BQ tables
