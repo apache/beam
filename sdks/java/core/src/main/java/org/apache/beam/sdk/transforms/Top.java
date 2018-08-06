@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.PerKey;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -368,7 +369,6 @@ public class Top {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-
   /**
    * {@code CombineFn} for {@code Top} transforms that combines a bunch of {@code T}s into a single
    * {@code count}-long {@code List<T>}, using {@code compareFn} to choose the largest {@code T}s.

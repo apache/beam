@@ -29,6 +29,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -116,7 +117,32 @@ public class RowCoder extends CustomCoder<Row> {
 
   @Override
   public void verifyDeterministic()
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {}
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    verifyDeterministic(schema);
+  }
+
+  private void verifyDeterministic(Schema schema)
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    for (Field field : schema.getFields()) {
+      verifyDeterministic(field.getType());
+    }
+  }
+
+  private void verifyDeterministic(FieldType fieldType)
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    switch (fieldType.getTypeName()) {
+      case MAP:
+        throw new NonDeterministicException(this, "Map-valued fields cannot be used in keys");
+      case ROW:
+        verifyDeterministic(fieldType.getRowSchema());
+        break;
+      case ARRAY:
+        verifyDeterministic(fieldType.getCollectionElementType());
+        break;
+      default:
+        break;
+    }
+  }
 
   @Override
   public boolean consistentWithEquals() {
@@ -124,8 +150,20 @@ public class RowCoder extends CustomCoder<Row> {
   }
 
   /** Returns the coder used for a given primitive type. */
-  public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
-    return (Coder<T>) CODER_MAP.get(typeName);
+  public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        return (Coder<T>) RowCoder.of(fieldType.getRowSchema());
+      case ARRAY:
+        return (Coder<T>) ListCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
+      case MAP:
+        return (Coder<T>)
+            MapCoder.of(
+                coderForFieldType(fieldType.getMapKeyType()),
+                coderForFieldType(fieldType.getMapValueType()));
+      default:
+        return (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
+    }
   }
 
   /** Return the estimated serialized size of a give row object. */

@@ -407,6 +407,17 @@ public class Combine {
     public TypeDescriptor<OutputT> getOutputType() {
       return new TypeDescriptor<OutputT>(getClass()) {};
     }
+
+    /**
+     * Returns a {@link TypeDescriptor} capturing what is known statically about the input type of
+     * this {@code CombineFn} instance's most-derived class.
+     *
+     * <p>In the normal case of a concrete {@code CombineFn} subclass with no generic type
+     * parameters of its own, this will be a complete non-generic type.
+     */
+    public TypeDescriptor<InputT> getInputType() {
+      return new TypeDescriptor<InputT>(getClass()) {};
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////

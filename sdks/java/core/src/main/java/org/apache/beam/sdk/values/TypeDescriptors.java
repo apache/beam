@@ -319,6 +319,15 @@ public class TypeDescriptors {
     return typeDescriptor;
   }
 
+  /** The {@link TypeDescriptor} for {@link Map}. */
+  public static <K, V> TypeDescriptor<Map<K, V>> maps(
+      TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
+    TypeDescriptor<Map<K, V>> typeDescriptor =
+        new TypeDescriptor<Map<K, V>>() {}.where(new TypeParameter<K>() {}, keyType)
+            .where(new TypeParameter<V>() {}, valueType);
+    return typeDescriptor;
+  }
+
   public static TypeDescriptor<Void> voids() {
     return new TypeDescriptor<Void>() {};
   }
