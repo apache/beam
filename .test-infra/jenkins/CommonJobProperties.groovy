@@ -335,6 +335,9 @@ class CommonJobProperties {
         // Install job requirements for Python SDK.
         shell('.beam_env/bin/pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test]')
 
+        // Build PythonSDK
+        shell('.beam_env/bin/python ' + CommonJobProperties.checkoutDir + "/sdks/python/setup.py sdist --dist-dir=" + CommonJobProperties.checkoutDir + "/sdks/python/target")
+
         // Install Perfkit benchmark requirements.
         shell('.perfkit_env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
 
