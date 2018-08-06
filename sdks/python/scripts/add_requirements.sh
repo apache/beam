@@ -25,6 +25,10 @@ set -e
 # Be really verbose about each command we are running
 set -x
 
+echo "To add requirements you will need a requirements.txt (you can specify with
+ the env variable USER_REQUIREMENTS) and somewhere to push the resulting docker
+ image (e.g bintrary, GCP container registry)."
+
 USER_REQUIREMENTS=${USER_REQUIREMENTS:-requirements.txt}
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 BASE_PYTHON_IMAGE=${BASE_PYTHON_IMAGE:-"$(whoami)-docker-apache.bintray.io/beam/python"}
@@ -37,6 +41,3 @@ pushd $TEMP_DIR
 docker build . -t $NEW_PYTHON_IMAGE --build-arg BASE_PYTHON_IMAGE=$BASE_PYTHON_IMAGE
 popd
 rm -rf $TEMP_DIR
-
-
-
