@@ -95,6 +95,8 @@ public class BeamSortRelTest extends BaseRelTest {
                 .addField("site_id", Schema.FieldType.INT32)
                 .addNullableField("price", Schema.FieldType.DOUBLE)
                 .build()));
+
+    registerTable("ORDER_ID_TABLE", MockedBoundedTable.of(Schema.FieldType.INT64, "order_id"));
   }
 
   @Test
@@ -113,6 +115,40 @@ public class BeamSortRelTest extends BaseRelTest {
                     Schema.FieldType.INT32, "site_id",
                     Schema.FieldType.DOUBLE, "price")
                 .addRows(1L, 2, 1.0, 1L, 1, 2.0, 2L, 4, 3.0, 2L, 1, 4.0)
+                .getRows());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testOnlyOrderBy_asc() {
+    String sql =
+        "INSERT INTO ORDER_ID_TABLE(order_id)  SELECT "
+            + " order_id "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id ASC";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInSameOrder(
+            TestUtils.RowsBuilder.of(Schema.FieldType.INT64, "order_id")
+                .addRows(1L, 1L, 2L, 2L, 5L, 6L, 7L, 8L, 8L, 10L)
+                .getRows());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testOnlyOrderBy_desc() {
+    String sql =
+        "INSERT INTO ORDER_ID_TABLE(order_id)  SELECT "
+            + " order_id "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id DESC";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInSameOrder(
+            TestUtils.RowsBuilder.of(Schema.FieldType.INT64, "order_id")
+                .addRows(10L, 8L, 8L, 7L, 6L, 5L, 2L, 2L, 1L, 1L)
                 .getRows());
     pipeline.run().waitUntilFinish();
   }

@@ -31,6 +31,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -75,6 +76,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
+import org.junit.Assert;
 
 /**
  * An assertion on the contents of a {@link PCollection} incorporated into the pipeline. Such an
@@ -280,6 +282,14 @@ public class PAssert {
      * @return the same {@link IterableAssert} builder for further assertions
      */
     IterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements);
+
+    /**
+     * Asserts that the iterable in question contains the provided elements in the same order.
+     *
+     * @param expectedElements
+     * @return
+     */
+    IterableAssert<T> containsInSameOrder(Iterable<T> expectedElements);
 
     /**
      * Asserts that the iterable in question is empty.
@@ -555,6 +565,11 @@ public class PAssert {
     }
 
     @Override
+    public IterableAssert<T> containsInSameOrder(Iterable<T> expectedElements) {
+      return satisfies(new AssertContainsInSameOrderRelation<>(), expectedElements);
+    }
+
+    @Override
     public PCollectionContentsAssert<T> empty() {
       containsInAnyOrder(Collections.emptyList());
       return this;
@@ -735,6 +750,11 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
       return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
+    }
+
+    @Override
+    public IterableAssert<T> containsInSameOrder(Iterable<T> expectedElements) {
+      return satisfies(new AssertContainsInSameOrderRelation<>(), expectedElements);
     }
 
     @Override
@@ -1315,6 +1335,22 @@ public class PAssert {
     }
   }
 
+  private static class AssertContainsInSameOrder<T>
+      implements SerializableFunction<Iterable<T>, Void> {
+    private List<T> expected;
+
+    public AssertContainsInSameOrder(Iterable<T> expected) {
+      this.expected = Lists.newArrayList(expected);
+    }
+
+    @Override
+    @Nullable
+    public Void apply(Iterable<T> actual) {
+      Assert.assertEquals(expected, Lists.newArrayList(actual));
+      return null;
+    }
+  }
+
   ////////////////////////////////////////////////////////////
 
   /**
@@ -1351,6 +1387,18 @@ public class PAssert {
     @Override
     public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
       return new AssertContainsInAnyOrder<>(expectedElements);
+    }
+  }
+
+  /**
+   * An {@code AssertRelation} implementing the binary predicate that two collections are equal
+   * modulo in the same order.
+   */
+  private static class AssertContainsInSameOrderRelation<T>
+      implements AssertRelation<Iterable<T>, Iterable<T>> {
+    @Override
+    public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
+      return new AssertContainsInSameOrder<T>(expectedElements);
     }
   }
 
