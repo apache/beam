@@ -29,18 +29,20 @@ from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
 
 
-class LocalFileCacheManagerTest(unittest.TestCase):
-  """Unit test for LocalFileCacheManager.
+class FileBasedCacheManagerTest(unittest.TestCase):
+  """Unit test for FileBasedCacheManager.
 
   Note that this set of tests focuses only the the methods that interacts with
-  the local operating system. Those tests that involve interactions with Beam
-  (i.e. source(), sink(), ReadCache, and WriteCache) will be tested with
-  InteractiveRunner as a part of integration tests instead.
+  the LOCAL file system. The idea is that once FileBasedCacheManager works well
+  with the local file system, it should work with any file system with
+  `apache_beam.io.filesystem` interface. Those tests that involve interactions
+  with Beam pipeline (i.e. source(), sink(), ReadCache, and WriteCache) will be
+  tested with InteractiveRunner as a part of integration tests instead.
   """
 
   def setUp(self):
     self.test_dir = tempfile.mkdtemp()
-    self.cache_manager = cache.LocalFileCacheManager(self.test_dir)
+    self.cache_manager = cache.FileBasedCacheManager(self.test_dir)
 
   def tearDown(self):
     # The test_dir might have already been removed by cache_manager.cleanup().

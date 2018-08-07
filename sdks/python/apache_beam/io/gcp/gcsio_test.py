@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import datetime
 import errno
 import logging
 import os
@@ -52,20 +53,28 @@ class FakeGcsClient(object):
 
 class FakeFile(object):
 
-  def __init__(self, bucket, obj, contents, generation, crc32c=None):
+  def __init__(self, bucket, obj, contents, generation, crc32c=None,
+               last_updated=None):
     self.bucket = bucket
     self.object = obj
     self.contents = contents
     self.generation = generation
     self.crc32c = crc32c
+    self.last_updated = last_updated
 
   def get_metadata(self):
+    last_updated_datetime = None
+    if self.last_updated:
+      last_updated_datetime = datetime.datetime.utcfromtimestamp(
+          self.last_updated)
+
     return storage.Object(
         bucket=self.bucket,
         name=self.object,
         generation=self.generation,
         size=len(self.contents),
-        crc32c=self.crc32c)
+        crc32c=self.crc32c,
+        updated=last_updated_datetime)
 
 
 class FakeGcsObjects(object):
@@ -228,9 +237,11 @@ class TestGCSPathParser(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
 
-  def _insert_random_file(self, client, path, size, generation=1, crc32c=None):
+  def _insert_random_file(self, client, path, size, generation=1, crc32c=None,
+                          last_updated=None):
     bucket, name = gcsio.parse_gcs_path(path)
-    f = FakeFile(bucket, name, os.urandom(size), generation, crc32c=crc32c)
+    f = FakeFile(bucket, name, os.urandom(size), generation, crc32c=crc32c,
+                 last_updated=last_updated)
     client.objects.add_file(f)
     return f
 
@@ -244,14 +255,6 @@ class TestGCSIO(unittest.TestCase):
     self._insert_random_file(self.client, file_name, file_size)
     self.assertFalse(self.gcs.exists(file_name + 'xyz'))
     self.assertTrue(self.gcs.exists(file_name))
-
-  def test_checksum(self):
-    file_name = 'gs://gcsio-test/dummy_file'
-    file_size = 1234
-    checksum = 'deadbeef'
-    self._insert_random_file(self.client, file_name, file_size, crc32c=checksum)
-    self.assertTrue(self.gcs.exists(file_name))
-    self.assertEqual(checksum, self.gcs.checksum(file_name))
 
   @mock.patch.object(FakeGcsObjects, 'Get')
   def test_exists_failure(self, mock_get):
@@ -280,6 +283,16 @@ class TestGCSIO(unittest.TestCase):
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(1234, self.gcs.size(file_name))
+
+  def test_last_updated(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    last_updated = 123456.78
+
+    self._insert_random_file(self.client, file_name, file_size,
+                             last_updated=last_updated)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(last_updated, self.gcs.last_updated(file_name))
 
   def test_file_mode(self):
     file_name = 'gs://gcsio-test/dummy_mode_file'

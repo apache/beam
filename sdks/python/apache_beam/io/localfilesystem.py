@@ -268,6 +268,21 @@ class LocalFileSystem(FileSystem):
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Size operation failed", {path: e})
 
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    if not self.exists(path):
+      raise BeamIOError('Path does not exist: %s' % path)
+    return os.path.getmtime(path)
+
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
     :class:`~apache_beam.io.filesystem.FileSystem`.
