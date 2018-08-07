@@ -33,8 +33,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Simple test suite for Join operator. */
@@ -60,17 +60,17 @@ public class JoinTest {
   }
 
   static void checkRightJoin(
-      Flow flow, Dataset<Pair<Integer, String>> left, Dataset<Pair<Integer, Integer>> right) {
+      Flow flow, Dataset<KV<Integer, String>> left, Dataset<KV<Integer, Integer>> right) {
 
-    ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
+    ListDataSink<KV<Integer, KV<String, Integer>>> output = ListDataSink.get();
 
     RightJoin.of(left, right)
-        .by(Pair::getFirst, Pair::getFirst)
+        .by(KV::getKey, KV::getKey)
         .using(
-            (Optional<Pair<Integer, String>> l,
-                Pair<Integer, Integer> r,
-                Collector<Pair<String, Integer>> c) ->
-                c.collect(Pair.of(l.orElse(Pair.of(null, null)).getSecond(), r.getSecond())))
+            (Optional<KV<Integer, String>> l,
+                KV<Integer, Integer> r,
+                Collector<KV<String, Integer>> c) ->
+                c.collect(KV.of(l.orElse(KV.of(null, null)).getValue(), r.getValue())))
         .output()
         .persist(output);
 
@@ -79,27 +79,27 @@ public class JoinTest {
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
-        Pair.of(1, Pair.of("L v1", 1)),
-        Pair.of(1, Pair.of("L v1", 10)),
-        Pair.of(1, Pair.of("L v2", 1)),
-        Pair.of(1, Pair.of("L v2", 10)),
-        Pair.of(2, Pair.of("L v1", 20)),
-        Pair.of(2, Pair.of("L v2", 20)),
-        Pair.of(4, Pair.of(null, 40)));
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(4, KV.of(null, 40)));
   }
 
   static void checkLeftJoin(
-      Flow flow, Dataset<Pair<Integer, String>> left, Dataset<Pair<Integer, Integer>> right) {
+      Flow flow, Dataset<KV<Integer, String>> left, Dataset<KV<Integer, Integer>> right) {
 
-    ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
+    ListDataSink<KV<Integer, KV<String, Integer>>> output = ListDataSink.get();
 
     LeftJoin.of(left, right)
-        .by(Pair::getFirst, Pair::getFirst)
+        .by(KV::getKey, KV::getKey)
         .using(
-            (Pair<Integer, String> l,
-                Optional<Pair<Integer, Integer>> r,
-                Collector<Pair<String, Integer>> c) ->
-                c.collect(Pair.of(l.getSecond(), r.orElse(Pair.of(null, null)).getSecond())))
+            (KV<Integer, String> l,
+                Optional<KV<Integer, Integer>> r,
+                Collector<KV<String, Integer>> c) ->
+                c.collect(KV.of(l.getValue(), r.orElse(KV.of(null, null)).getValue())))
         .output()
         .persist(output);
 
@@ -108,31 +108,29 @@ public class JoinTest {
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
-        Pair.of(1, Pair.of("L v1", 1)),
-        Pair.of(1, Pair.of("L v1", 10)),
-        Pair.of(1, Pair.of("L v2", 1)),
-        Pair.of(1, Pair.of("L v2", 10)),
-        Pair.of(2, Pair.of("L v1", 20)),
-        Pair.of(2, Pair.of("L v2", 20)),
-        Pair.of(3, Pair.of("L v1", null)));
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(3, KV.of("L v1", null)));
   }
 
   @Test
   public void simpleInnerJoinTest() {
     final Flow flow = Flow.create();
 
-    ListDataSource<Pair<Integer, String>> left = getLeftDataSource();
-    ListDataSource<Pair<Integer, Integer>> right = getRightDataSource();
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
 
-    ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
+    ListDataSink<KV<Integer, KV<String, Integer>>> output = ListDataSink.get();
 
     Join.of(flow.createInput(left), flow.createInput(right))
-        .by(Pair::getFirst, Pair::getFirst)
+        .by(KV::getKey, KV::getKey)
         .using(
-            (Pair<Integer, String> l,
-                Pair<Integer, Integer> r,
-                Collector<Pair<String, Integer>> c) ->
-                c.collect(Pair.of(l.getSecond(), r.getSecond())))
+            (KV<Integer, String> l, KV<Integer, Integer> r, Collector<KV<String, Integer>> c) ->
+                c.collect(KV.of(l.getValue(), r.getValue())))
         .output()
         .persist(output);
 
@@ -141,20 +139,20 @@ public class JoinTest {
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
-        Pair.of(1, Pair.of("L v1", 1)),
-        Pair.of(1, Pair.of("L v1", 10)),
-        Pair.of(1, Pair.of("L v2", 1)),
-        Pair.of(1, Pair.of("L v2", 10)),
-        Pair.of(2, Pair.of("L v1", 20)),
-        Pair.of(2, Pair.of("L v2", 20)));
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v2", 20)));
   }
 
   @Test
   public void simpleLeftJoinTest() {
     final Flow flow = Flow.create();
 
-    ListDataSource<Pair<Integer, String>> left = getLeftDataSource();
-    ListDataSource<Pair<Integer, Integer>> right = getRightDataSource();
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
 
     checkLeftJoin(flow, flow.createInput(left), flow.createInput(right));
   }
@@ -163,8 +161,8 @@ public class JoinTest {
   public void simpleRightJoinTest() {
     final Flow flow = Flow.create();
 
-    ListDataSource<Pair<Integer, String>> left = getLeftDataSource();
-    ListDataSource<Pair<Integer, Integer>> right = getRightDataSource();
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
 
     checkRightJoin(flow, flow.createInput(left), flow.createInput(right));
   }
@@ -173,21 +171,21 @@ public class JoinTest {
   public void simpleFullJoinTest() {
     final Flow flow = Flow.create();
 
-    ListDataSource<Pair<Integer, String>> left = getLeftDataSource();
-    ListDataSource<Pair<Integer, Integer>> right = getRightDataSource();
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
 
-    ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
+    ListDataSink<KV<Integer, KV<String, Integer>>> output = ListDataSink.get();
 
     FullJoin.of(flow.createInput(left), flow.createInput(right))
-        .by(Pair::getFirst, Pair::getFirst)
+        .by(KV::getKey, KV::getKey)
         .using(
-            (Optional<Pair<Integer, String>> l,
-                Optional<Pair<Integer, Integer>> r,
-                Collector<Pair<String, Integer>> c) ->
+            (Optional<KV<Integer, String>> l,
+                Optional<KV<Integer, Integer>> r,
+                Collector<KV<String, Integer>> c) ->
                 c.collect(
-                    Pair.of(
-                        l.orElse(Pair.of(null, null)).getSecond(),
-                        r.orElse(Pair.of(null, null)).getSecond())))
+                    KV.of(
+                        l.orElse(KV.of(null, null)).getValue(),
+                        r.orElse(KV.of(null, null)).getValue())))
         .output()
         .persist(output);
 
@@ -196,25 +194,24 @@ public class JoinTest {
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
-        Pair.of(1, Pair.of("L v1", 1)),
-        Pair.of(1, Pair.of("L v1", 10)),
-        Pair.of(1, Pair.of("L v2", 1)),
-        Pair.of(1, Pair.of("L v2", 10)),
-        Pair.of(2, Pair.of("L v1", 20)),
-        Pair.of(2, Pair.of("L v2", 20)),
-        Pair.of(3, Pair.of("L v1", null)),
-        Pair.of(4, Pair.of(null, 40)));
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(3, KV.of("L v1", null)),
+        KV.of(4, KV.of(null, 40)));
   }
 
   @Test
   public void simpleBroadcastHashRightJoinTest() {
     final Flow flow = Flow.create();
 
-    ListDataSource<Pair<Integer, String>> left = getLeftDataSource();
-    ListDataSource<Pair<Integer, Integer>> right = getRightDataSource();
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
 
-    final Dataset<Pair<Integer, String>> smallLeftSide =
-        addFitsInMemoryHint(flow.createInput(left));
+    final Dataset<KV<Integer, String>> smallLeftSide = addFitsInMemoryHint(flow.createInput(left));
 
     checkRightJoin(flow, smallLeftSide, flow.createInput(right));
 
@@ -225,10 +222,10 @@ public class JoinTest {
   public void simpleBroadcastHashLefttJoinTest() {
     final Flow flow = Flow.create();
 
-    ListDataSource<Pair<Integer, String>> left = getLeftDataSource();
-    ListDataSource<Pair<Integer, Integer>> right = getRightDataSource();
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
 
-    final Dataset<Pair<Integer, Integer>> smallRightSide =
+    final Dataset<KV<Integer, Integer>> smallRightSide =
         addFitsInMemoryHint(flow.createInput(right));
 
     checkLeftJoin(flow, flow.createInput(left), smallRightSide);
@@ -236,18 +233,17 @@ public class JoinTest {
     checkBrodcastHashJoinTranslatorUsage(flow);
   }
 
-  ListDataSource<Pair<Integer, String>> getLeftDataSource() {
+  ListDataSource<KV<Integer, String>> getLeftDataSource() {
     return ListDataSource.bounded(
         asList(
-            Pair.of(1, "L v1"),
-            Pair.of(1, "L v2"),
-            Pair.of(2, "L v1"),
-            Pair.of(2, "L v2"),
-            Pair.of(3, "L v1")));
+            KV.of(1, "L v1"),
+            KV.of(1, "L v2"),
+            KV.of(2, "L v1"),
+            KV.of(2, "L v2"),
+            KV.of(3, "L v1")));
   }
 
-  ListDataSource<Pair<Integer, Integer>> getRightDataSource() {
-    return ListDataSource.bounded(
-        asList(Pair.of(1, 1), Pair.of(1, 10), Pair.of(2, 20), Pair.of(4, 40)));
+  ListDataSource<KV<Integer, Integer>> getRightDataSource() {
+    return ListDataSource.bounded(asList(KV.of(1, 1), KV.of(1, 10), KV.of(2, 20), KV.of(4, 40)));
   }
 }

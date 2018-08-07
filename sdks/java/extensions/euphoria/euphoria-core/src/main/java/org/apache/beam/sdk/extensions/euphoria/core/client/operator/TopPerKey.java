@@ -46,12 +46,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -67,7 +67,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * TopPerKey.of(elements)
  *      .keyBy(e -> (byte) 0)
  *      .valueBy(e -> e)
- *      .scoreBy(Pair::getSecond)
+ *      .scoreBy(KV::getValue)
  *      .output();
  * }</pre>
  *
@@ -168,34 +168,34 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
-    StateSupport.MergeFromStateMerger<Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>>
+    StateSupport.MergeFromStateMerger<KV<V, ScoreT>, KV<V, ScoreT>, MaxScored<V, ScoreT>>
         stateCombiner = new StateSupport.MergeFromStateMerger<>();
 
-    TypeDescriptor<Pair<V, ScoreT>> rsbkValueType = TypeUtils.pairs(valueType, scoreType);
+    TypeDescriptor<KV<V, ScoreT>> rsbkValueType = TypeUtils.keyValues(valueType, scoreType);
 
-    ReduceStateByKey<InputT, K, Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
+    ReduceStateByKey<InputT, K, KV<V, ScoreT>, KV<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
         new ReduceStateByKey<>(
             getName() + "::ReduceStateByKey",
             flow,
             input,
             keyExtractor,
             keyType,
-            e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
+            e -> KV.of(valueFn.apply(e), scoreFn.apply(e)),
             rsbkValueType,
             windowing,
             euphoriaWindowing,
-            (StateContext context, Collector<Pair<V, ScoreT>> collector) ->
+            (StateContext context, Collector<KV<V, ScoreT>> collector) ->
                 new MaxScored<>(context.getStorageProvider()),
             stateCombiner,
-            TypeUtils.pairs(keyType, rsbkValueType),
+            TypeUtils.keyValues(keyType, rsbkValueType),
             Collections.emptySet());
 
-    MapElements<Pair<K, Pair<V, ScoreT>>, Triple<K, V, ScoreT>> format =
+    MapElements<KV<K, KV<V, ScoreT>>, Triple<K, V, ScoreT>> format =
         new MapElements<>(
             getName() + "::MapElements",
             flow,
             reduce.output(),
-            e -> Triple.of(e.getFirst(), e.getSecond().getFirst(), e.getSecond().getSecond()),
+            e -> Triple.of(e.getKey(), e.getValue().getKey(), e.getValue().getValue()),
             getHints(),
             outputType);
 
@@ -236,13 +236,13 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
   /** TODO: complete javadoc. */
   private static final class MaxScored<V, CompareT extends Comparable<CompareT>>
-      implements State<Pair<V, CompareT>, Pair<V, CompareT>>,
+      implements State<KV<V, CompareT>, KV<V, CompareT>>,
           StateSupport.MergeFrom<MaxScored<V, CompareT>> {
 
-    static final ValueStorageDescriptor<Pair> MAX_STATE_DESCR =
-        ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null));
+    static final ValueStorageDescriptor<KV> MAX_STATE_DESCR =
+        ValueStorageDescriptor.of("max", KV.class, KV.of(null, null));
 
-    final ValueStorage<Pair<V, CompareT>> curr;
+    final ValueStorage<KV<V, CompareT>> curr;
 
     @SuppressWarnings("unchecked")
     MaxScored(StorageProvider storageProvider) {
@@ -250,17 +250,17 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
 
     @Override
-    public void add(Pair<V, CompareT> element) {
-      Pair<V, CompareT> c = curr.get();
-      if (c.getFirst() == null || element.getSecond().compareTo(c.getSecond()) > 0) {
+    public void add(KV<V, CompareT> element) {
+      KV<V, CompareT> c = curr.get();
+      if (c.getKey() == null || element.getValue().compareTo(c.getValue()) > 0) {
         curr.set(element);
       }
     }
 
     @Override
-    public void flush(Collector<Pair<V, CompareT>> context) {
-      Pair<V, CompareT> c = curr.get();
-      if (c.getFirst() != null) {
+    public void flush(Collector<KV<V, CompareT>> context) {
+      KV<V, CompareT> c = curr.get();
+      if (c.getKey() != null) {
         context.collect(c);
       }
     }
@@ -272,8 +272,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
     @Override
     public void mergeFrom(MaxScored<V, CompareT> other) {
-      Pair<V, CompareT> o = other.curr.get();
-      if (o.getFirst() != null) {
+      KV<V, CompareT> o = other.curr.get();
+      if (o.getKey() != null) {
         this.add(o);
       }
     }

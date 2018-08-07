@@ -47,12 +47,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateB
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.SingleInputOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder.InputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Before;
@@ -70,7 +70,7 @@ public class FlowUnfolderTest {
     input = flow.createInput(new MockStreamDataSource<>());
 
     Dataset<Object> mapped = MapElements.of(input).using(e -> e).output();
-    Dataset<Pair<Object, Long>> reduced =
+    Dataset<KV<Object, Long>> reduced =
         ReduceByKey.of(mapped)
             .keyBy(e -> e)
             .reduceBy(values -> 1L)
@@ -79,10 +79,10 @@ public class FlowUnfolderTest {
             .discardingFiredPanes()
             .output();
 
-    Dataset<Pair<Object, Long>> output =
+    Dataset<KV<Object, Long>> output =
         Join.of(mapped, reduced)
-            .by(e -> e, Pair::getFirst)
-            .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
+            .by(e -> e, KV::getKey)
+            .using((Object l, KV<Object, Long> r, Collector<Long> c) -> c.collect(r.getValue()))
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
             .triggeredBy(DefaultTrigger.of())
             .discardingFiredPanes()
@@ -155,7 +155,7 @@ public class FlowUnfolderTest {
     input = flow.createInput(new MockStreamDataSource<>());
 
     Dataset<Object> mapped = MapElements.of(input).using(e -> e).output();
-    Dataset<Pair<Object, Long>> reduced =
+    Dataset<KV<Object, Long>> reduced =
         ReduceByKey.of(mapped)
             .keyBy(e -> e)
             .reduceBy(values -> 1L)
@@ -164,19 +164,19 @@ public class FlowUnfolderTest {
             .discardingFiredPanes()
             .output();
 
-    Dataset<Pair<Object, Long>> output =
+    Dataset<KV<Object, Long>> output =
         Join.of(mapped, reduced)
-            .by(e -> e, Pair::getFirst)
+            .by(e -> e, KV::getKey)
             .using(
-                (Object l, Pair<Object, Long> r, Collector<Long> c) -> {
-                  c.collect(r.getSecond());
+                (Object l, KV<Object, Long> r, Collector<Long> c) -> {
+                  c.collect(r.getValue());
                 })
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
             .triggeredBy(DefaultTrigger.of())
             .discardingFiredPanes()
             .output();
 
-    ListDataSink<Pair<Object, Long>> sink = ListDataSink.get();
+    ListDataSink<KV<Object, Long>> sink = ListDataSink.get();
     output.persist(sink);
     reduced.persist(sink);
     FlowUnfolder.unfold(flow, Operators.getBasicOps());

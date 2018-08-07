@@ -38,11 +38,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAw
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -140,16 +140,11 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
             euphoriaWindowing,
             (CombinableReduceFunction<Void>) e -> null,
             Collections.emptySet(),
-            TypeUtils.pairs(outputType, TypeDescriptors.nulls()));
+            TypeUtils.keyValues(outputType, TypeDescriptors.nulls()));
 
     MapElements format =
         new MapElements<>(
-            getName() + "::" + "Map",
-            flow,
-            reduce.output(),
-            Pair::getFirst,
-            getHints(),
-            outputType);
+            getName() + "::" + "Map", flow, reduce.output(), KV::getKey, getHints(), outputType);
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);

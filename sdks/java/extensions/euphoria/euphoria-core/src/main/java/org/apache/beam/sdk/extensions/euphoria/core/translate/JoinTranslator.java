@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.common.OperatorTranslatorUtil;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.join.FullJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.join.InnerJoinFn;
@@ -47,7 +46,7 @@ public class JoinTranslator implements OperatorTranslator<Join> {
   }
 
   public <K, LeftT, RightT, OutputT, W extends BoundedWindow>
-      PCollection<Pair<K, OutputT>> doTranslate(
+      PCollection<KV<K, OutputT>> doTranslate(
           Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
 
     Coder<K> keyCoder = context.getKeyCoder(operator);
@@ -69,7 +68,7 @@ public class JoinTranslator implements OperatorTranslator<Join> {
         OperatorTranslatorUtil.getKVInputCollection(
             right, operator.getRightKeyExtractor(), keyCoder, rightCoder, "::extract-keys-right");
 
-    // and apply the same widowing on input Pcolections since the documentation states:
+    // and apply the same widowing on input PColections since the documentation states:
     //'all of the PCollections you want to group must use the same
     // windowing strategy and window sizing'
     leftKvInput =

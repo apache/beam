@@ -41,8 +41,8 @@ public class FluentTest {
   //        // ~ strip the needless key and flatten out the elements thereby
   //        // creating multiple elements in the output belonging to the same window
   //        .flatMap(
-  //            (Pair<String, Set<String>> e, Collector<String> c) ->
-  //                e.getSecond().stream().forEachOrdered(c::collect))
+  //            (KV<String, Set<String>> e, Collector<String> c) ->
+  //                e.getValue().stream().forEachOrdered(c::collect))
   //        // ~ we now expect to reconstruct the same windowing
   //        // as the very initial step
   //        .apply(
@@ -52,7 +52,7 @@ public class FluentTest {
   //                    .valueBy(e -> e)
   //                    .reduceBy(s -> s.collect(Collectors.toSet())))
   //        // ~ strip the needless key
-  //        .mapElements(Pair::getSecond)
+  //        .mapElements(KV::getValue)
   //        .persist(out)
   //        .executeSync(createExecutor());
   //  }

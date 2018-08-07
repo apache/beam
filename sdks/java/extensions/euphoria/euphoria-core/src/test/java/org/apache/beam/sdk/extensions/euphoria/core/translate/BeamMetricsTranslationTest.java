@@ -31,12 +31,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -62,7 +62,7 @@ public class BeamMetricsTranslationTest {
     final String counterName1 = "counter1";
     final String operatorName1 = "count_elements_and_save_even_numbers";
 
-    final Dataset<Pair<Integer, Integer>> pairedInput =
+    final Dataset<KV<Integer, Integer>> kvInput =
         ReduceByKey.named(operatorName1)
             .of(input)
             .keyBy(e -> e)
@@ -83,10 +83,10 @@ public class BeamMetricsTranslationTest {
 
     final Dataset<Integer> mapElementsOutput =
         MapElements.named(operatorName2)
-            .of(pairedInput) // pairedInput = [<2,2>, <4,4>]
+            .of(kvInput) // kvInput = [<2,2>, <4,4>]
             .using(
-                (pair, context) -> {
-                  final Integer value = pair.getSecond();
+                (kv, context) -> {
+                  final Integer value = kv.getValue();
                   context.getCounter(counterName2).increment();
                   context.getHistogram(counterName2).add(value);
                   return value;

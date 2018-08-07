@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
@@ -33,7 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * @param <OutputT> type of output elements
  */
 public abstract class JoinFn<LeftT, RightT, K, OutputT>
-    extends DoFn<KV<K, CoGbkResult>, Pair<K, OutputT>> {
+    extends DoFn<KV<K, CoGbkResult>, KV<K, OutputT>> {
 
   protected final BinaryFunctor<LeftT, RightT, OutputT> joiner;
   protected final TupleTag<LeftT> leftTag;

@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
 import java.util.Collection;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * @param <T> type of element
@@ -29,12 +29,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 public interface MergingWindowing<T, W extends Window<W>> extends Windowing<T, W> {
   /**
    * Given a set of active windows (for a single key) determine which of the windows can be merged.
-   * The pairs in the return value define: "(windows-to-be-merged, merge-window)". Returning the
-   * same window to be merged multiple times into another is considered erroneous. Note that a
-   * window's identity is solely determined by the {@link Window}.
+   * The {@link KV KVs} in the return value define: "(windows-to-be-merged, merge-window)".
+   * Returning the same window to be merged multiple times into another is considered erroneous.
+   * Note that a window's identity is solely determined by the {@link Window}.
    *
    * @param actives a set of active windows
    * @return a set of merge commands
    */
-  Collection<Pair<Collection<W>, W>> mergeWindows(Collection<W> actives);
+  Collection<KV<Collection<W>, W>> mergeWindows(Collection<W> actives);
 }

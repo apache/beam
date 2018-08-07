@@ -29,9 +29,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
@@ -46,7 +46,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<Integer, String>> joined =
+    Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -103,7 +103,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<Integer, String>> joined =
+    Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -350,7 +350,7 @@ public class JoinTest {
     TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     TypeDescriptor<String> outputType = TypeDescriptors.strings();
 
-    Dataset<Pair<Integer, String>> joined =
+    Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length, keyType)

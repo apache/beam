@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * A directed acyclic graph of nodes of type T.
@@ -238,16 +238,16 @@ public class DAG<T> {
   public String toString() {
     // iterate the DAG DFS and write it to string
     StringBuilder sb = new StringBuilder();
-    Deque<Pair<Integer, Node<T>>> open = new ArrayDeque<>();
-    this.roots.forEach(r -> open.add(Pair.of(0, r)));
+    Deque<KV<Integer, Node<T>>> open = new ArrayDeque<>();
+    this.roots.forEach(r -> open.add(KV.of(0, r)));
     while (!open.isEmpty()) {
-      Pair<Integer, Node<T>> poll = open.removeFirst();
-      for (int i = 0; i < poll.getFirst(); i++) {
+      KV<Integer, Node<T>> poll = open.removeFirst();
+      for (int i = 0; i < poll.getKey(); i++) {
         sb.append(" ");
       }
-      sb.append(poll.getSecond().get());
+      sb.append(poll.getValue().get());
       sb.append("\n");
-      poll.getSecond().children.forEach(n -> open.addFirst(Pair.of(poll.getFirst() + 1, n)));
+      poll.getValue().children.forEach(n -> open.addFirst(KV.of(poll.getKey() + 1, n)));
     }
     return sb.toString();
   }

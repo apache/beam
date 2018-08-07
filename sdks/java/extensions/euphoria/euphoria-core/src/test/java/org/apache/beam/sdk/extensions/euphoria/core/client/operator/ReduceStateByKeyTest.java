@@ -30,9 +30,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateC
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -46,7 +46,7 @@ public class ReduceStateByKeyTest {
 
     FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     DefaultTrigger trigger = DefaultTrigger.of();
-    Dataset<Pair<String, Long>> reduced =
+    Dataset<KV<String, Long>> reduced =
         ReduceStateByKey.named("ReduceStateByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -97,7 +97,7 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced =
+    Dataset<KV<String, Long>> reduced =
         ReduceStateByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)

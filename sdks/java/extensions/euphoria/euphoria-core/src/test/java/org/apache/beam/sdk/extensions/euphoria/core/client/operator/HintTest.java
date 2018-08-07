@@ -30,11 +30,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.VoidSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Test usage of hints in different operators. */
@@ -52,7 +52,7 @@ public class HintTest {
             .of(input)
             .using(e -> e)
             .output(SizeHint.FITS_IN_MEMORY);
-    Dataset<Pair<Object, Long>> reduced =
+    Dataset<KV<Object, Long>> reduced =
         ReduceByKey.named("reduceByKeyTwoHints")
             .of(mapped)
             .keyBy(e -> e)
@@ -65,15 +65,15 @@ public class HintTest {
     Dataset<Object> mapped2 =
         MapElements.named("mapElementsTestHint2")
             .of(reduced)
-            .using(Pair::getFirst)
+            .using(KV::getKey)
             .output(new Util.TestHint2());
     mapped2.persist(new VoidSink<>());
 
-    Dataset<Pair<Object, Long>> output =
+    Dataset<KV<Object, Long>> output =
         Join.named("joinHint")
             .of(mapped, reduced)
-            .by(e -> e, Pair::getFirst)
-            .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
+            .by(e -> e, KV::getKey)
+            .using((Object l, KV<Object, Long> r, Collector<Long> c) -> c.collect(r.getValue()))
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
             .triggeredBy(DefaultTrigger.of())
             .discardingFiredPanes()

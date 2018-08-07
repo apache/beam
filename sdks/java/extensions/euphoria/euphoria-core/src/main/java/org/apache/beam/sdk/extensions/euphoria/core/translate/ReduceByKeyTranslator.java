@@ -27,7 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.window.WindowingUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -45,7 +44,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @SuppressWarnings("unchecked")
   private static <InputT, K, V, OutputT, W extends BoundedWindow>
-      PCollection<Pair<K, OutputT>> doTranslate(
+      PCollection<KV<K, OutputT>> doTranslate(
           ReduceByKey<InputT, K, V, OutputT, W> operator, TranslationContext context) {
 
     //TODO Could we even do values sorting in Beam ? And do we want it?
@@ -80,18 +79,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     if (operator.isCombinable()) {
       final PCollection<KV<K, V>> combined =
           extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
+      return (PCollection) combined;
 
-      // remap from KVs to Pairs
-      return (PCollection)
-          combined.apply(
-              operator.getName() + "::map-to-pairs",
-              MapElements.via(
-                  new SimpleFunction<KV<K, V>, Pair<K, V>>() {
-                    @Override
-                    public Pair<K, V> apply(KV<K, V> in) {
-                      return Pair.of(in.getKey(), in.getValue());
-                    }
-                  }));
     } else {
       // reduce
       final AccumulatorProvider accumulators =
@@ -133,10 +122,10 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     return doTranslate(operator, context);
   }
 
-  private static class ReduceDoFn<K, V, OutT> extends DoFn<KV<K, Iterable<V>>, Pair<K, OutT>> {
+  private static class ReduceDoFn<K, V, OutT> extends DoFn<KV<K, Iterable<V>>, KV<K, OutT>> {
 
     private final ReduceFunctor<V, OutT> reducer;
-    private final DoFnCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> collector;
+    private final DoFnCollector<KV<K, Iterable<V>>, KV<K, OutT>, OutT> collector;
 
     ReduceDoFn(
         ReduceFunctor<V, OutT> reducer, AccumulatorProvider accumulators, String operatorName) {
@@ -156,8 +145,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
    * Translation of {@link Collector} collect to Beam's context output. OperatorName serve as
    * namespace for Beam's metrics.
    */
-  static class Collector<K, V, OutT>
-      implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> {
+  private static class Collector<K, V, OutT>
+      implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, KV<K, OutT>, OutT> {
 
     private final String operatorName;
 
@@ -166,8 +155,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
 
     @Override
-    public void collect(DoFn<KV<K, Iterable<V>>, Pair<K, OutT>>.ProcessContext ctx, OutT out) {
-      ctx.output(Pair.of(ctx.element().getKey(), out));
+    public void collect(DoFn<KV<K, Iterable<V>>, KV<K, OutT>>.ProcessContext ctx, OutT out) {
+      ctx.output(KV.of(ctx.element().getKey(), out));
     }
 
     @Override
