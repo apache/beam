@@ -55,8 +55,8 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.16.0"
-def avatica_version = "1.11.0"
+def calcite_version = "1.17.0"
+def avatica_version = "1.12.0"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"

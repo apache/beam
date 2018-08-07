@@ -656,7 +656,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "DATETIME_PLUS", kind = "PLUS")
+  @SqlOperatorTest(name = "+", kind = "PLUS")
   public void testDatetimeInfixPlus() {
     ExpressionChecker checker =
         new ExpressionChecker()
