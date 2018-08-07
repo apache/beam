@@ -30,7 +30,7 @@ boolean IfExistsOpt() :
 SqlNodeList Options() :
 {
     final Span s;
-    final List<SqlNode> list = Lists.newArrayList();
+    final List<SqlNode> list = new ArrayList<SqlNode>();
 }
 {
     <OPTIONS> { s = span(); } <LPAREN>
@@ -87,7 +87,7 @@ List<Schema.Field> FieldListAngular() :
 
 List<Schema.Field> FieldListBody() :
 {
-    final List<Schema.Field> fields = Lists.newArrayList();
+    final List<Schema.Field> fields = new ArrayList<Schema.Field>();
     Schema.Field field = null;
 }
 {
