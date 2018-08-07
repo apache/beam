@@ -79,7 +79,7 @@ public class RowCoder extends CustomCoder<Row> {
     if (schema.getUUID() != null) {
       checkArgument(
           schema.getUUID().equals(id),
-          "Schema has a UUID that doesn't match argument to constructor. %s v.s. $s",
+          "Schema has a UUID that doesn't match argument to constructor. %s v.s. %s",
           schema.getUUID(),
           id);
     } else {
