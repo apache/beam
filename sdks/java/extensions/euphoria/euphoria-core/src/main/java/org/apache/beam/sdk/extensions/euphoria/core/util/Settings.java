@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * General utility class to store key/value pairs as strings providing converter methods for
@@ -94,8 +94,8 @@ public class Settings implements Serializable {
     return map.entrySet()
         .stream()
         .filter(e -> e.getKey().startsWith(prefix))
-        .map(e -> Pair.of(e.getKey().substring(prefix.length()), e.getValue()))
-        .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+        .map(e -> KV.of(e.getKey().substring(prefix.length()), e.getValue()))
+        .collect(Collectors.toMap(KV::getKey, KV::getValue));
   }
 
   public boolean contains(String key) {

@@ -29,18 +29,18 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider.Factory;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.PairCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
@@ -86,45 +86,47 @@ public class CoderTest {
   }
 
   @Test
-  public void testGetPairCoder() {
-    EverythingAwareClass<Pair<Integer, String>> stringAware =
+  public void testGetKvCoder() {
+    EverythingAwareClass<KV<Integer, String>> stringAware =
         new EverythingAwareClass<>(
-            TypeUtils.pairs(TypeDescriptors.integers(), TypeDescriptors.strings()), "");
+            TypeUtils.keyValues(TypeDescriptors.integers(), TypeDescriptors.strings()), "");
 
-    Coder<Pair<Integer, String>> pairCoder;
+    Coder<KV<Integer, String>> kvCoder;
 
-    pairCoder = kryoAllowingContext.getOutputCoder(stringAware);
-    assertPairCoder(pairCoder);
+    kvCoder = kryoAllowingContext.getOutputCoder(stringAware);
+    assertKVCoder(kvCoder);
 
-    pairCoder = kryoAllowingContext.getKeyCoder(stringAware);
-    assertPairCoder(pairCoder);
+    kvCoder = kryoAllowingContext.getKeyCoder(stringAware);
+    assertKVCoder(kvCoder);
 
-    pairCoder = kryoAllowingContext.getValueCoder(stringAware);
-    assertPairCoder(pairCoder);
+    kvCoder = kryoAllowingContext.getValueCoder(stringAware);
+    assertKVCoder(kvCoder);
   }
 
-  private void assertPairCoder(Coder<Pair<Integer, String>> pairCoder) {
-    assertEquals(PairCoder.class, pairCoder.getClass());
-    PairCoder<Integer, String> castedCoder = (PairCoder<Integer, String>) pairCoder;
+  private void assertKVCoder(Coder<KV<Integer, String>> kvCoder) {
+    assertEquals(KvCoder.class, kvCoder.getClass());
+    KvCoder<Integer, String> castedCoder = (KvCoder<Integer, String>) kvCoder;
     assertEquals(VarIntCoder.class, castedCoder.getKeyCoder().getClass());
     assertEquals(StringUtf8Coder.class, castedCoder.getValueCoder().getClass());
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testGetPairCoderFailsWhenKeyCoderNotAvailable() {
-    EverythingAwareClass<Pair<ClassWithoutCoder, String>> stringAware =
+  public void testGetKvCoderFailsWhenKeyCoderNotAvailable() {
+    EverythingAwareClass<KV<ClassWithoutCoder, String>> stringAware =
         new EverythingAwareClass<>(
-            TypeUtils.pairs(TypeDescriptor.of(ClassWithoutCoder.class), TypeDescriptors.strings()),
+            TypeUtils.keyValues(
+                TypeDescriptor.of(ClassWithoutCoder.class), TypeDescriptors.strings()),
             "");
 
     noFallbackKryoContext.getOutputCoder(stringAware);
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testGetPairCoderFailsWhenVAlueCoderNotAvailable() {
-    EverythingAwareClass<Pair<Integer, ClassWithoutCoder>> stringAware =
+  public void testGetKvCoderFailsWhenVAlueCoderNotAvailable() {
+    EverythingAwareClass<KV<Integer, ClassWithoutCoder>> stringAware =
         new EverythingAwareClass<>(
-            TypeUtils.pairs(TypeDescriptors.integers(), TypeDescriptor.of(ClassWithoutCoder.class)),
+            TypeUtils.keyValues(
+                TypeDescriptors.integers(), TypeDescriptor.of(ClassWithoutCoder.class)),
             "");
 
     noFallbackKryoContext.getOutputCoder(stringAware);
@@ -145,18 +147,18 @@ public class CoderTest {
 
   @Test(expected = IllegalStateException.class)
   public void testUnregisteredCoderWhenKryoNotAllowed() {
-    TypeDescriptor<Pair<ClassWithoutCoder, String>> type =
-        TypeUtils.pairs(ClassWithoutCoder.class, String.class);
+    TypeDescriptor<KV<ClassWithoutCoder, String>> type =
+        TypeUtils.keyValues(ClassWithoutCoder.class, String.class);
 
     noFallbackKryoContext.getCoderForTypeOrFallbackCoder(type);
   }
 
   @Test()
   public void testUnregisteredCoderWhenKryoAllowed() {
-    TypeDescriptor<Pair<ClassWithoutCoder, String>> type =
-        TypeUtils.pairs(ClassWithoutCoder.class, String.class);
+    TypeDescriptor<KV<ClassWithoutCoder, String>> type =
+        TypeUtils.keyValues(ClassWithoutCoder.class, String.class);
 
-    Coder<Pair<ClassWithoutCoder, String>> coder =
+    Coder<KV<ClassWithoutCoder, String>> coder =
         kryoAllowingContext.getCoderForTypeOrFallbackCoder(type);
 
     Assert.assertEquals(KryoCoder.class, coder.getClass());

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -59,7 +58,7 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
     return doTranslate(operator, context);
   }
 
-  <K, LeftT, RightT, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>> doTranslate(
+  <K, LeftT, RightT, OutputT, W extends BoundedWindow> PCollection<KV<K, OutputT>> doTranslate(
       Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
     Coder<K> keyCoder = context.getKeyCoder(operator);
 
@@ -128,7 +127,7 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
   }
 
   static class BroadcastHashRightJoinFn<K, LeftT, RightT, OutputT>
-      extends DoFn<KV<K, RightT>, Pair<K, OutputT>> {
+      extends DoFn<KV<K, RightT>, KV<K, OutputT>> {
 
     private final PCollectionView<Map<K, Iterable<LeftT>>> smallSideCollection;
     private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
@@ -150,13 +149,13 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
       leftValues.forEach(
           leftValue -> {
             joiner.apply(leftValue, context.element().getValue(), outCollector);
-            context.output(Pair.of(key, outCollector.get()));
+            context.output(KV.of(key, outCollector.get()));
           });
     }
   }
 
   static class BroadcastHashLeftJoinFn<K, LeftT, RightT, OutputT>
-      extends DoFn<KV<K, LeftT>, Pair<K, OutputT>> {
+      extends DoFn<KV<K, LeftT>, KV<K, OutputT>> {
 
     private final PCollectionView<Map<K, Iterable<RightT>>> smallSideCollection;
     private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
@@ -179,7 +178,7 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
       rightValues.forEach(
           rightValue -> {
             joiner.apply(context.element().getValue(), rightValue, outCollector);
-            context.output(Pair.of(key, outCollector.get()));
+            context.output(KV.of(key, outCollector.get()));
           });
     }
   }

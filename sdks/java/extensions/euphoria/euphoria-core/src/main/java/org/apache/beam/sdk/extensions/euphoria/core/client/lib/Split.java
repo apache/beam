@@ -98,7 +98,7 @@ public class Split<InputT> {
     }
   }
 
-  /** Pair of positive and negative output as a result of the {@link Split} operator. */
+  /** KV of positive and negative output as a result of the {@link Split} operator. */
   public static class Output<T> {
     private final Dataset<T> positive;
     private final Dataset<T> negative;

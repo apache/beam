@@ -25,9 +25,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
@@ -44,7 +44,7 @@ public class CountByKeyTest {
     FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     DefaultTrigger trigger = DefaultTrigger.of();
 
-    Dataset<Pair<String, Long>> counted =
+    Dataset<KV<String, Long>> counted =
         CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -131,7 +131,7 @@ public class CountByKeyTest {
 
     TypeDescriptor<Long> outputType = TypeDescriptors.longs();
     TypeDescriptor<String> keyType = TypeDescriptors.strings();
-    Dataset<Pair<String, Long>> counted =
+    Dataset<KV<String, Long>> counted =
         CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s, keyType).output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();

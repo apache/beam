@@ -61,7 +61,7 @@ Dataset<String> words = FlatMap.named("TOKENIZER")
 // Then, we reduce by the key - the operator ensures that all values for the same
 // key end up being processed together. It applies user defined function (summing word counts for each
 // unique word) and its emitted to output. 
-Dataset<Pair<String, Long>> counted = ReduceByKey.named("COUNT")
+Dataset<KV<String, Long>> counted = ReduceByKey.named("COUNT")
     .of(words)
     .keyBy(w -> w)
     .valueBy(w -> 1L)
@@ -71,7 +71,7 @@ Dataset<Pair<String, Long>> counted = ReduceByKey.named("COUNT")
 // Format output.
 Dataset<String> output = MapElements.named("FORMAT")
     .of(counted)
-    .using(p -> p.getFirst() + ": " + p.getSecond())
+    .using(p -> p.getKey() + ": " + p.getValue())
     .output();
 
 // Transform Dataset back to PCollection. It can be done in any step of this flow.

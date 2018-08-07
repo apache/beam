@@ -42,11 +42,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAw
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -169,30 +169,30 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
               reducer,
               valueComparator,
               getHints(),
-              TypeUtils.pairs(getKeyType(), outputType));
+              TypeUtils.keyValues(getKeyType(), outputType));
       dag.add(rbk);
     } else {
       // otherwise we use attached windowing, therefore
       // we already know the window lables and can do group-by these
       // labels to increase parallelism
-      FlatMap<InputT, Pair<Window<?>, InputT>> map =
+      FlatMap<InputT, KV<Window<?>, InputT>> map =
           new FlatMap<>(
               getName() + "::window-to-key",
               getFlow(),
               input,
-              (InputT in, Collector<Pair<Window<?>, InputT>> c) -> {
-                c.collect(Pair.of(c.getWindow(), in));
+              (InputT in, Collector<KV<Window<?>, InputT>> c) -> {
+                c.collect(KV.of(c.getWindow(), in));
               },
               null,
               null);
       rbk =
-          new ReduceByKey<Pair<Window<?>, InputT>, Window<?>, V, OutputT, W>(
+          new ReduceByKey<KV<Window<?>, InputT>, Window<?>, V, OutputT, W>(
               getName() + "::ReduceByKey::attached",
               getFlow(),
               map.output(),
-              (Pair<Window<?>, InputT> p) -> p.getFirst(),
+              (KV<Window<?>, InputT> p) -> p.getKey(),
               null,
-              p -> valueExtractor.apply(p.getSecond()),
+              p -> valueExtractor.apply(p.getValue()),
               valueType,
               null,
               null,
@@ -204,9 +204,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       dag.add(rbk);
     }
 
-    MapElements<Pair<Object, OutputT>, OutputT> format =
-        new MapElements<Pair<Object, OutputT>, OutputT>(
-            getName() + "::MapElements", getFlow(), (Dataset) rbk.output(), Pair::getSecond, null);
+    MapElements<KV<Object, OutputT>, OutputT> format =
+        new MapElements<KV<Object, OutputT>, OutputT>(
+            getName() + "::MapElements", getFlow(), (Dataset) rbk.output(), KV::getValue, null);
 
     dag.add(format);
     return dag;

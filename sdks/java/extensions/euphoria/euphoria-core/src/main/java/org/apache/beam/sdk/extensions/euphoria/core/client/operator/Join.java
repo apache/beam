@@ -48,11 +48,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.Storag
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -90,7 +90,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseOperator<
-        Object, Either<LeftT, RightT>, K, Pair<K, OutputT>, W, Join<LeftT, RightT, K, OutputT, W>> {
+        Object, Either<LeftT, RightT>, K, KV<K, OutputT>, W, Join<LeftT, RightT, K, OutputT, W>> {
 
   @SuppressWarnings("unchecked")
   private static final ListStorageDescriptor LEFT_STATE_DESCR =
@@ -104,7 +104,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   @VisibleForTesting final UnaryFunction<RightT, K> rightKeyExtractor;
   private final Dataset<LeftT> left;
   private final Dataset<RightT> right;
-  private final Dataset<Pair<K, OutputT>> output;
+  private final Dataset<KV<K, OutputT>> output;
   private final BinaryFunctor<LeftT, RightT, OutputT> functor;
   private final Type type;
 
@@ -117,7 +117,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       UnaryFunction<RightT, K> rightKeyExtractor,
       TypeDescriptor<K> keyType,
       BinaryFunctor<LeftT, RightT, OutputT> functor,
-      TypeDescriptor<Pair<K, OutputT>> outputType,
+      TypeDescriptor<KV<K, OutputT>> outputType,
       Type type,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
@@ -142,7 +142,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
     @SuppressWarnings("unchecked")
-    Dataset<Pair<K, OutputT>> output = createOutput((Dataset) left, outputHints);
+    Dataset<KV<K, OutputT>> output = createOutput((Dataset) left, outputHints);
     this.output = output;
     this.type = type;
   }
@@ -169,7 +169,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public Dataset<Pair<K, OutputT>> output() {
+  public Dataset<KV<K, OutputT>> output() {
     return output;
   }
 
@@ -366,7 +366,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
   /** TODO: complete javadoc. */
   public static class WindowingBuilder<LeftT, RightT, K, OutputT>
-      implements Builders.Output<Pair<K, OutputT>>,
+      implements Builders.Output<KV<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
           OptionalMethodBuilder<
               WindowingBuilder<LeftT, RightT, K, OutputT>,
@@ -380,7 +380,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
 
@@ -461,7 +461,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-      implements Builders.OutputValues<K, OutputT>, Builders.Output<Pair<K, OutputT>> {
+      implements Builders.OutputValues<K, OutputT>, Builders.Output<KV<K, OutputT>> {
 
     private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
 
@@ -470,7 +470,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
       final Flow flow = params.left.getFlow();
       final Join<LeftT, RightT, K, OutputT, W> join =
           new Join<>(
@@ -482,7 +482,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
               params.rightKeyExtractor,
               params.keyType,
               params.joinFunc,
-              TypeUtils.pairs(params.keyType, params.outType),
+              TypeUtils.keyValues(params.keyType, params.outType),
               params.type,
               params.getWindowing(),
               params.euphoriaWindowing,

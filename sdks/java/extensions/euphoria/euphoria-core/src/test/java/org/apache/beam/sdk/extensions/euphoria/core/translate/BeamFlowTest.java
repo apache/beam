@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Ignore;
@@ -153,36 +153,36 @@ public class BeamFlowTest implements Serializable {
     PCollection<String> input =
         pipeline.apply(Create.of(words)).setTypeDescriptor(TypeDescriptor.of(String.class));
     Dataset<String> dataset = flow.wrapped(input);
-    Dataset<Pair<String, Long>> output = CountByKey.of(dataset).keyBy(e -> e).output();
-    PCollection<Pair<String, Long>> beamOut = flow.unwrapped(output);
+    Dataset<KV<String, Long>> output = CountByKey.of(dataset).keyBy(e -> e).output();
+    PCollection<KV<String, Long>> beamOut = flow.unwrapped(output);
     PAssert.that(beamOut)
         .containsInAnyOrder(
-            Pair.of("hi", 4L),
-            Pair.of("there", 1L),
-            Pair.of("sue", 2L),
-            Pair.of("ZOW", 1L),
-            Pair.of("bob", 2L));
+            KV.of("hi", 4L),
+            KV.of("there", 1L),
+            KV.of("sue", 2L),
+            KV.of("ZOW", 1L),
+            KV.of("bob", 2L));
     pipeline.run();
   }
 
   @Ignore
   public void testPipelineWithEventTime() {
-    List<Pair<Integer, Long>> raw =
+    List<KV<Integer, Long>> raw =
         Arrays.asList(
-            Pair.of(1, 1000L),
-            Pair.of(2, 1500L),
-            Pair.of(3, 1800L), // first window
-            Pair.of(4, 2000L),
-            Pair.of(5, 2500L)); // second window
+            KV.of(1, 1000L),
+            KV.of(2, 1500L),
+            KV.of(3, 1800L), // first window
+            KV.of(4, 2000L),
+            KV.of(5, 2500L)); // second window
     Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
-    PCollection<Pair<Integer, Long>> input = pipeline.apply(Create.of(raw));
-    Dataset<Pair<Integer, Long>> dataset = flow.wrapped(input);
-    Dataset<Pair<Integer, Long>> timeAssigned =
-        AssignEventTime.of(dataset).using(Pair::getSecond).output();
+    PCollection<KV<Integer, Long>> input = pipeline.apply(Create.of(raw));
+    Dataset<KV<Integer, Long>> dataset = flow.wrapped(input);
+    Dataset<KV<Integer, Long>> timeAssigned =
+        AssignEventTime.of(dataset).using(KV::getValue).output();
     Dataset<Integer> output =
         ReduceWindow.of(timeAssigned)
-            .valueBy(Pair::getFirst)
+            .valueBy(KV::getKey)
             .combineBy(Sums.ofInts())
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
             .triggeredBy(DefaultTrigger.of())

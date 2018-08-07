@@ -39,13 +39,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Tests capabilities of {@link Windowing}. */
@@ -64,17 +64,17 @@ public class WindowingTest extends AbstractOperatorTest {
               Dataset<Triple<Instant, Type, String>> input) {
 
             input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
-            Dataset<ComparablePair<Type, String>> distinct =
+            Dataset<ComparableKV<Type, String>> distinct =
                 Distinct.of(input)
-                    .mapped(t -> new ComparablePair<>(t.getSecond(), t.getThird()))
+                    .mapped(t -> new ComparableKV<>(t.getSecond(), t.getThird()))
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
                     .triggeredBy(DefaultTrigger.of())
                     .discardingFiredPanes()
                     .output();
 
-            Dataset<Pair<Type, Long>> reduced =
+            Dataset<KV<Type, Long>> reduced =
                 ReduceByKey.of(distinct)
-                    .keyBy(ComparablePair::getFirst)
+                    .keyBy(ComparableKV::getFirst)
                     .valueBy(p -> 1L)
                     .combineBy(Sums.ofLongs())
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
@@ -85,10 +85,10 @@ public class WindowingTest extends AbstractOperatorTest {
             // extract window end timestamp
             return FlatMap.of(reduced)
                 .using(
-                    (Pair<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
+                    (KV<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
                       long windowEnd = ((TimeInterval) ctx.getWindow()).getEndMillis();
                       ctx.collect(
-                          Triple.of(Instant.ofEpochMilli(windowEnd), p.getFirst(), p.getSecond()));
+                          Triple.of(Instant.ofEpochMilli(windowEnd), p.getKey(), p.getValue()));
                     })
                 .output();
           }
@@ -134,9 +134,9 @@ public class WindowingTest extends AbstractOperatorTest {
               Dataset<Triple<Instant, Type, String>> input) {
             // distinct implemented using raw ReduceStateByKey
             input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
-            Dataset<Pair<ComparablePair<Type, String>, Object>> pairs =
+            Dataset<KV<ComparableKV<Type, String>, Object>> keyValues =
                 ReduceStateByKey.of(input)
-                    .keyBy(t -> new ComparablePair<>(t.getSecond(), t.getThird()))
+                    .keyBy(t -> new ComparableKV<>(t.getSecond(), t.getThird()))
                     .valueBy(t -> null)
                     .stateFactory(DistinctState::new)
                     .mergeStatesBy((t, os) -> {})
@@ -145,12 +145,12 @@ public class WindowingTest extends AbstractOperatorTest {
                     .discardingFiredPanes()
                     .output();
 
-            Dataset<ComparablePair<Type, String>> distinct =
-                MapElements.of(pairs).using(Pair::getFirst).output();
+            Dataset<ComparableKV<Type, String>> distinct =
+                MapElements.of(keyValues).using(KV::getKey).output();
 
-            Dataset<Pair<Type, Long>> reduced =
+            Dataset<KV<Type, Long>> reduced =
                 ReduceByKey.of(distinct)
-                    .keyBy(ComparablePair::getFirst)
+                    .keyBy(ComparableKV::getFirst)
                     .valueBy(p -> 1L)
                     .combineBy(Sums.ofLongs())
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
@@ -161,10 +161,10 @@ public class WindowingTest extends AbstractOperatorTest {
             // extract window timestamp
             return FlatMap.of(reduced)
                 .using(
-                    (Pair<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
+                    (KV<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
                       long windowEnd = ((TimeInterval) ctx.getWindow()).getEndMillis();
                       ctx.collect(
-                          Triple.of(Instant.ofEpochMilli(windowEnd), p.getFirst(), p.getSecond()));
+                          Triple.of(Instant.ofEpochMilli(windowEnd), p.getKey(), p.getValue()));
                     })
                 .output();
           }
@@ -212,11 +212,11 @@ public class WindowingTest extends AbstractOperatorTest {
   public void testSessionWindowingTriggerStateConsistency() {
     ON_CLEAR_VALIDATED.set(false);
     execute(
-        new AbstractTestCase<Pair<Instant, String>, Triple<Instant, Instant, Integer>>(3) {
+        new AbstractTestCase<KV<Instant, String>, Triple<Instant, Instant, Integer>>(3) {
           @SuppressWarnings("unchecked")
           @Override
           protected Dataset<Triple<Instant, Instant, Integer>> getOutput(
-              Dataset<Pair<Instant, String>> input) {
+              Dataset<KV<Instant, String>> input) {
             /*CSession windowing =
             new CSession(Duration.ofMinutes(5)) {
               @Override
@@ -259,37 +259,35 @@ public class WindowingTest extends AbstractOperatorTest {
             };
             */
 
-            input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
-            Dataset<Pair<String, Integer>> pairs =
+            input = AssignEventTime.of(input).using(t -> t.getKey().toEpochMilli()).output();
+            Dataset<KV<String, Integer>> keyValues =
                 ReduceByKey.of(input)
                     .keyBy(e -> "")
                     .valueBy(e -> 1)
                     .combineBy(Sums.ofInts())
-                    //.windowBy(windowing) //TODO modify tes to Beam windowing when needed
                     .output();
 
             // extract window timestamp
-            return FlatMap.of(pairs)
+            return FlatMap.of(keyValues)
                 .using(
-                    (Pair<String, Integer> in,
-                        Collector<Triple<Instant, Instant, Integer>> out) -> {
+                    (KV<String, Integer> in, Collector<Triple<Instant, Instant, Integer>> out) -> {
                       long windowBegin = ((TimeInterval) out.getWindow()).getStartMillis();
                       long windowEnd = ((TimeInterval) out.getWindow()).getEndMillis();
                       out.collect(
                           Triple.of(
                               Instant.ofEpochMilli(windowBegin),
                               Instant.ofEpochMilli(windowEnd),
-                              in.getSecond()));
+                              in.getValue()));
                     })
                 .output();
           }
 
           @Override
-          protected List<Pair<Instant, String>> getInput() {
+          protected List<KV<Instant, String>> getInput() {
             return Arrays.asList(
-                Pair.of(Instant.parse("2016-12-19T10:10:00.000Z"), "foo"),
-                Pair.of(Instant.parse("2016-12-19T10:11:00.000Z"), "foo"),
-                Pair.of(Instant.parse("2016-12-19T10:12:00.000Z"), "foo"));
+                KV.of(Instant.parse("2016-12-19T10:10:00.000Z"), "foo"),
+                KV.of(Instant.parse("2016-12-19T10:11:00.000Z"), "foo"),
+                KV.of(Instant.parse("2016-12-19T10:12:00.000Z"), "foo"));
           }
 
           @Override
@@ -307,10 +305,10 @@ public class WindowingTest extends AbstractOperatorTest {
   @Test
   public void testTimeWindowingElementsAtBoundaries() {
     execute(
-        new AbstractTestCase<Integer, Pair<TimeInterval, Integer>>() {
+        new AbstractTestCase<Integer, KV<TimeInterval, Integer>>() {
 
           @Override
-          protected Dataset<Pair<TimeInterval, Integer>> getOutput(Dataset<Integer> input) {
+          protected Dataset<KV<TimeInterval, Integer>> getOutput(Dataset<Integer> input) {
             // interpret each input element as time and just count number of
             // elements inside each window
             Dataset<Integer> timed = AssignEventTime.of(input).using(e -> e * 1000L).output();
@@ -333,10 +331,10 @@ public class WindowingTest extends AbstractOperatorTest {
 
           @SuppressWarnings("unchecked")
           @Override
-          public List<Pair<TimeInterval, Integer>> getUnorderedOutput() {
+          public List<KV<TimeInterval, Integer>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(new TimeInterval(0, 3600000), 4),
-                Pair.of(new TimeInterval(3600000, 7200000), 3));
+                KV.of(new TimeInterval(0, 3600000), 4),
+                KV.of(new TimeInterval(3600000, 7200000), 3));
           }
         });
   }
@@ -375,18 +373,18 @@ public class WindowingTest extends AbstractOperatorTest {
   }
 
   /**
-   * Pair of items where both items implement {@link Comparable}.
+   * KV of items where both items implement {@link Comparable}.
    *
    * @param <T0> first item type
    * @param <T1> second item type
    */
-  public static class ComparablePair<T0 extends Comparable<T0>, T1 extends Comparable<T1>>
-      implements Comparable<ComparablePair<T0, T1>> {
+  public static class ComparableKV<T0 extends Comparable<T0>, T1 extends Comparable<T1>>
+      implements Comparable<ComparableKV<T0, T1>> {
 
     private final T0 first;
     private final T1 second;
 
-    ComparablePair(T0 first, T1 second) {
+    ComparableKV(T0 first, T1 second) {
       this.first = first;
       this.second = second;
     }
@@ -401,8 +399,8 @@ public class WindowingTest extends AbstractOperatorTest {
 
     @Override
     public boolean equals(Object o) {
-      if (o instanceof ComparablePair) {
-        ComparablePair<?, ?> that = (ComparablePair<?, ?>) o;
+      if (o instanceof ComparableKV) {
+        ComparableKV<?, ?> that = (ComparableKV<?, ?>) o;
         return Objects.equals(this.first, that.first) && Objects.equals(this.second, that.second);
       }
       return false;
@@ -414,7 +412,7 @@ public class WindowingTest extends AbstractOperatorTest {
     }
 
     @Override
-    public int compareTo(ComparablePair<T0, T1> o) {
+    public int compareTo(ComparableKV<T0, T1> o) {
       int result = getFirst().compareTo(o.getFirst());
       if (result == 0) {
         result = getSecond().compareTo(o.getSecond());
@@ -437,7 +435,7 @@ public class WindowingTest extends AbstractOperatorTest {
     }
 
     @Override
-    public Collection<Pair<Collection<TimeInterval>, TimeInterval>> mergeWindows(
+    public Collection<KV<Collection<TimeInterval>, TimeInterval>> mergeWindows(
         Collection<TimeInterval> actives) {
       return wrap.mergeWindows(actives);
     }

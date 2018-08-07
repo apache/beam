@@ -25,10 +25,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
@@ -166,7 +166,7 @@ public class Builders {
   }
 
   /** TODO: complete javadoc. */
-  public interface OutputValues<K, V> extends Output<Pair<K, V>> {
+  public interface OutputValues<K, V> extends Output<KV<K, V>> {
 
     /**
      * Finalizes the operator and retrieves its output dataset. Using this output new operator
@@ -178,7 +178,7 @@ public class Builders {
     default Dataset<V> outputValues(OutputHint... outputHints) {
       return MapElements.named("extract-values")
           .of(output())
-          .using(Pair::getSecond)
+          .using(KV::getValue)
           .output(outputHints);
     }
   }

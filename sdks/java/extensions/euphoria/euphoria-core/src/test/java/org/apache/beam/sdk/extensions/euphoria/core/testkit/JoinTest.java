@@ -38,7 +38,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
@@ -64,10 +63,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void batchJoinFullOuter() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return FullJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
@@ -88,17 +87,17 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(0, "0+null"),
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"),
-                Pair.of(3, "3+13"),
-                Pair.of(3, "3+13"),
-                Pair.of(5, "null+15"));
+                KV.of(0, "0+null"),
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"),
+                KV.of(5, "null+15"));
           }
         });
   }
@@ -141,10 +140,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void batchJoinLeftOuter() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return LeftJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
@@ -165,16 +164,16 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(0, "0+null"),
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"),
-                Pair.of(3, "3+13"),
-                Pair.of(3, "3+13"));
+                KV.of(0, "0+null"),
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"));
           }
         });
   }
@@ -183,10 +182,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void batchJoinRightOuter() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return RightJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
@@ -207,16 +206,16 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"),
-                Pair.of(3, "3+13"),
-                Pair.of(3, "3+13"),
-                Pair.of(5, "null+15"));
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"),
+                KV.of(5, "null+15"));
           }
         });
   }
@@ -225,10 +224,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void batchJoinInner() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return Join.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
@@ -250,15 +249,15 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"),
-                Pair.of(3, "3+13"),
-                Pair.of(3, "3+13"));
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"));
           }
         });
   }
@@ -266,10 +265,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void windowJoinFullOuter() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
 
             WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
@@ -297,23 +296,23 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(0, "0+null"),
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(6, "6+16"),
-                Pair.of(8, "null+18"),
-                Pair.of(1, "1+null"),
-                Pair.of(1, "1+null"),
-                Pair.of(1, "null+11"),
-                Pair.of(3, "3+null"),
-                Pair.of(3, "3+null"),
-                Pair.of(3, "null+13"),
-                Pair.of(5, "5+null"),
-                Pair.of(5, "null+15"),
-                Pair.of(7, "null+17"));
+                KV.of(0, "0+null"),
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(6, "6+16"),
+                KV.of(8, "null+18"),
+                KV.of(1, "1+null"),
+                KV.of(1, "1+null"),
+                KV.of(1, "null+11"),
+                KV.of(3, "3+null"),
+                KV.of(3, "3+null"),
+                KV.of(3, "null+13"),
+                KV.of(5, "5+null"),
+                KV.of(5, "null+15"),
+                KV.of(7, "null+17"));
           }
         });
   }
@@ -321,10 +320,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void windowJoinLeftOuter() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
 
             WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
@@ -352,18 +351,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(0, "0+null"),
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(6, "6+16"),
-                Pair.of(1, "1+null"),
-                Pair.of(1, "1+null"),
-                Pair.of(3, "3+null"),
-                Pair.of(3, "3+null"),
-                Pair.of(5, "5+null"));
+                KV.of(0, "0+null"),
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(6, "6+16"),
+                KV.of(1, "1+null"),
+                KV.of(1, "1+null"),
+                KV.of(3, "3+null"),
+                KV.of(3, "3+null"),
+                KV.of(5, "5+null"));
           }
         });
   }
@@ -371,10 +370,10 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void windowJoinRightOuter() {
     execute(
-        new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
 
             WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
@@ -402,17 +401,17 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(6, "6+16"),
-                Pair.of(8, "null+18"),
-                Pair.of(1, "null+11"),
-                Pair.of(3, "null+13"),
-                Pair.of(5, "null+15"),
-                Pair.of(7, "null+17"));
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(6, "6+16"),
+                KV.of(8, "null+18"),
+                KV.of(1, "null+11"),
+                KV.of(3, "null+13"),
+                KV.of(5, "null+15"),
+                KV.of(7, "null+17"));
           }
         });
   }
@@ -423,45 +422,43 @@ public class JoinTest extends AbstractOperatorTest {
   @Test
   public void joinOnSessionWindowingNoEarlyTriggering() {
     execute(
-        new JoinTestCase<Pair<String, Long>, Pair<String, Long>, Pair<String, String>>() {
+        new JoinTestCase<KV<String, Long>, KV<String, Long>, KV<String, String>>() {
 
           @Override
-          protected List<Pair<String, Long>> getLeftInput() {
-            return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 2L));
+          protected List<KV<String, Long>> getLeftInput() {
+            return Arrays.asList(KV.of("fi", 1L), KV.of("fa", 2L));
           }
 
           @Override
-          protected List<Pair<String, Long>> getRightInput() {
-            return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
+          protected List<KV<String, Long>> getRightInput() {
+            return Arrays.asList(KV.of("ha", 1L), KV.of("ho", 4L));
           }
 
           @Override
-          protected Dataset<Pair<String, String>> getOutput(
-              Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+          protected Dataset<KV<String, String>> getOutput(
+              Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
 
-            left = AssignEventTime.of(left).using(Pair::getSecond).output();
-            right = AssignEventTime.of(right).using(Pair::getSecond).output();
+            left = AssignEventTime.of(left).using(KV::getValue).output();
+            right = AssignEventTime.of(right).using(KV::getValue).output();
 
-            Dataset<Pair<String, Pair<String, String>>> joined =
+            Dataset<KV<String, KV<String, String>>> joined =
                 Join.of(left, right)
                     .by(p -> "", p -> "")
                     .using(
-                        (Pair<String, Long> l,
-                            Pair<String, Long> r,
-                            Collector<Pair<String, String>> c) ->
-                            c.collect(Pair.of(l.getFirst(), r.getFirst())))
+                        (KV<String, Long> l, KV<String, Long> r, Collector<KV<String, String>> c) ->
+                            c.collect(KV.of(l.getKey(), r.getKey())))
                     .windowBy(Sessions.withGapDuration(org.joda.time.Duration.millis(10)))
                     .triggeredBy(AfterWatermark.pastEndOfWindow())
                     .discardingFiredPanes()
                     .output();
 
-            return MapElements.of(joined).using(Pair::getSecond).output();
+            return MapElements.of(joined).using(KV::getValue).output();
           }
 
           @Override
-          public List<Pair<String, String>> getUnorderedOutput() {
+          public List<KV<String, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of("fi", "ha"), Pair.of("fi", "ho"), Pair.of("fa", "ha"), Pair.of("fa", "ho"));
+                KV.of("fi", "ha"), KV.of("fi", "ho"), KV.of("fa", "ha"), KV.of("fa", "ho"));
           }
         });
   }
@@ -473,36 +470,36 @@ public class JoinTest extends AbstractOperatorTest {
   public void testJoinAccumulators() {
     execute(
         new JoinTestCase<
-            Pair<String, Long>, Pair<String, Long>, Triple<TimeInterval, String, String>>() {
+            KV<String, Long>, KV<String, Long>, Triple<TimeInterval, String, String>>() {
 
           @Override
-          protected List<Pair<String, Long>> getLeftInput() {
-            return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 3L));
+          protected List<KV<String, Long>> getLeftInput() {
+            return Arrays.asList(KV.of("fi", 1L), KV.of("fa", 3L));
           }
 
           @Override
-          protected List<Pair<String, Long>> getRightInput() {
-            return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
+          protected List<KV<String, Long>> getRightInput() {
+            return Arrays.asList(KV.of("ha", 1L), KV.of("ho", 4L));
           }
 
           @Override
           protected Dataset<Triple<TimeInterval, String, String>> getOutput(
-              Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+              Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
 
-            left = AssignEventTime.of(left).using(Pair::getSecond).output();
-            right = AssignEventTime.of(right).using(Pair::getSecond).output();
+            left = AssignEventTime.of(left).using(KV::getValue).output();
+            right = AssignEventTime.of(right).using(KV::getValue).output();
 
-            Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
+            Dataset<KV<String, Triple<TimeInterval, String, String>>> joined =
                 Join.of(left, right)
                     .by(p -> "", p -> "")
                     .using(
-                        (Pair<String, Long> l,
-                            Pair<String, Long> r,
+                        (KV<String, Long> l,
+                            KV<String, Long> r,
                             Collector<Triple<TimeInterval, String, String>> c) -> {
                           TimeInterval window = (TimeInterval) c.getWindow();
                           c.getCounter("cntr").increment(10);
-                          c.getHistogram("hist-" + l.getFirst().charAt(1)).add(2345, 8);
-                          c.collect(Triple.of(window, l.getFirst(), r.getFirst()));
+                          c.getHistogram("hist-" + l.getKey().charAt(1)).add(2345, 8);
+                          c.collect(Triple.of(window, l.getKey(), r.getKey()));
                         })
                     //                    .windowBy(Time.of(Duration.ofMillis(3)))
                     .windowBy(FixedWindows.of(org.joda.time.Duration.millis(3)))
@@ -510,7 +507,7 @@ public class JoinTest extends AbstractOperatorTest {
                     .discardingFiredPanes()
                     .output();
 
-            return MapElements.of(joined).using(Pair::getSecond).output();
+            return MapElements.of(joined).using(KV::getValue).output();
           }
 
           @Override

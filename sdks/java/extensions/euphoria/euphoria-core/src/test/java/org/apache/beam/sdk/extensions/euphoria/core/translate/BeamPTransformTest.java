@@ -25,10 +25,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,7 +67,7 @@ public class BeamPTransformTest implements Serializable {
     String inStr = "a b c a a c x";
     final List<String> words = Arrays.asList(inStr.split(" "));
 
-    final PCollection<Pair<String, Long>> pCollection =
+    final PCollection<KV<String, Long>> pCollection =
         pipeline
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
             .apply(
@@ -81,7 +81,7 @@ public class BeamPTransformTest implements Serializable {
                     }));
 
     PAssert.that(pCollection)
-        .containsInAnyOrder(Pair.of("A", 3L), Pair.of("B", 1L), Pair.of("C", 2L), Pair.of("X", 1L));
+        .containsInAnyOrder(KV.of("A", 3L), KV.of("B", 1L), KV.of("C", 2L), KV.of("X", 1L));
 
     pipeline.run();
   }

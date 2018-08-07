@@ -22,12 +22,12 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing.Type;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.junit.Test;
 
@@ -38,9 +38,9 @@ public class CountByKeyTest extends AbstractOperatorTest {
   @Test
   public void testCount() {
     execute(
-        new AbstractTestCase<Integer, Pair<Integer, Long>>() {
+        new AbstractTestCase<Integer, KV<Integer, Long>>() {
           @Override
-          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+          protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
             // ~ use stable event-time watermark
             input = AssignEventTime.of(input).using(e -> 0).output();
             return CountByKey.of(input)
@@ -57,18 +57,18 @@ public class CountByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, Long>> getUnorderedOutput() {
+          public List<KV<Integer, Long>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(2, 1L),
-                Pair.of(4, 2L),
-                Pair.of(6, 2L),
-                Pair.of(8, 1L),
-                Pair.of(10, 1L),
-                Pair.of(1, 1L),
-                Pair.of(3, 1L),
-                Pair.of(5, 2L),
-                Pair.of(7, 2L),
-                Pair.of(9, 1L));
+                KV.of(2, 1L),
+                KV.of(4, 2L),
+                KV.of(6, 2L),
+                KV.of(8, 1L),
+                KV.of(10, 1L),
+                KV.of(1, 1L),
+                KV.of(3, 1L),
+                KV.of(5, 2L),
+                KV.of(7, 2L),
+                KV.of(9, 1L));
           }
         });
   }
@@ -76,12 +76,12 @@ public class CountByKeyTest extends AbstractOperatorTest {
   @Test
   public void testWithEventTimeWindow() {
     execute(
-        new AbstractTestCase<Pair<Integer, Long>, Pair<Integer, Long>>() {
+        new AbstractTestCase<KV<Integer, Long>, KV<Integer, Long>>() {
           @Override
-          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Pair<Integer, Long>> input) {
-            input = AssignEventTime.of(input).using(Pair::getSecond).output();
+          protected Dataset<KV<Integer, Long>> getOutput(Dataset<KV<Integer, Long>> input) {
+            input = AssignEventTime.of(input).using(KV::getValue).output();
             return CountByKey.of(input)
-                .keyBy(Pair::getFirst)
+                .keyBy(KV::getKey)
                 .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
                 .triggeredBy(DefaultTrigger.of())
                 .discardingFiredPanes()
@@ -89,45 +89,45 @@ public class CountByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected List<Pair<Integer, Long>> getInput() {
+          protected List<KV<Integer, Long>> getInput() {
             return Arrays.asList(
-                Pair.of(1, 200L),
-                Pair.of(2, 500L),
-                Pair.of(1, 800L),
-                Pair.of(3, 1400L),
-                Pair.of(3, 1200L),
-                Pair.of(4, 1800L),
-                Pair.of(5, 2100L),
-                Pair.of(5, 2300L),
-                Pair.of(5, 2700L),
-                Pair.of(5, 3500L),
-                Pair.of(5, 3300L),
-                Pair.of(6, 3800L),
-                Pair.of(7, 4400L),
-                Pair.of(7, 4500L),
-                Pair.of(10, 4600L),
-                Pair.of(10, 5100L),
-                Pair.of(9, 5200L),
-                Pair.of(9, 5500L),
-                Pair.of(9, 6300L),
-                Pair.of(9, 6700L));
+                KV.of(1, 200L),
+                KV.of(2, 500L),
+                KV.of(1, 800L),
+                KV.of(3, 1400L),
+                KV.of(3, 1200L),
+                KV.of(4, 1800L),
+                KV.of(5, 2100L),
+                KV.of(5, 2300L),
+                KV.of(5, 2700L),
+                KV.of(5, 3500L),
+                KV.of(5, 3300L),
+                KV.of(6, 3800L),
+                KV.of(7, 4400L),
+                KV.of(7, 4500L),
+                KV.of(10, 4600L),
+                KV.of(10, 5100L),
+                KV.of(9, 5200L),
+                KV.of(9, 5500L),
+                KV.of(9, 6300L),
+                KV.of(9, 6700L));
           }
 
           @Override
-          public List<Pair<Integer, Long>> getUnorderedOutput() {
+          public List<KV<Integer, Long>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(1, 2L),
-                Pair.of(2, 1L),
-                Pair.of(3, 2L),
-                Pair.of(4, 1L),
-                Pair.of(5, 3L),
-                Pair.of(5, 2L),
-                Pair.of(6, 1L),
-                Pair.of(7, 2L),
-                Pair.of(10, 1L),
-                Pair.of(10, 1L),
-                Pair.of(9, 2L),
-                Pair.of(9, 2L));
+                KV.of(1, 2L),
+                KV.of(2, 1L),
+                KV.of(3, 2L),
+                KV.of(4, 1L),
+                KV.of(5, 3L),
+                KV.of(5, 2L),
+                KV.of(6, 1L),
+                KV.of(7, 2L),
+                KV.of(10, 1L),
+                KV.of(10, 1L),
+                KV.of(9, 2L),
+                KV.of(9, 2L));
           }
         });
   }

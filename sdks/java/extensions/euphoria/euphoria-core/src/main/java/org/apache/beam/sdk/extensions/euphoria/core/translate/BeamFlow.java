@@ -34,7 +34,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.EuphoriaCoderProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.io.BeamWriteSink;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;

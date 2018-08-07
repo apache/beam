@@ -31,10 +31,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Test that a sub-flow applied on sink is correctly preserved. */
@@ -43,9 +43,9 @@ public class SinkTest extends AbstractOperatorTest {
   @Test
   public void testOutputGroupingSorting() {
     execute(
-        new AbstractTestCase<Integer, Pair<Integer, Long>>() {
+        new AbstractTestCase<Integer, KV<Integer, Long>>() {
           @Override
-          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+          protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
             // ~ use stable event-time watermark
             input = AssignEventTime.of(input).using(e -> 0).output();
             return CountByKey.of(input)
@@ -57,14 +57,13 @@ public class SinkTest extends AbstractOperatorTest {
           }
 
           @Override
-          public ListDataSink<Pair<Integer, Long>> modifySink(
-              ListDataSink<Pair<Integer, Long>> sink) {
+          public ListDataSink<KV<Integer, Long>> modifySink(ListDataSink<KV<Integer, Long>> sink) {
 
             return sink.withPrepareDataset(
                 d -> {
                   ReduceByKey.of(d)
-                      .keyBy(p -> p.getFirst() % 2)
-                      .valueBy(Pair::getSecond)
+                      .keyBy(p -> p.getKey() % 2)
+                      .valueBy(KV::getValue)
                       .reduceBy(
                           (Stream<Long> values, Collector<Long> c) -> values.forEach(c::collect))
                       .withSortedValues(Long::compare)
@@ -79,14 +78,14 @@ public class SinkTest extends AbstractOperatorTest {
           }
 
           @Override
-          public void validate(List<Pair<Integer, Long>> outputs) throws AssertionError {
+          public void validate(List<KV<Integer, Long>> outputs) throws AssertionError {
 
             // the output should be two arbitrarily interleaved
             // sorted sequences
 
             // split these sequences by key and collect back
-            Map<Integer, List<Pair<Integer, Long>>> split =
-                outputs.stream().collect(Collectors.groupingBy(Pair::getFirst));
+            Map<Integer, List<KV<Integer, Long>>> split =
+                outputs.stream().collect(Collectors.groupingBy(KV::getKey));
 
             // then verify that these sequences are sorted
             assertEquals(2, split.size());

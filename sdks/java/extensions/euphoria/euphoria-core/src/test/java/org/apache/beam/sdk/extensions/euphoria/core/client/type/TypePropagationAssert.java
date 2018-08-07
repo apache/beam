@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import java.lang.reflect.TypeVariable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Assert;
 
@@ -35,13 +35,12 @@ public class TypePropagationAssert {
     if (keyType != null || operator instanceof TypeAware.Key) {
       Assert.assertSame(keyType, ((TypeAware.Key) operator).getKeyType());
 
-      TypeDescriptor<Pair<?, ?>> pairedOutputType =
-          (TypeDescriptor<Pair<?, ?>>) operator.getOutputType();
+      TypeDescriptor<KV<?, ?>> kvOutputType = (TypeDescriptor<KV<?, ?>>) operator.getOutputType();
 
-      TypeVariable<Class<Pair>>[] pairParameters = Pair.class.getTypeParameters();
+      TypeVariable<Class<KV>>[] kvParameters = KV.class.getTypeParameters();
 
-      TypeDescriptor<?> firstType = pairedOutputType.resolveType(pairParameters[0]);
-      TypeDescriptor<?> secondType = pairedOutputType.resolveType(pairParameters[1]);
+      TypeDescriptor<?> firstType = kvOutputType.resolveType(kvParameters[0]);
+      TypeDescriptor<?> secondType = kvOutputType.resolveType(kvParameters[1]);
 
       Assert.assertEquals(keyType, firstType);
       Assert.assertEquals(outputType, secondType);

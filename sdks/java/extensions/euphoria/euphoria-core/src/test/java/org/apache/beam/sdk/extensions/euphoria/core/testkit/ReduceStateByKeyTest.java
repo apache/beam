@@ -48,11 +48,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.CountTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Test operator {@code ReduceStateByKey}. */
@@ -81,9 +81,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testAccumulators() {
     execute(
-        new AbstractTestCase<Integer, Pair<String, Integer>>() {
+        new AbstractTestCase<Integer, KV<String, Integer>>() {
           @Override
-          protected Dataset<Pair<String, Integer>> getOutput(Dataset<Integer> input) {
+          protected Dataset<KV<String, Integer>> getOutput(Dataset<Integer> input) {
             return ReduceStateByKey.of(input)
                 .keyBy(e -> "")
                 .valueBy(e -> e)
@@ -98,10 +98,10 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<String, Integer>> getUnorderedOutput() {
+          public List<KV<String, Integer>> getUnorderedOutput() {
             return Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9)
                 .stream()
-                .map(i -> Pair.of("", i))
+                .map(i -> KV.of("", i))
                 .collect(Collectors.toList());
           }
 
@@ -116,9 +116,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testSortNoWindow() {
     execute(
-        new AbstractTestCase<Integer, Pair<String, Integer>>() {
+        new AbstractTestCase<Integer, KV<String, Integer>>() {
           @Override
-          protected Dataset<Pair<String, Integer>> getOutput(Dataset<Integer> input) {
+          protected Dataset<KV<String, Integer>> getOutput(Dataset<Integer> input) {
             return ReduceStateByKey.of(input)
                 .keyBy(e -> "")
                 .valueBy(e -> e)
@@ -133,19 +133,18 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          public void validate(List<Pair<String, Integer>> outputs) {
+          public void validate(List<KV<String, Integer>> outputs) {
             assertEquals(10, outputs.size());
-            List<Integer> values =
-                outputs.stream().map(Pair::getSecond).collect(Collectors.toList());
+            List<Integer> values = outputs.stream().map(KV::getValue).collect(Collectors.toList());
 
             assertEquals(Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9), values);
           }
 
           @Override
-          public List<Pair<String, Integer>> getUnorderedOutput() {
+          public List<KV<String, Integer>> getUnorderedOutput() {
             return Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9)
                 .stream()
-                .map(i -> Pair.of("", i))
+                .map(i -> KV.of("", i))
                 .collect(Collectors.toList());
           }
         });
@@ -157,7 +156,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, Triple<Integer, Integer, Integer>>() {
           @Override
           protected Dataset<Triple<Integer, Integer, Integer>> getOutput(Dataset<Integer> input) {
-            Dataset<Pair<Integer, Integer>> output =
+            Dataset<KV<Integer, Integer>> output =
                 ReduceStateByKey.of(input)
                     .keyBy(e -> e % 3)
                     .valueBy(e -> e)
@@ -168,13 +167,13 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .output();
             return FlatMap.of(output)
                 .using(
-                    (UnaryFunctor<Pair<Integer, Integer>, Triple<Integer, Integer, Integer>>)
+                    (UnaryFunctor<KV<Integer, Integer>, Triple<Integer, Integer, Integer>>)
                         (elem, c) ->
                             c.collect(
                                 Triple.of(
                                     ((IntWindow) c.getWindow()).getValue(),
-                                    elem.getFirst(),
-                                    elem.getSecond())))
+                                    elem.getKey(),
+                                    elem.getValue())))
                 .output();
           }
 
@@ -200,10 +199,10 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             assertEquals(12, outputs.size());
 
             // map (window, key) -> list(data)
-            Map<Pair<Integer, Integer>, List<Triple<Integer, Integer, Integer>>> windowKeyMap =
+            Map<KV<Integer, Integer>, List<Triple<Integer, Integer, Integer>>> windowKeyMap =
                 outputs
                     .stream()
-                    .collect(Collectors.groupingBy(p -> Pair.of(p.getFirst(), p.getSecond())));
+                    .collect(Collectors.groupingBy(p -> KV.of(p.getFirst(), p.getSecond())));
 
             // two windows, three keys
             assertEquals(6, windowKeyMap.size());
@@ -211,23 +210,23 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             List<Integer> list;
 
             // second window, key 0
-            list = flatten(windowKeyMap.get(Pair.of(1, 0)));
+            list = flatten(windowKeyMap.get(KV.of(1, 0)));
             assertEquals(Arrays.asList(6, 6), list);
             // second window, key 1
-            list = flatten(windowKeyMap.get(Pair.of(1, 1)));
+            list = flatten(windowKeyMap.get(KV.of(1, 1)));
             assertEquals(Arrays.asList(4, 7), list);
             // second window, key 2
-            list = flatten(windowKeyMap.get(Pair.of(1, 2)));
+            list = flatten(windowKeyMap.get(KV.of(1, 2)));
             assertEquals(Arrays.asList(5, 5), list);
 
             // third window, key 0
-            list = flatten(windowKeyMap.get(Pair.of(2, 0)));
+            list = flatten(windowKeyMap.get(KV.of(2, 0)));
             assertEquals(Arrays.asList(9, 9), list);
             // third window, key 1
-            list = flatten(windowKeyMap.get(Pair.of(2, 1)));
+            list = flatten(windowKeyMap.get(KV.of(2, 1)));
             assertEquals(Collections.singletonList(10), list);
             // third window, key 2
-            list = flatten(windowKeyMap.get(Pair.of(2, 2)));
+            list = flatten(windowKeyMap.get(KV.of(2, 2)));
             assertEquals(Arrays.asList(8, 8, 11), list);
           }
 
@@ -240,40 +239,40 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testCountWindowing() {
     execute(
-        new AbstractTestCase<Pair<String, Integer>, Pair<Integer, Long>>() {
+        new AbstractTestCase<KV<String, Integer>, KV<Integer, Long>>() {
           @Override
-          protected List<Pair<String, Integer>> getInput() {
+          protected List<KV<String, Integer>> getInput() {
             return Arrays.asList(
-                Pair.of("1-one", 1),
-                Pair.of("2-one", 2),
-                Pair.of("1-two", 4),
-                Pair.of("1-three", 8),
-                Pair.of("1-four", 10),
-                Pair.of("2-two", 10),
-                Pair.of("1-five", 18),
-                Pair.of("2-three", 20),
-                Pair.of("1-six", 22),
-                Pair.of("1-seven", 23),
-                Pair.of("1-eight", 23));
+                KV.of("1-one", 1),
+                KV.of("2-one", 2),
+                KV.of("1-two", 4),
+                KV.of("1-three", 8),
+                KV.of("1-four", 10),
+                KV.of("2-two", 10),
+                KV.of("1-five", 18),
+                KV.of("2-three", 20),
+                KV.of("1-six", 22),
+                KV.of("1-seven", 23),
+                KV.of("1-eight", 23));
           }
 
           @Override
-          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Pair<String, Integer>> input) {
+          protected Dataset<KV<Integer, Long>> getOutput(Dataset<KV<String, Integer>> input) {
             return ReduceStateByKey.of(input)
-                .keyBy(e -> e.getFirst().charAt(0) - '0')
-                .valueBy(Pair::getFirst)
+                .keyBy(e -> e.getKey().charAt(0) - '0')
+                .valueBy(KV::getKey)
                 .stateFactory((StateFactory<String, Long, CountState<String>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-                // TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
+                // TODO: .timedBy(KV::getValue) and make the assertion in the validation phase stronger
                 // .windowBy(Count.of(3))
                 // TODO rewrite windowing into beam once ReduceStateByKey is supported
                 .output();
           }
 
           @Override
-          public List<Pair<Integer, Long>> getUnorderedOutput() {
+          public List<KV<Integer, Long>> getUnorderedOutput() {
             // ~ prepare the output for comparison
-            return Arrays.asList(Pair.of(1, 3L), Pair.of(1, 3L), Pair.of(1, 2L), Pair.of(2, 3L));
+            return Arrays.asList(KV.of(1, 3L), KV.of(1, 3L), KV.of(1, 2L), KV.of(2, 3L));
           }
         });
   }
@@ -283,30 +282,30 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testTimeWindowing() {
     execute(
-        new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+        new AbstractTestCase<KV<String, Integer>, Triple<TimeInterval, Integer, String>>() {
 
           @Override
-          protected List<Pair<String, Integer>> getInput() {
+          protected List<KV<String, Integer>> getInput() {
             return Arrays.asList(
-                Pair.of("1-one", 1),
-                Pair.of("2-one", 2),
-                Pair.of("1-two", 4),
-                Pair.of("1-three", 8), // end of first window
-                Pair.of("1-four", 10), // end of second window
-                Pair.of("2-two", 10),
-                Pair.of("1-five", 18), // end of third window
-                Pair.of("2-three", 20),
-                Pair.of("1-six", 22)); // end of fourth window
+                KV.of("1-one", 1),
+                KV.of("2-one", 2),
+                KV.of("1-two", 4),
+                KV.of("1-three", 8), // end of first window
+                KV.of("1-four", 10), // end of second window
+                KV.of("2-two", 10),
+                KV.of("1-five", 18), // end of third window
+                KV.of("2-three", 20),
+                KV.of("1-six", 22)); // end of fourth window
           }
 
           @Override
           protected Dataset<Triple<TimeInterval, Integer, String>> getOutput(
-              Dataset<Pair<String, Integer>> input) {
-            input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
-            Dataset<Pair<Integer, String>> reduced =
+              Dataset<KV<String, Integer>> input) {
+            input = AssignEventTime.of(input).using(e -> e.getValue()).output();
+            Dataset<KV<Integer, String>> reduced =
                 ReduceStateByKey.of(input)
-                    .keyBy(e -> e.getFirst().charAt(0) - '0')
-                    .valueBy(Pair::getFirst)
+                    .keyBy(e -> e.getKey().charAt(0) - '0')
+                    .valueBy(KV::getKey)
                     .stateFactory(AccState<String>::new)
                     .mergeStatesBy(AccState::combine)
                     //.windowBy(Time.of(Duration.ofMillis(5)))
@@ -315,13 +314,13 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
             return FlatMap.of(reduced)
                 .using(
-                    (UnaryFunctor<Pair<Integer, String>, Triple<TimeInterval, Integer, String>>)
+                    (UnaryFunctor<KV<Integer, String>, Triple<TimeInterval, Integer, String>>)
                         (elem, context) ->
                             context.collect(
                                 Triple.of(
                                     (TimeInterval) context.getWindow(),
-                                    elem.getFirst(),
-                                    elem.getSecond())))
+                                    elem.getKey(),
+                                    elem.getValue())))
                 .output();
           }
 
@@ -344,29 +343,29 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testTimeSlidingWindowing() {
     execute(
-        new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+        new AbstractTestCase<KV<String, Integer>, Triple<TimeInterval, Integer, String>>() {
 
           @Override
-          protected List<Pair<String, Integer>> getInput() {
+          protected List<KV<String, Integer>> getInput() {
             return Arrays.asList(
-                Pair.of("1-one", 1),
-                Pair.of("2-ten", 6),
-                Pair.of("1-two", 8),
-                Pair.of("1-three", 10),
-                Pair.of("2-eleven", 10),
-                Pair.of("1-four", 18),
-                Pair.of("2-twelve", 24),
-                Pair.of("1-five", 22));
+                KV.of("1-one", 1),
+                KV.of("2-ten", 6),
+                KV.of("1-two", 8),
+                KV.of("1-three", 10),
+                KV.of("2-eleven", 10),
+                KV.of("1-four", 18),
+                KV.of("2-twelve", 24),
+                KV.of("1-five", 22));
           }
 
           @Override
           protected Dataset<Triple<TimeInterval, Integer, String>> getOutput(
-              Dataset<Pair<String, Integer>> input) {
-            input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
-            Dataset<Pair<Integer, String>> reduced =
+              Dataset<KV<String, Integer>> input) {
+            input = AssignEventTime.of(input).using(e -> e.getValue()).output();
+            Dataset<KV<Integer, String>> reduced =
                 ReduceStateByKey.of(input)
-                    .keyBy(e -> e.getFirst().charAt(0) - '0')
-                    .valueBy(e -> e.getFirst().substring(2))
+                    .keyBy(e -> e.getKey().charAt(0) - '0')
+                    .valueBy(e -> e.getKey().substring(2))
                     .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                     .mergeStatesBy(AccState::combine)
                     //.windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
@@ -375,13 +374,13 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
             return FlatMap.of(reduced)
                 .using(
-                    (UnaryFunctor<Pair<Integer, String>, Triple<TimeInterval, Integer, String>>)
+                    (UnaryFunctor<KV<Integer, String>, Triple<TimeInterval, Integer, String>>)
                         (elem, context) ->
                             context.collect(
                                 Triple.of(
                                     (TimeInterval) context.getWindow(),
-                                    elem.getFirst(),
-                                    elem.getSecond())))
+                                    elem.getKey(),
+                                    elem.getValue())))
                 .output();
           }
 
@@ -413,30 +412,30 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testSessionWindowing0() {
     execute(
-        new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+        new AbstractTestCase<KV<String, Integer>, Triple<TimeInterval, Integer, String>>() {
 
           @Override
-          protected List<Pair<String, Integer>> getInput() {
+          protected List<KV<String, Integer>> getInput() {
             return Arrays.asList(
-                Pair.of("1-one", 1),
-                Pair.of("2-one", 2),
-                Pair.of("1-two", 4),
-                Pair.of("1-three", 8),
-                Pair.of("1-four", 10),
-                Pair.of("2-two", 10),
-                Pair.of("1-five", 18),
-                Pair.of("2-three", 20),
-                Pair.of("1-six", 22));
+                KV.of("1-one", 1),
+                KV.of("2-one", 2),
+                KV.of("1-two", 4),
+                KV.of("1-three", 8),
+                KV.of("1-four", 10),
+                KV.of("2-two", 10),
+                KV.of("1-five", 18),
+                KV.of("2-three", 20),
+                KV.of("1-six", 22));
           }
 
           @Override
           protected Dataset<Triple<TimeInterval, Integer, String>> getOutput(
-              Dataset<Pair<String, Integer>> input) {
-            input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
-            Dataset<Pair<Integer, String>> reduced =
+              Dataset<KV<String, Integer>> input) {
+            input = AssignEventTime.of(input).using(e -> e.getValue()).output();
+            Dataset<KV<Integer, String>> reduced =
                 ReduceStateByKey.of(input)
-                    .keyBy(e -> e.getFirst().charAt(0) - '0')
-                    .valueBy(Pair::getFirst)
+                    .keyBy(e -> e.getKey().charAt(0) - '0')
+                    .valueBy(KV::getKey)
                     .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                     .mergeStatesBy(AccState::combine)
                     //.windowBy(Session.of(Duration.ofMillis(5)))
@@ -445,13 +444,13 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
             return FlatMap.of(reduced)
                 .using(
-                    (UnaryFunctor<Pair<Integer, String>, Triple<TimeInterval, Integer, String>>)
+                    (UnaryFunctor<KV<Integer, String>, Triple<TimeInterval, Integer, String>>)
                         (elem, context) ->
                             context.collect(
                                 Triple.of(
                                     (TimeInterval) context.getWindow(),
-                                    elem.getFirst(),
-                                    elem.getSecond())))
+                                    elem.getKey(),
+                                    elem.getValue())))
                 .output();
           }
 
@@ -474,24 +473,24 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testElementTimestamp() {
     execute(
-        new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+        new AbstractTestCase<KV<Integer, Long>, Integer>() {
 
           @Override
-          protected List<Pair<Integer, Long>> getInput() {
+          protected List<KV<Integer, Long>> getInput() {
             return Arrays.asList(
-                // ~ Pair.of(value, time)
-                Pair.of(1, 10_123L), Pair.of(2, 11_234L), Pair.of(3, 12_345L), Pair.of(4, 21_456L));
+                // ~ KV.of(value, time)
+                KV.of(1, 10_123L), KV.of(2, 11_234L), KV.of(3, 12_345L), KV.of(4, 21_456L));
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
+          protected Dataset<Integer> getOutput(Dataset<KV<Integer, Long>> input) {
             // ~ this operator is supposed to emit elements internally with a timestamp
             // which equals the end of the time window
-            input = AssignEventTime.of(input).using(Pair::getSecond).output();
-            Dataset<Pair<String, Integer>> reduced =
+            input = AssignEventTime.of(input).using(KV::getValue).output();
+            Dataset<KV<String, Integer>> reduced =
                 ReduceStateByKey.of(input)
                     .keyBy(e -> "")
-                    .valueBy(Pair::getFirst)
+                    .valueBy(KV::getKey)
                     .stateFactory(ReduceByKeyTest.SumState::new)
                     .mergeStatesBy(ReduceByKeyTest.SumState::combine)
                     //.windowBy(Time.of(Duration.ofSeconds(5)))
@@ -500,10 +499,10 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             // ~ now use a custom windowing with a trigger which does
             // the assertions subject to this test (use RSBK which has to
             // use triggering, unlike an optimized RBK)
-            Dataset<Pair<String, Integer>> output =
+            Dataset<KV<String, Integer>> output =
                 ReduceStateByKey.of(reduced)
-                    .keyBy(Pair::getFirst)
-                    .valueBy(Pair::getSecond)
+                    .keyBy(KV::getKey)
+                    .valueBy(KV::getValue)
                     .stateFactory(ReduceByKeyTest.SumState::new)
                     .mergeStatesBy(ReduceByKeyTest.SumState::combine)
                     //.windowBy(new TimeAssertingWindowing<>())
@@ -511,8 +510,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .output();
             return FlatMap.of(output)
                 .using(
-                    (UnaryFunctor<Pair<String, Integer>, Integer>)
-                        (elem, context) -> context.collect(elem.getSecond()))
+                    (UnaryFunctor<KV<String, Integer>, Integer>)
+                        (elem, context) -> context.collect(elem.getValue()))
                 .output();
           }
 
@@ -526,14 +525,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   @Test
   public void testReduceStateByKeyWithWrongHashCodeImpl() {
     execute(
-        new AbstractTestCase<Pair<Word, Long>, Pair<Word, Long>>() {
+        new AbstractTestCase<KV<Word, Long>, KV<Word, Long>>() {
 
           @Override
-          protected Dataset<Pair<Word, Long>> getOutput(Dataset<Pair<Word, Long>> input) {
-            input = AssignEventTime.of(input).using(Pair::getSecond).output();
+          protected Dataset<KV<Word, Long>> getOutput(Dataset<KV<Word, Long>> input) {
+            input = AssignEventTime.of(input).using(KV::getValue).output();
             return ReduceStateByKey.of(input)
-                .keyBy(Pair::getFirst)
-                .valueBy(Pair::getFirst)
+                .keyBy(KV::getKey)
+                .valueBy(KV::getKey)
                 .stateFactory((StateFactory<Word, Long, CountState<Word>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
                 //.windowBy(Time.of(Duration.ofSeconds(1)))
@@ -542,24 +541,24 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected List<Pair<Word, Long>> getInput() {
+          protected List<KV<Word, Long>> getInput() {
             return Arrays.asList(
-                Pair.of(new Word("euphoria"), 300L),
-                Pair.of(new Word("euphoria"), 600L),
-                Pair.of(new Word("spark"), 900L),
-                Pair.of(new Word("euphoria"), 1300L),
-                Pair.of(new Word("flink"), 1600L),
-                Pair.of(new Word("spark"), 1900L));
+                KV.of(new Word("euphoria"), 300L),
+                KV.of(new Word("euphoria"), 600L),
+                KV.of(new Word("spark"), 900L),
+                KV.of(new Word("euphoria"), 1300L),
+                KV.of(new Word("flink"), 1600L),
+                KV.of(new Word("spark"), 1900L));
           }
 
           @Override
-          public List<Pair<Word, Long>> getUnorderedOutput() {
+          public List<KV<Word, Long>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(new Word("euphoria"), 2L),
-                Pair.of(new Word("spark"), 1L), // first window
-                Pair.of(new Word("euphoria"), 1L),
-                Pair.of(new Word("spark"), 1L), // second window
-                Pair.of(new Word("flink"), 1L));
+                KV.of(new Word("euphoria"), 2L),
+                KV.of(new Word("spark"), 1L), // first window
+                KV.of(new Word("euphoria"), 1L),
+                KV.of(new Word("spark"), 1L), // second window
+                KV.of(new Word("flink"), 1L));
           }
         });
   }

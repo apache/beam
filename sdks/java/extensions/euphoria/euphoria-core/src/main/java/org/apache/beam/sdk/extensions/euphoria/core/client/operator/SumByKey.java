@@ -38,12 +38,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputH
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -55,9 +55,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <p>Example:
  *
  * <pre>{@code
- * Dataset<Pair<String, Long>> summed = SumByKey.of(elements)
- *     .keyBy(Pair::getFirst)
- *     .valueBy(Pair::getSecond)
+ * Dataset<KV<String, Long>> summed = SumByKey.of(elements)
+ *     .keyBy(KV::getKey)
+ *     .valueBy(KV::getValue)
  *     .output();
  * }</pre>
  *
@@ -80,7 +80,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class SumByKey<InputT, K, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>>
+        InputT, InputT, K, KV<K, Long>, W, SumByKey<InputT, K, W>>
     implements TypeAware.Value<Long> {
 
   private final UnaryFunction<InputT, Long> valueExtractor;
@@ -92,7 +92,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       UnaryFunction<InputT, K> keyExtractor,
       TypeDescriptor<K> keyType,
       UnaryFunction<InputT, Long> valueExtractor,
-      @Nullable TypeDescriptor<Pair<K, Long>> outputType,
+      @Nullable TypeDescriptor<KV<K, Long>> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing) {
     this(
@@ -115,7 +115,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       UnaryFunction<InputT, K> keyExtractor,
       TypeDescriptor<K> keyType,
       UnaryFunction<InputT, Long> valueExtractor,
-      @Nullable TypeDescriptor<Pair<K, Long>> outputType,
+      @Nullable TypeDescriptor<KV<K, Long>> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
@@ -242,7 +242,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
   /** TODO: complete javadoc. */
   public static class ValueByWindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-          Builders.Output<Pair<K, Long>>,
+          Builders.Output<KV<K, Long>>,
           Builders.OutputValues<K, Long> {
 
     private final BuilderParams<InputT, K, ?> params;
@@ -274,7 +274,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
 
       params.valueExtractor = e -> 1L;
 
@@ -285,7 +285,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
   /** TODO: complete javadoc. */
   public static class WindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-          Builders.Output<Pair<K, Long>>,
+          Builders.Output<KV<K, Long>>,
           Builders.OutputValues<K, Long>,
           OptionalMethodBuilder<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
 
@@ -313,7 +313,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
 
@@ -373,7 +373,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, K, W extends BoundedWindow>
-      implements Builders.Output<Pair<K, Long>>, Builders.OutputValues<K, Long> {
+      implements Builders.Output<KV<K, Long>>, Builders.OutputValues<K, Long> {
 
     private final BuilderParams<InputT, K, W> params;
 
@@ -382,7 +382,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
 
       SumByKey<InputT, K, W> sumByKey =
@@ -393,7 +393,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
               params.keyExtractor,
               params.keyType,
               params.valueExtractor,
-              TypeUtils.pairs(params.keyType, TypeDescriptors.longs()),
+              TypeUtils.keyValues(params.keyType, TypeDescriptors.longs()),
               params.getWindowing(),
               params.euphoriaWindowing,
               Sets.newHashSet(outputHints));

@@ -24,8 +24,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
@@ -33,47 +33,47 @@ import org.apache.beam.sdk.values.TypeParameter;
 public class TypeUtils {
 
   /**
-   * Creates composite {@link TypeDescriptor} of {@code <Pair<K,V>}. Provided that both given
+   * Creates composite {@link TypeDescriptor} of {@code <KV<K,V>}. Provided that both given
    * parameters are non null.
    *
    * @param key key type descriptor
    * @param value value type descriptor
    * @param <K> key tye parameter
    * @param <V> value type parameter
-   * @return {@link TypeDescriptor} of {@code <Pair<K,V>} when {@code key} and {@code value} are not
+   * @return {@link TypeDescriptor} of {@code <KV<K,V>} when {@code key} and {@code value} are not
    *     null, null otherwise
    */
   @Nullable
-  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(
+  public static <K, V> TypeDescriptor<KV<K, V>> keyValues(
       TypeDescriptor<K> key, TypeDescriptor<V> value) {
 
     if (Objects.isNull(key) || Objects.isNull(value)) {
       return null;
     }
 
-    return new TypeDescriptor<Pair<K, V>>() {}.where(new TypeParameter<K>() {}, key)
+    return new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
         .where(new TypeParameter<V>() {}, value);
   }
 
   /**
-   * Creates composite {@link TypeDescriptor} of {@code <Pair<K,V>}. Provided that both given
+   * Creates composite {@link TypeDescriptor} of {@code <KV<K,V>}. Provided that both given
    * parameters are non null.
    *
    * @param key key type descriptor
    * @param value value type descriptor
    * @param <K> key type parameter
    * @param <V> value type parameter
-   * @return {@link TypeDescriptor} of {@code <Pair<K,V>} when {@code key} and {@code value} are not
+   * @return {@link TypeDescriptor} of {@code <KV<K,V>} when {@code key} and {@code value} are not
    *     null, null otherwise
    */
   @Nullable
-  public static <K, V> TypeDescriptor<Pair<K, V>> pairs(Class<K> key, Class<V> value) {
+  public static <K, V> TypeDescriptor<KV<K, V>> keyValues(Class<K> key, Class<V> value) {
 
     if (Objects.isNull(key) || Objects.isNull(value)) {
       return null;
     }
 
-    return pairs(TypeDescriptor.of(key), TypeDescriptor.of(value));
+    return keyValues(TypeDescriptor.of(key), TypeDescriptor.of(value));
   }
 
   /**

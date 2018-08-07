@@ -55,12 +55,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -108,7 +108,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>>
+        InputT, InputT, K, KV<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>>
     implements TypeAware.Value<V> {
 
   final ReduceFunctor<V, OutputT> reducer;
@@ -131,7 +131,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       @Nullable Windowing euphoriaWindowing,
       CombinableReduceFunction<OutputT> reducer,
       Set<OutputHint> outputHints,
-      TypeDescriptor<Pair<K, OutputT>> outputTypeDescriptor) {
+      TypeDescriptor<KV<K, OutputT>> outputTypeDescriptor) {
     this(
         name,
         flow,
@@ -161,7 +161,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       ReduceFunctor<V, OutputT> reducer,
       @Nullable BinaryFunction<V, V, Integer> valueComparator,
       Set<OutputHint> outputHints,
-      TypeDescriptor<Pair<K, OutputT>> outputTypeDescriptor) {
+      TypeDescriptor<KV<K, OutputT>> outputTypeDescriptor) {
 
     super(
         name,
@@ -476,7 +476,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
 
   /** TODO: complete javadoc. */
   public static class WindowByBuilder<InputT, K, V, OutputT>
-      implements Builders.Output<Pair<K, OutputT>>,
+      implements Builders.Output<KV<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
           Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>>,
           OptionalMethodBuilder<
@@ -508,7 +508,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
 
@@ -566,7 +566,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
       ReduceByKey<InputT, K, V, OutputT, W> reduce =
           new ReduceByKey<>(
@@ -582,7 +582,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
               params.reducer,
               params.valuesComparator,
               Sets.newHashSet(outputHints),
-              TypeUtils.pairs(params.keyType, params.outputType));
+              TypeUtils.keyValues(params.keyType, params.outputType));
       flow.add(reduce);
       return reduce.output();
     }

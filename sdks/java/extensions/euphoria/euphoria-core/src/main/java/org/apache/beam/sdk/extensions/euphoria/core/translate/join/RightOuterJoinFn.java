@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollector;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Right outer join implementation of {@link JoinFn}. */
@@ -47,11 +47,11 @@ public class RightOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, R
       if (leftSideIter.iterator().hasNext()) {
         for (LeftT leftValue : leftSideIter) {
           joiner.apply(leftValue, rightValue, outCollector);
-          c.output(Pair.of(key, outCollector.get()));
+          c.output(KV.of(key, outCollector.get()));
         }
       } else {
         joiner.apply(null, rightValue, outCollector);
-        c.output(Pair.of(key, outCollector.get()));
+        c.output(KV.of(key, outCollector.get()));
       }
     }
   }

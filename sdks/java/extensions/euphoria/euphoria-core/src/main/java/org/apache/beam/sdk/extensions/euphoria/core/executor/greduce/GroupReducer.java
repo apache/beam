@@ -48,7 +48,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * An implementation of a RSBK group reducer of an ordered stream of already grouped (by a specific
@@ -65,7 +65,7 @@ public class GroupReducer<WidT extends Window, K, InT> {
   private final StateMerger<InT, ?, State<InT, ?>> stateCombiner;
   private final WindowedElementFactory<WidT, Object> elementFactory;
   private final StateContext stateContext;
-  private final Collector<WindowedElement<?, Pair<K, ?>>> collector;
+  private final Collector<WindowedElement<?, KV<K, ?>>> collector;
   private final Windowing windowing;
   private final Trigger trigger;
   private final AccumulatorProvider accumulators;
@@ -78,7 +78,7 @@ public class GroupReducer<WidT extends Window, K, InT> {
       WindowedElementFactory<WidT, Object> elementFactory,
       Windowing windowing,
       Trigger trigger,
-      Collector<WindowedElement<?, Pair<K, ?>>> collector,
+      Collector<WindowedElement<?, KV<K, ?>>> collector,
       AccumulatorProvider accumulators) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
@@ -93,7 +93,7 @@ public class GroupReducer<WidT extends Window, K, InT> {
   }
 
   @SuppressWarnings("unchecked")
-  public void process(WindowedElement<WidT, Pair<K, InT>> elem) {
+  public void process(WindowedElement<WidT, KV<K, InT>> elem) {
     // ~ make sure we have the key
     updateKey(elem);
 
@@ -111,7 +111,7 @@ public class GroupReducer<WidT extends Window, K, InT> {
     // ~ add the value to the target window state
     {
       State state = getStateForUpdate(window);
-      state.add(elem.getElement().getSecond());
+      state.add(elem.getElement().getValue());
     }
 
     // ~ process trigger#onElement
@@ -158,11 +158,11 @@ public class GroupReducer<WidT extends Window, K, InT> {
       return newWindow;
     }
 
-    Collection<Pair<Collection<WidT>, WidT>> merges =
+    Collection<KV<Collection<WidT>, WidT>> merges =
         ((MergingWindowing) windowing).mergeWindows(getActivesWindowsPlus(newWindow));
-    for (Pair<Collection<WidT>, WidT> merge : merges) {
-      Collection<WidT> sources = merge.getFirst();
-      WidT target = merge.getSecond();
+    for (KV<Collection<WidT>, WidT> merge : merges) {
+      Collection<WidT> sources = merge.getKey();
+      WidT target = merge.getValue();
 
       // ~ if the newWindow is being merged, replace it with the merge target such
       // that the new element (from which newWindow is originating from) ends up there
@@ -223,12 +223,12 @@ public class GroupReducer<WidT extends Window, K, InT> {
     return xs;
   }
 
-  private void updateKey(WindowedElement<WidT, Pair<K, InT>> elem) {
+  private void updateKey(WindowedElement<WidT, KV<K, InT>> elem) {
     if (key == null) {
-      key = elem.getElement().getFirst();
+      key = elem.getElement().getKey();
     } else {
       // ~ validate we really do process elements of a single key only
-      checkState(key.equals(elem.getElement().getFirst()));
+      checkState(key.equals(elem.getElement().getKey()));
     }
   }
 
@@ -267,10 +267,10 @@ public class GroupReducer<WidT extends Window, K, InT> {
   class ElementCollector<T>
       implements Context, org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector<T> {
 
-    final Collector<WindowedElement<WidT, Pair<K, T>>> out;
+    final Collector<WindowedElement<WidT, KV<K, T>>> out;
     final WidT window;
 
-    ElementCollector(Collector<WindowedElement<WidT, Pair<K, T>>> out, WidT window) {
+    ElementCollector(Collector<WindowedElement<WidT, KV<K, T>>> out, WidT window) {
       this.out = out;
       this.window = window;
     }
@@ -280,7 +280,7 @@ public class GroupReducer<WidT extends Window, K, InT> {
     public void collect(T elem) {
       out.collect(
           (WindowedElement)
-              elementFactory.create(window, window.maxTimestamp() - 1, Pair.of(key, elem)));
+              elementFactory.create(window, window.maxTimestamp() - 1, KV.of(key, elem)));
     }
 
     @Override

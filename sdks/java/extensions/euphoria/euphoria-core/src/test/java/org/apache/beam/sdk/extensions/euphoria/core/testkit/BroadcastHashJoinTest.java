@@ -26,9 +26,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Collection of broadcast hash join tests. */
@@ -38,10 +38,10 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
   @Test
   public void leftBroadcastHashJoin() {
     execute(
-        new JoinTest.JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTest.JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return LeftJoin.of(
                     left, MapElements.of(right).using(i -> i).output(SizeHint.FITS_IN_MEMORY))
@@ -63,18 +63,18 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(0, "0+null"),
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"),
-                Pair.of(3, "3+13"),
-                Pair.of(3, "3+13"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"));
+                KV.of(0, "0+null"),
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"));
           }
         });
   }
@@ -83,10 +83,10 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
   @Test
   public void rightBroadcastHashJoin() {
     execute(
-        new JoinTest.JoinTestCase<Integer, Long, Pair<Integer, String>>() {
+        new JoinTest.JoinTestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<Pair<Integer, String>> getOutput(
+          protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return RightJoin.of(
                     MapElements.of(left).using(i -> i).output(SizeHint.FITS_IN_MEMORY), right)
@@ -108,16 +108,16 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, String>> getUnorderedOutput() {
+          public List<KV<Integer, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(2, "2+12"),
-                Pair.of(2, "2+12"),
-                Pair.of(4, "4+14"),
-                Pair.of(1, "1+11"),
-                Pair.of(1, "1+11"),
-                Pair.of(3, "3+13"),
-                Pair.of(3, "3+13"),
-                Pair.of(5, "null+15"));
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(4, "4+14"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"),
+                KV.of(5, "null+15"));
           }
         });
   }
@@ -128,10 +128,10 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
     final String sameHashCodeKey1 = "FB";
     final String sameHashCodeKey2 = "Ea";
     execute(
-        new JoinTest.JoinTestCase<String, Integer, Pair<String, String>>() {
+        new JoinTest.JoinTestCase<String, Integer, KV<String, String>>() {
 
           @Override
-          protected Dataset<Pair<String, String>> getOutput(
+          protected Dataset<KV<String, String>> getOutput(
               Dataset<String> left, Dataset<Integer> right) {
             return LeftJoin.of(
                     left, MapElements.of(right).using(i -> i).output(SizeHint.FITS_IN_MEMORY))
@@ -153,11 +153,11 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<String, String>> getUnorderedOutput() {
+          public List<KV<String, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Pair.of(sameHashCodeKey1, "FB+1"),
-                Pair.of(sameHashCodeKey2, "Ea+2"),
-                Pair.of("keyWithoutRightSide", "keyWithoutRightSide+null"));
+                KV.of(sameHashCodeKey1, "FB+1"),
+                KV.of(sameHashCodeKey2, "Ea+2"),
+                KV.of("keyWithoutRightSide", "keyWithoutRightSide+null"));
           }
         });
   }

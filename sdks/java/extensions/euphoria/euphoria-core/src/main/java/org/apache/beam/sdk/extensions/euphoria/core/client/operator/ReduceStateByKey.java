@@ -39,10 +39,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateF
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateMerger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  *
  * <pre>{@code
  * Dataset<String> words = ...;
- * Dataset<Pair<String, Integer>> counts =
+ * Dataset<KV<String, Integer>> counts =
  *     ReduceStateByKey.named("WORD-COUNT")
  *         .of(words)
  *         .keyBy(s -> s)
@@ -112,8 +112,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 public class ReduceStateByKey<
         InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Pair<K, OutputT>, W,
-        ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
+        InputT, InputT, K, KV<K, OutputT>, W, ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
 
   private final StateFactory<V, OutputT, StateT> stateFactory;
 
@@ -135,7 +134,7 @@ public class ReduceStateByKey<
       @Nullable Windowing euphoriaWindowing,
       StateFactory<V, OutputT, StateT> stateFactory,
       StateMerger<V, OutputT, StateT> stateMerger,
-      @Nullable TypeDescriptor<Pair<K, OutputT>> outputType,
+      @Nullable TypeDescriptor<KV<K, OutputT>> outputType,
       Set<OutputHint> outputHints) {
     super(
         name,
@@ -379,7 +378,7 @@ public class ReduceStateByKey<
   /** TODO: complete javadoc. */
   public static class WindowOfBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, StateT, ?>>,
-          Builders.Output<Pair<K, OutputT>>,
+          Builders.Output<KV<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
           OptionalMethodBuilder<
               WindowOfBuilder<InputT, K, V, OutputT, StateT>,
@@ -412,7 +411,7 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
 
@@ -477,7 +476,7 @@ public class ReduceStateByKey<
    */
   public static class OutputBuilder<
           InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
-      implements Builders.Output<Pair<K, OutputT>>, Builders.OutputValues<K, OutputT> {
+      implements Builders.Output<KV<K, OutputT>>, Builders.OutputValues<K, OutputT> {
 
     /** TODO: complete javadoc. */
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
@@ -487,7 +486,7 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
 
       ReduceStateByKey<InputT, K, V, OutputT, StateT, W> reduceStateByKey =
@@ -503,7 +502,7 @@ public class ReduceStateByKey<
               params.euphoriaWindowing,
               params.stateFactory,
               params.stateMerger,
-              TypeUtils.pairs(params.keyType, params.simpleOutputType),
+              TypeUtils.keyValues(params.keyType, params.simpleOutputType),
               Sets.newHashSet(outputHints));
       flow.add(reduceStateByKey);
 

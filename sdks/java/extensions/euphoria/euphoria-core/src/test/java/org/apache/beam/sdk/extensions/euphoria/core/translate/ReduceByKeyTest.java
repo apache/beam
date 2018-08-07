@@ -42,11 +42,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.CountTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -61,7 +61,7 @@ public class ReduceByKeyTest {
     final ListDataSource<Integer> input =
         ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
 
-    final ListDataSink<Pair<Integer, Integer>> output = ListDataSink.get();
+    final ListDataSink<KV<Integer, Integer>> output = ListDataSink.get();
 
     ReduceByKey.of(flow.createInput(input, e -> 1000L * e))
         .keyBy(i -> i % 2)
@@ -75,44 +75,44 @@ public class ReduceByKeyTest {
     BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
     executor.executeSync(flow);
 
-    DatasetAssert.unorderedEquals(output.getOutputs(), Pair.of(0, 8), Pair.of(1, 7));
+    DatasetAssert.unorderedEquals(output.getOutputs(), KV.of(0, 8), KV.of(1, 7));
   }
 
   @Test
   public void testEventTime() {
 
     Flow flow = Flow.create();
-    ListDataSource<Pair<Integer, Long>> source =
+    ListDataSource<KV<Integer, Long>> source =
         ListDataSource.unbounded(
             Arrays.asList(
-                Pair.of(1, 300L),
-                Pair.of(2, 600L),
-                Pair.of(3, 900L),
-                Pair.of(2, 1300L),
-                Pair.of(3, 1600L),
-                Pair.of(1, 1900L),
-                Pair.of(3, 2300L),
-                Pair.of(2, 2600L),
-                Pair.of(1, 2900L),
-                Pair.of(2, 3300L),
-                Pair.of(2, 300L),
-                Pair.of(4, 600L),
-                Pair.of(3, 900L),
-                Pair.of(4, 1300L),
-                Pair.of(2, 1600L),
-                Pair.of(3, 1900L),
-                Pair.of(4, 2300L),
-                Pair.of(1, 2600L),
-                Pair.of(3, 2900L),
-                Pair.of(4, 3300L),
-                Pair.of(3, 3600L)));
+                KV.of(1, 300L),
+                KV.of(2, 600L),
+                KV.of(3, 900L),
+                KV.of(2, 1300L),
+                KV.of(3, 1600L),
+                KV.of(1, 1900L),
+                KV.of(3, 2300L),
+                KV.of(2, 2600L),
+                KV.of(1, 2900L),
+                KV.of(2, 3300L),
+                KV.of(2, 300L),
+                KV.of(4, 600L),
+                KV.of(3, 900L),
+                KV.of(4, 1300L),
+                KV.of(2, 1600L),
+                KV.of(3, 1900L),
+                KV.of(4, 2300L),
+                KV.of(1, 2600L),
+                KV.of(3, 2900L),
+                KV.of(4, 3300L),
+                KV.of(3, 3600L)));
 
-    ListDataSink<Pair<Integer, Long>> sink = ListDataSink.get();
-    Dataset<Pair<Integer, Long>> input = flow.createInput(source);
-    input = AssignEventTime.of(input).using(Pair::getSecond).output();
+    ListDataSink<KV<Integer, Long>> sink = ListDataSink.get();
+    Dataset<KV<Integer, Long>> input = flow.createInput(source);
+    input = AssignEventTime.of(input).using(KV::getValue).output();
 
     ReduceByKey.of(input)
-        .keyBy(Pair::getFirst)
+        .keyBy(KV::getKey)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
@@ -126,21 +126,21 @@ public class ReduceByKeyTest {
 
     DatasetAssert.unorderedEquals(
         sink.getOutputs(),
-        Pair.of(2, 2L),
-        Pair.of(4, 1L), // first window
-        Pair.of(2, 2L),
-        Pair.of(4, 1L), // second window
-        Pair.of(2, 1L),
-        Pair.of(4, 1L), // third window
-        Pair.of(2, 1L),
-        Pair.of(4, 1L), // fourth window
-        Pair.of(1, 1L),
-        Pair.of(3, 2L), // first window
-        Pair.of(1, 1L),
-        Pair.of(3, 2L), // second window
-        Pair.of(1, 2L),
-        Pair.of(3, 2L), // third window
-        Pair.of(3, 1L)); // fourth window
+        KV.of(2, 2L),
+        KV.of(4, 1L), // first window
+        KV.of(2, 2L),
+        KV.of(4, 1L), // second window
+        KV.of(2, 1L),
+        KV.of(4, 1L), // third window
+        KV.of(2, 1L),
+        KV.of(4, 1L), // fourth window
+        KV.of(1, 1L),
+        KV.of(3, 2L), // first window
+        KV.of(1, 1L),
+        KV.of(3, 2L), // second window
+        KV.of(1, 2L),
+        KV.of(3, 2L), // third window
+        KV.of(3, 1L)); // fourth window
   }
 
   @Test
@@ -148,24 +148,24 @@ public class ReduceByKeyTest {
   public void testElementTimestamp() {
 
     Flow flow = Flow.create();
-    ListDataSource<Pair<Integer, Long>> source =
+    ListDataSource<KV<Integer, Long>> source =
         ListDataSource.bounded(
             Arrays.asList(
-                // ~ Pair.of(value, time)
-                Pair.of(1, 10_123L),
-                Pair.of(2, 11_234L),
-                Pair.of(3, 12_345L),
+                // ~ KV.of(value, time)
+                KV.of(1, 10_123L),
+                KV.of(2, 11_234L),
+                KV.of(3, 12_345L),
                 // ~ note: exactly one element for the window on purpose (to test out
                 // all is well even in case our `.combineBy` user function is not called.)
-                Pair.of(4, 21_456L)));
+                KV.of(4, 21_456L)));
     ListDataSink<Integer> sink = ListDataSink.get();
-    Dataset<Pair<Integer, Long>> input = flow.createInput(source);
+    Dataset<KV<Integer, Long>> input = flow.createInput(source);
 
-    input = AssignEventTime.of(input).using(Pair::getSecond).output();
-    Dataset<Pair<String, Integer>> reduced =
+    input = AssignEventTime.of(input).using(KV::getValue).output();
+    Dataset<KV<String, Integer>> reduced =
         ReduceByKey.of(input)
             .keyBy(e -> "", TypeDescriptors.strings())
-            .valueBy(Pair::getFirst, TypeDescriptors.integers())
+            .valueBy(KV::getKey, TypeDescriptors.integers())
             .combineBy(Sums.ofInts(), TypeDescriptors.integers())
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
             .triggeredBy(AfterWatermark.pastEndOfWindow())
@@ -174,18 +174,18 @@ public class ReduceByKeyTest {
     // ~ now use a custom windowing with a trigger which does
     // the assertions subject to this test (use RSBK which has to
     // use triggering, unlike an optimized RBK)
-    Dataset<Pair<String, Integer>> output =
+    Dataset<KV<String, Integer>> output =
         ReduceStateByKey.of(reduced)
-            .keyBy(Pair::getFirst)
-            .valueBy(Pair::getSecond)
+            .keyBy(KV::getKey)
+            .valueBy(KV::getValue)
             .stateFactory(SumState::new)
             .mergeStatesBy(SumState::combine)
             //.windowBy(new AssertingWindowing<>()) //TODO apply Beam windowing
             .output();
     FlatMap.of(output)
         .using(
-            (UnaryFunctor<Pair<String, Integer>, Integer>)
-                (elem, context) -> context.collect(elem.getSecond()))
+            (UnaryFunctor<KV<String, Integer>, Integer>)
+                (elem, context) -> context.collect(elem.getValue()))
         .output()
         .persist(sink);
 
