@@ -69,7 +69,7 @@ public enum NexmarkSuite {
     List<NexmarkConfiguration> configurations = smoke();
     for (NexmarkConfiguration configuration : configurations) {
       if (configuration.numEvents >= 0) {
-        configuration.numEvents *= 1000;
+        configuration.numEvents *= 100;
       }
     }
     return configurations;
@@ -79,7 +79,7 @@ public enum NexmarkSuite {
     List<NexmarkConfiguration> configurations = smoke();
     for (NexmarkConfiguration configuration : configurations) {
       if (configuration.numEvents >= 0) {
-        configuration.numEvents *= 1000;
+        configuration.numEvents *= 10000;
       }
     }
     return configurations;
