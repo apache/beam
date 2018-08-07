@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * schemas and rows that bind to those fields. The field order in the schema is not guaranteed to
  * match the method order in the class. The Java object is expected to have implemented a correct
  * .equals() method. TODO: Validate equals() method is provided, and if not generate a "slow" equals
- * method based on * the schema.
+ * method based on the schema.
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
