@@ -22,7 +22,9 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamUnnestRel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Uncollect;
 import org.apache.calcite.rel.core.Union;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
@@ -35,7 +37,7 @@ public class BeamUnnestRule extends RelOptRule {
   private BeamUnnestRule() {
     super(
         operand(
-            LogicalCorrelate.class, operand(RelNode.class, any()), operand(Uncollect.class, any())),
+            LogicalCorrelate.class, operand(RelNode.class, any()), operand(SingleRel.class, any())),
         "BeamUnnestRule");
   }
 
@@ -44,6 +46,16 @@ public class BeamUnnestRule extends RelOptRule {
     LogicalCorrelate correlate = call.rel(0);
     RelNode outer = call.rel(1);
     RelNode uncollect = call.rel(2);
+    if (!(uncollect instanceof Uncollect)) {
+      // Drop projection
+      uncollect = ((SingleRel) uncollect).getInput();
+      if (uncollect instanceof RelSubset) {
+        uncollect = ((RelSubset) uncollect).getOriginal();
+      }
+      if (!(uncollect instanceof Uncollect)) {
+        return;
+      }
+    }
 
     call.transformTo(
         new BeamUnnestRel(
