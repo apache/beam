@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -47,6 +48,9 @@ public class Schema implements Serializable {
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
   // is correct.
   private final int hashCode;
+  // Every SchemaCoder has a UUID. The schemas created with the same UUID are guaranteed to be
+  // equal, so we can short circuit comparison.
+  @Nullable private UUID uuid = null;
 
   /** Builder class for building {@link Schema} objects. */
   public static class Builder {
@@ -172,6 +176,17 @@ public class Schema implements Serializable {
     return Schema.builder().addFields(fields).build();
   }
 
+  /** Set this schema's UUID. All schemas with the same UUID must be guaranteed to be identical. */
+  public void setUUID(UUID uuid) {
+    this.uuid = uuid;
+  }
+
+  /** Get this schema's UUID. */
+  @Nullable
+  public UUID getUUID() {
+    return this.uuid;
+  }
+
   /** Returns true if two Schemas have the same fields in the same order. */
   @Override
   public boolean equals(Object o) {
@@ -182,6 +197,10 @@ public class Schema implements Serializable {
       return false;
     }
     Schema other = (Schema) o;
+    // If both schemas have a UUID set, we can simply compare the UUIDs.
+    if (uuid != null && other.uuid != null) {
+      return Objects.equals(uuid, other.uuid);
+    }
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields());
   }
