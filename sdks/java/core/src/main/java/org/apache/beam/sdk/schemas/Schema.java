@@ -175,7 +175,10 @@ public class Schema implements Serializable {
   /** Returns true if two Schemas have the same fields in the same order. */
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof Schema)) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
     Schema other = (Schema) o;

@@ -20,8 +20,10 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
@@ -56,6 +58,23 @@ public class TestJavaBeans {
     public void setAnInt(int anInt) {
       this.anInt = anInt;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NullableBean that = (NullableBean) o;
+      return anInt == that.anInt && Objects.equals(str, that.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(str, anInt);
+    }
   }
 
   /** A Bean containing nullable getter but a non-nullable setter. */
@@ -72,6 +91,23 @@ public class TestJavaBeans {
 
     public void setStr(String str) {
       this.str = str;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      MismatchingNullableBean that = (MismatchingNullableBean) o;
+      return Objects.equals(str, that.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(str);
     }
   }
 
@@ -214,6 +250,48 @@ public class TestJavaBeans {
     public void setStringBuilder(StringBuilder stringBuilder) {
       this.stringBuilder = stringBuilder;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimpleBean that = (SimpleBean) o;
+      return aByte == that.aByte
+          && aShort == that.aShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder, that.stringBuilder);
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
   }
 
   /** The schema for {@link SimpleBean}. * */
@@ -250,6 +328,23 @@ public class TestJavaBeans {
 
     public void setNested(SimpleBean nested) {
       this.nested = nested;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedBean that = (NestedBean) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
     }
   }
 
@@ -296,6 +391,28 @@ public class TestJavaBeans {
     public void setLongs(Long[] longs) {
       this.longs = longs;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrimitiveArrayBean that = (PrimitiveArrayBean) o;
+      return Objects.equals(strings, that.strings)
+          && Arrays.equals(integers, that.integers)
+          && Arrays.equals(longs, that.longs);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(strings);
+      result = 31 * result + Arrays.hashCode(integers);
+      result = 31 * result + Arrays.hashCode(longs);
+      return result;
+    }
   }
 
   /** The schema for {@link PrimitiveArrayBean}. * */
@@ -324,6 +441,23 @@ public class TestJavaBeans {
     public void setBeans(SimpleBean[] beans) {
       this.beans = beans;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedArrayBean that = (NestedArrayBean) o;
+      return Arrays.equals(beans, that.beans);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(beans);
+    }
   }
 
   /** The schema for {@link NestedArrayBean}. * */
@@ -347,6 +481,23 @@ public class TestJavaBeans {
 
     public void setLists(List<List<String>> lists) {
       this.lists = lists;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedArraysBean that = (NestedArraysBean) o;
+      return Objects.equals(lists, that.lists);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(lists);
     }
   }
 
@@ -372,6 +523,23 @@ public class TestJavaBeans {
     public void setSimples(List<SimpleBean> simples) {
       this.simples = simples;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedCollectionBean that = (NestedCollectionBean) o;
+      return Objects.equals(simples, that.simples);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(simples);
+    }
   }
 
   /** The schema for {@link NestedCollectionBean}. * */
@@ -396,6 +564,23 @@ public class TestJavaBeans {
     public void setMap(Map<String, Integer> map) {
       this.map = map;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrimitiveMapBean that = (PrimitiveMapBean) o;
+      return Objects.equals(map, that.map);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(map);
+    }
   }
 
   /** The schema for {@link PrimitiveMapBean}. * */
@@ -419,6 +604,23 @@ public class TestJavaBeans {
 
     public void setMap(Map<String, SimpleBean> map) {
       this.map = map;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedMapBean that = (NestedMapBean) o;
+      return Objects.equals(map, that.map);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(map);
     }
   }
 
@@ -487,6 +689,27 @@ public class TestJavaBeans {
     public void setaBoolean(Boolean aBoolean) {
       this.aBoolean = aBoolean;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      BeanWithBoxedFields that = (BeanWithBoxedFields) o;
+      return Objects.equals(aByte, that.aByte)
+          && Objects.equals(aShort, that.aShort)
+          && Objects.equals(anInt, that.anInt)
+          && Objects.equals(aLong, that.aLong)
+          && Objects.equals(aBoolean, that.aBoolean);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(aByte, aShort, anInt, aLong, aBoolean);
+    }
   }
 
   /** The schema for {@link BeanWithBoxedFields}. * */
@@ -526,6 +749,25 @@ public class TestJavaBeans {
 
     public void setBytes2(ByteBuffer bytes2) {
       this.bytes2 = bytes2;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      BeanWithByteArray that = (BeanWithByteArray) o;
+      return Arrays.equals(bytes1, that.bytes1) && Objects.equals(bytes2, that.bytes2);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(bytes2);
+      result = 31 * result + Arrays.hashCode(bytes1);
+      return result;
     }
   }
 
