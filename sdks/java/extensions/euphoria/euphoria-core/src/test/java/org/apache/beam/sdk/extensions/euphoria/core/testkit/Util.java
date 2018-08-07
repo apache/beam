@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.values.KV;
 
 class Util {
 
@@ -39,7 +39,7 @@ class Util {
   }
 
   @SuppressWarnings("unchecked")
-  static <T, W extends Window> Dataset<Pair<W, T>> extractWindow(Dataset<T> input) {
-    return MapElements.of(input).using((e, ctx) -> Pair.of((W) ctx.getWindow(), e)).output();
+  static <T, W extends Window> Dataset<KV<W, T>> extractWindow(Dataset<T> input) {
+    return MapElements.of(input).using((e, ctx) -> KV.of((W) ctx.getWindow(), e)).output();
   }
 }

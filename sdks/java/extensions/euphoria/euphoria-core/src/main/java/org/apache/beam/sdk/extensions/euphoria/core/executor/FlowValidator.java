@@ -29,10 +29,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.WindowWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.values.KV;
 
 /** Validate invariants. Throw exceptions if any invariant is violated. */
 class FlowValidator {
@@ -117,28 +117,28 @@ class FlowValidator {
    */
   @SuppressWarnings("unchecked")
   private static void checkSinks(DAG<Operator<?, ?>> dag) {
-    List<Pair<Dataset, DataSink>> outputs =
+    List<KV<Dataset, DataSink>> outputs =
         dag.nodes()
             .filter(n -> n.output().getOutputSink() != null)
-            .map(o -> Pair.of((Dataset) o.output(), (DataSink) o.output().getOutputSink()))
+            .map(o -> KV.of((Dataset) o.output(), (DataSink) o.output().getOutputSink()))
             .collect(Collectors.toList());
 
     Map<DataSink, Dataset> sinkDatasets = new HashMap<>();
 
     outputs.forEach(
         p -> {
-          Dataset current = sinkDatasets.get(p.getSecond());
+          Dataset current = sinkDatasets.get(p.getValue());
           if (current != null) {
             throw new IllegalArgumentException(
                 "Operator "
                     + current.getProducer().getName()
                     + " and "
                     + " operator "
-                    + p.getFirst().getProducer().getName()
+                    + p.getKey().getProducer().getName()
                     + " use the same sink "
-                    + p.getSecond());
+                    + p.getValue());
           }
-          sinkDatasets.put(p.getSecond(), p.getFirst());
+          sinkDatasets.put(p.getValue(), p.getKey());
         });
   }
 }

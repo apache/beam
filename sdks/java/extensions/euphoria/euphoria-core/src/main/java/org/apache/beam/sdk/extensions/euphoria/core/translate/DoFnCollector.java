@@ -83,8 +83,8 @@ public class DoFnCollector<InputT, OutputT, ElemT>
   }
 
   /**
-   * Translation of {@link ReduceByKeyTranslator.Collector} collect to Beam's context output.
-   * OperatorName serve as namespace for Beam's metrics.
+   * Translation of {@link ReduceByKeyTranslator ReduceByKeyTranslator's} Collector collect to
+   * Beam's context output. OperatorName serve as namespace for Beam's metrics.
    *
    * @param <InputT> type of input
    * @param <OutputT> type of output

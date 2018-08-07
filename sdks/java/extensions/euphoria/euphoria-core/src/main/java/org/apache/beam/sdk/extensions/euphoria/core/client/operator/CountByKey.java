@@ -36,11 +36,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAw
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -65,7 +65,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class CountByKey<InputT, K, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Pair<K, Long>, W, CountByKey<InputT, K, W>> {
+        InputT, InputT, K, KV<K, Long>, W, CountByKey<InputT, K, W>> {
 
   CountByKey(
       String name,
@@ -73,7 +73,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
       Dataset<InputT> input,
       UnaryFunction<InputT, K> extractor,
       TypeDescriptor<K> keyType,
-      TypeDescriptor<Pair<K, Long>> outputType,
+      TypeDescriptor<KV<K, Long>> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
@@ -188,7 +188,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
   /** First windowing builder which starts builders chain defining Beam windowing. */
   public static class WindowingBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-          Builders.Output<Pair<K, Long>>,
+          Builders.Output<KV<K, Long>>,
           OptionalMethodBuilder<WindowingBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
 
     private final BuilderParams<InputT, K, ?> params;
@@ -215,7 +215,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
 
@@ -275,7 +275,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, K, W extends BoundedWindow>
-      implements Builders.Output<Pair<K, Long>> {
+      implements Builders.Output<KV<K, Long>> {
 
     private final BuilderParams<InputT, K, W> params;
 
@@ -284,7 +284,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
+    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
       CountByKey<InputT, K, W> count =
           new CountByKey<>(
@@ -293,7 +293,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
               params.input,
               params.keyExtractor,
               params.keyType,
-              TypeUtils.pairs(params.keyType, TypeDescriptors.longs()),
+              TypeUtils.keyValues(params.keyType, TypeDescriptors.longs()),
               params.getWindowing(),
               params.euphoriaWindowing,
               Sets.newHashSet(outputHints));

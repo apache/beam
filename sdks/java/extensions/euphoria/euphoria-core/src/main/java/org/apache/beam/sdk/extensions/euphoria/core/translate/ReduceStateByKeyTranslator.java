@@ -53,7 +53,7 @@ public class ReduceStateByKeyTranslator implements OperatorTranslator<ReduceStat
       col = (PCollection<Object, Object>>) col.apply(
           MapElements
               .into(pairDescriptor())
-              .via((KV kv) -> Pair.of(kv.getKey(), kv.getValue())));
+              .via((KV kv) -> KV.of(kv.getKey(), kv.getValue())));
       kvs.setCoder(new KryoCoder<>());
     } else {
       // reduce

@@ -27,9 +27,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
@@ -46,7 +46,7 @@ public class ReduceByKeyTest {
     FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     DefaultTrigger trigger = DefaultTrigger.of();
 
-    Dataset<Pair<String, Long>> reduced =
+    Dataset<KV<String, Long>> reduced =
         ReduceByKey.named("ReduceByKey1")
             .of(dataset)
             .keyBy(s -> s)

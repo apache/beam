@@ -22,11 +22,11 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Test operator {@code SumByKey}. */
@@ -36,9 +36,9 @@ public class SumByKeyTest extends AbstractOperatorTest {
   @Test
   public void testSumByKey() {
     execute(
-        new AbstractTestCase<Integer, Pair<Integer, Long>>() {
+        new AbstractTestCase<Integer, KV<Integer, Long>>() {
           @Override
-          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+          protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
 
             Dataset<Integer> inputWithTime = AssignEventTime.of(input).using(i -> 0).output();
 
@@ -57,8 +57,8 @@ public class SumByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          public List<Pair<Integer, Long>> getUnorderedOutput() {
-            return Arrays.asList(Pair.of(0, 20L), Pair.of(1, 25L));
+          public List<KV<Integer, Long>> getUnorderedOutput() {
+            return Arrays.asList(KV.of(0, 20L), KV.of(1, 25L));
           }
         });
   }

@@ -29,20 +29,20 @@ import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Named;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.EuphoriaCoderProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.PairCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
@@ -183,28 +183,28 @@ class TranslationContext {
     }
 
     Class<? super T> rawType = type.getRawType();
-    if (Pair.class.isAssignableFrom(rawType)) {
+    if (KV.class.isAssignableFrom(rawType)) {
       @SuppressWarnings("unchecked")
-      TypeDescriptor<Pair> pairType = (TypeDescriptor<Pair>) type;
+      TypeDescriptor<KV> kvType = (TypeDescriptor<KV>) type;
       @SuppressWarnings("unchecked")
-      Coder<T> pairCoder = createPairCoderIfKeyAndValueCodersAvailable(pairType);
-      return pairCoder;
+      Coder<T> kvCoder = createKVCoderIfKeyAndValueCodersAvailable(kvType);
+      return kvCoder;
     }
 
     return getCoderForTypeOrFallbackCoder(type);
   }
 
-  private PairCoder createPairCoderIfKeyAndValueCodersAvailable(TypeDescriptor<Pair> type) {
+  private KvCoder createKVCoderIfKeyAndValueCodersAvailable(TypeDescriptor<KV> type) {
 
-    TypeVariable<Class<Pair>>[] pairTypeParams = Pair.class.getTypeParameters();
+    TypeVariable<Class<KV>>[] kvTypeParams = KV.class.getTypeParameters();
 
-    TypeDescriptor<?> keyType = type.resolveType(pairTypeParams[0]);
-    TypeDescriptor<?> valueType = type.resolveType(pairTypeParams[1]);
+    TypeDescriptor<?> keyType = type.resolveType(kvTypeParams[0]);
+    TypeDescriptor<?> valueType = type.resolveType(kvTypeParams[1]);
 
     Coder<?> keyCoder = getCoderForTypeOrFallbackCoder(keyType);
     Coder<?> valueCoder = getCoderForTypeOrFallbackCoder(valueType);
 
-    return PairCoder.of(keyCoder, valueCoder);
+    return KvCoder.of(keyCoder, valueCoder);
   }
 
   public <T> Coder<T> getCoderForTypeOrFallbackCoder(TypeDescriptor<T> typeHint) {

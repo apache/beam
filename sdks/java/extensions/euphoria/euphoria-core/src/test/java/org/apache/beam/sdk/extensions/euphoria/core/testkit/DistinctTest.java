@@ -23,12 +23,12 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing.Type;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Test for the {@link Distinct} operator. */
@@ -65,7 +65,7 @@ public class DistinctTest extends AbstractOperatorTest {
   @Test
   public void testSimpleDuplicatesWithTimeWindowing() {
     execute(
-        new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+        new AbstractTestCase<KV<Integer, Long>, Integer>() {
 
           @Override
           public List<Integer> getUnorderedOutput() {
@@ -73,10 +73,10 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
-            input = AssignEventTime.of(input).using(Pair::getSecond).output();
+          protected Dataset<Integer> getOutput(Dataset<KV<Integer, Long>> input) {
+            input = AssignEventTime.of(input).using(KV::getValue).output();
             return Distinct.of(input)
-                .mapped(Pair::getFirst)
+                .mapped(KV::getKey)
                 .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
                 .triggeredBy(DefaultTrigger.of())
                 .discardingFiredPanes()
@@ -84,14 +84,14 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected List<Pair<Integer, Long>> getInput() {
+          protected List<KV<Integer, Long>> getInput() {
             return Arrays.asList(
-                Pair.of(1, 100L),
-                Pair.of(2, 300L), // first window
-                Pair.of(3, 1200L),
-                Pair.of(3, 1500L), // second window
-                Pair.of(2, 2200L),
-                Pair.of(1, 2700L));
+                KV.of(1, 100L),
+                KV.of(2, 300L), // first window
+                KV.of(3, 1200L),
+                KV.of(3, 1500L), // second window
+                KV.of(2, 2200L),
+                KV.of(1, 2700L));
           }
         });
   }
@@ -99,7 +99,7 @@ public class DistinctTest extends AbstractOperatorTest {
   @Test
   public void testSimpleDuplicatesWithStream() {
     execute(
-        new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+        new AbstractTestCase<KV<Integer, Long>, Integer>() {
 
           @Override
           public List<Integer> getUnorderedOutput() {
@@ -107,10 +107,10 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
-            input = AssignEventTime.of(input).using(Pair::getSecond).output();
+          protected Dataset<Integer> getOutput(Dataset<KV<Integer, Long>> input) {
+            input = AssignEventTime.of(input).using(KV::getValue).output();
             return Distinct.of(input)
-                .mapped(Pair::getFirst)
+                .mapped(KV::getKey)
                 .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
                 .triggeredBy(DefaultTrigger.of())
                 .discardingFiredPanes()
@@ -118,19 +118,19 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected List<Pair<Integer, Long>> getInput() {
-            List<Pair<Integer, Long>> first = asTimedList(100, 1, 2, 3, 3, 2, 1);
+          protected List<KV<Integer, Long>> getInput() {
+            List<KV<Integer, Long>> first = asTimedList(100, 1, 2, 3, 3, 2, 1);
             first.addAll(asTimedList(100, 1, 2, 3, 3, 2, 1));
             return first;
           }
         });
   }
 
-  private List<Pair<Integer, Long>> asTimedList(long step, Integer... values) {
-    List<Pair<Integer, Long>> ret = new ArrayList<>(values.length);
+  private List<KV<Integer, Long>> asTimedList(long step, Integer... values) {
+    List<KV<Integer, Long>> ret = new ArrayList<>(values.length);
     long i = step;
     for (Integer v : values) {
-      ret.add(Pair.of(v, i));
+      ret.add(KV.of(v, i));
       i += step;
     }
     return ret;
