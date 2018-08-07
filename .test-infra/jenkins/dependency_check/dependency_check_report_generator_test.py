@@ -19,6 +19,7 @@
 #   This script performs testing of scenarios from verify_performance_test_results.py
 #
 
+from __future__ import print_function
 import unittest, mock
 from mock import patch, mock_open
 from datetime import datetime
@@ -44,7 +45,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
   """Tests for `dependency_check_report_generator.py`."""
 
   def setUp(self):
-    print "\n\nTest : " + self._testMethodName
+    print("\n\nTest : " + self._testMethodName)
 
 
   @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils')

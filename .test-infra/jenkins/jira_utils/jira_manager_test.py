@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -42,7 +43,7 @@ class JiraManagerTest(unittest.TestCase):
   """Tests for `jira_manager.py`."""
 
   def setUp(self):
-    print "\n\nTest : " + self._testMethodName
+    print("\n\nTest : " + self._testMethodName)
 
 
   def test_find_owners_with_single_owner(self, *args):
@@ -240,4 +241,3 @@ class JiraManagerTest(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
-
