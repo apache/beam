@@ -248,6 +248,21 @@ class FileSystems(object):
     return filesystem.exists(path)
 
   @staticmethod
+  def last_updated(path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.last_updated(path)
+
+  @staticmethod
   def checksum(path):
     """Fetch checksum metadata of a file on the
     :class:`~apache_beam.io.filesystem.FileSystem`.

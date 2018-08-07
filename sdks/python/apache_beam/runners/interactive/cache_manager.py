@@ -20,9 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import glob
 import os
-import shutil
 import tempfile
 import urllib
 
@@ -79,7 +77,7 @@ class CacheManager(object):
     raise NotImplementedError
 
 
-class LocalFileCacheManager(CacheManager):
+class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
   def __init__(self, temp_dir=None):
@@ -88,14 +86,12 @@ class LocalFileCacheManager(CacheManager):
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
 
   def exists(self, *labels):
-    return bool(
-        filesystems.FileSystems.match([self._glob_path(*labels)],
-                                      limits=[1])[0].metadata_list)
+    return bool(self._match(*labels))
 
   def _latest_version(self, *labels):
     timestamp = 0
-    for path in glob.glob(self._glob_path(*labels)):
-      timestamp = max(timestamp, os.path.getmtime(path))
+    for path in self._match(*labels):
+      timestamp = max(timestamp, filesystems.FileSystems.last_updated(path))
     result = self._versions["-".join(labels)].get_version(timestamp)
     return result
 
@@ -105,8 +101,8 @@ class LocalFileCacheManager(CacheManager):
 
     def _read_helper():
       coder = SafeFastPrimitivesCoder()
-      for path in glob.glob(self._glob_path(*labels)):
-        for line in open(path):
+      for path in self._match(*labels):
+        for line in filesystems.FileSystems.open(path):
           yield coder.decode(line.strip())
     result, version = list(_read_helper()), self._latest_version(*labels)
     return result, version
@@ -120,14 +116,19 @@ class LocalFileCacheManager(CacheManager):
                                coder=SafeFastPrimitivesCoder())._sink
 
   def cleanup(self):
-    if os.path.exists(self._temp_dir):
-      shutil.rmtree(self._temp_dir)
+    if filesystems.FileSystems.exists(self._temp_dir):
+      filesystems.FileSystems.delete([self._temp_dir])
 
   def _glob_path(self, *labels):
     return self._path(*labels) + '-*-of-*'
 
   def _path(self, *labels):
     return filesystems.FileSystems.join(self._temp_dir, *labels)
+
+  def _match(self, *labels):
+    match = filesystems.FileSystems.match([self._glob_path(*labels)])
+    assert len(match) == 1
+    return [metadata.path for metadata in match[0].metadata_list]
 
   class _CacheVersion(object):
     """This class keeps track of the timestamp and the corresponding version."""

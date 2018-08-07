@@ -92,6 +92,9 @@ class TestingFileSystem(FileSystem):
   def size(self, path):
     raise NotImplementedError
 
+  def last_updated(self, path):
+    raise NotImplementedError
+
   def checksum(self, path):
     raise NotImplementedError
 
