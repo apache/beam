@@ -45,11 +45,12 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=direct_runner.BundleBasedDirectRunner()):
+  def __init__(self, underlying_runner=None, cache_dir=None):
     # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
     # once interactive_runner works with FnAPI mode
-    self._underlying_runner = underlying_runner
-    self._cache_manager = cache.LocalFileCacheManager()
+    self._underlying_runner = (underlying_runner
+                               or direct_runner.BundleBasedDirectRunner())
+    self._cache_manager = cache.FileBasedCacheManager(cache_dir)
     self._in_session = False
 
   def start_session(self):
