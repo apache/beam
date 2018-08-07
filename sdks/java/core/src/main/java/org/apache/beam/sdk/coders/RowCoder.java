@@ -71,12 +71,17 @@ public class RowCoder extends CustomCoder<Row> {
   @Nullable private transient Coder<Row> delegateCoder = null;
 
   public static RowCoder of(Schema schema) {
-    return new RowCoder(schema, UUID.randomUUID());
+    UUID id = (schema.getUUID() == null) ? UUID.randomUUID() : schema.getUUID();
+    return new RowCoder(schema, id);
   }
 
   private RowCoder(Schema schema, UUID id) {
     if (schema.getUUID() != null) {
-      checkArgument(schema.getUUID().equals(id));
+      checkArgument(
+          schema.getUUID().equals(id),
+          "Schema has a UUID that doesn't match argument to constructor. %s v.s. $s",
+          schema.getUUID(),
+          id);
     } else {
       schema = SerializableUtils.clone(schema);
       schema.setUUID(id);
