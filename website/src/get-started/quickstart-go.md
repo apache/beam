@@ -30,7 +30,7 @@ This Quickstart will walk you through executing your first Beam pipeline to run 
 The Beam SDK for Go requires `go` version 1.10 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.10 by running:
 
 ```
-$ go --version
+$ go version
 ```
 
 ## Get the SDK and the examples
