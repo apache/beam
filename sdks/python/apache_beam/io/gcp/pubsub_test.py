@@ -61,6 +61,12 @@ except ImportError:
   pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+# The protobuf library is only used for running on Dataflow.
+try:
+  from google.cloud.proto.pubsub.v1 import pubsub_pb2
+except ImportError:
+  pubsub_pb2 = None
+
 
 class TestPubsubMessage(unittest.TestCase):
 
@@ -75,7 +81,8 @@ class TestPubsubMessage(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, {})
 
-  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  @unittest.skipIf(pubsub_pb2 is None,
+                   'PubSub proto dependencies are not installed')
   def test_proto_conversion(self):
     data = 'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
