@@ -93,7 +93,8 @@ public class FlinkExecutableStageFunction<InputT>
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
-    stateRequestHandler = stageContext.getStateRequestHandler(executableStage, runtimeContext);
+    stateRequestHandler =
+        FlinkBatchExecutableStageContext.getStateRequestHandler(executableStage, runtimeContext);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
   }
