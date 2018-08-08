@@ -76,6 +76,7 @@ class PrecommitJobBuilder {
         '',
         false,
         triggerPathPatterns)
+      steps.gradle.switches("-PbuildTimer=30")
     }
     job.with additionalCustomization
   }
@@ -86,6 +87,7 @@ class PrecommitJobBuilder {
       description buildDescription("on trigger phrase '${buildTriggerPhrase()}'.")
       concurrentBuild()
       commonJobProperties.setPullRequestBuildTrigger delegate, githubUiHint(), buildTriggerPhrase()
+      steps.gradle.switches("-PbuildTimer=30")
     }
     job.with additionalCustomization
   }
