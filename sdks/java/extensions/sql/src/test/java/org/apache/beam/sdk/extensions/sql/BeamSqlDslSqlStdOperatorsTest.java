@@ -525,10 +525,13 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "TRIM", kind = "TRIM")
   @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "||", kind = "OTHER")
   public void testStringFunctions() throws Exception {
     SqlExpressionChecker checker =
         new SqlExpressionChecker()
             .addExpr("'hello' || ' world' = 'hello world'")
+            .addExpr("'hello' || '' = 'hello'")
+            .addExpr("'' || '' = ''")
             .addExpr("CHAR_LENGTH('hello') = 5")
             .addExpr("CHARACTER_LENGTH('hello') = 5")
             .addExpr("INITCAP('hello world') = 'Hello World'")
