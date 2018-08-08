@@ -49,9 +49,9 @@ public class ImmutableExecutableStageTest {
         PTransform.newBuilder()
             .putInputs("input", "input.out")
             .putInputs("side_input", "sideInput.in")
-            .putInputs("timer", "timer.out")
+            .putInputs("timer", "timer.pc")
             .putOutputs("output", "output.out")
-            .putOutputs("timer", "timer.out")
+            .putOutputs("timer", "timer.pc")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -66,7 +66,7 @@ public class ImmutableExecutableStageTest {
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
     PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
-    PCollection timer = PCollection.newBuilder().setUniqueName("timer.out").build();
+    PCollection timer = PCollection.newBuilder().setUniqueName("timer.pc").build();
     PCollection output = PCollection.newBuilder().setUniqueName("output.out").build();
 
     Components components =
@@ -75,7 +75,7 @@ public class ImmutableExecutableStageTest {
             .putTransforms("other_pt", PTransform.newBuilder().setUniqueName("other").build())
             .putPcollections("input.out", input)
             .putPcollections("sideInput.in", sideInput)
-            .putPcollections("timer.out", timer)
+            .putPcollections("timer.pc", timer)
             .putPcollections("output.out", output)
             .putEnvironments("foo", env)
             .build();
@@ -88,7 +88,7 @@ public class ImmutableExecutableStageTest {
         UserStateReference.of(
             transformNode, "user_state", PipelineNode.pCollection("input.out", input));
     TimerReference timerRef =
-        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.out", timer));
+        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.pc", timer));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.ofFullComponents(
             components,
