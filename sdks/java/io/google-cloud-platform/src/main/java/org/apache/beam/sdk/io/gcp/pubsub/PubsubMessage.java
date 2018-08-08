@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.StringUtils.getTotalSizeInBytes;
 
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -51,5 +52,13 @@ public class PubsubMessage {
   /** Returns the full map of attributes. This is an unmodifiable map. */
   public Map<String, String> getAttributeMap() {
     return attributes;
+  }
+
+  public int getMessageByteSize() {
+    return message.length + getAttributeMapByteSize();
+  }
+
+  int getAttributeMapByteSize() {
+    return getTotalSizeInBytes(attributes.values()) + getTotalSizeInBytes(attributes.keySet());
   }
 }
