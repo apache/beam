@@ -62,7 +62,7 @@ except ImportError:
 # >>> writer.close()
 # >>> with open('/tmp/python_foo.tfrecord', 'rb') as f:
 # ...   data =  base64.b64encode(f.read())
-# ...   print data
+# ...   print(data)
 FOO_RECORD_BASE64 = 'AwAAAAAAAACwmUkOZm9vYYq+/g=='
 
 # Same as above but containing two records ['foo', 'bar']
