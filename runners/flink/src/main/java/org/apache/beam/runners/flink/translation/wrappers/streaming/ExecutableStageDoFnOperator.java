@@ -151,6 +151,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
     // Remove the reference to stageContext and make stageContext available for garbage collection.
     stageContext = null;
+    contextFactory.release(jobInfo);
     super.close();
   }
 

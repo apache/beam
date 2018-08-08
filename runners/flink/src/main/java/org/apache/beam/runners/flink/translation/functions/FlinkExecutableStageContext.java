@@ -32,11 +32,23 @@ public interface FlinkExecutableStageContext {
    * defined at translation time and distributed to TaskManagers.
    */
   interface Factory extends Serializable {
+
+    /**
+     * Get or create {@link FlinkExecutableStageContext} for given {@link JobInfo}. {@link
+     * Factory#release(JobInfo)} should be called for each get request for the jobInfo.
+     */
     FlinkExecutableStageContext get(JobInfo jobInfo);
+
+    /**
+     * Release the context for the jobInfo. This method should be called for each call to {@link
+     * Factory#get(JobInfo)}. This method should always be called after the call to {@link
+     * Factory#get(JobInfo)} is completed.
+     */
+    void release(JobInfo jobInfo);
   }
 
   static Factory batchFactory() {
-    return FlinkBatchExecutableStageContext.BatchFactory.INSTANCE;
+    return FlinkBatchExecutableStageContext.BatchFactory.REFERENCE_COUNTING;
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
