@@ -68,6 +68,11 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
+# Check whether we have already created RC1. If so, we need to delete ${RELEASE} dir first
+if [[ ${RC_NUM} != "1" ]]; then
+  echo "Needs to delete ${ROOT_SVN_URL}/${RELEASE} first."
+  svn delete ${ROOT_SVN_URL}/${RELEASE}
+fi
 
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
