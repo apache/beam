@@ -323,7 +323,7 @@ class FlinkStreamingTransformTranslators {
   }
 
   /** Wraps each element in a {@link RawUnionValue} with the given tag id. */
-  private static class ToRawUnion<T> implements MapFunction<T, RawUnionValue> {
+  public static class ToRawUnion<T> implements MapFunction<T, RawUnionValue> {
     private final int intTag;
 
     public ToRawUnion(int intTag) {

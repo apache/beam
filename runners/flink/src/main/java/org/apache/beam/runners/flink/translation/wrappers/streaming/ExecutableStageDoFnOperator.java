@@ -17,9 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -28,23 +31,28 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,12 +76,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private final JobInfo jobInfo;
   private final FlinkExecutableStageContext.Factory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
+  private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
 
   private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
   private transient LinkedBlockingQueue<KV<String, OutputT>> outputQueue;
+  private transient ExecutableStage executableStage;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -85,6 +95,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       OutputManagerFactory<OutputT> outputManagerFactory,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
+      Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds,
       PipelineOptions options,
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
@@ -109,26 +120,44 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
     this.outputMap = outputMap;
+    this.sideInputIds = sideInputIds;
   }
 
   @Override
   public void open() throws Exception {
     super.open();
 
-    ExecutableStage executableStage = ExecutableStage.fromPayload(payload);
+    executableStage = ExecutableStage.fromPayload(payload);
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
     stageContext = contextFactory.get(jobInfo);
-    // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
-    // same backing runtime context and broadcast variables. We use checkState below to catch errors
-    // in backward-incompatible Flink changes.
-    stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
+
+    stateRequestHandler = getStateRequestHandler(executableStage);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
     outputQueue = new LinkedBlockingQueue<>();
+  }
+
+  private StateRequestHandler getStateRequestHandler(ExecutableStage executableStage) {
+
+    if (executableStage.getSideInputs().size() > 0) {
+      checkNotNull(super.sideInputHandler);
+      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+          Preconditions.checkNotNull(
+              FlinkStreamingSideInputHandlerFactory.forStage(
+                  executableStage, sideInputIds, super.sideInputHandler));
+      try {
+        return StateRequestHandlers.forSideInputHandlerFactory(
+            ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return StateRequestHandler.unsupported();
+    }
   }
 
   // TODO: currently assumes that every element is a separate bundle,
@@ -172,6 +201,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try (AutoCloseable closable = stageContext) {}
     stageContext = null;
     super.close();
+  }
+
+  @Override
+  protected void addSideInputValue(StreamRecord<RawUnionValue> streamRecord) {
+    @SuppressWarnings("unchecked")
+    WindowedValue<KV<Void, Iterable<?>>> value =
+        (WindowedValue<KV<Void, Iterable<?>>>) streamRecord.getValue().getValue();
+    PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
+    sideInputHandler.addSideInputValue(sideInput, value.withValue(value.getValue().getValue()));
   }
 
   // TODO: remove single element bundle assumption
