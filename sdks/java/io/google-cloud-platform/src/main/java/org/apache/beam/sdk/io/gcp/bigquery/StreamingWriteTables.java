@@ -49,28 +49,49 @@ public class StreamingWriteTables
   private InsertRetryPolicy retryPolicy;
   private boolean extendedErrorInfo;
   private static final String FAILED_INSERTS_TAG_ID = "failedInserts";
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
 
   public StreamingWriteTables() {
-    this(new BigQueryServicesImpl(), InsertRetryPolicy.alwaysRetry(), false);
+    this(new BigQueryServicesImpl(), InsertRetryPolicy.alwaysRetry(), false, false, false);
   }
 
   private StreamingWriteTables(
-      BigQueryServices bigQueryServices, InsertRetryPolicy retryPolicy, boolean extendedErrorInfo) {
+      BigQueryServices bigQueryServices,
+      InsertRetryPolicy retryPolicy,
+      boolean extendedErrorInfo,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues) {
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   StreamingWriteTables withTestServices(BigQueryServices bigQueryServices) {
-    return new StreamingWriteTables(bigQueryServices, retryPolicy, extendedErrorInfo);
+    return new StreamingWriteTables(
+        bigQueryServices, retryPolicy, extendedErrorInfo, skipInvalidRows, ignoreUnknownValues);
   }
 
   StreamingWriteTables withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
-    return new StreamingWriteTables(bigQueryServices, retryPolicy, extendedErrorInfo);
+    return new StreamingWriteTables(
+        bigQueryServices, retryPolicy, extendedErrorInfo, skipInvalidRows, ignoreUnknownValues);
   }
 
   StreamingWriteTables withExtendedErrorInfo(boolean extendedErrorInfo) {
-    return new StreamingWriteTables(bigQueryServices, retryPolicy, extendedErrorInfo);
+    return new StreamingWriteTables(
+        bigQueryServices, retryPolicy, extendedErrorInfo, skipInvalidRows, ignoreUnknownValues);
+  }
+
+  StreamingWriteTables withSkipInvalidRows(boolean skipInvalidRows) {
+    return new StreamingWriteTables(
+        bigQueryServices, retryPolicy, extendedErrorInfo, skipInvalidRows, ignoreUnknownValues);
+  }
+
+  StreamingWriteTables withIgnoreUnknownValues(boolean ignoreUnknownValues) {
+    return new StreamingWriteTables(
+        bigQueryServices, retryPolicy, extendedErrorInfo, skipInvalidRows, ignoreUnknownValues);
   }
 
   @Override
@@ -140,7 +161,12 @@ public class StreamingWriteTables
                 "StreamingWrite",
                 ParDo.of(
                         new StreamingWriteFn<>(
-                            bigQueryServices, retryPolicy, failedInsertsTag, errorContainer))
+                            bigQueryServices,
+                            retryPolicy,
+                            failedInsertsTag,
+                            errorContainer,
+                            skipInvalidRows,
+                            ignoreUnknownValues))
                     .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
     PCollection<T> failedInserts = tuple.get(failedInsertsTag);
     failedInserts.setCoder(coder);

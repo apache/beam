@@ -44,6 +44,8 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
   private final InsertRetryPolicy retryPolicy;
   private final TupleTag<ErrorT> failedOutputTag;
   private final ErrorContainer<ErrorT> errorContainer;
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
@@ -58,11 +60,15 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
       BigQueryServices bqServices,
       InsertRetryPolicy retryPolicy,
       TupleTag<ErrorT> failedOutputTag,
-      ErrorContainer<ErrorT> errorContainer) {
+      ErrorContainer<ErrorT> errorContainer,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
     this.errorContainer = errorContainer;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   /** Prepares a target BigQuery table. */
@@ -128,7 +134,9 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
                     uniqueIds,
                     retryPolicy,
                     failedInserts,
-                    errorContainer);
+                    errorContainer,
+                    skipInvalidRows,
+                    ignoreUnknownValues);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);
