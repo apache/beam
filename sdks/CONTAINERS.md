@@ -118,6 +118,24 @@ version, you can do so by adding:
 -Pdocker-tag=<tag>
 ```
 
+### Adding dependencies, and making Python go vroom vroom
+
+Not all dependencies are like insurance on used Vespa, if you don't have them some job's just won't run at all and you can't sweet talk your way out of a tensorflow dependency. On the other hand, for Python users dependencies can be automatically installed at run time on each container, which is a great way to find out what your systems timeout limits are. Regardless as to if you have dependency which isn't being installed for you and you need, or you just don't want to install tensorflow 1.6.0 every time you start a new worker this can help.
+
+For Python we have a sample Dockerfile which will take the user specified requirements and install them on top of your base image. If your building from source follow the directions above, otherwise you can set the environment variable BASE_PYTHON_CONTAINER_IMAGE to the desired released version.
+
+```
+USER_REQUIREMENTS=~/my_req.txt ./sdks/python/scripts/add_requirements.sh
+```
+
+Once your custom container is built, remember to upload it to the registry of your choice.
+
+If you build a custom container when you run your job you will need to specify instead of the default latest container, so for example Holden would specify:
+
+```
+--worker_harness_container_image=holden-docker-apache.bintray.io/beam/python-with-requirements
+```
+
 ## How to push container images
 
 **Preprequisites**: obtain a docker registry account and ensure docker can push images to it,
