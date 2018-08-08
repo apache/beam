@@ -39,6 +39,7 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
 
+# The protobuf library is only used for running on Dataflow.
 try:
   from google.cloud.proto.pubsub.v1 import pubsub_pb2
 except ImportError:
