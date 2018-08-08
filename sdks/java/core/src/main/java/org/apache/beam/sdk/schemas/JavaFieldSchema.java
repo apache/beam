@@ -30,9 +30,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>This provider finds all public fields (recursively) in a Java object, and creates schemas and
  * rows that bind to those fields. The field order in the schema is not guaranteed to match the
- * field order in the class. The Java object is expected to have implemented a correct .equals()
- * method. TODO: Validate equals() method is provided, and if not generate a "slow" equals method
- * based on the schema.
+ * field order in the class. The Java object is expected to have implemented a correct .equals() and
+ * .hashCode() methods. The equals method must be completely determined by the schema fields. i.e.
+ * if the object has hidden fields that are not reflected in the schema but are compared in equals,
+ * then results will be incorrect.
+ *
+ * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
+ * on the schema.
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
