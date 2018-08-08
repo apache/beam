@@ -1170,4 +1170,33 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
                 parseDate("1983-01-19 01:01:58"));
     checker.buildRunAndCheck();
   }
+
+  @Test
+  @SqlOperatorTest(name = "CASE", kind = "CASE")
+  @SqlOperatorTest(name = "NULLIF", kind = "NULLIF")
+  @SqlOperatorTest(name = "COALESCE", kind = "COALESCE")
+  public void testConditionalOperatorsAndFunctions() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("CASE 1 WHEN 1 THEN 'hello' ELSE 'world' END", "hello")
+            .addExpr(
+                "CASE 2 " + "WHEN 1 THEN 'hello' " + "WHEN 3 THEN 'bond' " + "ELSE 'world' END",
+                "world")
+            .addExpr(
+                "CASE 3 " + "WHEN 1 THEN 'hello' " + "WHEN 3 THEN 'bond' " + "ELSE 'world' END",
+                "bond")
+            .addExpr("CASE " + "WHEN 1 = 1 THEN 'hello' " + "ELSE 'world' END", "hello")
+            .addExpr("CASE " + "WHEN 1 > 1 THEN 'hello' " + "ELSE 'world' END", "world")
+            .addExpr("NULLIF(5, 4) ", 5)
+            .addExpr("NULLIF(4, 5) ", 4)
+            // Cannot assign null here to test NULLIF(5, 5), which is expected to return NULL.
+            // .addExpr("NULLIF(5, 5)", null)
+            .addExpr("COALESCE(1, 5) ", 1)
+            .addExpr("COALESCE(NULL, 5) ", 5)
+            .addExpr("COALESCE(NULL, 4, 5) ", 4)
+            .addExpr("COALESCE(NULL, NULL, 5) ", 5)
+            .addExpr("COALESCE(5, NULL) ", 5);
+
+    checker.buildRunAndCheck();
+  }
 }
