@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 
 /** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
@@ -68,10 +71,21 @@ public class RowCoder extends CustomCoder<Row> {
   @Nullable private transient Coder<Row> delegateCoder = null;
 
   public static RowCoder of(Schema schema) {
-    return new RowCoder(schema, UUID.randomUUID());
+    UUID id = (schema.getUUID() == null) ? UUID.randomUUID() : schema.getUUID();
+    return new RowCoder(schema, id);
   }
 
   private RowCoder(Schema schema, UUID id) {
+    if (schema.getUUID() != null) {
+      checkArgument(
+          schema.getUUID().equals(id),
+          "Schema has a UUID that doesn't match argument to constructor. %s v.s. %s",
+          schema.getUUID(),
+          id);
+    } else {
+      schema = SerializableUtils.clone(schema);
+      schema.setUUID(id);
+    }
     this.schema = schema;
     this.id = id;
   }
