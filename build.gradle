@@ -20,6 +20,8 @@
 // that can be applied to configure a project for certain common
 // tasks.
 
+import org.apache.beam.gradle.BuildTimer
+
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 // Add performanceTest task to this build.gradle file
@@ -168,6 +170,13 @@ rat {
   excludes = exclusions
 }
 check.dependsOn rat
+
+// Add a timer that will fail this build if it takes longer than buildTimer
+// minutes.
+if (project.hasProperty('buildTimer')) {
+  BuildTimer timer = new BuildTimer(Long.parseLong(project.buildTimer, 10));
+  gradle.addBuildListener(timer);
+}
 
 // Define root pre/post commit tasks simplifying what is needed
 // to be specified on the commandline when executing locally.
