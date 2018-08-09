@@ -25,7 +25,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** The Flink context required in order to execute {@link ExecutableStage stages}. */
-public interface FlinkExecutableStageContext {
+public interface FlinkExecutableStageContext extends AutoCloseable {
 
   /**
    * Creates {@link FlinkExecutableStageContext} instances. Serializable so that factories can be
@@ -33,18 +33,8 @@ public interface FlinkExecutableStageContext {
    */
   interface Factory extends Serializable {
 
-    /**
-     * Get or create {@link FlinkExecutableStageContext} for given {@link JobInfo}. {@link
-     * Factory#release(JobInfo)} should be called for each get request for the jobInfo.
-     */
+    /** Get or create {@link FlinkExecutableStageContext} for given {@link JobInfo}. */
     FlinkExecutableStageContext get(JobInfo jobInfo);
-
-    /**
-     * Release the context for the jobInfo. This method should be called for each call to {@link
-     * Factory#get(JobInfo)}. This method should always be called after the call to {@link
-     * Factory#get(JobInfo)} is completed.
-     */
-    void release(JobInfo jobInfo);
   }
 
   static Factory batchFactory() {
