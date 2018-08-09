@@ -20,15 +20,7 @@ import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 // Disable default shadow jar closure and include all class files and resources.
-applyJavaNature(shadowClosure: {
-    dependencies {
-        include {
-            compile project(path: ":beam-examples-java", configuration: "shadow")
-            compile project(path: ":beam-runners-reference-java", configuration: "shadow")
-        }
-    }
-} << DEFAULT_BLAH)
-//applyJavaNature(shadowClosure: {})
+applyJavaNature(shadowClosure: {})
 
 dependencies {
     compile project(path: ":beam-examples-java", configuration: "shadow")
