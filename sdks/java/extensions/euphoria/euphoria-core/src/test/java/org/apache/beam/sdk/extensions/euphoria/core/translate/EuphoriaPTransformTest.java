@@ -33,8 +33,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** A group of test focused at {@link BeamPTransform}. */
-public class BeamPTransformTest implements Serializable {
+/** A group of test focused at {@link EuphoriaPTransform}. */
+public class EuphoriaPTransformTest implements Serializable {
 
   private static final String BASE_STRING =
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur et imperdiet nulla,"
@@ -53,7 +53,7 @@ public class BeamPTransformTest implements Serializable {
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
             .apply(
                 "To-UpperCase",
-                BeamPTransform.of(
+                EuphoriaPTransform.of(
                     input -> MapElements.of(input).using(s -> s.toUpperCase()).output()));
 
     PAssert.that(pCollection).containsInAnyOrder(upperCaseWords);
@@ -72,7 +72,7 @@ public class BeamPTransformTest implements Serializable {
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
             .apply(
                 "To-UpperCase",
-                BeamPTransform.of(
+                EuphoriaPTransform.of(
                     (Dataset<String> input) -> {
                       Dataset<String> upperCase =
                           MapElements.of(input).using(s -> s.toUpperCase()).output();
@@ -97,7 +97,7 @@ public class BeamPTransformTest implements Serializable {
             .apply("Create", Create.of(words).withCoder(StringUtf8Coder.of()))
             .apply(
                 "To-UpperCase",
-                BeamPTransform.of(
+                EuphoriaPTransform.of(
                     input -> MapElements.of(input).using(s -> s.toUpperCase()).output()));
 
     PAssert.that(pCollection).containsInAnyOrder(upperCaseWords);
@@ -122,7 +122,7 @@ public class BeamPTransformTest implements Serializable {
 
     PCollection<Integer> twicePCollection =
         unwrapped.apply(
-            "Twice", BeamPTransform.of(in -> MapElements.of(in).using(i -> 2 * i).output()));
+            "Twice", EuphoriaPTransform.of(in -> MapElements.of(in).using(i -> 2 * i).output()));
 
     PAssert.that(twicePCollection).containsInAnyOrder(4, 6, 8, 10, 12, 14);
 

@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.WindowWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
@@ -43,11 +42,9 @@ class FlowValidator {
    *
    * @param dag the user defined flow as a DAG
    * @return the input dag if the validation succeeds
-   * @throws WindowingRequiredException if the given DAG contains operators that require explicit
-   *     windowing strategies to make meaningful executions
    */
   static DAG<Operator<?, ?>> preTranslate(DAG<Operator<?, ?>> dag) {
-    checkJoinWindowing(dag);
+    // no-op left for future use
     return dag;
   }
 
@@ -59,35 +56,6 @@ class FlowValidator {
   static DAG<Operator<?, ?>> postTranslate(DAG<Operator<?, ?>> dag) {
     checkSinks(dag);
     return dag;
-  }
-
-  /**
-   * Validate that join operators' windowing semantics can be meaningfully implemented. I.e. only
-   * instances which join "batched" windowed data sets do not need to explicitly be provided with a
-   * user defined windowing strategy.
-   */
-  private static void checkJoinWindowing(DAG<Operator<?, ?>> dag) {
-    List<Node<Operator<?, ?>>> joins =
-        dag.traverse().filter(node -> node.get() instanceof Join).collect(Collectors.toList());
-    for (Node<Operator<?, ?>> join : joins) {
-      checkJoinWindowing(join);
-    }
-  }
-
-  private static void checkJoinWindowing(Node<Operator<?, ?>> node) {
-    checkState(node.get() instanceof Join);
-
-    // ~ if a windowing strategy is explicitly provided by the user, all is fine
-    if (((Join) node.get()).getWindowing() != null) {
-      return;
-    }
-    for (Node<Operator<?, ?>> parent : node.getParents()) {
-      if (!isBatched(parent)) {
-        throw new WindowingRequiredException(
-            "Join operator requires either an explicit windowing"
-                + " strategy or needs to be supplied with batched inputs.");
-      }
-    }
   }
 
   private static boolean isBatched(Node<Operator<?, ?>> node) {

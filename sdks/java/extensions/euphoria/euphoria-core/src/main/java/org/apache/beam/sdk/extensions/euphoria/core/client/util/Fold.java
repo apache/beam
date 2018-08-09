@@ -34,7 +34,7 @@ public class Fold implements Serializable {
    * fold of all input data.
    *
    * @param <T> element type
-   * @param fold the fold function
+   * @param fold the associative fold function
    * @return the {@link CombinableReduceFunction}
    */
   public static <T> CombinableReduceFunction<T> of(BinaryFunction<T, T, T> fold) {
@@ -49,7 +49,7 @@ public class Fold implements Serializable {
    *
    * @param <T> element type
    * @param identity the zero element
-   * @param fold the fold function
+   * @param fold the associative fold function
    * @return the {@link CombinableReduceFunction}
    */
   public static <T> CombinableReduceFunction<T> of(T identity, BinaryFunction<T, T, T> fold) {
@@ -63,7 +63,7 @@ public class Fold implements Serializable {
    *
    * @param <T> element type
    * @param identity the zero element
-   * @param fold the fold function
+   * @param fold the associative fold function
    * @return the {@link CombinableReduceFunction}
    */
   public static <T> ReduceFunctor<T, T> of(T identity, BinaryFunctor<T, T, T> fold) {
@@ -88,7 +88,7 @@ public class Fold implements Serializable {
    * @param <InputT> type of input value
    * @param <OutputT> type of output value
    * @param identity the zero element
-   * @param fold the fold function
+   * @param fold the associative fold function
    * @return the {@link ReduceFunctor}
    */
   @SuppressWarnings("ReturnValueIgnored") // TODO : remove

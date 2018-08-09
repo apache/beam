@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Test for {@link BeamFlow}. */
@@ -143,8 +142,8 @@ public class BeamFlowTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
   @SuppressWarnings("unchecked")
-  @Ignore
   public void testPipelineWithRBK() {
     String raw = "hi there hi hi sue bob hi sue ZOW bob";
     List<String> words = Arrays.asList(raw.split(" "));
@@ -165,7 +164,7 @@ public class BeamFlowTest implements Serializable {
     pipeline.run();
   }
 
-  @Ignore
+  @Test
   public void testPipelineWithEventTime() {
     List<KV<Integer, Long>> raw =
         Arrays.asList(

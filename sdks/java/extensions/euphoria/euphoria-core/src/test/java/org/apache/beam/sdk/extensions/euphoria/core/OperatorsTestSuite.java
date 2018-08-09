@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.FlatMapTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.JoinTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.MapElementsTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.ReduceByKeyTest;
+import org.apache.beam.sdk.extensions.euphoria.core.testkit.ReduceWindowTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.SumByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.TestSuiteRunner;
@@ -33,7 +34,7 @@ import org.junit.runners.Suite;
 /** Euphoria operators test suite. */
 @RunWith(TestSuiteRunner.class)
 @Suite.SuiteClasses({
-  //        BroadcastHashJoinTest.class,
+  //  BroadcastHashJoinTest.class,
   CountByKeyTest.class,
   DistinctTest.class,
   FilterTest.class,
@@ -46,5 +47,6 @@ import org.junit.runners.Suite;
   //    TopPerKeyTest.class, - uncomment when ReduceStateByKey is supported
   UnionTest.class,
   //        WindowingTest.class,
+  ReduceWindowTest.class
 })
 public class OperatorsTestSuite {}

@@ -23,7 +23,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Assert;
 
-/** Buncg of methods to assert type descriptors in operators. */
+/** Bunch of methods to assert type descriptors in operators. */
 public class TypePropagationAssert {
 
   public static void assertOperatorTypeAwareness(
