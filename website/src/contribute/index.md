@@ -169,13 +169,13 @@ On macOS/Linux:
 
     $ virtualenv env
     $ . ./env/bin/activate
-    (env) $ pip install .[gcp,test]
+    (env) $ pip install -e .[gcp,test]
 
 On Windows:
 
     > c:\Python27\python.exe -m virtualenv
     > env\Scripts\activate
-    (env) > pip install .[gcp,test]
+    (env) > pip install -e .[gcp,test]
 
 This command runs all Python tests. The nose dependency is installed by [test] in pip install.
 
