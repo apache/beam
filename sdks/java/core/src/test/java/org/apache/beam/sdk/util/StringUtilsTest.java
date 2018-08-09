@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,5 +54,15 @@ public class StringUtilsTest {
     assertEquals(1, StringUtils.getLevenshteinDistance("abc", "ac")); // deletion
     assertEquals(1, StringUtils.getLevenshteinDistance("abc", "ab1c")); // insertion
     assertEquals(1, StringUtils.getLevenshteinDistance("abc", "a1c")); // modification
+  }
+
+  @Test
+  public void testTotalSizeInBytes() {
+    assertEquals(0, StringUtils.getTotalSizeInBytes(Arrays.asList("")));
+    assertEquals(1, StringUtils.getTotalSizeInBytes(Arrays.asList("a")));
+    assertEquals(2, StringUtils.getTotalSizeInBytes(Arrays.asList("ab")));
+    assertEquals(2, StringUtils.getTotalSizeInBytes(Arrays.asList("a", "b")));
+    assertEquals(3, StringUtils.getTotalSizeInBytes(Arrays.asList("abc")));
+    assertEquals(3, StringUtils.getTotalSizeInBytes(Arrays.asList("a", "b", "c")));
   }
 }

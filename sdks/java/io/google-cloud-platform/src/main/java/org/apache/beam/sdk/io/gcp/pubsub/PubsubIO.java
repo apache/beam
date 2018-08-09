@@ -851,9 +851,11 @@ public class PubsubIO {
      */
     public class PubsubBoundedWriter extends DoFn<T, Void> {
 
-      private static final int MAX_PUBLISH_BATCH_SIZE = 100;
+      private static final int MAX_PUBLISH_BATCH_SIZE = 1000;
+      private static final int MAX_PUBLISH_BYTE_SIZE = 1024 * 1024 * 10;
       private transient List<OutgoingMessage> output;
       private transient PubsubClient pubsubClient;
+      private int currentByteSize;
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws IOException {
@@ -862,6 +864,7 @@ public class PubsubIO {
         this.pubsubClient =
             FACTORY.newClient(
                 getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
+        this.currentByteSize = 0;
       }
 
       @ProcessElement
@@ -870,12 +873,17 @@ public class PubsubIO {
         PubsubMessage message = getFormatFn().apply(c.element());
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
-        // NOTE: The record id is always null.
-        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
 
-        if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
+        boolean shouldPublish =
+            output.size() == MAX_PUBLISH_BATCH_SIZE
+                || currentByteSize + message.getMessageByteSize() > MAX_PUBLISH_BYTE_SIZE;
+        if (shouldPublish) {
           publish();
         }
+
+        // NOTE: The record id is always null.
+        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
+        currentByteSize += message.getMessageByteSize();
       }
 
       @FinishBundle
@@ -886,6 +894,7 @@ public class PubsubIO {
         output = null;
         pubsubClient.close();
         pubsubClient = null;
+        currentByteSize = 0;
       }
 
       private void publish() throws IOException {
@@ -895,6 +904,7 @@ public class PubsubIO {
                 PubsubClient.topicPathFromName(topic.project, topic.topic), output);
         checkState(n == output.size());
         output.clear();
+        currentByteSize = 0;
       }
 
       @Override
