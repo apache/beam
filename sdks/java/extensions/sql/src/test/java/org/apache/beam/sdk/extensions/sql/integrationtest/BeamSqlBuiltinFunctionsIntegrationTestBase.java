@@ -30,6 +30,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
@@ -128,6 +129,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
     abstract String sqlExpr();
 
+    @Nullable
     abstract Object expectedResult();
 
     abstract FieldType resultFieldType();
@@ -176,7 +178,13 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
         String expression = testCase.sqlExpr();
         Object expectedValue = testCase.expectedResult();
         String sql = String.format("SELECT %s FROM PCOLLECTION", expression);
-        Schema schema = Schema.builder().addField(expression, testCase.resultFieldType()).build();
+        Schema schema;
+        if (expectedValue == null) {
+          schema =
+              Schema.builder().addNullableField(expression, testCase.resultFieldType()).build();
+        } else {
+          schema = Schema.builder().addField(expression, testCase.resultFieldType()).build();
+        }
 
         PCollection<Row> output =
             inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
