@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
@@ -1189,8 +1190,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("CASE " + "WHEN 1 > 1 THEN 'hello' " + "ELSE 'world' END", "world")
             .addExpr("NULLIF(5, 4) ", 5)
             .addExpr("NULLIF(4, 5) ", 4)
-            // Cannot assign null here to test NULLIF(5, 5), which is expected to return NULL.
-            // .addExpr("NULLIF(5, 5)", null)
+            .addExpr("NULLIF(5, 5)", null, FieldType.INT32)
             .addExpr("COALESCE(1, 5) ", 1)
             .addExpr("COALESCE(NULL, 5) ", 5)
             .addExpr("COALESCE(NULL, 4, 5) ", 4)
