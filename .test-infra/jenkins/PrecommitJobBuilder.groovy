@@ -30,7 +30,7 @@ class PrecommitJobBuilder {
   String gradleTask
 
   /** Overall job timeout. */
-  int timeoutMins = 90
+  int timeoutMins = 30
 
   /** If defined, set of path expressions used to trigger the job on commit. */
   List<String> triggerPathPatterns = []
