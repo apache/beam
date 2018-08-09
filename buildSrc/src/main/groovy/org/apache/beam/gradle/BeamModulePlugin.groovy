@@ -259,30 +259,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '-Dorg.gradle.parallel=false', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-
-    project.offlineDependencies {
-      repositories {
-        maven { url offlineRepositoryRoot }
-        mavenLocal()
-        mavenCentral()
-        jcenter()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "http://repo.spring.io/plugins-release" }
-      }
-
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
-    }
-
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -568,6 +544,28 @@ class BeamModulePlugin implements Plugin<Project> {
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
+
+      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+      // repository. This offline repository satisfies all Gradle build dependencies and Java
+      // project dependencies. The offline repository is placed within $rootDir/offline-repo
+      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
+      // by specifying '--no-parallel', see
+      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+      project.apply plugin: "io.pry.gradle.offline_dependencies"
+      project.offlineDependencies {
+        repositories {
+          mavenLocal()
+          mavenCentral()
+          jcenter()
+          maven { url "https://plugins.gradle.org/m2/" }
+          maven { url "http://repo.spring.io/plugins-release" }
+          maven { url project.offlineRepositoryRoot }
+        }
+        includeSources = false
+        includeJavadocs = false
+        includeIvyXmls = false
+      }
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
