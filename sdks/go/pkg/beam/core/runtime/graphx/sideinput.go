@@ -13,41 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exec
+package graphx
 
-import "context"
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+)
 
-// Discard silently discard all elements. It is implicitly inserted for any
-// loose ends in the pipeline.
-type Discard struct {
-	// UID is the unit identifier.
-	UID UnitID
-}
+// Side input support
+//
+// The Beam model supports only MultiMap side input, so for
+// iterable side input (= the only kind in Go so far) we must
+// implicitly use a fixed key (""). We use a special execution
+// unit as well to handle nested KVs.
 
-func (d *Discard) ID() UnitID {
-	return d.UID
-}
+const (
+	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
+)
 
-func (d *Discard) Up(ctx context.Context) error {
-	return nil
-}
-
-func (d *Discard) StartBundle(ctx context.Context, id string, data DataContext) error {
-	return nil
-}
-
-func (d *Discard) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
-	return nil
-}
-
-func (d *Discard) FinishBundle(ctx context.Context) error {
-	return nil
-}
-
-func (d *Discard) Down(ctx context.Context) error {
-	return nil
-}
-
-func (d *Discard) String() string {
-	return "Discard"
+// MakeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
+// even if the coder is already a KV coder.
+func MakeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
+	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
 }
