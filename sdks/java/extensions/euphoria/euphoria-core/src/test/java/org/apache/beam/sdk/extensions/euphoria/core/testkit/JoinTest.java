@@ -104,6 +104,51 @@ public class JoinTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.BOUNDED)
   @Test
+  public void batchJoinFullOuterExample() {
+    execute(
+        new JoinTestCase<Integer, String, KV<Integer, String>>() {
+
+          @Override
+          protected Dataset<KV<Integer, String>> getOutput(
+              Dataset<Integer> left, Dataset<String> right) {
+
+            return FullJoin.of(left, right)
+                .by(le -> le, String::length)
+                .using(
+                    (Optional<Integer> l, Optional<String> r, Collector<String> c) ->
+                        c.collect(l.orElse(null) + "+" + r.orElse(null)))
+                .output();
+          }
+
+          @Override
+          protected List<Integer> getLeftInput() {
+            return Arrays.asList(1, 2, 3, 0, 4, 3, 1);
+          }
+
+          @Override
+          protected List<String> getRightInput() {
+            return Arrays.asList("mouse", "rat", "cat", "X", "duck");
+          }
+
+          @Override
+          public List<KV<Integer, String>> getUnorderedOutput() {
+            return Arrays.asList(
+                KV.of(1, "1+X"),
+                KV.of(2, "2+null"),
+                KV.of(3, "3+cat"),
+                KV.of(3, "3+rat"),
+                KV.of(0, "0+null"),
+                KV.of(4, "4+duck"),
+                KV.of(3, "3+cat"),
+                KV.of(3, "3+rat"),
+                KV.of(1, "1+X"),
+                KV.of(5, "null+mouse"));
+          }
+        });
+  }
+
+  @Processing(Processing.Type.BOUNDED)
+  @Test
   public void batchJoinFullOuter_outputValues() {
     execute(
         new JoinTestCase<Integer, Long, String>() {

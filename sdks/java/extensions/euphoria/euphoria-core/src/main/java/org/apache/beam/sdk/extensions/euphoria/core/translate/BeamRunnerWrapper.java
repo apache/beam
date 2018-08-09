@@ -25,9 +25,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.common.PipelineUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +60,7 @@ public class BeamRunnerWrapper {
 
   /** @return wrapper around Beam's direct runner. It allows to run {@link Flow} locally. */
   public static BeamRunnerWrapper ofDirect() {
-    final String[] args = {"--runner=DirectRunner"};
-    final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
+    final PipelineOptions options = PipelineUtils.getDirectPipelineOptions();
     return new BeamRunnerWrapper(options).withAllowedLateness(java.time.Duration.ofHours(1));
   }
 
