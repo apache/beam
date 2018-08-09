@@ -22,6 +22,14 @@ include ":release"
 
 include "beam-examples-java"
 project(":beam-examples-java").dir = file("examples/java")
+include "beam-examples-java-direct"
+project(":beam-examples-java-direct").dir = file("examples/java/direct")
+include "beam-examples-java-flink"
+project(":beam-examples-java-flink").dir = file("examples/java/flink")
+include "beam-examples-java-portable"
+project(":beam-examples-java-portable").dir = file("examples/java/portable")
+include "beam-examples-java-spark"
+project(":beam-examples-java-spark").dir = file("examples/java/spark")
 include "beam-model-fn-execution"
 project(":beam-model-fn-execution").dir = file("model/fn-execution")
 include "beam-model-job-management"
