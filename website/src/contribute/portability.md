@@ -192,7 +192,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 
 1. Start local Flink cluster
 2. Create shaded JobService jar: `./gradlew :beam-runners-flink_2.11-job-server:installShadowDist`
-3. Start JobService with Flink web service endpoint: `java -jar ./runners/flink/job-server/build/install/beam-runners-flink_2.11-job-server-shadow/lib/beam-runners-flink_2.11-job-server-*.jar--job-host=localhost:8099" "--artifacts-dir=/tmp/flink-artifacts" "--flink-master-url=localhost:8081"`
+3. Start JobService with Flink web service endpoint: `java -jar ./runners/flink/job-server/build/install/beam-runners-flink_2.11-job-server-shadow/lib/beam-runners-flink_2.11-job-server-*.jar "--job-host=localhost:8099" "--artifacts-dir=/tmp/flink-artifacts" "--flink-master-url=localhost:8081"`
 4. Submit the pipeline.
 
 Note: A subset of the functionality is also supported in streaming mode; use `--streaming` in the command line to enable it.
