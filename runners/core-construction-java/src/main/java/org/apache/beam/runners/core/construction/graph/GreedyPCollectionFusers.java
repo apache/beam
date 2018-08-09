@@ -81,6 +81,7 @@ class GreedyPCollectionFusers {
   private static final CompatibilityChecker DEFAULT_COMPATIBILITY_CHECKER =
       GreedyPCollectionFusers::unknownTransformCompatibility;
 
+  /** Returns true if the PTransform node for the given input PCollection can be fused across. */
   public static boolean canFuse(
       PTransformNode transformNode,
       Environment environment,
@@ -92,6 +93,10 @@ class GreedyPCollectionFusers {
         .canFuse(transformNode, environment, candidate, stagePCollections, pipeline);
   }
 
+  /**
+   * Returns true if the two PTransforms are compatible such that they can be executed in the same
+   * environment.
+   */
   public static boolean isCompatible(
       PTransformNode left, PTransformNode right, QueryablePipeline pipeline) {
     CompatibilityChecker leftChecker =
@@ -184,7 +189,8 @@ class GreedyPCollectionFusers {
 
   private static boolean parDoCompatibility(
       PTransformNode parDo, PTransformNode other, QueryablePipeline pipeline) {
-    // Implicitly true if we are attempting to fuse against oneself. This is for timer PCollection which create a loop.
+    // Implicitly true if we are attempting to fuse against oneself. This case comes up for
+    // PCollections representing timers since they create a self-loop in the graph.
     return parDo.equals(other)
         // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
         // side inputs can be fused with other transforms in the same environment which are not

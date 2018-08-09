@@ -21,8 +21,9 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 /**
- * A reference to a timer. This includes the PTransform that references the timer as well as the
- * PCollection referenced. Both are necessary in order to fully resolve a timer.
+ * Contains references to components relevant for runners during execution for timers. The
+ * referenced PTransform specifies the timer specification while the PCollection specifies the
+ * encoding representation.
  */
 @AutoValue
 public abstract class TimerReference {
