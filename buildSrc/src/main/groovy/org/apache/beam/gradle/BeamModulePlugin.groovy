@@ -548,9 +548,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
       // repository. This offline repository satisfies all Gradle build dependencies and Java
       // project dependencies. The offline repository is placed within $rootDir/offline-repo
-      // but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
+      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
       // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-      // by specifying '-Dorg.gradle.parallel=false', see
+      // by specifying '--no-parallel', see
       // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
       project.apply plugin: "io.pry.gradle.offline_dependencies"
       project.offlineDependencies {
