@@ -56,6 +56,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.B
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLikeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlNotLikeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
@@ -278,7 +279,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "LIKE":
           ret = new BeamSqlLikeExpression(subExps);
           break;
-
+        case "NOT LIKE":
+          ret = new BeamSqlNotLikeExpression(subExps);
+          break;
           // arithmetic operators
         case "+":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
