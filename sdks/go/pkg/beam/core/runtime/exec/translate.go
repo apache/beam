@@ -62,10 +62,10 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			return nil, err
 		}
 
-		u := &DataSource{UID: b.idgen.New(), Port: port}
+		u := &DataSource{UID: b.idgen.New()}
 
 		for key, pid := range transform.GetOutputs() {
-			u.Target = Target{ID: id, Name: key}
+			u.SID = StreamID{Target: Target{ID: id, Name: key}, Port: port}
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
@@ -381,12 +381,29 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				}
 				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
 				n.PID = path.Base(n.Fn.Name())
-				if len(in) == 1 {
-					u = n
-					break
-				}
 
-				panic("NYI: side input")
+				input := unmarshalKeyedValues(transform.GetInputs())
+				for i := 1; i < len(input); i++ {
+					// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
+					// For now, assume we don't need any information in the pardo payload.
+
+					ec, wc, err := b.makeCoderForPCollection(input[i])
+					if err != nil {
+						return nil, err
+					}
+
+					sid := StreamID{
+						Port: Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+						Target: Target{
+							ID:   id.to,                 // PTransformID
+							Name: fmt.Sprintf("i%v", i), // SideInputID (= local id, "iN")
+						},
+					}
+					side := NewSideInputAdapter(sid, coder.NewW(ec, wc))
+					n.Side = append(n.Side, side)
+				}
+				u = n
+
 			case graph.Combine:
 				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
 				cn.Fn, err = graph.AsCombineFn(fn)
@@ -407,6 +424,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			default:
 				panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", op))
 			}
+
+		case graphx.URNIterableSideInputKey:
+			u = &FixedKey{UID: b.idgen.New(), Key: []byte(IterableSideInputKey), Out: out[0]}
 
 		case graphx.URNInject:
 			c, _, err := b.makeCoderForPCollection(from)
@@ -461,10 +481,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, err
 		}
 
-		sink := &DataSink{UID: b.idgen.New(), Port: port}
+		sink := &DataSink{UID: b.idgen.New()}
 
 		for key, pid := range transform.GetInputs() {
-			sink.Target = Target{ID: id.to, Name: key}
+			sink.SID = StreamID{Target: Target{ID: id.to, Name: key}, Port: port}
 
 			if cid == "" {
 				c, wc, err := b.makeCoderForPCollection(pid)

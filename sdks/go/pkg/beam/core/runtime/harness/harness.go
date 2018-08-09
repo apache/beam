@@ -83,7 +83,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	ctrl := &control{
 		plans:  make(map[string]*exec.Plan),
 		active: make(map[string]*exec.Plan),
-		data:   &DataManager{},
+		data:   &DataChannelManager{},
+		state:  &StateChannelManager{},
 	}
 
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
@@ -138,7 +139,8 @@ type control struct {
 	active map[string]*exec.Plan // protected by mu
 	mu     sync.Mutex
 
-	data *DataManager
+	data  *DataChannelManager
+	state *StateChannelManager
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
@@ -190,7 +192,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(id, "execution plan for %v not found", ref)
 		}
 
-		err := plan.Execute(ctx, id, c.data)
+		data := NewScopedDataManager(c.data, id)
+		side := NewScopedSideInputReader(c.state, id)
+		err := plan.Execute(ctx, id, exec.DataContext{Data: data, SideInput: side})
+		data.Close()
+		side.Close()
+
 		m := plan.Metrics()
 		// Move the plan back to the candidate state
 		c.mu.Lock()

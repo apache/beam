@@ -31,7 +31,7 @@ import (
 )
 
 // Execute submits a pipeline as a Dataflow job.
-func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (string, error) {
+func Execute(ctx context.Context, raw *pb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (string, error) {
 	// (1) Upload Go binary to GCS.
 
 	bin := opts.Worker
@@ -63,8 +63,10 @@ func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, m
 
 	// (2) Fixup and upload model to GCS
 
-	// TODO(herohde): fixup
-
+	p, err := Fixup(raw)
+	if err != nil {
+		return "", err
+	}
 	log.Info(ctx, proto.MarshalTextString(p))
 
 	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(p)); err != nil {

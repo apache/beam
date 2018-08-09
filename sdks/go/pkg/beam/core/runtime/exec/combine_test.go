@@ -119,7 +119,7 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 		t.Fatalf("failed to construct plan: %v", err)
 	}
 
-	if err := p.Execute(context.Background(), "1", nil); err != nil {
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 	if err := p.Down(context.Background()); err != nil {
@@ -245,7 +245,7 @@ func (n *simpleGBK) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
