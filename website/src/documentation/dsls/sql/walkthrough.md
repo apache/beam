@@ -40,10 +40,10 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
 
   - **From in-memory data** (typically for unit testing).
 
-    **Note:** you have to explicitly specify the `Row` coder. In this example we're doing it by calling `Create.of(..).withCoder()`:
+    **Note:** you have to explicitly specify the `Row` coder. In this example we're doing it by calling `Create.of(..)`:
 
     ```java
-    // Define the record type (i.e., schema).
+    // Define the schema for the records.
     Schema appSchema = 
         Schema
           .builder()
@@ -67,9 +67,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
                     .of(row)
                     .withCoder(appSchema.getRowCoder()));
     ```
-  - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format.
-
-    **Note:** you have to manually set the coder of the result by calling `setCoder(appSchema.getRowCoder())`:
+  - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format:
     ```java
     // An example POJO class.
     class AppPojo {
@@ -104,17 +102,16 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               // Output the Row representing the current POJO
               c.output(appRow);
             }
-          }))
-      .setCoder(appSchema.getRowCoder());
+          }));
     ```
 
-  - **As an output of another `BeamSql` query**. Details in the next section.
+  - **As an output of another `SqlTransform`**. Details in the next section.
 
-Once you have a `PCollection<Row>` in hand, you may use the `BeamSql` APIs to apply SQL queries to it.
+Once you have a `PCollection<Row>` in hand, you may use `SqlTransform` to apply SQL queries to it.
 
-## BeamSql transform
+## SqlTransform
 
-`BeamSql.query(queryString)` method is the only API to create a `PTransform`
+[`SqlTransform.query(queryString)`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html) method is the only API to create a `PTransform`
 from a string representation of the SQL query. You can apply this `PTransform`
 to either a single `PCollection` or a `PCollectionTuple` which holds multiple
 `PCollections`:
@@ -122,7 +119,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
   - when applying to a single `PCollection` it can be referenced via the table name `PCOLLECTION` in the query:
     ```java
     PCollection<Row> filteredNames = testApps.apply(
-        BeamSql.query(
+        SqlTransform.query(
           "SELECT appId, description, rowtime "
             + "FROM PCOLLECTION "
             + "WHERE id=1"));
@@ -154,7 +151,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
     // and average rating per app 
     // by joining two PCollections
     PCollection<Row> output = namesAndFoods.apply(
-        BeamSql.query(
+        SqlTransform.query(
             "SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)"
                 + "FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"));
     ```
