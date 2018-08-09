@@ -29,19 +29,19 @@ import org.apache.beam.sdk.values.PCollection;
  * @param <InputT> type of input elements
  * @param <OutputT> type of output elements
  */
-public class BeamPTransform<InputT, OutputT>
+public class EuphoriaPTransform<InputT, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   private final Function<Dataset<InputT>, Dataset<OutputT>> euphoriaTransform;
 
-  private BeamPTransform(Function<Dataset<InputT>, Dataset<OutputT>> euphoriaTransform) {
+  private EuphoriaPTransform(Function<Dataset<InputT>, Dataset<OutputT>> euphoriaTransform) {
     this.euphoriaTransform = euphoriaTransform;
   }
 
-  public static <InputT, OutputT> BeamPTransform<InputT, OutputT> of(
+  public static <InputT, OutputT> EuphoriaPTransform<InputT, OutputT> of(
       Function<Dataset<InputT>, Dataset<OutputT>> euphoriaDatasetTransform) {
     Objects.requireNonNull(euphoriaDatasetTransform);
-    return new BeamPTransform<>(euphoriaDatasetTransform);
+    return new EuphoriaPTransform<>(euphoriaDatasetTransform);
   }
 
   @Override

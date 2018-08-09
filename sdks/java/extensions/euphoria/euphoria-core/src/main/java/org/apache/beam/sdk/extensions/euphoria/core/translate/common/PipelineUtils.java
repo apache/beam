@@ -15,24 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate;
+package org.apache.beam.sdk.extensions.euphoria.core.translate.common;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
-/** Euphoria to Beam translation of {@link Union} operator. */
-class UnionTranslator implements OperatorTranslator<Union> {
+/** A collection of handy methods. */
+public class PipelineUtils {
 
-  private static <T> PCollection<T> doTranslate(Union<T> operator, TranslationContext context) {
-    return PCollectionList.of(context.getInputs(operator))
-        .apply(operator.getName(), Flatten.pCollections());
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(Union operator, TranslationContext context) {
-    return doTranslate(operator, context);
+  public static PipelineOptions getDirectPipelineOptions() {
+    final String[] args = {"--runner=DirectRunner"};
+    return PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
   }
 }

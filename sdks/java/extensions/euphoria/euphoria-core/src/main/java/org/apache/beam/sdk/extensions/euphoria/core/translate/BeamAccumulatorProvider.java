@@ -53,7 +53,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   public Counter getCounter(String name) {
     throw new UnsupportedOperationException(
         "BeamAccumulatorProvider doesn't support"
-            + " getCounter(String name). Need specify operatorName and name");
+            + " getCounter(String name). Please specify namespace and name.");
   }
 
   @Override
@@ -66,7 +66,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   public Histogram getHistogram(String name) {
     throw new UnsupportedOperationException(
         "BeamAccumulatorProvider doesn't support"
-            + " getHistogram(String name). Need specify namespace and name");
+            + " getHistogram(String name). Please specify namespace and name.");
   }
 
   @Override
@@ -79,7 +79,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   public Timer getTimer(String name) {
     throw new UnsupportedOperationException(
         "BeamAccumulatorProvider doesn't support"
-            + " getTimer(String name). Need specify namespace and name");
+            + " getTimer(String name). Please specify namespace and name.");
   }
 
   /**

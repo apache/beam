@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperat
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Test operator {@code ReduceByKey}. */
@@ -90,6 +91,36 @@ public class ReduceWindowTest extends AbstractOperatorTest {
           @Override
           public List<Integer> getUnorderedOutput() {
             return Arrays.asList(55);
+          }
+        });
+  }
+
+  @Ignore("This need to be fixed.")
+  @Test
+  public void testReduceWithWindowingTwoWindows() {
+    execute(
+        new AbstractTestCase<Integer, Integer>() {
+          @Override
+          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+            Dataset<Integer> withEventTime =
+                AssignEventTime.of(input).using(i -> 1000L * i).output();
+
+            return ReduceWindow.of(withEventTime)
+                .combineBy(Sums.ofInts())
+                .windowBy(FixedWindows.of(org.joda.time.Duration.millis(5000)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
+                .output();
+          }
+
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100);
+          }
+
+          @Override
+          public List<Integer> getUnorderedOutput() {
+            return Arrays.asList(10, 45, 100);
           }
         });
   }

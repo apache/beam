@@ -50,8 +50,8 @@ public class RegisterCodersTest {
 
     RegisterCoders.to(flow)
         .setKryoClassRegistrar(
-            (k) -> {
-              k.register(KryoSerializedTestType.class);
+            (kryo) -> {
+              kryo.register(KryoSerializedTestType.class);
             })
         .registerCoder(FirstTestDataType.class, firstCoder)
         .registerCoder(new TypeDescriptor<ParametrizedTestDataType<String>>() {}, parametrizedCoder)

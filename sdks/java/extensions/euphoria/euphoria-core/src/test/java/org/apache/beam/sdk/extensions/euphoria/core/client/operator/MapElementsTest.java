@@ -24,6 +24,9 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test operator MapElement. */
@@ -97,5 +100,19 @@ public class MapElementsTest {
 
     Dataset<String> dataSetWithoutHint = MapElements.of(dataset).using(i -> i).output();
     assertEquals(0, dataSetWithoutHint.getProducer().getHints().size());
+  }
+
+  @Test
+  public void testTypePropagation() {
+    Flow flow1 = Flow.create("TEST1");
+    Dataset<Integer> input = Util.createMockDataset(flow1, 2);
+
+    TypeDescriptor<String> outputType = TypeDescriptors.strings();
+
+    Dataset<String> mappedElements =
+        MapElements.named("Int2Str").of(input).using(String::valueOf, outputType).output();
+
+    MapElements map = (MapElements) flow1.operators().iterator().next();
+    TypePropagationAssert.assertOperatorTypeAwareness(map, outputType);
   }
 }
