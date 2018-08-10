@@ -203,7 +203,7 @@ public class PubsubJsonIT implements Serializable {
     start.get();
 
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(60));
+    signal.waitForSuccess(Duration.standardSeconds(300));
   }
 
   @Test
