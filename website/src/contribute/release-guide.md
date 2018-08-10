@@ -80,7 +80,9 @@ You need to have a GPG key to sign the release artifacts. Please be aware of the
 There are 2 ways to configure your GPG key for release, either using release automation script(which is recommended), 
 or running all commands manually.
 
-##### Use [preparation_before_release.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/preparation_before_release.sh) to setup GPG
+##### Use preparation_before_release.sh to setup GPG
+* Script: [preparation_before_release.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/preparation_before_release.sh)
+
 * Usage
   ```
   ./beam/release/src/main/scripts/preparation_before_release.sh
@@ -207,7 +209,9 @@ Release candidates are built from a release branch. As a final step in preparati
 
 There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.
 
-#### Use [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh) to cut a release branch
+#### Use cut_release_branch.sh to cut a release branch
+* Script: [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
+
 * Usage
   ```
   # Cut a release branch
@@ -292,7 +296,9 @@ so builds will be broken until a new snapshot is available.
 
 There are 2 ways to trigger a nightly build, either using automation script(recommended), or perform all operations manually.
 
-#### Run [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh) to trigger build
+#### Run start_snapshot_build.sh to trigger build
+* Script: [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh)
+
 * Usage
   
       ./beam/release/src/main/scripts/start_snapshot_build.sh
@@ -317,7 +323,9 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
 
-#### Run [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh) to verity a release build 
+#### Run verify_release_build.sh to verity a release build 
+* Script: [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
+
 * Usage
       
       ./beam/release/src/main/scripts/verify_release_build.sh
@@ -417,7 +425,9 @@ The core of the release process is the build-vote-fix cycle. Each cycle produces
 
 For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.
 
-### Run [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh) to create RC
+### Run build_release_candidate.sh to create RC
+* Script: [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
+
 * Usage
   
       ./beam/release/src/main/scripts/build_release_candidate.sh
@@ -638,7 +648,9 @@ All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validat
 
 Since there are a bunch of tests, we recommend you running validatoins using automation script. In case of script failure, you can still run all of them manually.
 
-#### Run validations using [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
+#### Run validations using run_rc_validation.sh
+* Script: [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
+
 * Usage
 
       ./beam/release/src/main/scripts/run_rc_validation.sh
