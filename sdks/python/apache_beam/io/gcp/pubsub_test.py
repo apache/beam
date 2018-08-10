@@ -127,7 +127,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
                               None, 'a_label', with_attributes=False,
                               timestamp_attribute=None)
              | beam.Map(lambda x: x))
-    self.assertEqual(str, pcoll.element_type)
+    self.assertEqual(bytes, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(p.options)
@@ -150,7 +150,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
                  None, 'projects/fakeprj/subscriptions/a_subscription',
                  'a_label', with_attributes=False, timestamp_attribute=None)
              | beam.Map(lambda x: x))
-    self.assertEqual(str, pcoll.element_type)
+    self.assertEqual(bytes, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(p.options)
