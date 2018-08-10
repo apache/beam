@@ -59,4 +59,15 @@ public class RowAsserts {
       return null;
     };
   }
+
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
+      float expected, float delta) {
+
+    return input -> {
+      Row row = Iterables.getOnlyElement(input);
+      assertNotNull(row);
+      assertEquals(expected, row.getFloat(0), delta);
+      return null;
+    };
+  }
 }

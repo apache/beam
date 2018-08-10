@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
@@ -57,6 +58,8 @@ import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
+  private static final double PRECISION_DOUBLE = 1e-7;
+  private static final float PRECISION_FLOAT = 1e-7f;
 
   private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
       ImmutableMap.<Class, TypeName>builder()
@@ -88,6 +91,20 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .addInt64Field("c_bigint_max")
           .build();
 
+  private static final Schema ROW_TYPE_TWO =
+      Schema.builder()
+          .addNullableField("ts", FieldType.DATETIME)
+          .addNullableField("c_tinyint", FieldType.BYTE)
+          .addNullableField("c_smallint", FieldType.INT16)
+          .addNullableField("c_integer", FieldType.INT32)
+          .addNullableField("c_integer_two", FieldType.INT32)
+          .addNullableField("c_bigint", FieldType.INT64)
+          .addNullableField("c_float", FieldType.FLOAT)
+          .addNullableField("c_double", FieldType.DOUBLE)
+          .addNullableField("c_double_two", FieldType.DOUBLE)
+          .addNullableField("c_decimal", FieldType.DECIMAL)
+          .build();
+
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   protected PCollection<Row> getTestPCollection() {
@@ -108,6 +125,50 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               9223372036854775807L)
           .buildIOReader(pipeline.begin())
           .setRowSchema(ROW_TYPE);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected PCollection<Row> getAggregationTestPCollection() {
+    try {
+      return MockedBoundedTable.of(ROW_TYPE_TWO)
+          .addRows(
+              parseDate("1986-02-15 11:35:26"),
+              (byte) 1,
+              (short) 1,
+              1,
+              5,
+              1L,
+              1.0f,
+              1.0,
+              7.0,
+              BigDecimal.valueOf(1.0))
+          .addRows(
+              parseDate("1986-03-15 11:35:26"),
+              (byte) 2,
+              (short) 2,
+              2,
+              6,
+              2L,
+              2.0f,
+              2.0,
+              8.0,
+              BigDecimal.valueOf(2.0))
+          .addRows(
+              parseDate("1986-04-15 11:35:26"),
+              (byte) 3,
+              (short) 3,
+              3,
+              7,
+              3L,
+              3.0f,
+              3.0,
+              9.0,
+              BigDecimal.valueOf(3.0))
+          .addRows(null, null, null, null, null, null, null, null, null, null)
+          .buildIOReader(pipeline.begin())
+          .setRowSchema(ROW_TYPE_TWO);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -152,12 +213,14 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     private transient List<ExpressionTestCase> exps = new ArrayList<>();
 
     public ExpressionChecker addExpr(String expression, Object expectedValue) {
-      // Because of erasure, we can only automatically infer non-parameterized types
       TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
       checkArgument(
           resultTypeName != null,
-          "Could not infer a Beam type for %s."
-              + " Parameterized types must be provided explicitly.");
+          String.format(
+              "The type of the expected value '%s' is unknown in 'addExpr(String expression, "
+                  + "Object expectedValue)'. Please use 'addExpr(String expr, Object expected, "
+                  + "FieldType type)' instead and provide the type of the expected object",
+              expectedValue));
       addExpr(expression, expectedValue, FieldType.of(resultTypeName));
       return this;
     }
@@ -168,9 +231,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       return this;
     }
 
-    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
     public void buildRunAndCheck() {
-      PCollection<Row> inputCollection = getTestPCollection();
+      buildRunAndCheck(getTestPCollection());
+    }
+
+    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
+    public void buildRunAndCheck(PCollection<Row> inputCollection) {
 
       for (ExpressionTestCase testCase : exps) {
         String expression = testCase.sqlExpr();
@@ -181,8 +247,17 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
         PCollection<Row> output =
             inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
 
-        PAssert.that(output)
-            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
+        // For floating point number(Double and Float), it's allowed to have some precision delta,
+        // other types can use regular equality check.
+        if (expectedValue instanceof Double) {
+          PAssert.that(output).satisfies(matchesScalar((double) expectedValue, PRECISION_DOUBLE));
+        } else if (expectedValue instanceof Float) {
+          PAssert.that(output).satisfies(matchesScalar((float) expectedValue, PRECISION_FLOAT));
+        } else {
+          PAssert.that(output)
+              .containsInAnyOrder(
+                  TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
+        }
       }
 
       inputCollection.getPipeline().run();
