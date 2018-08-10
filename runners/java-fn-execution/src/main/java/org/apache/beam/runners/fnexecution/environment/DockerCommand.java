@@ -77,7 +77,11 @@ class DockerCommand {
       runShortCommand(
           ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
     } catch (IOException | TimeoutException | InterruptedException e) {
-      LOG.warn(String.format("Unable to pull docker image %s", imageTag), e);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Unable to pull docker image {}", imageTag, e);
+      } else {
+        LOG.warn("Unable to pull docker image {}, cause: {}", imageTag, e.getMessage());
+      }
     }
     // TODO: Validate args?
     return runShortCommand(
