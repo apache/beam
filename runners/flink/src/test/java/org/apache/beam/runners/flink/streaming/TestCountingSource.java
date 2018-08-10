@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ public class TestCountingSource
   private final int shardNumber;
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
-  private final boolean allowSplitting;
+  private final int fixedNumSplits;
 
   /**
    * We only allow an exception to be thrown from getCheckpointMark at most once. This must be
@@ -66,27 +67,30 @@ public class TestCountingSource
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false, false, true);
+    this(numMessagesPerShard, 0, false, false, -1);
   }
 
   public TestCountingSource withDedup() {
-    return new TestCountingSource(
-        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, -1);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, -1);
   }
 
   public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, -1);
   }
 
   public TestCountingSource withoutSplitting() {
+    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, 1);
+  }
+
+  public TestCountingSource withFixedNumSplits(int maxNumSplits) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, maxNumSplits);
   }
 
   private TestCountingSource(
@@ -94,12 +98,12 @@ public class TestCountingSource
       int shardNumber,
       boolean dedup,
       boolean throwOnFirstSnapshot,
-      boolean allowSplitting) {
+      int fixedNumSplits) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
-    this.allowSplitting = allowSplitting;
+    this.fixedNumSplits = fixedNumSplits;
   }
 
   public int getShardNumber() {
@@ -109,8 +113,8 @@ public class TestCountingSource
   @Override
   public List<TestCountingSource> split(int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
-    int numSplits = allowSplitting ? desiredNumSplits : 1;
-    for (int i = 0; i < numSplits; i++) {
+    int actualNumSplits = (fixedNumSplits == -1) ? desiredNumSplits : fixedNumSplits;
+    for (int i = 0; i < actualNumSplits; i++) {
       splits.add(withShardNumber(i));
     }
     return splits;
@@ -199,6 +203,11 @@ public class TestCountingSource
 
     @Override
     public Instant getWatermark() {
+      if (current >= numMessagesPerShard - 1) {
+        // we won't emit further data, signal this with the final watermark
+        return new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE);
+      }
+
       // The watermark is a promise about future elements, and the timestamps of elements are
       // strictly increasing for this source.
       return new Instant(current + 1);
