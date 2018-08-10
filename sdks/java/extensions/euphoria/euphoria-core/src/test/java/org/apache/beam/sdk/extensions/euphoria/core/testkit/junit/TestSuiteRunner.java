@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** TODO: add javadoc. */
-public class TestSuiteRunner extends Suite { //TODO rename
+public class TestSuiteRunner extends Suite {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSuiteRunner.class);
 
@@ -56,10 +56,10 @@ public class TestSuiteRunner extends Suite { //TODO rename
 
     // ~ for each encountered test method set up a special runner
     Optional<Type> kPType = getProcessingType(klass);
-    BeamRunnerWrapper runner =
-        BeamRunnerWrapper.ofDirect().withAllowedLateness(Duration.ofHours(1));
     Class<?>[] testClasses = getAnnotatedClasses(klass);
+
     for (Class<?> testClass : testClasses) {
+      LOG.info(String.format("Testkit will schedule tests in '%s'.", testClass));
       boolean isOperatorTest = isAbstractOperatorTest(testClass);
 
       TestClass tc = new TestClass(testClass);
@@ -68,24 +68,27 @@ public class TestSuiteRunner extends Suite { //TODO rename
 
       Optional<Type> cPType = getProcessingType(testClass);
       for (FrameworkMethod method : methods) {
-        if (isOperatorTest) {
-          Optional<Type> mPType = getProcessingType(method.getMethod());
-          checkArgument(
-              cPType.isPresent() || mPType.isPresent(),
-              "Processing annotation is missing either on method or class!");
-          Optional<Type> definedPType = merged(cPType, mPType);
-          checkArgument(definedPType.isPresent(), "Conflicting processings!");
+        LOG.info(String.format("Test method found '%s' it will be scheduled to run.", method));
 
-          Optional<Type> rPType = merged(kPType, definedPType);
-          if (rPType.isPresent()) {
-            for (Processing.Type ptype : rPType.get().asList()) {
-              addRunner(runners, testClass, method, runner, ptype, paramsList);
-            }
-          } else {
-            addRunner(runners, testClass, method, runner, null, paramsList);
+        if (!isOperatorTest) {
+          addRunner(runners, testClass, method, null, paramsList);
+          continue;
+        }
+
+        Optional<Type> mPType = getProcessingType(method.getMethod());
+        checkArgument(
+            cPType.isPresent() || mPType.isPresent(),
+            "Processing annotation is missing either on method or class!");
+        Optional<Type> definedPType = merged(cPType, mPType);
+        checkArgument(definedPType.isPresent(), "Conflicting processings!");
+
+        Optional<Type> rPType = merged(kPType, definedPType);
+        if (rPType.isPresent()) {
+          for (Processing.Type ptype : rPType.get().asList()) {
+            addRunner(runners, testClass, method, ptype, paramsList);
           }
         } else {
-          addRunner(runners, testClass, method, runner, null, paramsList);
+          addRunner(runners, testClass, method, null, paramsList);
         }
       }
     }
@@ -95,15 +98,15 @@ public class TestSuiteRunner extends Suite { //TODO rename
       List<Runner> acc,
       Class<?> testClass,
       FrameworkMethod method,
-      BeamRunnerWrapper runner,
       Processing.Type pType,
       List<Object[]> paramsList)
       throws Throwable {
+
     if (paramsList == null || paramsList.isEmpty()) {
-      acc.add(new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, null));
+      acc.add(new ExecutorProviderTestMethodRunner(testClass, method, pType, null));
     } else {
       for (Object[] params : paramsList) {
-        acc.add(new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, params));
+        acc.add(new ExecutorProviderTestMethodRunner(testClass, method, pType, params));
       }
     }
   }
@@ -174,11 +177,7 @@ public class TestSuiteRunner extends Suite { //TODO rename
     private final Object[] parameterList;
 
     ExecutorProviderTestMethodRunner(
-        Class<?> testClass,
-        FrameworkMethod method,
-        BeamRunnerWrapper runner,
-        Processing.Type ptype,
-        Object[] parameterList)
+        Class<?> testClass, FrameworkMethod method, Processing.Type ptype, Object[] parameterList)
         throws InitializationError {
       super(testClass);
       this.procType = ptype;

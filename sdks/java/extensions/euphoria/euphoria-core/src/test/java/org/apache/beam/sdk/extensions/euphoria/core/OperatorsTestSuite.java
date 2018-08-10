@@ -15,12 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate;
+package org.apache.beam.sdk.extensions.euphoria.core;
 
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.CountByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.DistinctTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.FilterTest;
+import org.apache.beam.sdk.extensions.euphoria.core.testkit.FlatMapTest;
+import org.apache.beam.sdk.extensions.euphoria.core.testkit.JoinTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.MapElementsTest;
+import org.apache.beam.sdk.extensions.euphoria.core.testkit.ReduceByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.SumByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.TestSuiteRunner;
