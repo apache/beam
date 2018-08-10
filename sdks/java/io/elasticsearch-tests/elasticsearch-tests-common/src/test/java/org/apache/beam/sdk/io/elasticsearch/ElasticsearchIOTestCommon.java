@@ -30,6 +30,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
@@ -147,6 +149,21 @@ class ElasticsearchIOTestCommon implements Serializable {
                 .withQuery(query));
     PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
+    pipeline.run();
+  }
+
+  /** Test reading metadata by reading back the id of a document after writing it. */
+  void testReadWithMetadata() throws Exception {
+    if (!useAsITests) {
+      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, 1, restClient);
+    }
+
+    PCollection<String> output =
+        pipeline.apply(
+            ElasticsearchIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withMetadata());
+    PAssert.that(output).satisfies(new ContainsStringCheckerFn("\"_id\":\"0\""));
     pipeline.run();
   }
 
@@ -469,5 +486,30 @@ class ElasticsearchIOTestCommon implements Serializable {
     // Partial update assertions
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "0"));
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
+  }
+
+  /**
+   * Function for checking if any string in iterable contains expected substring. Fails if no match
+   * is found.
+   */
+  private static class ContainsStringCheckerFn
+      implements SerializableFunction<Iterable<String>, Void> {
+
+    private String expectedSubString;
+
+    ContainsStringCheckerFn(String expectedSubString) {
+      this.expectedSubString = expectedSubString;
+    }
+
+    @Override
+    public Void apply(Iterable<String> input) {
+      for (String s : input) {
+        if (s.contains(expectedSubString)) {
+          return null;
+        }
+      }
+      fail("No string found containing " + expectedSubString);
+      return null;
+    }
   }
 }
