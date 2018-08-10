@@ -202,7 +202,16 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
-    if (localReaders.size() == 1) {
+    if (localReaders.size() == 0) {
+      // It can happen when value of parallelism is greater than number of IO readers (for example,
+      // parallelism is 2 and number of Kafka topic partitions is 1). In this case, we just fall
+      // through to idle this executor.
+      LOG.info("Number of readers is 0 for this task executor, idle");
+
+      // set this, so that the later logic will emit a final watermark and then decide whether
+      // to idle or not
+      isRunning = false;
+    } else if (localReaders.size() == 1) {
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
 
@@ -437,13 +446,12 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
     if (this.isRunning) {
       long watermarkInterval = runtime.getExecutionConfig().getAutoWatermarkInterval();
-      long timeToNextWatermark = getTimeToNextWatermark(watermarkInterval);
-      runtime.getProcessingTimeService().registerTimer(timeToNextWatermark, this);
+      synchronized (context.getCheckpointLock()) {
+        long timeToNextWatermark =
+            runtime.getProcessingTimeService().getCurrentProcessingTime() + watermarkInterval;
+        runtime.getProcessingTimeService().registerTimer(timeToNextWatermark, this);
+      }
     }
-  }
-
-  private long getTimeToNextWatermark(long watermarkInterval) {
-    return System.currentTimeMillis() + watermarkInterval;
   }
 
   /** Visible so that we can check this in tests. Must not be used for anything else. */
