@@ -76,3 +76,10 @@ aromanenko:
     name: Alexey Romanenko
     email: aromanenko@apache.org
     twitter: alexromdev
+pabloem:
+    name: Pablo Estrada
+    email: pabloem@apache.org
+    twitter: polecitoem
+rfernand:
+    name: Rafael Fernandez
+    email: rfernand@google.com
