@@ -21,7 +21,6 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Utility methods for translating a {@link Window.Assign} to and from {@link RunnerApi}

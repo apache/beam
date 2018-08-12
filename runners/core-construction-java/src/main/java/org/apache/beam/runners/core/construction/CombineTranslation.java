@@ -19,12 +19,11 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /**
  * Methods for translating between {@link Combine.PerKey} {@link PTransform PTransforms} and {@link
@@ -60,7 +60,7 @@ public class CombineTranslation {
 
     @Override
     public String getUrn(Combine.PerKey<?, ?, ?> transform) {
-      return COMBINE_TRANSFORM_URN;
+      return COMBINE_PER_KEY_TRANSFORM_URN;
     }
 
     @Override
@@ -69,7 +69,7 @@ public class CombineTranslation {
         throws IOException {
       if (transform.getTransform().getSideInputs().isEmpty()) {
         return FunctionSpec.newBuilder()
-            .setUrn(COMBINE_TRANSFORM_URN)
+            .setUrn(COMBINE_PER_KEY_TRANSFORM_URN)
             .setPayload(payloadForCombine((AppliedPTransform) transform, components).toByteString())
             .build();
       } else {

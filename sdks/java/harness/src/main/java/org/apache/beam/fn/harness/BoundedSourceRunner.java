@@ -21,8 +21,7 @@ package org.apache.beam.fn.harness;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * A runner which creates {@link Reader}s for each {@link BoundedSource} sent as an input and
@@ -79,7 +79,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener) {

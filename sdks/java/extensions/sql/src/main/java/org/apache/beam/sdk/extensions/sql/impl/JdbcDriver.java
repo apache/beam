@@ -23,13 +23,18 @@ import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.calcite.avatica.BuiltInConnectionProperty;
 import org.apache.calcite.avatica.ConnectStringParser;
 import org.apache.calcite.avatica.ConnectionProperty;
 import org.apache.calcite.config.CalciteConnectionProperty;
@@ -37,7 +42,15 @@ import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.jdbc.Driver;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelTraitDef;
+import org.apache.calcite.rel.RelCollationTraitDef;
+import org.apache.calcite.rel.rules.CalcRemoveRule;
+import org.apache.calcite.rel.rules.SortRemoveRule;
+import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.tools.RuleSet;
 
 /**
  * Calcite JDBC driver with Beam defaults.
@@ -73,6 +86,27 @@ public class JdbcDriver extends Driver {
     } finally {
       Thread.currentThread().setContextClassLoader(origLoader);
     }
+    // inject beam rules into planner
+    Hook.PLANNER.add(
+        (Consumer<RelOptPlanner>)
+            planner -> {
+              for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
+                for (RelOptRule rule : ruleSet) {
+                  planner.addRule(rule);
+                }
+              }
+              planner.removeRule(CalcRemoveRule.INSTANCE);
+              planner.removeRule(SortRemoveRule.INSTANCE);
+
+              List<RelTraitDef> relTraitDefs = new ArrayList<>(planner.getRelTraitDefs());
+              planner.clearRelTraitDefs();
+              for (RelTraitDef def : relTraitDefs) {
+                if (!(def instanceof RelCollationTraitDef)) {
+                  planner.addRelTraitDef(def);
+                }
+              }
+            });
+    // register JDBC driver
     INSTANCE.register();
   }
 
@@ -86,6 +120,7 @@ public class JdbcDriver extends Driver {
     final BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) info.get(BEAM_CALCITE_SCHEMA);
 
     Properties info2 = new Properties(info);
+    setDefault(info2, BuiltInConnectionProperty.TIME_ZONE, "UTC");
     setDefault(info2, CalciteConnectionProperty.LEX, Lex.JAVA.name());
     setDefault(
         info2,

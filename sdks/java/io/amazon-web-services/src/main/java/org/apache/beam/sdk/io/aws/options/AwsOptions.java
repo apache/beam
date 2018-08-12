@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.aws.options;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.apache.beam.sdk.options.Default;
@@ -73,6 +74,42 @@ public interface AwsOptions extends PipelineOptions {
     @Override
     public AWSCredentialsProvider create(PipelineOptions options) {
       return DefaultAWSCredentialsProviderChain.getInstance();
+    }
+  }
+
+  /**
+   * The client configuration instance that should be used to configure AWS service clients. Please
+   * note that the configuration deserialization only allows one to specify proxy settings.
+   *
+   * <p>For example, to specify the proxy host, port, username and password, specify the following:
+   * <code>
+   * --clientConfiguration={
+   *   "proxyHost":"hostname",
+   *   "proxyPort":1234,
+   *   "proxyUsername":"username",
+   *   "proxyPassword":"password"
+   * }
+   * </code>
+   *
+   * @return
+   */
+  @Description(
+      "The client configuration instance that should be used to configure AWS service "
+          + "clients. Please note that the configuration deserialization only allows one to specify "
+          + "proxy settings. For example, to specify the proxy host, port, username and password, "
+          + "specify the following: --clientConfiguration={\"proxyHost\":\"hostname\",\"proxyPort\":1234,"
+          + "\"proxyUsername\":\"username\",\"proxyPassword\":\"password\"}")
+  @Default.InstanceFactory(ClientConfigurationFactory.class)
+  ClientConfiguration getClientConfiguration();
+
+  void setClientConfiguration(ClientConfiguration clientConfiguration);
+
+  /** Default AWS client configuration. */
+  class ClientConfigurationFactory implements DefaultValueFactory<ClientConfiguration> {
+
+    @Override
+    public ClientConfiguration create(PipelineOptions options) {
+      return new ClientConfiguration();
     }
   }
 }

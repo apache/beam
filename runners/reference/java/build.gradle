@@ -24,14 +24,20 @@ ext.summary = """A Java implementation of the Beam Model which utilizes the port
 framework to execute user-definied functions."""
 
 
+configurations {
+  validatesRunner
+}
+
 dependencies {
+  compile library.java.hamcrest_library
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow library.java.slf4j_api
   shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  shadowTest library.java.guava
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.slf4j_jdk14
 }

@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -67,6 +66,7 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -296,9 +296,9 @@ public class FlinkStreamingPortablePipelineTranslator
           e);
     }
 
-    WindowedValueCoder<KV<K, V>> inputCoder =
+    WindowedValueCoder<KV<K, V>> windowedInputCoder =
         (WindowedValueCoder) instantiateCoder(inputPCollectionId, pipeline.getComponents());
-    KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
+    KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) windowedInputCoder.getValueCoder();
 
     SingletonKeyedWorkItemCoder<K, V> workItemCoder =
         SingletonKeyedWorkItemCoder.of(
@@ -433,23 +433,25 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException(e);
     }
 
-    String inputPCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
+    String inputPCollectionId = stagePayload.getInput();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-2930
+    if (stagePayload.getSideInputsCount() > 0) {
+      throw new UnsupportedOperationException(
+          "[BEAM-2930] streaming translator does not support side inputs: " + transform);
+    }
 
     Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newLinkedHashMap();
     Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newLinkedHashMap();
     // TODO: does it matter which output we designate as "main"
-    TupleTag<OutputT> mainOutputTag;
-    if (!outputs.isEmpty()) {
-      mainOutputTag = new TupleTag(outputs.keySet().iterator().next());
-    } else {
-      mainOutputTag = null;
-    }
+    final TupleTag<OutputT> mainOutputTag =
+        outputs.isEmpty() ? null : new TupleTag(outputs.keySet().iterator().next());
 
     // associate output tags with ids, output manager uses these Integer ids to serialize state
     BiMap<String, Integer> outputIndexMap =
         FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
+    Map<String, TupleTag<?>> collectionIdToTupleTag = Maps.newHashMap();
     // order output names for deterministic mapping
     for (String localOutputName : new TreeMap<>(outputIndexMap).keySet()) {
       String collectionId = outputs.get(localOutputName);
@@ -461,6 +463,7 @@ public class FlinkStreamingPortablePipelineTranslator
       tagsToOutputTags.put(tupleTag, new OutputTag<>(localOutputName, typeInformation));
       tagsToCoders.put(tupleTag, windowCoder);
       tagsToIds.put(tupleTag, outputIndexMap.get(localOutputName));
+      collectionIdToTupleTag.put(collectionId, tupleTag);
     }
 
     final SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
@@ -468,7 +471,7 @@ public class FlinkStreamingPortablePipelineTranslator
         context.getDataStreamOrThrow(inputPCollectionId);
 
     // TODO: coder for side input push back
-    final Coder<WindowedValue<InputT>> inputCoder = null;
+    final Coder<WindowedValue<InputT>> windowedInputCoder = null;
     CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
         (!outputs.isEmpty())
             ? new CoderTypeInformation(outputCoders.get(mainOutputTag.getId()))
@@ -487,9 +490,11 @@ public class FlinkStreamingPortablePipelineTranslator
 
     // TODO: side inputs
     DoFnOperator<InputT, OutputT> doFnOperator =
-        new ExecutableStageDoFnOperator<InputT, OutputT>(
+        new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
-            inputCoder,
+            windowedInputCoder,
+            null,
+            Collections.emptyMap(),
             mainOutputTag,
             additionalOutputTags,
             outputManagerFactory,
@@ -498,7 +503,8 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.batchFactory());
+            FlinkExecutableStageContext.batchFactory(),
+            collectionIdToTupleTag);
 
     outputStream =
         inputDataStream.transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);

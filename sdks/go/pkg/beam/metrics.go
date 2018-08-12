@@ -24,7 +24,7 @@ import (
 // Counter is a metric that can be incremented and decremented,
 // and is aggregated by the sum.
 type Counter struct {
-	metrics.Counter
+	*metrics.Counter
 }
 
 // Inc increments the counter within by the given amount.
@@ -45,7 +45,7 @@ func NewCounter(namespace, name string) Counter {
 // Distribution is a metric that records various statistics about the distribution
 // of reported values.
 type Distribution struct {
-	metrics.Distribution
+	*metrics.Distribution
 }
 
 // Update adds an observation to this distribution.
@@ -61,7 +61,7 @@ func NewDistribution(namespace, name string) Distribution {
 // Gauge is a metric that can have its new value set, and is aggregated by taking
 // the last reported value.
 type Gauge struct {
-	metrics.Gauge
+	*metrics.Gauge
 }
 
 // Set sets the current value for this gauge.

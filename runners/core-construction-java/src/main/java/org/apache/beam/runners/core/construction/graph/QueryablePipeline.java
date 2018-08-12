@@ -22,10 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import com.google.common.graph.NetworkBuilder;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -47,6 +47,7 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * A {@link Pipeline} which has additional methods to relate nodes in the graph relative to each
@@ -144,7 +145,7 @@ public class QueryablePipeline {
             PCollectionNode.class.getSimpleName(),
             PTransformNode.class.getSimpleName(),
             producedNode,
-            network.successors(producedNode));
+            network.predecessors(producedNode));
         unproducedCollections.remove(producedNode);
       }
       for (Map.Entry<String, String> consumed : transform.getInputsMap().entrySet()) {
@@ -298,10 +299,76 @@ public class QueryablePipeline {
         .collect(Collectors.toSet());
   }
 
+  public Collection<UserStateReference> getUserStates(PTransformNode transform) {
+    return getLocalUserStateNames(transform.getTransform())
+        .stream()
+        .map(
+            localName -> {
+              String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
+              // Get the main input PCollection id.
+              String collectionId =
+                  transform
+                      .getTransform()
+                      .getInputsOrThrow(
+                          Iterables.getOnlyElement(
+                              Sets.difference(
+                                  transform.getTransform().getInputsMap().keySet(),
+                                  getLocalSideInputNames(transformProto))));
+              PCollection collection = components.getPcollectionsOrThrow(collectionId);
+              return UserStateReference.of(
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
+                  PipelineNode.pCollection(collectionId, collection));
+            })
+        .collect(Collectors.toSet());
+  }
+
+  public Collection<TimerReference> getTimers(PTransformNode transform) {
+    return getLocalTimerNames(transform.getTransform())
+        .stream()
+        .map(
+            localName -> {
+              String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
+              String collectionId = transform.getTransform().getInputsOrThrow(localName);
+              PCollection collection = components.getPcollectionsOrThrow(collectionId);
+              return TimerReference.of(
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
+                  PipelineNode.pCollection(collectionId, collection));
+            })
+        .collect(Collectors.toSet());
+  }
+
   private Set<String> getLocalSideInputNames(PTransform transform) {
     if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return Collections.emptySet();
+    }
+  }
+
+  private Set<String> getLocalUserStateNames(PTransform transform) {
+    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+      try {
+        return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getStateSpecsMap().keySet();
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return Collections.emptySet();
+    }
+  }
+
+  private Set<String> getLocalTimerNames(PTransform transform) {
+    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+      try {
+        return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }

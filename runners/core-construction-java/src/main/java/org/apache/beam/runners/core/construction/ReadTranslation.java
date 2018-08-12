@@ -22,8 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -43,6 +41,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded} {@link PTransform

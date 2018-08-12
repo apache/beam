@@ -32,13 +32,10 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
@@ -127,30 +124,20 @@ class Operation(object):
     else:
       self.name_context = common.NameContext(name_context)
 
-    # TODO(BEAM-4028): Remove following two lines. Rely on name context.
-    self.operation_name = self.name_context.step_name
-    self.step_name = self.name_context.logging_name()
-
     self.spec = spec
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
-    # TODO(BEAM-4094): Remove ScopedMetricsContainer after Dataflow no longer
-    # depends on it.
-    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start',
-        metrics_container=self.metrics_container)
+        self.name_context, 'start', metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process',
-        metrics_container=self.metrics_container)
+        self.name_context, 'process', metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish',
-        metrics_container=self.metrics_container)
+        self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
@@ -330,15 +317,12 @@ class DoOperation(Operation):
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics_v2' in RuntimeValueProvider.experiments:
-          si_counter = opcounters.SideInputReadCounter(
-              self.counter_factory,
-              self.state_sampler,
-              declaring_step=self.name_context.step_name,
-              # Inputs are 1-indexed, so we add 1 to i in the side input id
-              input_index=i + 1)
-        else:
-          si_counter = opcounters.NoOpTransformIOCounter()
+        si_counter = opcounters.SideInputReadCounter(
+            self.counter_factory,
+            self.state_sampler,
+            declaring_step=self.name_context.step_name,
+            # Inputs are 1-indexed, so we add 1 to i in the side input id
+            input_index=i + 1)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
@@ -390,10 +374,9 @@ class DoOperation(Operation):
           fn, args, kwargs, self.side_input_maps, window_fn,
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
-          logging_context=logger.PerThreadLoggingContext(
-              step_name=self.name_context.logging_name()),
           state=state,
-          scoped_metrics_container=None)
+          operation_name=self.name_context.metrics_name())
+
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
@@ -589,15 +572,14 @@ class FlattenOperation(Operation):
       self.output(o)
 
 
-def create_operation(name_context, spec, counter_factory, step_name,
-                     state_sampler, test_shuffle_source=None,
+def create_operation(name_context, spec, counter_factory, step_name=None,
+                     state_sampler=None, test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
+
+  # TODO(pabloem): Document arguments to this function call.
   if not isinstance(name_context, common.NameContext):
-    # TODO(BEAM-4028): Remove ad-hoc NameContext once all has been migrated.
-    name_context = common.DataflowNameContext(step_name=name_context,
-                                              user_name=step_name,
-                                              system_name=None)
+    name_context = common.NameContext(step_name=name_context)
 
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):

@@ -174,8 +174,7 @@ class GcsIO(object):
             credentials=credentials,
             get_credentials=False,
             http=get_new_http())
-        local_state.gcsio_instance = (
-            super(GcsIO, cls).__new__(cls, storage_client))
+        local_state.gcsio_instance = super(GcsIO, cls).__new__(cls)
         local_state.gcsio_instance.client = storage_client
       return local_state.gcsio_instance
 
@@ -410,6 +409,23 @@ class GcsIO(object):
     request = storage.StorageObjectsGetRequest(
         bucket=bucket, object=object_path)
     return self.client.objects.Get(request).size
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def last_updated(self, path):
+    """Returns the last updated epoch time of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: last updated time of the GCS object in second.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    datetime = self.client.objects.Get(request).updated
+    return (time.mktime(datetime.timetuple()) - time.timezone
+            + datetime.microsecond / 1000000.0)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)

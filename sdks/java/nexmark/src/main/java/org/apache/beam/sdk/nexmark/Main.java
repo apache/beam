@@ -33,6 +33,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
@@ -74,30 +81,83 @@ import org.joda.time.Instant;
  * <p>See <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">
  * http://datalab.cs.pdx.edu/niagaraST/NEXMark/</a>
  */
-public class Main<OptionT extends NexmarkOptions> {
+public class Main {
+
+  private static class Result {
+    private final NexmarkConfiguration configuration;
+    private final NexmarkPerf perf;
+
+    private Result(NexmarkConfiguration configuration, NexmarkPerf perf) {
+      this.configuration = configuration;
+      this.perf = perf;
+    }
+  }
+
+  private static class Run implements Callable<Result> {
+    private final NexmarkLauncher<NexmarkOptions> nexmarkLauncher;
+    private final NexmarkConfiguration configuration;
+
+    private Run(String[] args, NexmarkConfiguration configuration) {
+      NexmarkOptions options = PipelineOptionsFactory.fromArgs(args).as(NexmarkOptions.class);
+      this.nexmarkLauncher = new NexmarkLauncher<>(options);
+      this.configuration = configuration;
+    }
+
+    @Override
+    public Result call() throws IOException {
+      NexmarkPerf perf = nexmarkLauncher.run(configuration);
+      return new Result(configuration, perf);
+    }
+  }
 
   /** Entry point. */
-  void runAll(OptionT options, NexmarkLauncher nexmarkLauncher) throws IOException {
+  void runAll(String[] args) throws IOException {
     Instant start = Instant.now();
+    NexmarkOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(NexmarkOptions.class);
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
-    Iterable<NexmarkConfiguration> configurations = options.getSuite().getConfigurations(options);
+    Set<NexmarkConfiguration> configurations = options.getSuite().getConfigurations(options);
+    int nThreads = Math.min(options.getNexmarkParallel(), configurations.size());
+    ExecutorService executor = Executors.newFixedThreadPool(nThreads);
+    CompletionService<Result> completion = new ExecutorCompletionService(executor);
 
     boolean successful = true;
     try {
-      // Run all the configurations.
+      // Schedule all the configurations.
       for (NexmarkConfiguration configuration : configurations) {
-        NexmarkPerf perf = nexmarkLauncher.run(configuration);
-        if (perf != null) {
-          if (perf.errors == null || perf.errors.size() > 0) {
-            successful = false;
-          }
-          appendPerf(options.getPerfFilename(), configuration, perf);
-          actual.put(configuration, perf);
-          // Summarize what we've run so far.
-          saveSummary(null, configurations, actual, baseline, start, options);
-        }
+        completion.submit(new Run(args, configuration));
       }
+
+      // Collect all the results.
+      for (int scheduled = configurations.size(); scheduled > 0; scheduled--) {
+        Result result;
+        try {
+          result = completion.take().get();
+        } catch (InterruptedException e) {
+          break;
+        } catch (ExecutionException e) {
+          Throwable t = e.getCause();
+          if (t instanceof IOException) {
+            throw new IOException(t);
+          } else {
+            throw new RuntimeException(t);
+          }
+        }
+
+        NexmarkConfiguration configuration = result.configuration;
+        NexmarkPerf perf = result.perf;
+        if (perf == null) {
+          continue;
+        } else if (perf.errors == null || perf.errors.size() > 0) {
+          successful = false;
+        }
+        appendPerf(options.getPerfFilename(), configuration, perf);
+        actual.put(configuration, perf);
+        // Summarize what we've run so far.
+        saveSummary(null, configurations, actual, baseline, start, options);
+      }
+
       if (options.getExportSummaryToBigQuery()) {
         savePerfsToBigQuery(options, actual, null, start);
       }
@@ -107,6 +167,8 @@ public class Main<OptionT extends NexmarkOptions> {
         saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
+
+      executor.shutdown();
     }
     if (!successful) {
       throw new RuntimeException("Execution was not successful");
@@ -151,7 +213,11 @@ public class Main<OptionT extends NexmarkOptions> {
                     new TableFieldSchema().setName("eventsPerSec").setType("FLOAT"),
                     new TableFieldSchema().setName("numResults").setType("INTEGER")));
 
-    String tableSpec = NexmarkUtils.tableSpec(options, "{query}", 0L, null);
+    String queryName = "{query}";
+    if (options.getQueryLanguage() != null) {
+      queryName = queryName + "_" + options.getQueryLanguage();
+    }
+    final String tableSpec = NexmarkUtils.tableSpec(options, queryName, 0L, null);
     SerializableFunction<
             ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
         tableFunction =
@@ -408,9 +474,6 @@ public class Main<OptionT extends NexmarkOptions> {
   }
 
   public static void main(String[] args) throws IOException {
-    NexmarkOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(NexmarkOptions.class);
-    NexmarkLauncher<NexmarkOptions> nexmarkLauncher = new NexmarkLauncher<>(options);
-    new Main<>().runAll(options, nexmarkLauncher);
+    new Main().runAll(args);
   }
 }

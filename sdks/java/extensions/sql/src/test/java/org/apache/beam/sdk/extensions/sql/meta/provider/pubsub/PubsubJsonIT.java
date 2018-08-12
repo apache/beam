@@ -40,6 +40,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -54,7 +55,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -128,7 +131,8 @@ public class PubsubJsonIT implements Serializable {
     queryOutput.apply(
         "waitForSuccess",
         signal.signalSuccessWhen(
-            PAYLOAD_SCHEMA.getRowCoder(),
+            SchemaCoder.of(
+                PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
             observedRows ->
                 observedRows.equals(
                     ImmutableSet.of(
@@ -262,7 +266,7 @@ public class PubsubJsonIT implements Serializable {
     // wait one minute to allow subscription creation.
     Thread.sleep(60 * 1000);
     eventsTopic.publish(messages);
-    assertThat(queryResult.get().size(), equalTo(3));
+    assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
     pool.shutdown();
   }
 

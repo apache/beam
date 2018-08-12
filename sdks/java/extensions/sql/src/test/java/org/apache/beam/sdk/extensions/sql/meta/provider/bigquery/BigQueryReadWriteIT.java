@@ -47,6 +47,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
@@ -266,7 +267,10 @@ public class BigQueryReadWriteIT implements Serializable {
   }
 
   private PCollection<Row> createPCollection(Pipeline pipeline, Row... rows) {
-    return pipeline.apply(Create.of(Arrays.asList(rows)).withCoder(SOURCE_SCHEMA.getRowCoder()));
+    return pipeline.apply(
+        Create.of(Arrays.asList(rows))
+            .withSchema(
+                SOURCE_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()));
   }
 
   private Row row(Schema schema, Object... values) {

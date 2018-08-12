@@ -27,9 +27,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.Uninterruptibles;
-import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +56,7 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Message;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -365,7 +365,8 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
+                          pCollectionIdsToConsumers,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
@@ -426,7 +427,8 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
+                          pCollectionIdsToConsumers,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)

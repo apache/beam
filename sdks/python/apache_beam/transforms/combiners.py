@@ -18,9 +18,14 @@
 """A library of basic combiner PTransform subclasses."""
 
 from __future__ import absolute_import
+from __future__ import division
 
 import operator
 import random
+from builtins import object
+from builtins import zip
+
+from past.builtins import long
 
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
@@ -35,11 +40,6 @@ from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-
-try:
-  long        # Python 2
-except NameError:
-  long = int  # Python 3
 
 __all__ = [
     'Count',

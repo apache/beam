@@ -20,10 +20,7 @@ package org.apache.beam.fn.harness.control;
 
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 import java.util.EnumMap;
 import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
@@ -37,6 +34,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,11 +78,7 @@ public class BeamFnControlClient {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(
-            BeamFnControlGrpc.newStub(
-                    channelFactory
-                        .withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)))
-                        .forDescriptor(apiServiceDescriptor))
-                ::control,
+            BeamFnControlGrpc.newStub(channelFactory.forDescriptor(apiServiceDescriptor))::control,
             new InboundObserver());
     this.handlers = handlers;
     this.onFinish = new CompletableFuture<>();

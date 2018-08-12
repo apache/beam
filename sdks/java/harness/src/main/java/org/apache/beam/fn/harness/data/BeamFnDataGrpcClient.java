@@ -18,7 +18,6 @@
 
 package org.apache.beam.fn.harness.data;
 
-import io.grpc.ManagedChannel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

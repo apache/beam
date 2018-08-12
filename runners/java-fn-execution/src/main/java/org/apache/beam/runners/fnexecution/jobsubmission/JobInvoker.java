@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-import com.google.protobuf.Struct;
 import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 
 /** Factory to create a {@link JobInvocation} instances. */
 public interface JobInvoker {

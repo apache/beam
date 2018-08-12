@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
@@ -206,16 +204,20 @@ public class FakeDatasetService implements DatasetService, Serializable {
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
-    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null);
+    return insertAll(
+        ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null, null, false, false);
   }
 
   @Override
-  public long insertAll(
+  public <T> long insertAll(
       TableReference ref,
       List<ValueInSingleWindow<TableRow>> rowList,
       @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy,
-      List<ValueInSingleWindow<TableRow>> failedInserts)
+      List<ValueInSingleWindow<T>> failedInserts,
+      ErrorContainer<T> errorContainer,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
@@ -248,7 +250,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
         if (shouldInsert) {
           dataSize += tableContainer.addRow(row, insertIdList.get(i));
         } else {
-          failedInserts.add(rowList.get(i));
+          errorContainer.add(
+              failedInserts, allErrors.get(allErrors.size() - 1), ref, rowList.get(i));
         }
       }
       return dataSize;

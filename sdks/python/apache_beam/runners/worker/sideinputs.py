@@ -31,7 +31,6 @@ from future import standard_library
 
 from apache_beam.coders import observable
 from apache_beam.io import iobase
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 
@@ -88,9 +87,6 @@ class PrefetchingSourceSetIterable(object):
   def add_byte_counter(self, reader):
     """Adds byte counter observer to a side input reader.
 
-    If the 'sideinput_io_metrics_v2' experiment flag is not passed in, then
-    nothing is attached to the reader.
-
     Args:
       reader: A reader that should inherit from ObservableMixin to have
         bytes tracked.
@@ -131,8 +127,7 @@ class PrefetchingSourceSetIterable(object):
               # The tracking of time spend reading and bytes read from side
               # inputs is kept behind an experiment flag to test performance
               # impact.
-              if 'sideinput_io_metrics_v2' in RuntimeValueProvider.experiments:
-                self.add_byte_counter(reader)
+              self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:

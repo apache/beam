@@ -145,6 +145,9 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
+    parent = os.path.dirname(path)
+    if not os.path.exists(parent):
+      os.makedirs(parent)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(self, path, mime_type='application/octet-stream',
@@ -186,6 +189,10 @@ class LocalFileSystem(FileSystem):
         if os.path.isdir(source):
           shutil.copytree(source, destination)
         else:
+          parent = os.path.dirname(destination)
+          if not os.path.exists(parent):
+            os.makedirs(parent)
+
           shutil.copy2(source, destination)
       except OSError as err:
         raise IOError(err)
@@ -218,6 +225,10 @@ class LocalFileSystem(FileSystem):
     def _rename_file(source, destination):
       """Rename a single file object"""
       try:
+        parent = os.path.dirname(destination)
+        if not os.path.exists(parent):
+          os.makedirs(parent)
+
         os.rename(source, destination)
       except OSError as err:
         raise IOError(err)
@@ -257,6 +268,21 @@ class LocalFileSystem(FileSystem):
       return os.path.getsize(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Size operation failed", {path: e})
+
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    if not self.exists(path):
+      raise BeamIOError('Path does not exist: %s' % path)
+    return os.path.getmtime(path)
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the

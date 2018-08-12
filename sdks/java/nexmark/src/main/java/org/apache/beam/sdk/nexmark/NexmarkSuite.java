@@ -69,7 +69,7 @@ public enum NexmarkSuite {
     List<NexmarkConfiguration> configurations = smoke();
     for (NexmarkConfiguration configuration : configurations) {
       if (configuration.numEvents >= 0) {
-        configuration.numEvents *= 1000;
+        configuration.numEvents *= 100;
       }
     }
     return configurations;
@@ -79,7 +79,7 @@ public enum NexmarkSuite {
     List<NexmarkConfiguration> configurations = smoke();
     for (NexmarkConfiguration configuration : configurations) {
       if (configuration.numEvents >= 0) {
-        configuration.numEvents *= 1000;
+        configuration.numEvents *= 10000;
       }
     }
     return configurations;
@@ -120,7 +120,7 @@ public enum NexmarkSuite {
    * any set command line flags, except for --isStreaming which is only respected for the {@link
    * #DEFAULT} suite.
    */
-  public Iterable<NexmarkConfiguration> getConfigurations(NexmarkOptions options) {
+  public Set<NexmarkConfiguration> getConfigurations(NexmarkOptions options) {
     Set<NexmarkConfiguration> results = new LinkedHashSet<>();
     for (NexmarkConfiguration configuration : configurations) {
       NexmarkConfiguration result = configuration.copy();

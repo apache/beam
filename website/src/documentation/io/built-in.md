@@ -107,6 +107,10 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
   </tr>
   <tr>
+    <td>Apache Kafka</td><td>Python</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788</a></td>
+  </tr>
+  <tr>
     <td>Apache Kudu</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-2661">BEAM-2661</a></td>
   </tr>  
@@ -139,7 +143,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
   </tr>
   <tr>
-    <td>Apache Kafka</td><td>Python</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788</a></td>
+    <td>Amazon SQS</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-4828">BEAM-4828</a></td>
   </tr>
 </table>

@@ -309,6 +309,8 @@ class OutputDeduplicator {
         stage.getEnvironment(),
         stage.getInputPCollection(),
         stage.getSideInputs(),
+        stage.getUserStates(),
+        stage.getTimers(),
         updatedTransforms,
         updatedOutputs);
   }

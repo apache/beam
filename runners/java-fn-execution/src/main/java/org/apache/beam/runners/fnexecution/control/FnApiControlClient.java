@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +29,9 @@ import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

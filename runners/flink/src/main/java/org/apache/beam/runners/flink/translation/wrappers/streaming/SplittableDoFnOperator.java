@@ -67,7 +67,9 @@ public class SplittableDoFnOperator<
   public SplittableDoFnOperator(
       DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
       String stepName,
-      Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> inputCoder,
+      Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> windowedInputCoder,
+      Coder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -80,7 +82,9 @@ public class SplittableDoFnOperator<
     super(
         doFn,
         stepName,
+        windowedInputCoder,
         inputCoder,
+        outputCoders,
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,

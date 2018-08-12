@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
+import org.joda.time.DateTime;
 
 /** Generates people. */
 public class PersonGenerator {
@@ -51,7 +52,7 @@ public class PersonGenerator {
 
   /** Generate and return a random person with next available id. */
   public static Person nextPerson(
-      long nextEventId, Random random, long timestamp, GeneratorConfig config) {
+      long nextEventId, Random random, DateTime timestamp, GeneratorConfig config) {
 
     long id = lastBase0PersonId(nextEventId) + GeneratorConfig.FIRST_PERSON_ID;
     String name = nextPersonName(random);
@@ -62,7 +63,7 @@ public class PersonGenerator {
     int currentSize =
         8 + name.length() + email.length() + creditCard.length() + city.length() + state.length();
     String extra = nextExtra(random, currentSize, config.getAvgPersonByteSize());
-    return new Person(id, name, email, creditCard, city, state, timestamp, extra);
+    return new Person(id, name, email, creditCard, city, state, timestamp.toInstant(), extra);
   }
 
   /** Return a random person id (base 0). */

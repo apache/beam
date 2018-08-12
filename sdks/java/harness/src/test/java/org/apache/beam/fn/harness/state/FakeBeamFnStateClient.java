@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {

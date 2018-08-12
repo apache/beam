@@ -19,9 +19,6 @@ package org.apache.beam.sdk.io.solr;
 
 import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
-import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
@@ -31,13 +28,9 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.solr.SolrIOTestUtils.LenientRetryPredicate;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -145,28 +138,6 @@ public class SolrIOTest extends SolrCloudTestCase {
   }
 
   @Test
-  public void testSizes() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read =
-        SolrIO.read().withConnectionConfiguration(connectionConfiguration).from(SOLR_COLLECTION);
-    SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
-    // can't use equal assert as Solr collections never have same size
-    // (due to internal Lucene implementation)
-    long estimatedSize = initialSource.getEstimatedSizeBytes(options);
-    LOG.info("Estimated size: {}", estimatedSize);
-    assertThat(
-        "Wrong estimated size bellow minimum",
-        estimatedSize,
-        greaterThan(SolrIOTestUtils.MIN_DOC_SIZE * NUM_DOCS));
-    assertThat(
-        "Wrong estimated size beyond maximum",
-        estimatedSize,
-        lessThan(SolrIOTestUtils.MAX_DOC_SIZE * NUM_DOCS));
-  }
-
-  @Test
   public void testRead() throws Exception {
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
 
@@ -250,33 +221,6 @@ public class SolrIOTest extends SolrCloudTestCase {
         }
       }
     }
-  }
-
-  @Test
-  public void testSplit() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read =
-        SolrIO.read().withConnectionConfiguration(connectionConfiguration).from(SOLR_COLLECTION);
-    SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
-    //desiredBundleSize is ignored for now
-    int desiredBundleSizeBytes = 0;
-    List<? extends BoundedSource<SolrDocument>> splits =
-        initialSource.split(desiredBundleSizeBytes, options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-
-    int expectedNumSplits = NUM_SHARDS;
-    assertEquals(expectedNumSplits, splits.size());
-    int nonEmptySplits = 0;
-    for (BoundedSource<SolrDocument> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
-      }
-    }
-    // docs are hashed by id to shards, in this test, NUM_DOCS >> NUM_SHARDS
-    // therefore, can not exist an empty shard.
-    assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
   }
 
   /**

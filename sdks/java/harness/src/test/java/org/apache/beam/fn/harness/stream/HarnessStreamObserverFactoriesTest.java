@@ -22,12 +22,12 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import io.grpc.stub.CallStreamObserver;
-import io.grpc.stub.StreamObserver;
 import org.apache.beam.sdk.fn.stream.BufferingStreamObserver;
 import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
 import org.apache.beam.sdk.fn.stream.ForwardingClientResponseObserver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

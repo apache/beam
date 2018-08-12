@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRddSerialization;
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
@@ -336,13 +335,17 @@ public final class TransformTranslator {
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
-        rejectSplittable(doFn);
+        checkState(
+            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            "Not expected to directly translate splittable DoFn, should have been overridden: %s",
+            doFn);
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
-
+        Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
+        Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
         DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
@@ -357,6 +360,8 @@ public final class TransformTranslator {
                 context.getSerializableOptions(),
                 transform.getMainOutputTag(),
                 transform.getAdditionalOutputTags().getAll(),
+                inputCoder,
+                outputCoders,
                 TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                 windowingStrategy,
                 stateful);

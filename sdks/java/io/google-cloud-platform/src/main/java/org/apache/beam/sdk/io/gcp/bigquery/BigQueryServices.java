@@ -32,11 +32,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link JobService}. */
@@ -67,7 +65,7 @@ public interface BigQueryServices extends Serializable {
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
      */
-    Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException, IOException;
+    Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException;
 
     /** Dry runs the query in the given project. */
     JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)
@@ -137,12 +135,15 @@ public interface BigQueryServices extends Serializable {
      *
      * <p>Returns the total bytes count of {@link TableRow TableRows}.
      */
-    long insertAll(
+    <T> long insertAll(
         TableReference ref,
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer,
+        boolean skipInvalidRows,
+        boolean ignoreUnknownValues)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */

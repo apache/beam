@@ -36,7 +36,15 @@ public class BeamSqlMapExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return operands.stream().map(BeamSqlExpression::getOutputType).distinct().count() == 1;
+    int distinctCount = 2;
+    if (operands.size() < 2) {
+      return false;
+    }
+    if (operands.get(0).getOutputType().equals(operands.get(1).getOutputType())) {
+      distinctCount = 1;
+    }
+    return operands.stream().map(BeamSqlExpression::getOutputType).distinct().count()
+        == distinctCount;
   }
 
   @Override

@@ -22,9 +22,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.protobuf.ByteString;
-import io.grpc.Channel;
-import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -57,6 +54,9 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ThrowingSupplier;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /** A client to stage files on an {@link ArtifactStagingServiceGrpc ArtifactService}. */
 public class ArtifactServiceStager {

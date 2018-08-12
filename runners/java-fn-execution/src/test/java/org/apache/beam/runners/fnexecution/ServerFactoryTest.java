@@ -30,10 +30,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.Uninterruptibles;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.stub.CallStreamObserver;
-import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +42,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 
 /** Tests for {@link ServerFactory}. */

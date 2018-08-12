@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
+import WebsiteShared as websiteShared
 
 // Defines a job.
 job('beam_PreCommit_Website_Stage') {
@@ -24,10 +25,10 @@ job('beam_PreCommit_Website_Stage') {
               'website to a temporary location to ease reviews.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelWebsiteJobProperties(delegate)
+  commonJobProperties.setTopLevelWebsiteJobProperties(delegate)
 
   // Set pull request build trigger.
-  common_job_properties.setPreCommit(
+  commonJobProperties.setPreCommit(
       delegate,
       'Automatic staging of pull requests',
       '\nJenkins built the site at commit id ${ghprbActualCommit} with ' +
@@ -40,37 +41,16 @@ job('beam_PreCommit_Website_Stage') {
 
   steps {
     // Run the following shell script as a build step.
-    shell '''
-        # Install RVM.
-        gpg --keyserver hkp://keys.gnupg.net --recv-keys \\
-            409B6B1796C275462A1703113804BB82D39DC0E3 \\
-            7D2BAF1CF37B13E2069D6956105BD0E739499BDB
-
-        \\curl -sSL https://get.rvm.io | bash
-        source /home/jenkins/.rvm/scripts/rvm
-
-        # Install Ruby.
-        RUBY_VERSION_NUM=2.3.0
-        rvm install ruby $RUBY_VERSION_NUM --autolibs=read-only
-
-        # Install Bundler gem
-        PATH=~/.gem/ruby/$RUBY_VERSION_NUM/bin:$PATH
-        GEM_PATH=~/.gem/ruby/$RUBY_VERSION_NUM/:$GEM_PATH
-        gem install bundler --user-install
-
-        # Enter the git clone for remaining commands
-        cd src
-
-        # Install all needed gems.
-        bundle install --path ~/.gem/
+    shell """
+        ${websiteShared.install_ruby_and_gems_bash}
 
         # Remove current site if it exists.
-        GCS_PATH="gs://apache-beam-website-pull-requests/${ghprbPullId}/"
-        gsutil -m rm -r -f ${GCS_PATH} || true
+        GCS_PATH="gs://apache-beam-website-pull-requests/\${ghprbPullId}/"
+        gsutil -m rm -r -f \${GCS_PATH} || true
 
         # Build the new site with the baseurl specified.
         rm -fr ./content/
-        bundle exec jekyll build --baseurl=/${ghprbPullId}
+        bundle exec jekyll build --baseurl=/\${ghprbPullId}
 
         # Install BeautifulSoup HTML Parser for python.
         pip install --user beautifulsoup4
@@ -79,7 +59,7 @@ job('beam_PreCommit_Website_Stage') {
         python .jenkins/append_index_html_to_internal_links.py
 
         # Upload the new site.
-        gsutil -m cp -R ./content/* ${GCS_PATH}
-    '''.stripIndent().trim()
+        gsutil -m cp -R ./content/* \${GCS_PATH}
+    """.stripIndent().trim()
   }
 }

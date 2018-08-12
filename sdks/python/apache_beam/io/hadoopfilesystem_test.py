@@ -35,6 +35,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
+  __hash__ = None
 
   def __init__(self, path, mode='', type='FILE'):
     io.BytesIO.__init__(self)

@@ -56,6 +56,7 @@ import org.apache.beam.sdk.coders.SnappyCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -691,6 +692,7 @@ public class Watch {
     }
   }
 
+  @UnboundedPerElement
   private static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, OutputT>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;

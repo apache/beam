@@ -1,0 +1,128 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+CustomHistory
+gradle
+nodelabelparameter
+envinject
+build-timeout
+throttle-concurrents
+JiraTestResultReporter
+
+active-directory
+analysis-core
+apache-httpcomponents-client-4-api
+aws-java-sdk
+blueocean
+blueocean-autofavorite
+blueocean-bitbucket-pipeline
+blueocean-commons
+blueocean-config
+blueocean-core-js
+blueocean-dashboard
+blueocean-events
+blueocean-git-pipeline
+blueocean-github-pipeline
+blueocean-i18n
+blueocean-jira
+blueocean-jwt
+blueocean-personalization
+blueocean-pipeline-api-impl
+blueocean-pipeline-editor
+blueocean-pipeline-scm-api
+blueocean-rest
+blueocean-rest-impl
+blueocean-web
+bouncycastle-api
+branch-api
+build-monitor-plugin
+build-name-setter
+build-time-blame
+cloudbees-bitbucket-branch-source
+cloudbees-folder
+clover
+cobertura
+config-file-provider
+copyartifact
+credentials
+credentials-binding
+cvs
+docker-commons
+docker-workflow
+durable-task
+email-ext
+envinject-api
+favorite
+ghprb
+git
+git-client
+github
+github-api
+github-branch-source
+github-pr-coverage-status
+htmlpublisher
+jackson2-api
+jacoco
+jenkins-design-language
+jira
+job-dsl
+ldap
+locale
+lockable-resources
+mailer
+matrix-project
+maven-plugin
+mercurial
+metrics
+monitoring
+node-iterator-api
+openid
+performance
+pipeline-graph-analysis
+pipeline-maven
+pipeline-model-api
+pipeline-model-definition
+pipeline-model-extensions
+pipeline-rest-api
+pipeline-stage-tags-metadata
+pipeline-stage-view
+pipeline-utility-steps
+plot
+promoted-builds
+rebuild
+resource-disposer
+scm-api
+script-security
+sloccount
+sonar
+ssh-credentials
+ssh-slaves
+subversion
+support-core
+testng-plugin
+timestamper
+token-macro
+translation
+urltrigger
+warnings
+workflow-api
+workflow-basic-steps
+workflow-cps
+workflow-job
+workflow-multibranch
+workflow-step-api
+workflow-support
+xunit
+

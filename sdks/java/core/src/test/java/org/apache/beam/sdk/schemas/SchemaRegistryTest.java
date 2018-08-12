@@ -18,11 +18,16 @@
 
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -93,7 +98,7 @@ public class SchemaRegistryTest {
     tryGetters(registry);
   }
 
-  static final class Provider extends SchemaProvider {
+  static final class Provider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptors.strings())) {
@@ -125,7 +130,7 @@ public class SchemaRegistryTest {
 
   static class TestSchemaClass {}
 
-  static final class TestAutoProvider extends SchemaProvider {
+  static final class TestAutoProvider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
@@ -143,6 +148,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
         return r -> (T) new TestSchemaClass();
@@ -169,7 +175,7 @@ public class SchemaRegistryTest {
   @DefaultSchema(TestDefaultSchemaProvider.class)
   static class TestDefaultSchemaClass {}
 
-  static final class TestDefaultSchemaProvider extends SchemaProvider {
+  static final class TestDefaultSchemaProvider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
@@ -187,6 +193,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
         return r -> (T) new TestSchemaClass();
@@ -199,5 +206,21 @@ public class SchemaRegistryTest {
   public void testDefaultSchemaProvider() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     assertEquals(EMPTY_SCHEMA, registry.getSchema(TestDefaultSchemaClass.class));
+  }
+
+  @Test
+  public void testRegisterPojo() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    registry.registerPOJO(SimplePOJO.class);
+    Schema schema = registry.getSchema(SimplePOJO.class);
+    assertTrue(SIMPLE_POJO_SCHEMA.equivalent(schema));
+  }
+
+  @Test
+  public void testRegisterJavaBean() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    registry.registerJavaBean(SimpleBean.class);
+    Schema schema = registry.getSchema(SimpleBean.class);
+    assertTrue(SIMPLE_BEAN_SCHEMA.equivalent(schema));
   }
 }

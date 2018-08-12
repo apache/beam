@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingInputStream;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +29,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /**
  * {@link #inbound(Iterator)} treats multiple {@link ByteString}s as a single input stream and

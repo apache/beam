@@ -22,7 +22,9 @@ import re
 import traceback
 import logging
 from datetime import datetime
-from bigquery_client_utils import BigQueryClientUtils
+from dependency_check.bigquery_client_utils import BigQueryClientUtils
+from jira_utils.jira_manager import JiraManager
+from dependency_check.report_generator_config import ReportGeneratorConfig
 
 
 _MAX_STALE_DAYS = 360
@@ -56,7 +58,7 @@ def extract_results(file_path):
           see_oudated_deps = True
     raw_report.close()
     return outdated_deps
-  except Exception as e:
+  except:
     raise
 
 
@@ -64,7 +66,7 @@ def extract_single_dep(dep):
   """
   Extract a single dependency check record from Java and Python reports.
   Args:
-    dep: e.g "- org.assertj:assertj-core [2.5.0 -> 3.10.0]".
+    dep: e.g " - org.assertj:assertj-core [2.5.0 -> 3.10.0]".
   Return:
     dependency name, current version, latest version.
   """
@@ -75,7 +77,7 @@ def extract_single_dep(dep):
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
 
 
-def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
+def prioritize_dependencies(deps, sdk_type):
   """
   Extracts and analyze dependency versions and release dates.
   Returns a collection of dependencies which is "high priority" in html format:
@@ -88,17 +90,26 @@ def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
   Return:
     high_priority_deps: A collection of dependencies which need to be taken care of before next release.
   """
+
+  project_id = ReportGeneratorConfig.GCLOUD_PROJECT_ID
+  dataset_id = ReportGeneratorConfig.DATASET_ID
+  table_id = ReportGeneratorConfig.get_bigquery_table_id(sdk_type)
   high_priority_deps = []
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
+  jira_manager = JiraManager(ReportGeneratorConfig.BEAM_JIRA_HOST,
+                             ReportGeneratorConfig.BEAM_JIRA_BOT_USRENAME,
+                             ReportGeneratorConfig.BEAM_JIRA_BOT_PASSWORD,
+                             ReportGeneratorConfig.get_owners_file(sdk_type))
 
   for dep in deps:
     try:
-      logging.info("Start processing: %s", dep)
+      logging.info("\n\nStart processing: " + dep)
       dep_name, curr_ver, latest_ver = extract_single_dep(dep)
       curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
                                                                               dep_name,
                                                                               curr_ver,
                                                                               latest_ver)
+      group_id = None
       if sdk_type == 'Java':
         # extract the groupid and artifactid
         group_id, artifact_id = dep_name.split(":")
@@ -120,8 +131,10 @@ def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
                           latest_release_date)
       if compare_dependency_versions(curr_ver, latest_ver):
         high_priority_deps.append(dep_info)
+        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
       elif compare_dependency_release_dates(curr_release_date, latest_release_date):
         high_priority_deps.append(dep_info)
+        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
     except:
       traceback.print_exc()
       continue
@@ -159,7 +172,7 @@ def compare_dependency_versions(curr_ver, latest_ver):
           return True
         elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_minor_ver):
           return True
-     # TODO: Comparing patch versions if needed.
+    # TODO: Comparing patch versions if needed.
   return False
 
 
@@ -209,25 +222,22 @@ def compare_dependency_release_dates(curr_release_date, latest_release_date):
   Return:
     boolean
   """
-  if curr_release_date is None or latest_release_date is None:
-    return True
+  if not curr_release_date or not latest_release_date:
+    return False
   else:
     if (latest_release_date - curr_release_date).days >= _MAX_STALE_DAYS:
       return True
   return False
 
 
-def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
+def generate_report(sdk_type):
   """
   Write SDK dependency check results into a html report.
   Args:
-    file_path: the path that report will be write into.
     sdk_type: String [Java, Python, TODO: Go]
-    project_id: the gcloud project ID that is used for BigQuery API requests.
-    dataset_id: the BigQuery dataset ID.
-    table_id: the BigQuery table ID.
   """
-  report_name = 'build/dependencyUpdates/beam-dependency-check-report.html'
+  report_name = ReportGeneratorConfig.FINAL_REPORT
+  raw_report = ReportGeneratorConfig.get_raw_report(sdk_type)
 
   if os.path.exists(report_name):
     append_write = 'a'
@@ -237,15 +247,15 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
   try:
     # Extract dependency check results from build/dependencyUpdate
     report = open(report_name, append_write)
-    if os.path.isfile(file_path):
-      outdated_deps = extract_results(file_path)
+    if os.path.isfile(raw_report):
+      outdated_deps = extract_results(raw_report)
     else:
-      report.write("Did not find the raw report of dependency check: {}".format(file_path))
+      report.write("Did not find the raw report of dependency check: {}".format(raw_report))
       report.close()
       return
 
     # Prioritize dependencies by comparing versions and release dates.
-    high_priority_deps = prioritize_dependencies(outdated_deps, sdk_type, project_id, dataset_id, table_id)
+    high_priority_deps = prioritize_dependencies(outdated_deps, sdk_type)
 
     # Write results to a report
     subtitle = "<h2>High Priority Dependency Updates Of Beam {} SDK:</h2>\n".format(sdk_type)
@@ -267,6 +277,8 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
       report.write("%s" % dep)
     report.write("</table>\n")
   except Exception as e:
+    traceback.print_exc()
+    logging.error("Failed generate the dependency report. " + str(e))
     report.write('<p> {0} </p>'.format(str(e)))
 
   report.close()
@@ -276,13 +288,9 @@ def main(args):
   """
   Main method.
   Args:
-    args[0]: path of the raw report generated by Java/Python dependency check. Typically in build/dependencyUpdates
-    args[1]: type of the check [Java, Python]
-    args[2]: google cloud project id
-    args[3]: BQ dataset id
-    args[4]: BQ table id
+    args[0]: type of the check [Java, Python]
   """
-  generate_report(args[0], args[1], args[2], args[3], args[4])
+  generate_report(args[0])
 
 
 if __name__ == '__main__':

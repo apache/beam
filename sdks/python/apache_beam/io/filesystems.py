@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
+from past.builtins import unicode
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
@@ -48,10 +50,6 @@ try:
 except ImportError:
   pass
 
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 # pylint: enable=wrong-import-position, unused-import
 
@@ -248,6 +246,21 @@ class FileSystems(object):
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.exists(path)
+
+  @staticmethod
+  def last_updated(path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.last_updated(path)
 
   @staticmethod
   def checksum(path):

@@ -124,6 +124,7 @@ from builtins import zip
 
 from future.utils import iteritems
 from future.utils import itervalues
+from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
@@ -146,10 +147,6 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 __all__ = [
     'TableRowJsonCoder',

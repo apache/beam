@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -131,6 +132,15 @@ public class EvaluationContext {
     return currentTransform.getOutputs();
   }
 
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return currentTransform
+        .getOutputs()
+        .entrySet()
+        .stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+  }
+
   private boolean shouldCache(PValue pvalue) {
     if ((pvalue instanceof PCollection)
         && cacheCandidates.containsKey(pvalue)
@@ -229,7 +239,7 @@ public class EvaluationContext {
   }
 
   /**
-   * Retrun the current views creates in the pipepline.
+   * Return the current views creates in the pipeline.
    *
    * @return SparkPCollectionView
    */
@@ -238,7 +248,7 @@ public class EvaluationContext {
   }
 
   /**
-   * Adds/Replaces a view to the current views creates in the pipepline.
+   * Adds/Replaces a view to the current views creates in the pipeline.
    *
    * @param view - Identifier of the view
    * @param value - Actual value of the view

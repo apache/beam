@@ -460,7 +460,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         if self.source.with_attributes:
           element = message
         else:
-          element = message.payload
+          element = message.data
         bundle.output(
             GlobalWindows.windowed_value(element, timestamp=timestamp))
       bundles = [bundle]

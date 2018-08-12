@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 def testConfiguration = [
                 jobName           : 'beam_PerformanceTests_Analysis',
@@ -44,17 +44,17 @@ job(testConfiguration.jobName) {
     description(testConfiguration.jobDescription)
 
     // Set default Beam job properties.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Allows triggering this build against pull requests.
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
+    commonJobProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
             testConfiguration.prCommitStatusName,
             testConfiguration.prTriggerPhase)
 
     // Run job in postcommit every 24 hours, don't trigger every push, and
     // don't email individual committers.
-    common_job_properties.setAutoJob(
+    commonJobProperties.setAutoJob(
             delegate,
             '30 */24 * * *')
 
@@ -74,9 +74,9 @@ job(testConfiguration.jobName) {
         shell('.env/bin/pip install requests google.cloud.bigquery mock')
 
         // Launch verification tests before executing script.
-        shell('.env/bin/python ' + common_job_properties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')
+        shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')
 
         // Launch performance tests analysis.
-        shell('.env/bin/python ' + common_job_properties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
+        shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
     }
 }

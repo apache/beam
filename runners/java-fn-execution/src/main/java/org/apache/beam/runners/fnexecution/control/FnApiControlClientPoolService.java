@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.control;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.concurrent.GuardedBy;
@@ -28,6 +27,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

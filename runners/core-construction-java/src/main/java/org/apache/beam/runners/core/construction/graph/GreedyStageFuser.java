@@ -38,8 +38,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link PCollectionNode} is fused into a stage if all of its consumers can be fused into the
  * stage. A consumer can be fused into a stage if it is executed within the environment of that
- * {@link ExecutableStage}, and receives only per-element inputs. PTransforms which consume side
- * inputs are always at the root of a stage.
+ * {@link ExecutableStage}, and receives only per-element inputs. To simplify integration for
+ * runners, this fuser specifically does not fuse PTransforms which consume side inputs or have user
+ * state, always making them the root of {@link ExecutableStage}.
  *
  * <p>A {@link PCollectionNode} with consumers that execute in an environment other than a stage is
  * materialized, and its consumers execute in independent stages.
@@ -80,6 +81,8 @@ public class GreedyStageFuser {
     fusedTransforms.addAll(initialNodes);
 
     Set<SideInputReference> sideInputs = new LinkedHashSet<>();
+    Set<UserStateReference> userStates = new LinkedHashSet<>();
+    Set<TimerReference> timers = new LinkedHashSet<>();
     Set<PCollectionNode> fusedCollections = new LinkedHashSet<>();
     Set<PCollectionNode> materializedPCollections = new LinkedHashSet<>();
 
@@ -87,6 +90,8 @@ public class GreedyStageFuser {
     for (PTransformNode initialConsumer : initialNodes) {
       fusionCandidates.addAll(pipeline.getOutputPCollections(initialConsumer));
       sideInputs.addAll(pipeline.getSideInputs(initialConsumer));
+      userStates.addAll(pipeline.getUserStates(initialConsumer));
+      timers.addAll(pipeline.getTimers(initialConsumer));
     }
     while (!fusionCandidates.isEmpty()) {
       PCollectionNode candidate = fusionCandidates.poll();
@@ -130,6 +135,8 @@ public class GreedyStageFuser {
         environment,
         inputPCollection,
         sideInputs,
+        userStates,
+        timers,
         fusedTransforms.build(),
         materializedPCollections);
   }
@@ -164,7 +171,8 @@ public class GreedyStageFuser {
       Environment environment,
       Set<PCollectionNode> fusedPCollections) {
     for (PTransformNode node : pipeline.getPerElementConsumers(candidate)) {
-      if (!(GreedyPCollectionFusers.canFuse(node, environment, fusedPCollections, pipeline))) {
+      if (!(GreedyPCollectionFusers.canFuse(
+          node, environment, candidate, fusedPCollections, pipeline))) {
         // Some of the consumers can't be fused into this subgraph, so the PCollection has to be
         // materialized.
         // TODO: Potentially, some of the consumers can be fused back into this stage later

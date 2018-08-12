@@ -1030,6 +1030,75 @@ public class GreedyStageFuserTest {
   }
 
   @Test
+  public void userStateIncludedInStage() {
+    Environment env = Environment.newBuilder().setUrl("common").build();
+    PTransform readTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "read.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "read.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putStateSpecs("state_spec", StateSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+    PCollection userStateMainInputPCollection =
+        PCollection.newBuilder().setUniqueName("read.out").build();
+
+    QueryablePipeline p =
+        QueryablePipeline.forPrimitivesIn(
+            partialComponents
+                .toBuilder()
+                .putTransforms("read", readTransform)
+                .putPcollections("read.out", userStateMainInputPCollection)
+                .putTransforms(
+                    "user_state",
+                    PTransform.newBuilder()
+                        .putInputs("input", "impulse.out")
+                        .putOutputs("output", "user_state.out")
+                        .build())
+                .putPcollections(
+                    "user_state.out",
+                    PCollection.newBuilder().setUniqueName("user_state.out").build())
+                .putTransforms("parDo", parDoTransform)
+                .putPcollections(
+                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putEnvironments("common", env)
+                .build());
+
+    PCollectionNode readOutput =
+        getOnlyElement(p.getOutputPCollections(PipelineNode.pTransform("read", readTransform)));
+    ExecutableStage subgraph =
+        GreedyStageFuser.forGrpcPortRead(
+            p, readOutput, ImmutableSet.of(PipelineNode.pTransform("parDo", parDoTransform)));
+    PTransformNode parDoNode = PipelineNode.pTransform("parDo", parDoTransform);
+    UserStateReference userStateRef =
+        UserStateReference.of(
+            parDoNode,
+            "state_spec",
+            PipelineNode.pCollection("read.out", userStateMainInputPCollection));
+    assertThat(subgraph.getUserStates(), contains(userStateRef));
+    assertThat(subgraph.getOutputPCollections(), emptyIterable());
+  }
+
+  @Test
   public void materializesWithGroupByKeyConsumer() {
     // (impulse.out) -> read -> read.out -> gbk -> gbk.out
     // Fuses to

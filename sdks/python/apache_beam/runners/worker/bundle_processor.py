@@ -63,13 +63,12 @@ OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
 class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
-  def __init__(self, operation_name, step_name, consumers, counter_factory,
+  def __init__(self, name_context, step_name, consumers, counter_factory,
                state_sampler, windowed_coder, target, data_channel):
     super(RunnerIOOperation, self).__init__(
-        operation_name, None, counter_factory, state_sampler)
+        name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
     self.windowed_coder_impl = windowed_coder.get_impl()
-    self.step_name = step_name
     # target represents the consumer for the bytes in the data plane for a
     # DataInputOperation or a producer of these bytes for a DataOutputOperation.
     self.target = target
@@ -106,9 +105,9 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder, target=input_target, data_channel=data_channel)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
-        operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               next(itervalues(consumers)),
-                               self.windowed_coder)]
+        operations.ConsumerSet(
+            self.counter_factory, self.name_context.step_name, 0,
+            next(itervalues(consumers)), self.windowed_coder)]
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -640,6 +639,50 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'extract')
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_PRECOMBINE.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  serialized_combine_fn = pickler.dumps(
+      (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
+       [], {}))
+  return factory.augment_oldstyle_op(
+      operations.PGBKCVOperation(
+          transform_proto.unique_name,
+          operation_specs.WorkerPartialGroupByKey(
+              serialized_combine_fn,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_MERGE_ACCUMULATORS.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'merge')
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'extract')
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'all')
 
 
 def _create_combine_phase_operation(

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 def testsConfigurations = [
         [
@@ -104,17 +104,17 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         description(testConfiguration.jobDescription)
 
         // Set default Beam job properties.
-        common_job_properties.setTopLevelMainJobProperties(delegate)
+        commonJobProperties.setTopLevelMainJobProperties(delegate)
 
         // Allows triggering this build against pull requests.
-        common_job_properties.enablePhraseTriggeringFromPullRequest(
+        commonJobProperties.enablePhraseTriggeringFromPullRequest(
                 delegate,
                 testConfiguration.prCommitStatusName,
                 testConfiguration.prTriggerPhase)
 
         // Run job in postcommit every 6 hours, don't trigger every push, and
         // don't email individual committers.
-        common_job_properties.setAutoJob(
+        commonJobProperties.setAutoJob(
                 delegate,
                 'H */6 * * *')
 
@@ -132,8 +132,8 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
-        String namespace = common_job_properties.getKubernetesNamespace(testConfiguration.jobName)
-        String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
+        String namespace = commonJobProperties.getKubernetesNamespace(testConfiguration.jobName)
+        String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace(namespace)
 
         def argMap = [
                 kubeconfig              : kubeconfig,
@@ -149,9 +149,9 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_options_config_file: makePathAbsolute('pkb-config.yml'),
                 beam_kubernetes_scripts : makePathAbsolute('hdfs-multi-datanode-cluster.yml')
         ]
-        common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
-        common_job_properties.buildPerformanceTest(delegate, argMap)
-        common_job_properties.cleanupKubernetes(delegate, namespace, kubeconfig)
+        commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
+        commonJobProperties.buildPerformanceTest(delegate, argMap)
+        commonJobProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
     }
 }
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job defines the Python postcommit tests.
@@ -27,14 +27,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python 
   previousNames('beam_PostCommit_PythonVerify')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Execute shell command to test Python SDK.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':pythonPostCommit')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
     }
   }
 }

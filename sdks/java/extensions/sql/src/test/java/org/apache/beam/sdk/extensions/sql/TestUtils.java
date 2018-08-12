@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -206,7 +207,9 @@ public class TestUtils {
         type = rows.get(0).getSchema();
       }
 
-      TestStream.Builder<Row> values = TestStream.create(type.getRowCoder());
+      TestStream.Builder<Row> values =
+          TestStream.create(
+              type, SerializableFunctions.identity(), SerializableFunctions.identity());
 
       for (Row row : rows) {
         if (timestampField != null) {
@@ -242,9 +245,8 @@ public class TestUtils {
   }
 
   // TODO: support nested.
-  // TODO: support nullable.
   private static Schema.Field toRecordField(Object[] args, int i) {
-    return Schema.Field.of((String) args[i + 1], (FieldType) args[i]).withNullable(true);
+    return Schema.Field.of((String) args[i + 1], (FieldType) args[i]);
   }
 
   /**

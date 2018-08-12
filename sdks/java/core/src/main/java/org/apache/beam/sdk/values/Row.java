@@ -18,12 +18,14 @@
 package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +36,7 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -51,38 +54,29 @@ import org.joda.time.base.AbstractInstant;
  * {see @link Schema#getRowCoder()}.
  */
 @Experimental
-@AutoValue
 public abstract class Row implements Serializable {
-  /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
-  public static <T> Collector<T, List<Object>, Row> toRow(Schema schema) {
-    return Collector.of(
-        () -> new ArrayList<>(schema.getFieldCount()),
-        List::add,
-        (left, right) -> {
-          left.addAll(right);
-          return left;
-        },
-        values -> Row.withSchema(schema).addValues(values).build());
+  private final Schema schema;
+
+  Row(Schema schema) {
+    this.schema = schema;
   }
 
-  /** Creates a new record filled with nulls. */
-  public static Row nullRow(Schema schema) {
-    return Row.withSchema(schema)
-        .addValues(Collections.nCopies(schema.getFieldCount(), null))
-        .build();
-  }
+  // Abstract methods to be implemented by subclasses that handle object access.
+
+  /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  public abstract <T> T getValue(int fieldIdx);
+
+  /** Return the size of data fields. */
+  public abstract int getFieldCount();
+  /** Return the list of data values. */
+  public abstract List<Object> getValues();
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
-  }
-
-  /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
-  @Nullable
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(int fieldIdx) {
-    return (T) getValues().get(fieldIdx);
   }
 
   /**
@@ -91,6 +85,14 @@ public abstract class Row implements Serializable {
    */
   public byte getByte(String fieldName) {
     return getByte(getSchema().indexOf(fieldName));
+  }
+
+  /**
+   * Get a {@link TypeName#BYTES} value by field name, {@link IllegalStateException} is thrown if
+   * schema doesn't match.
+   */
+  public byte[] getBytes(String fieldName) {
+    return getBytes(getSchema().indexOf(fieldName));
   }
 
   /**
@@ -197,6 +199,14 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Get a {@link TypeName#BYTES} value by field index, {@link ClassCastException} is thrown if
+   * schema doesn't match.
+   */
+  public byte[] getBytes(int idx) {
+    return getValue(idx);
+  }
+
+  /**
    * Get a {@link TypeName#INT16} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
@@ -293,19 +303,16 @@ public abstract class Row implements Serializable {
     return getValue(idx);
   }
 
-  /** Return the size of data fields. */
-  public int getFieldCount() {
-    return getValues().size();
-  }
-
-  /** Return the list of data values. */
-  public abstract List<Object> getValues();
-
   /** Return {@link Schema} which describes the fields. */
-  public abstract Schema getSchema();
+  public Schema getSchema() {
+    return schema;
+  }
 
   @Override
   public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
     if (!(o instanceof Row)) {
       return false;
     }
@@ -319,19 +326,26 @@ public abstract class Row implements Serializable {
     return Objects.hash(getSchema(), getValues());
   }
 
+  @Override
+  public String toString() {
+    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+  }
+
   /**
    * Creates a record builder with specified {@link #getSchema()}. {@link Builder#build()} will
    * throw an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not
    * match the number of fields specified.
    */
   public static Builder withSchema(Schema schema) {
-    return new AutoValue_Row.Builder(schema);
+    return new Builder(schema);
   }
 
   /** Builder for {@link Row}. */
   public static class Builder {
-    private List<Object> values = new ArrayList<>();
+    private List<Object> values = Lists.newArrayList();
     private boolean attached = false;
+    @Nullable private FieldValueGetterFactory fieldValueGetterFactory;
+    @Nullable private Object getterTarget;
     private Schema schema;
 
     Builder(Schema schema) {
@@ -365,6 +379,13 @@ public abstract class Row implements Serializable {
     public Builder attachValues(List<Object> values) {
       this.attached = true;
       return addValues(values);
+    }
+
+    public Builder withFieldValueGetters(
+        FieldValueGetterFactory fieldValueGetterFactory, Object getterTarget) {
+      this.fieldValueGetterFactory = fieldValueGetterFactory;
+      this.getterTarget = getterTarget;
+      return this;
     }
 
     private List<Object> verify(Schema schema, List<Object> values) {
@@ -464,6 +485,13 @@ public abstract class Row implements Serializable {
               return value;
             }
             break;
+          case BYTES:
+            if (value instanceof ByteBuffer) {
+              return ((ByteBuffer) value).array();
+            } else if (value instanceof byte[]) {
+              return (byte[]) value;
+            }
+            break;
           case INT16:
             if (value instanceof Short) {
               return value;
@@ -530,8 +558,38 @@ public abstract class Row implements Serializable {
 
     public Row build() {
       checkNotNull(schema);
-      List<Object> values = attached ? this.values : verify(schema, this.values);
-      return new AutoValue_Row(values, schema);
+      if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
+        throw new IllegalArgumentException(("Cannot specify both values and getters."));
+      }
+      if (!this.values.isEmpty()) {
+        List<Object> storageValues = attached ? this.values : verify(schema, this.values);
+        checkState(getterTarget == null, "withGetterTarget requires getters.");
+        return new RowWithStorage(schema, verify(schema, storageValues));
+      } else if (fieldValueGetterFactory != null) {
+        checkState(getterTarget != null, "getters require withGetterTarget.");
+        return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+      } else {
+        return new RowWithStorage(schema, Collections.emptyList());
+      }
     }
+  }
+
+  /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
+  public static <T> Collector<T, List<Object>, Row> toRow(Schema schema) {
+    return Collector.of(
+        () -> new ArrayList<>(schema.getFieldCount()),
+        List::add,
+        (left, right) -> {
+          left.addAll(right);
+          return left;
+        },
+        values -> Row.withSchema(schema).addValues(values).build());
+  }
+
+  /** Creates a new record filled with nulls. */
+  public static Row nullRow(Schema schema) {
+    return Row.withSchema(schema)
+        .addValues(Collections.nCopies(schema.getFieldCount(), null))
+        .build();
   }
 }

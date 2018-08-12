@@ -30,7 +30,7 @@ class DoFnSignatureTest(unittest.TestCase):
       def process(self, element, w1=DoFn.WindowParam, w2=DoFn.WindowParam):
         pass
 
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       DoFnSignature(MyDoFn())
 
   def test_dofn_validate_start_bundle_error(self):
@@ -41,7 +41,7 @@ class DoFnSignatureTest(unittest.TestCase):
       def start_bundle(self, w1=DoFn.WindowParam):
         pass
 
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       DoFnSignature(MyDoFn())
 
   def test_dofn_validate_finish_bundle_error(self):
@@ -52,7 +52,7 @@ class DoFnSignatureTest(unittest.TestCase):
       def finish_bundle(self, w1=DoFn.WindowParam):
         pass
 
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       DoFnSignature(MyDoFn())
 
 

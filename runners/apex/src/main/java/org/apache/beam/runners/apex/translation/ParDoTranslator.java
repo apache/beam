@@ -28,9 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -76,6 +78,13 @@ class ParDoTranslator<InputT, OutputT>
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
+    Map<TupleTag<?>, Coder<?>> outputCoders =
+        outputs
+            .entrySet()
+            .stream()
+            .filter(e -> e.getValue() instanceof PCollection)
+            .collect(
+                Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
     ApexParDoOperator<InputT, OutputT> operator =
         new ApexParDoOperator<>(
             context.getPipelineOptions(),
@@ -85,6 +94,7 @@ class ParDoTranslator<InputT, OutputT>
             input.getWindowingStrategy(),
             sideInputs,
             input.getCoder(),
+            outputCoders,
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -130,6 +140,14 @@ class ParDoTranslator<InputT, OutputT>
       PCollection<InputT> input = context.getInput();
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
+      Map<TupleTag<?>, Coder<?>> outputCoders =
+          outputs
+              .entrySet()
+              .stream()
+              .filter(e -> e.getValue() instanceof PCollection)
+              .collect(
+                  Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+
       @SuppressWarnings({"rawtypes", "unchecked"})
       DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
       ApexParDoOperator<InputT, OutputT> operator =
@@ -140,7 +158,8 @@ class ParDoTranslator<InputT, OutputT>
               transform.getAdditionalOutputTags().getAll(),
               input.getWindowingStrategy(),
               sideInputs,
-              null,
+              input.getCoder(),
+              outputCoders,
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());

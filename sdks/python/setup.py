@@ -38,7 +38,13 @@ from setuptools.command.test import test
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)  # pylint: disable=exec-used
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
   return global_names['__version__']
 
 
@@ -97,7 +103,7 @@ else:
 REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
-    'dill==0.2.6',
+    'dill>=0.2.6,<=0.2.8.2',
     'fastavro==0.19.7',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
@@ -106,6 +112,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
+    'pydot>=1.2.0,<1.3',
     'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
@@ -117,6 +124,7 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',
     ]
 
@@ -184,7 +192,7 @@ setuptools.setup(
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS
+        'gcp': GCP_REQUIREMENTS,
     },
     zip_safe=False,
     # PyPI package information.

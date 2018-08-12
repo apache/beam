@@ -29,12 +29,11 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow library.java.grpc_core
-  shadow library.java.grpc_stub
-  shadow library.java.grpc_netty
+  shadow project(path: ":beam-vendor-sdks-java-extensions-protobuf", configuration: "shadow")
   shadow library.java.slf4j_api
   testCompile project(":beam-sdks-java-harness")
   testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

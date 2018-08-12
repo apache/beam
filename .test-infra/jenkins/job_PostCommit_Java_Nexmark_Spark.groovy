@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 import NexmarkBigqueryProperties
 import NoPhraseTriggeringPostCommitBuilder
 
@@ -25,23 +25,36 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
         'Spark Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Spark runner.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, true)
 
   // Gradle goals for this job.
   steps {
     shell('echo *** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***')
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-sdks-java-nexmark:run')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-spark"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=SparkRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true'].join(' '))
+    }
+    shell('echo *** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-spark"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=SparkRunner',
+              '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,

@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
 import com.google.common.collect.ImmutableMap;
@@ -65,6 +64,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -378,12 +378,17 @@ public final class StreamingTransformTranslator {
       public void evaluate(
           final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
-        rejectSplittable(doFn);
+        checkArgument(
+            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            "Splittable DoFn not yet supported in streaming mode: %s",
+            doFn);
         rejectStateAndTimers(doFn);
         final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
         final WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
+        Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
+        Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<InputT> unboundedDataset =
@@ -411,6 +416,8 @@ public final class StreamingTransformTranslator {
                           options,
                           transform.getMainOutputTag(),
                           transform.getAdditionalOutputTags().getAll(),
+                          inputCoder,
+                          outputCoders,
                           sideInputs,
                           windowingStrategy,
                           false));

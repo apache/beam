@@ -44,7 +44,7 @@ import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.TextFormat;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -102,6 +102,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -293,6 +294,9 @@ public class DataflowPipelineTranslator {
 
     /** The transform currently being applied. */
     private AppliedPTransform<?, ?, ?> currentTransform;
+
+    /** A stack of all composite PTransforms encompassing the current transform. */
+    private ArrayDeque<TransformHierarchy.Node> parents = new ArrayDeque<>();
 
     /** Constructs a Translator that will translate the specified Pipeline into Dataflow objects. */
     public Translator(Pipeline pipeline, DataflowRunner runner, SdkComponents sdkComponents) {
@@ -522,6 +526,26 @@ public class DataflowPipelineTranslator {
         throw new IllegalArgumentException("output " + value + " already has a name specified");
       }
     }
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      parents.addFirst(node);
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
+    public void leaveCompositeTransform(TransformHierarchy.Node node) {
+      parents.removeFirst();
+    }
+
+    @Override
+    public AppliedPTransform<?, ?, ?> getCurrentParent() {
+      if (parents.isEmpty()) {
+        return null;
+      } else {
+        return parents.peekFirst().toAppliedPTransform(getPipeline());
+      }
+    }
   }
 
   static class StepTranslator implements StepTranslationContext {
@@ -747,8 +771,19 @@ public class DataflowPipelineTranslator {
                     context.getInput(primitiveTransform).getWindowingStrategy());
 
             stepContext.addEncodingInput(fn.getAccumulatorCoder());
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN, byteArrayToJsonString(serializeToByteArray(fn)));
+
+            List<String> experiments = context.getPipelineOptions().getExperiments();
+            boolean isFnApi = experiments != null && experiments.contains("beam_fn_api");
+
+            if (isFnApi) {
+              String ptransformId =
+                  context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentParent());
+              stepContext.addInput(PropertyNames.SERIALIZED_FN, ptransformId);
+            } else {
+              stepContext.addInput(
+                  PropertyNames.SERIALIZED_FN, byteArrayToJsonString(serializeToByteArray(fn)));
+            }
+
             stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(primitiveTransform));
           }
         });

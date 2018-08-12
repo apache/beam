@@ -32,6 +32,7 @@ from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import portable_stager
 
 __all__ = ['PortableRunner']
@@ -102,11 +103,17 @@ class PortableRunner(runner.PipelineRunner):
           del proto_pipeline.components.transforms[sub_transform]
         del transform_proto.subtransforms[:]
 
+    # TODO: Define URNs for options.
+    options = {'beam:option:' + k + ':v1': v
+               for k, v in pipeline._options.get_all_options().iteritems()
+               if v is not None}
+
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         grpc.insecure_channel(job_endpoint))
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
-            job_name='job', pipeline=proto_pipeline))
+            job_name='job', pipeline=proto_pipeline,
+            pipeline_options=job_utils.dict_to_struct(options)))
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),

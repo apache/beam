@@ -19,8 +19,8 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
+import com.google.common.collect.Iterables;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
@@ -76,7 +76,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   public ExecutableStageDoFnOperator(
       String stepName,
-      Coder<WindowedValue<InputT>> inputCoder,
+      Coder<WindowedValue<InputT>> windowedInputCoder,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -85,11 +87,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       PipelineOptions options,
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
-      FlinkExecutableStageContext.Factory contextFactory) {
+      FlinkExecutableStageContext.Factory contextFactory,
+      Map<String, TupleTag<?>> outputMap) {
     super(
         new NoOpDoFn(),
         stepName,
+        windowedInputCoder,
         inputCoder,
+        outputCoders,
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,
@@ -102,19 +107,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.payload = payload;
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
-    this.outputMap = createOutputMap(mainOutputTag, additionalOutputTags);
-  }
-
-  private static Map<String, TupleTag<?>> createOutputMap(
-      TupleTag mainOutput, List<TupleTag<?>> additionalOutputs) {
-    Map<String, TupleTag<?>> outputMap = new HashMap<>(additionalOutputs.size() + 1);
-    if (mainOutput != null) {
-      outputMap.put(mainOutput.getId(), mainOutput);
-    }
-    for (TupleTag<?> additionalTag : additionalOutputs) {
-      outputMap.put(additionalTag.getId(), additionalTag);
-    }
-    return outputMap;
+    this.outputMap = outputMap;
   }
 
   @Override
@@ -144,11 +137,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     checkState(
         stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
-    try (RemoteBundle<InputT> bundle =
+    try (RemoteBundle bundle =
         stageBundleFactory.getBundle(
             new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
       logger.debug(String.format("Sending value: %s", element));
-      bundle.getInputReceiver().accept(element);
+      // TODO(BEAM-4681): Add support to Flink to support portable timers.
+      Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(element);
     }
   }
 

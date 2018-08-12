@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;

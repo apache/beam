@@ -15,13 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
+  validateShadowJar: false,
   shadowClosure: {
     append "reference.conf"
   },
 )
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
+evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":beam-runners-core-java")
 
 description = "Apache Beam :: Runners :: Flink :: Job Server"
 
@@ -29,10 +39,18 @@ apply plugin: "application"
 
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 
+configurations {
+  validatesRunner
+}
+
 dependencies {
   compile project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+  validatesRunner project(path: ":beam-runners-flink_2.11", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
   compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-//  TODO: Enable AWS and HDPS file system.
+//  TODO: Enable AWS and HDFS file system.
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -41,7 +59,67 @@ dependencies {
 runShadow {
   def jobHost = project.hasProperty("jobHost") ? project.property("jobHost") : "localhost:8099"
   def artifactsDir = project.hasProperty("artifactsDir") ?  project.property("artifactsDir") : "/tmp/flink-artifacts"
+  def cleanArtifactsPerJob = project.hasProperty("cleanArtifactsPerJob")
   args = ["--job-host=${jobHost}", "--artifacts-dir=${artifactsDir}"]
+  if (cleanArtifactsPerJob)
+    args += ["--clean-artifacts-per-job"]
+
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
+}
+
+class PortableValidatesRunnerConfig {
+  // Task name for validate runner case.
+  String name
+  // Fully qualified JobServerClass name to use.
+  String jobServerDriver
+  // A string representing the jobServer Configuration.
+  String jobServerConfig
+  // Flag to include tests for streaming or batch.
+  boolean streaming
+}
+
+def createPortableValidatesRunnerTask = {
+  def config = it ? it as PortableValidatesRunnerConfig : new PortableValidatesRunnerConfig()
+  tasks.create(name: config.name, type: Test) {
+    group = "Verification"
+    description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+            "--jobServerDriver=${config.jobServerDriver}",
+            config.jobServerConfig ? "--jobServerConfig=${config.jobServerConfig}" : "",
+    ])
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+    maxParallelForks 1
+    if (config.streaming) {
+      useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      }
+    } else {
+      useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      }
+    }
+  }
+}
+
+createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver", jobServerConfig: "", streaming: false)
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Portable Flink runner"
+  dependsOn validatesPortableRunner
 }

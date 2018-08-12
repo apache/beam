@@ -37,6 +37,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -54,7 +56,9 @@ public class ExecutableStageTest {
         PTransform.newBuilder()
             .putInputs("input", "input.out")
             .putInputs("side_input", "sideInput.in")
+            .putInputs("timer", "timer.out")
             .putOutputs("output", "output.out")
+            .putOutputs("timer", "timer.out")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -62,11 +66,14 @@ public class ExecutableStageTest {
                         ParDoPayload.newBuilder()
                             .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
                             .putSideInputs("side_input", SideInput.getDefaultInstance())
+                            .putStateSpecs("user_state", StateSpec.getDefaultInstance())
+                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
     PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
+    PCollection timer = PCollection.newBuilder().setUniqueName("timer.out").build();
     PCollection output = PCollection.newBuilder().setUniqueName("output.out").build();
 
     Components components =
@@ -74,6 +81,7 @@ public class ExecutableStageTest {
             .putTransforms("pt", pt)
             .putPcollections("input.out", input)
             .putPcollections("sideInput.in", sideInput)
+            .putPcollections("timer.out", timer)
             .putPcollections("output.out", output)
             .putEnvironments("foo", env)
             .build();
@@ -82,12 +90,19 @@ public class ExecutableStageTest {
     SideInputReference sideInputRef =
         SideInputReference.of(
             transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+    UserStateReference userStateRef =
+        UserStateReference.of(
+            transformNode, "user_state", PipelineNode.pCollection("input.out", input));
+    TimerReference timerRef =
+        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.out", timer));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.of(
             components,
             env,
             PipelineNode.pCollection("input.out", input),
             Collections.singleton(sideInputRef),
+            Collections.singleton(userStateRef),
+            Collections.singleton(timerRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)));
 

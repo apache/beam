@@ -378,9 +378,9 @@ class MapTask(object):
                step_names=None,
                original_names=None,
                name_contexts=None):
+    # TODO(BEAM-4028): Remove arguments other than name_contexts.
     self.operations = operations
     self.stage_name = stage_name
-    # TODO(BEAM-4028): Remove arguments other than name_contexts.
     self.name_contexts = name_contexts or self._make_name_contexts(
         original_names, step_names, system_names)
 

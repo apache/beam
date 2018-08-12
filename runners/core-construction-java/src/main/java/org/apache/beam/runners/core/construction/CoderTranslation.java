@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class CoderTranslation {

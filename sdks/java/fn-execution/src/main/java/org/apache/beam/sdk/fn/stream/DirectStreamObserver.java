@@ -18,12 +18,12 @@
 
 package org.apache.beam.sdk.fn.stream;
 
-import io.grpc.stub.CallStreamObserver;
-import io.grpc.stub.StreamObserver;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

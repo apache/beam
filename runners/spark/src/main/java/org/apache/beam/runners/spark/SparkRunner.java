@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.collect.Iterables;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,6 @@ import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.metrics.CompositeSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -46,16 +44,17 @@ import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingC
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvancingStreamingListener;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -162,6 +161,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
+
+    pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
@@ -289,8 +290,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /** Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline. */
   private static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(TranslationModeDetector.class);
-    private static final Collection<Class<? extends PTransform>> UNBOUNDED_INPUTS =
-        Arrays.asList(Read.Unbounded.class, CreateStream.class);
 
     private TranslationMode translationMode;
 
@@ -307,11 +306,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+    public void visitValue(PValue value, Node producer) {
       if (translationMode.equals(TranslationMode.BATCH)) {
-        Class<? extends PTransform> transformClass = node.getTransform().getClass();
-        if (UNBOUNDED_INPUTS.contains(transformClass)) {
-          LOG.info("Found {}. Switching to streaming execution.", transformClass);
+        if (value instanceof PCollection
+            && ((PCollection) value).isBounded() == IsBounded.UNBOUNDED) {
+          LOG.info(
+              "Found unbounded PCollection {}. Switching to streaming execution.", value.getName());
           translationMode = TranslationMode.STREAMING;
         }
       }

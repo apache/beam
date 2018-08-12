@@ -64,7 +64,7 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
-  shadow "org.tukaani:xz:1.5"
+  shadow "org.tukaani:xz:1.8"
   provided library.java.junit
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
@@ -73,5 +73,4 @@ dependencies {
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
-  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
 }

@@ -67,7 +67,7 @@ public @interface DefaultSchema {
    * {@link SchemaProvider} for default schemas. Looks up the provider annotated for a type, and
    * delegates to that provider.
    */
-  class DefaultSchemaProvider extends SchemaProvider {
+  class DefaultSchemaProvider implements SchemaProvider {
     final Map<TypeDescriptor, SchemaProvider> cachedProviders = Maps.newConcurrentMap();
 
     @Nullable
@@ -83,10 +83,7 @@ public @interface DefaultSchema {
             Class<? extends SchemaProvider> providerClass = annotation.value();
             checkArgument(
                 providerClass != null,
-                "Type "
-                    + type
-                    + " has a @DefaultSchemaProvider annotation "
-                    + " with a null argument.");
+                "Type " + type + " has a @DefaultSchema annotation with a null argument.");
 
             try {
               return providerClass.getDeclaredConstructor().newInstance();

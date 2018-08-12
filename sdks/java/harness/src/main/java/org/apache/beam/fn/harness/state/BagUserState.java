@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.state;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +28,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and
