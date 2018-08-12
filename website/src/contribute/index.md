@@ -49,7 +49,7 @@ There are lots of opportunities:
    run?)
  - improve the developer experience on Windows
 
-Most importantly, if you have an idea of how to contribute, then do it! 
+Most importantly, if you have an idea of how to contribute, then do it!
 
 For a list of open starter tasks, check
 [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
@@ -61,7 +61,7 @@ Discussons about contributing code to beam  happens on the [dev@ mailing list]({
 
 Questions can be asked on the [#beam channel of the ASF slack]({{ site.baseurl
 }}/community/contact-us/). Introduce yourself!
- 
+
 Coding happens at
 [https://github.com/apache/beam](https://github.com/apache/beam). To
 contribute, follow the usual GitHub process: fork the repo, make your changes,
@@ -118,6 +118,8 @@ or for a module,
 
     $ ./gradlew sdks/java/io/cassandra tasks
 
+We run **integration and performance test** using Jenkins. The job definitions are available in [GitHub](https://github.com/apache/beam/tree/master/.test-infra/jenkins).
+
 ### Developing with an IDE
 
 Generate an IDEA project .ipr file with:
@@ -133,7 +135,7 @@ This will automatically link the pull request to the issue.
 
 Pull requests can only be merged by a
 [beam committer](https://people.apache.org/phonebook.html?unix=beam).
-To find a committer for your area, look for similar code merges or ask on 
+To find a committer for your area, look for similar code merges or ask on
 [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
 Use @mention in the pull request to notify the reviewer.
@@ -160,7 +162,7 @@ environment before testing your code.
 
 If you update any of the [cythonized](http://cython.org) files in Python SDK,
 you must install the `cython` package before running following command to
-properly test your code. 
+properly test your code.
 
 The following commands should be run in the `sdks/python` directory.
 This installs Python from source and includes the test and gcp dependencies.
@@ -200,7 +202,7 @@ To check just for Python lint errors, run the following command.
 Or use `tox` commands to run the lint tasks:
 
     $ tox -e py27-lint    # For python 2.7
-    $ tox -e py3-lint     # For python 3 
+    $ tox -e py3-lint     # For python 3
     $ tox -e py27-lint3   # For python 2-3 compatibility
 
 #### Remote testing
@@ -249,19 +251,19 @@ across Java, Python, and Go, and every Beam runner.
 
 ### Apache Spark 2.0 Runner
 
- - Feature branch: [runners-spark2](https://github.com/apache/beam/tree/runners-spark2) 
+ - Feature branch: [runners-spark2](https://github.com/apache/beam/tree/runners-spark2)
  - Contact: [Jean-Baptiste Onofré](mailto:jbonofre@apache.org)
 
 ### JStorm Runner
 
  - [Docs]({{ site.baseurl }}/documentation/runners/jstorm)
- - Feature branch: [jstorm-runner](https://github.com/apache/beam/tree/jstorm-runner) 
- - JIRA: [runner-jstorm](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-jstorm) / [BEAM-1899](https://issues.apache.org/jira/browse/BEAM-1899) 
+ - Feature branch: [jstorm-runner](https://github.com/apache/beam/tree/jstorm-runner)
+ - JIRA: [runner-jstorm](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-jstorm) / [BEAM-1899](https://issues.apache.org/jira/browse/BEAM-1899)
  - Contact: [Pei He](mailto:pei@apache.org)
 
 ### MapReduce Runner
 
- - Feature branch: [mr-runner](https://github.com/apache/beam/tree/mr-runner) 
+ - Feature branch: [mr-runner](https://github.com/apache/beam/tree/mr-runner)
  - JIRA: [runner-mapreduce](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-mapreduce) / [BEAM-165](https://issues.apache.org/jira/browse/BEAM-165)
  - Contact: [Pei He](mailto:pei@apache.org)
 
@@ -300,10 +302,10 @@ We are also working on writing Performance Tests for IOs and developing a Perfor
  - providing necessary kubernetes infrastructure (eg. for databases or filesystems to be used in tests)
  - running Performance Tests on runners other than Dataflow and Direct
  - improving existing Performance Testing Framework and it's documentation
- 
-See the [documentation](https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests) and the [initial proposal](https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing)(for file based tests). 
 
-If you're willing to help in this area, tag the following people in PRs: [@chamikaramj](https://github.com/chamikaramj), [@DariuszAniszewski](https://github.com/dariuszaniszewski), [@lgajowy](https://github.com/lgajowy), [@szewi](https://github.com/szewi), [@kkucharc](https://github.com/kkucharc) 
+See the [documentation](https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests) and the [initial proposal](https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing)(for file based tests).
+
+If you're willing to help in this area, tag the following people in PRs: [@chamikaramj](https://github.com/chamikaramj), [@DariuszAniszewski](https://github.com/dariuszaniszewski), [@lgajowy](https://github.com/lgajowy), [@szewi](https://github.com/szewi), [@kkucharc](https://github.com/kkucharc)
 
 ### Euphoria Java 8 DSL
 
@@ -311,7 +313,7 @@ Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction 
 }}/documentation/sdks/java/euphoria/#wordcount-example).
 
 - Feature branch: [dsl-euphoria](https://github.com/apache/beam/tree/dsl-euphoria)
-- JIRA: [dsl-euphoria](https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900) 
+- JIRA: [dsl-euphoria](https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900)
 - Contact: [David Moravek](mailto:david.moravek@gmail.com)
 
 ### Improving the contributor experience
