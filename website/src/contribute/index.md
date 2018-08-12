@@ -109,7 +109,7 @@ You can limit testing to a particular module. Gradle will build just the necessa
     $ ./gradlew -p sdks/java/io/cassandra check
     $ ./gradlew -p runners/flink check
 
-Examine the available tasks in a project. For the dafult set of tasks, use:
+Examine the available tasks in a project. For the default set of tasks, use:
 
     $ ./gradlew tasks
 
