@@ -116,7 +116,7 @@ def createPortableValidatesRunnerTask = {
   }
 }
 
-createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver", jobServerConfig: "", streaming: false)
+createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver", jobServerConfig: "--clean-artifacts-per-job", streaming: false)
 
 task validatesRunner {
   group = "Verification"
