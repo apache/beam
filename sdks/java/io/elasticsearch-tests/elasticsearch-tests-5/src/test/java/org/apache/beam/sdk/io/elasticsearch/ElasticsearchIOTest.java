@@ -201,8 +201,14 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Test
   public void testWriteWithTypeFn() throws Exception {
-    elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testWriteWithTypeFn();
+    int backendVersion = ElasticsearchIO.getBackendVersion(connectionConfiguration);
+    if (backendVersion < 6) {
+      // Elasticsearch 6.x+ does not support multi types
+      // https://www.elastic.co/guide/en/elasticsearch/reference/6.x/breaking-changes-6.0.html
+      // so this test does not work
+      elasticsearchIOTestCommon.setPipeline(pipeline);
+      elasticsearchIOTestCommon.testWriteWithTypeFn();
+    }
   }
 
   @Test

@@ -141,11 +141,17 @@ public class ElasticsearchIOIT {
    */
   @Test
   public void testWriteWithFullAddressingVolume() throws Exception {
-    // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
-        new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
-    elasticsearchIOTestCommonWrite.setPipeline(pipeline);
-    elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
+    int backendVersion = ElasticsearchIO.getBackendVersion(writeConnectionConfiguration);
+    if (backendVersion < 6) {
+      // This test uses multi types but Elasticsearch 6.x+ does not support multi types
+      // https://www.elastic.co/guide/en/elasticsearch/reference/6.x/breaking-changes-6.0.html
+      // so this test does not work
+      // cannot share elasticsearchIOTestCommon because tests run in parallel.
+      ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
+          new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
+      elasticsearchIOTestCommonWrite.setPipeline(pipeline);
+      elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
+    }
   }
 
   /**
