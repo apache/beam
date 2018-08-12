@@ -91,34 +91,37 @@ If you are contributing a `PTransform` to Beam, we have an extensive
 
 ### Building & Testing
 
-We use Gradle to orchestrate building and testing.
+We use the [Gradle Build Tool](https://gradle.org/).
 
-You do not need to install gradle, but you do need a Java SDK installed.
-You can develop on Linux, macOS, or Microsoft Windows. There have been
-issues noted when developing using Windows; feel free to contribute fixes
-to make it easier.
+You do not need to install Gradle, but you do need a Java SDK installed. You can develop on Linux, macOS, or Microsoft Windows. There have been issues noted when developing using Windows; feel free to contribute fixes to make it easier.
 
-The entire set of tests can be run with this command at the root of the git
-repository.
+Familiarize yourself with the project structure. At the root of the git repository, run:
+
+    $ ./gradlew projects
+
+Run the entire set of tests with:
 
     $ ./gradlew check
 
-You can limit testing to a particular module and Gradle will build just the
-necessary things to run those tests. For example:
+You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:
 
     $ ./gradlew -p sdks/go check
     $ ./gradlew -p sdks/java/io/cassandra check
     $ ./gradlew -p runners/flink check
 
-You can see what build tasks are available with
+Examine the available tasks in a project. For the dafult set of tasks, use:
 
     $ ./gradlew tasks
 
-or for a module,
+For a given module, use:
 
     $ ./gradlew sdks/java/io/cassandra tasks
 
-We run **integration and performance test** using Jenkins. The job definitions are available in [GitHub](https://github.com/apache/beam/tree/master/.test-infra/jenkins).
+For an exhaustive list of tasks, use:
+
+    $ ./gradlew tasks --all
+
+We run **integration and performance test** using [Jenkins](https://jenkins.io/). The job definitions are available in the [Beam GitHub repository](https://github.com/apache/beam/tree/master/.test-infra/jenkins).
 
 ### Developing with an IDE
 
