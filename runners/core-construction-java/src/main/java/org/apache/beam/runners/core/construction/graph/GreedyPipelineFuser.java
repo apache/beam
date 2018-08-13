@@ -348,14 +348,13 @@ public class GreedyPipelineFuser {
   }
 
   private static ExecutableStage sanitizeComponents(ExecutableStage stage) {
-    /* Possible inputs to a pTransformMap can only be those which are
+    /* Possible inputs to a PTransform can only be those which are
      * <ul>
-     *  <li> Input to the Stage
-     *  <li> Outputs of the Stage
-     *  <li> User State
-     *  <li> Timers
-     *  <li> Side Input
-     *  <li> Output from other pTransformMap in the same Stage
+     *  <li>Explicit input PCollection to the stage
+     *  <li>Outputs of a PTransform within the same stage
+     *  <li>Timer PCollections
+     *  <li>Side input PCollections
+     *  <li>Explicit outputs from the stage
      * </ul>
      */
     Set<String> possibleInputs = new HashSet<>();
@@ -365,12 +364,6 @@ public class GreedyPipelineFuser {
             .getOutputPCollections()
             .stream()
             .map(PCollectionNode::getId)
-            .collect(Collectors.toSet()));
-    possibleInputs.addAll(
-        stage
-            .getUserStates()
-            .stream()
-            .map(us -> us.collection().getId())
             .collect(Collectors.toSet()));
     possibleInputs.addAll(
         stage.getTimers().stream().map(t -> t.collection().getId()).collect(Collectors.toSet()));
