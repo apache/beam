@@ -1058,6 +1058,10 @@ artifactId=${project.name}
           testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
         }
 
+        if (runner?.equalsIgnoreCase('flink')) {
+          testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
+        }
+
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
           testCompile it.project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
