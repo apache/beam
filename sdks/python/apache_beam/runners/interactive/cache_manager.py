@@ -174,14 +174,13 @@ class WriteCache(beam.PTransform):
 
   def expand(self, pcoll):
     prefix = 'sample' if self._sample else 'full'
-    if not self._cache_manager.exists(prefix, self._label):
-      if self._sample:
-        pcoll |= 'Sample' >> (
-            combiners.Sample.FixedSizeGlobally(self._sample_size)
-            | beam.FlatMap(lambda sample: sample))
-      # pylint: disable=expression-not-assigned
-      return pcoll | 'Write' >> beam.io.Write(
-          self._cache_manager.sink(prefix, self._label))
+    if self._sample:
+      pcoll |= 'Sample' >> (
+          combiners.Sample.FixedSizeGlobally(self._sample_size)
+          | beam.FlatMap(lambda sample: sample))
+    # pylint: disable=expression-not-assigned
+    return pcoll | 'Write' >> beam.io.Write(
+        self._cache_manager.sink(prefix, self._label))
 
 
 class SafeFastPrimitivesCoder(coders.Coder):
