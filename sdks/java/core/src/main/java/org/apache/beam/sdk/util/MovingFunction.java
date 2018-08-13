@@ -69,25 +69,21 @@ public class MovingFunction {
     numSamples = new int[n];
     Arrays.fill(numSamples, 0);
     currentMsSinceEpoch = -1;
-    currentIndex = -1;
+    currentIndex = 0;
   }
 
   /** Flush stale values. */
   private void flush(long nowMsSinceEpoch) {
     checkArgument(nowMsSinceEpoch >= 0, "Only positive timestamps supported");
-    if (currentIndex < 0) {
-      currentMsSinceEpoch = nowMsSinceEpoch - (nowMsSinceEpoch % sampleUpdateMs);
-      currentIndex = 0;
-    }
     checkArgument(nowMsSinceEpoch >= currentMsSinceEpoch, "Attempting to move backwards");
     int newBuckets =
         Math.min((int) ((nowMsSinceEpoch - currentMsSinceEpoch) / sampleUpdateMs), buckets.length);
+    currentMsSinceEpoch = nowMsSinceEpoch - (nowMsSinceEpoch % sampleUpdateMs);
     while (newBuckets > 0) {
       currentIndex = (currentIndex + 1) % buckets.length;
       buckets[currentIndex] = function.identity();
       numSamples[currentIndex] = 0;
       newBuckets--;
-      currentMsSinceEpoch += sampleUpdateMs;
     }
   }
 
