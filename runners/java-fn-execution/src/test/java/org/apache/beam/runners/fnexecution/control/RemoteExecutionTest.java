@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -47,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -92,6 +94,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -103,6 +106,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.hamcrest.collection.IsEmptyIterable;
@@ -707,6 +711,104 @@ public class RemoteExecutionTest implements Serializable {
             timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("X", 2L))),
             timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("Y", 12L))),
             timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("Z", 22L)))));
+  }
+
+  @Test
+  public void testExecutionWithMultipleStages() throws Exception {
+    Pipeline p = Pipeline.create();
+
+    Function<String, PCollection<String>> pCollectionGenerator =
+        suffix ->
+            p.apply("impulse" + suffix, Impulse.create())
+                .apply(
+                    "create" + suffix,
+                    ParDo.of(
+                        new DoFn<byte[], String>() {
+                          @ProcessElement
+                          public void process(ProcessContext c) {
+                            try {
+                              c.output(
+                                  CoderUtils.decodeFromByteArray(
+                                      StringUtf8Coder.of(), c.element()));
+                            } catch (CoderException e) {
+                              throw new RuntimeException(e);
+                            }
+                          }
+                        }))
+                .setCoder(StringUtf8Coder.of())
+                .apply(
+                    ParDo.of(
+                        new DoFn<String, String>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output("stream" + suffix + c.element());
+                          }
+                        }));
+    PCollection<String> input1 = pCollectionGenerator.apply("1");
+    PCollection<String> input2 = pCollectionGenerator.apply("2");
+
+    PCollection<String> outputMerged =
+        PCollectionList.of(input1).and(input2).apply(Flatten.pCollections());
+    outputMerged
+        .apply(
+            "createKV",
+            ParDo.of(
+                new DoFn<String, KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext c) {
+                    c.output(KV.of(c.element(), ""));
+                  }
+                }))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    Set<ExecutableStage> stages = fused.getFusedStages();
+
+    assertThat(stages.size(), equalTo(2));
+
+    List<WindowedValue<?>> outputValues = Collections.synchronizedList(new ArrayList<>());
+
+    for (ExecutableStage stage : stages) {
+      ExecutableProcessBundleDescriptor descriptor =
+          ProcessBundleDescriptors.fromExecutableStage(
+              stage.toString(),
+              stage,
+              dataServer.getApiServiceDescriptor(),
+              stateServer.getApiServiceDescriptor());
+
+      BundleProcessor processor =
+          controlClient.getProcessor(
+              descriptor.getProcessBundleDescriptor(),
+              descriptor.getRemoteInputDestinations(),
+              stateDelegator);
+      Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+      Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+      for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+        outputReceivers.putIfAbsent(
+            targetCoder.getKey(),
+            RemoteOutputReceiver.of(targetCoder.getValue(), outputValues::add));
+      }
+
+      try (ActiveBundle bundle =
+          processor.newBundle(
+              outputReceivers,
+              StateRequestHandler.unsupported(),
+              BundleProgressHandler.unsupported())) {
+        bundle
+            .getInputReceivers()
+            .get(stage.getInputPCollection().getId())
+            .accept(
+                WindowedValue.valueInGlobalWindow(
+                    CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      }
+    }
+    assertThat(
+        outputValues,
+        containsInAnyOrder(
+            WindowedValue.valueInGlobalWindow(kvBytes("stream1X", "")),
+            WindowedValue.valueInGlobalWindow(kvBytes("stream2X", ""))));
   }
 
   private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {
