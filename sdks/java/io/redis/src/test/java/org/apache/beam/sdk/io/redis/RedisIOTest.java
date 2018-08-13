@@ -122,7 +122,7 @@ public class RedisIOTest {
     Jedis jedis =
         RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
     jedis.lpush(key, value);
-/**/
+
     PCollection<KV<String, String>> write = writePipeline.apply(Create.of(KV.of(key, newValue)));
     write.apply(
         RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.LPUSH));
@@ -161,7 +161,7 @@ public class RedisIOTest {
     Assert.assertEquals("pass", read.connectionConfiguration().auth());
     Assert.assertEquals(5, read.connectionConfiguration().timeout());
   }
-/**/
+
   @Test
   public void testWriteBuildsCorrectly() {
     RedisIO.Write write = RedisIO.write().withEndpoint("test", 111).withAuth("pass").withTimeout(5);
