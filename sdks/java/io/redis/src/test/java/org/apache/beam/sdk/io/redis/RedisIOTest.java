@@ -58,7 +58,7 @@ public class RedisIOTest {
   }
 
   @Test
-  public void testWriteRead_append() throws Exception {
+  public void testWriteReadUsingDefaultAppendMethod() throws Exception {
     ArrayList<KV<String, String>> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       KV<String, String> kv = KV.of("key " + i, "value " + i);
@@ -89,7 +89,7 @@ public class RedisIOTest {
   }
 
   @Test
-  public void testWriteRead_set() throws Exception {
+  public void testWriteReadUsingSetMethod() throws Exception {
     String key = "key";
     String value = "value";
     String newValue = "newValue";
@@ -114,7 +114,7 @@ public class RedisIOTest {
   }
 
   @Test
-  public void testWriteRead_lpush() throws Exception {
+  public void testWriteReadUsingLpushMethod() throws Exception {
     String key = "key";
     String value = "value";
     String newValue = "newValue";
@@ -122,7 +122,7 @@ public class RedisIOTest {
     Jedis jedis =
         RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
     jedis.lpush(key, value);
-
+/**/
     PCollection<KV<String, String>> write = writePipeline.apply(Create.of(KV.of(key, newValue)));
     write.apply(
         RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.LPUSH));
@@ -134,7 +134,7 @@ public class RedisIOTest {
   }
 
   @Test
-  public void testWriteRead_rpush() throws Exception {
+  public void testWriteReadUsingRpushMethod() throws Exception {
     String key = "key";
     String value = "value";
     String newValue = "newValue";
@@ -161,7 +161,7 @@ public class RedisIOTest {
     Assert.assertEquals("pass", read.connectionConfiguration().auth());
     Assert.assertEquals(5, read.connectionConfiguration().timeout());
   }
-
+/**/
   @Test
   public void testWriteBuildsCorrectly() {
     RedisIO.Write write = RedisIO.write().withEndpoint("test", 111).withAuth("pass").withTimeout(5);
