@@ -23,6 +23,7 @@ from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.runners import common
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -117,6 +118,7 @@ class _Bundle(common.Receiver):
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
+    self._min_timestamp = None
 
   def get_elements_iterable(self, make_copy=False):
     """Returns iterable elements.
@@ -204,3 +206,15 @@ class _Bundle(common.Receiver):
     self._committed = True
     self._elements = tuple(self._elements)
     self._synchronized_processing_time = synchronized_processing_time
+
+  def get_min_timestamp(self):
+    """Returns min element timestamp in bundle or MAX_TIMESTAMP if empty."""
+    if self._min_timestamp is not None:
+      return self._min_timestamp
+    elements = self._elements if self._committed else list(self._elements)
+    min_ts = MAX_TIMESTAMP
+    for e in elements:
+      min_ts = min(min_ts, e.timestamp)
+    if self._committed:
+      self._min_timestamp = min_ts
+    return min_ts
