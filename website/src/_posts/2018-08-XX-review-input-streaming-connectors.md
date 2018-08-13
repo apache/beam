@@ -21,7 +21,7 @@ Spark is written in Scala and has a [Java API](https://spark.apache.org/docs/lat
 
 Spark offers two approaches to streaming: [Discretized Streaming](https://spark.apache.org/docs/latest/streaming-programming-guide.html) (or DStreams) and [Structured Streaming](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html). DStreams are a basic abstraction that represents a continuous series of [Resilient Distributed Datasets](https://spark.apache.org/docs/latest/rdd-programming-guide.html) (or RDDs). Structured Streaming was introduced more recently (the alpha release came with Spark 2.1.0) and is based on a [model](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#programming-model) where live data is continuously appended to a table structure.
 
-Spark Structured Streaming supports [file sources](https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/streaming/DataStreamReader.html) (local filesystems and HDFS-compatible systems like Cloud Storage or S3) and [Kafka](https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html) as streaming inputs. Spark maintains built-in connectors for DStreams aimed at third-party services, such as Kafka or Flume, while other connectors are available through linking external dependencies, as shown in the table below.
+Spark Structured Streaming supports [file sources](https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/streaming/DataStreamReader.html) (local filesystems and HDFS-compatible systems like Cloud Storage or S3) and [Kafka](https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html) as streaming [inputs](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#input-sources). Spark maintains built-in connectors for DStreams aimed at third-party services, such as Kafka or Flume, while other connectors are available through linking external dependencies, as shown in the table below.
 
 Below are the main streaming input connectors for available for Beam and Spark DStreams in Java:
 
@@ -49,7 +49,7 @@ Below are the main streaming input connectors for available for Beam and Spark D
   <tr>
    <td>HDFS<br>(Using the <code>hdfs://</code> URI)
    </td>
-   <td><a href="https://beam.apache.org/documentation/sdks/javadoc/2.5.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions</a>
+    <td><a href="https://beam.apache.org/documentation/sdks/javadoc/2.5.0/org/apache/beam/sdk/io/FileIO.html">FileIO</a> + <a href="https://beam.apache.org/documentation/sdks/javadoc/2.5.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions</a>
    </td>
    <td><a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/util/HdfsUtils.html">HdfsUtils</a>
    </td>
@@ -93,7 +93,7 @@ and <a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/stre
    </td>
    <td><a href="https://beam.apache.org/documentation/sdks/javadoc/2.5.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">PubsubIO</a>
    </td>
-   <td><a href="https://github.com/apache/bahir/tree/master/streaming-pubsub">Spark-streaming-pubsub</a> from <a href="http://bahir.apache.org">Apache Bahir</a>
+   <td><a href="https://github.com/apache/bahir/tree/master/streaming-pubsub">spark-streaming-pubsub</a> from <a href="http://bahir.apache.org">Apache Bahir</a>
    </td>
   </tr>
   <tr>
@@ -204,11 +204,11 @@ and <a href="http://spark.apache.org/docs/latest/api/python/pyspark.streaming.ht
 
 ### **Scala**
 
-Since Scala code is interoperable with Java and therefore has native compatibility with Java libraries (and vice versa), you can use the same Java connectors described above in your Scala programs. Apache Beam also has a [Scala SDK](https://github.com/spotify/scio) open-sourced [by Spotify](https://labs.spotify.com/2017/10/16/big-data-processing-at-spotify-the-road-to-scio-part-1/).
+Since Scala code is interoperable with Java and therefore has native compatibility with Java libraries (and vice versa), you can use the same Java connectors described above in your Scala programs. Apache Beam also has a [Scala API](https://github.com/spotify/scio) open-sourced [by Spotify](https://labs.spotify.com/2017/10/16/big-data-processing-at-spotify-the-road-to-scio-part-1/).
 
 ### **Go**
 
-A [Go SDK](https://beam.apache.org/documentation/sdks/go/) for Apache Beam is under active development. It is currently experimental and is not recommended for production.
+A [Go SDK](https://beam.apache.org/documentation/sdks/go/) for Apache Beam is under active development. It is currently experimental and is not recommended for production. Spark does not have an official Go SDK.
 
 ### **R**
 
