@@ -89,7 +89,8 @@ public class PubsubJsonIT implements Serializable {
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
-  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule public transient TestPubsubSignal resultSignal = TestPubsubSignal.create();
+  @Rule public transient TestPubsubSignal dlqSignal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   /**
@@ -119,18 +120,22 @@ public class PubsubJsonIT implements Serializable {
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
+    // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
             message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
 
+    // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
-
     sqlEnv.executeDdl(createTableString);
+
+    // Apply the PTransform to query the pubsub topic
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
 
+    // Observe the query results and send success signal after seeing the expected messages
     queryOutput.apply(
         "waitForSuccess",
-        signal.signalSuccessWhen(
+        resultSignal.signalSuccessWhen(
             SchemaCoder.of(
                 PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
             observedRows ->
@@ -140,13 +145,21 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply(signal.signalStart());
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(resultSignal.signalStart());
+
+    // Start the pipeline
     pipeline.run();
+
+    // Wait until got the start response from the signalling topic
     start.get();
 
+    // Start publishing the messages when main pipeline is started and signaling topic is ready
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(60));
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardSeconds(60));
   }
 
   @Test
@@ -174,36 +187,69 @@ public class PubsubJsonIT implements Serializable {
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
+    // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
             message(ts(1), 3, "foo"),
             message(ts(2), 5, "bar"),
             message(ts(3), 7, "baz"),
-            message(ts(4), "{ - }"), // invalid
-            message(ts(5), "{ + }")); // invalid
+            message(ts(4), "{ - }"), // invalid message, will go to DLQ
+            message(ts(5), "{ + }")); // invalid message, will go to DLQ
 
+    // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
-
     sqlEnv.executeDdl(createTableString);
-    query(sqlEnv, pipeline, queryString);
+
+    // Apply the PTransform to query the pubsub topic
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    // Observe the query results and send success signal after seeing the expected messages
+    queryOutput.apply(
+        "waitForSuccess",
+        resultSignal.signalSuccessWhen(
+            SchemaCoder.of(
+                PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
+            observedRows ->
+                observedRows.equals(
+                    ImmutableSet.of(
+                        row(PAYLOAD_SCHEMA, 3, "foo"),
+                        row(PAYLOAD_SCHEMA, 5, "bar"),
+                        row(PAYLOAD_SCHEMA, 7, "baz")))));
+
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply("signal query results started", resultSignal.signalStart());
+
+    // Another PCollection, reads from DLQ
     PCollection<PubsubMessage> dlq =
         pipeline.apply(
             PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath().getPath()));
 
+    // Observe DLQ contents and send success signal after seeing the expected messages
     dlq.apply(
         "waitForDlq",
-        signal.signalSuccessWhen(
+        dlqSignal.signalSuccessWhen(
             PubsubMessageWithAttributesCoder.of(),
             dlqMessages ->
                 containsAll(dlqMessages, message(ts(4), "{ - }"), message(ts(5), "{ + }"))));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply(signal.signalStart());
-    pipeline.run();
-    start.get();
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> startDlq = dlqSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply("signal DLQ started", dlqSignal.signalStart());
 
+    // Start the pipeline
+    pipeline.run();
+
+    // Wait until got the response from the signalling topics
+    start.get();
+    startDlq.get();
+
+    // Start publishing the messages when main pipeline is started and signaling topics are ready
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(60));
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardMinutes(2));
+    dlqSignal.waitForSuccess(Duration.standardMinutes(2));
   }
 
   @Test
@@ -239,7 +285,8 @@ public class PubsubJsonIT implements Serializable {
             message(ts(6), 13, "ba4"),
             message(ts(7), 15, "ba5"));
 
-    // We need the default options on the schema to include the project passed in for the integration test
+    // We need the default options on the schema to include the project passed in for the
+    // integration test
     CalciteConnection connection = connect(pipeline.getOptions(), new PubsubJsonTableProvider());
 
     Statement statement = connection.createStatement();
