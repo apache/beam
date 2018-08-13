@@ -26,6 +26,6 @@ class NoPhraseTriggeringPostCommitBuilder extends PostcommitJobBuilder{
                             scope,
                             jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
-    jb.defineAutoPostCommitJob(nameBase)
+    jb.defineAutoPostCommitJob(nameBase, "dummy phraze that must never occur alllsood", "dummy description")
   }
 }
