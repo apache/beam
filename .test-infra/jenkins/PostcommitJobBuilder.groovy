@@ -43,14 +43,19 @@ class PostcommitJobBuilder {
                             scope,
                             jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
-    jb.defineAutoPostCommitJob(nameBase)
+    jb.defineAutoPostCommitJob(nameBase, triggerPhrase + " temp", githubUiHint + " temp")
     jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
   }
 
-  void defineAutoPostCommitJob(name) {
+  void defineAutoPostCommitJob(name, triggerPhrase, githubUiHint) {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
 
+      cjp.setPullRequestBuildTrigger(
+        delegate,
+        githubUiHint,
+        triggerPhrase,
+        true)
     }
 
     autoBuilds.with(jobDefinition)
