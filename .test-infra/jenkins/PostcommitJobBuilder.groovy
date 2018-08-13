@@ -51,7 +51,7 @@ class PostcommitJobBuilder {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
 
-      cjp.setPullRequestBuildTrigger(
+      commonJobProperties.setPullRequestBuildTrigger(
         delegate,
         githubUiHint,
         triggerPhrase,
