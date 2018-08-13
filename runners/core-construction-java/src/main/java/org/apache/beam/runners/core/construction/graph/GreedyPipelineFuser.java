@@ -169,7 +169,7 @@ public class GreedyPipelineFuser {
         stages
             .stream()
             .map(stage -> deduplicated.getDeduplicatedStages().getOrDefault(stage, stage))
-            .map(GreedyPipelineFuser::sanitizeComponents)
+            .map(GreedyPipelineFuser::sanitizeDanglingPTransformInputs)
             .collect(Collectors.toSet()),
         Sets.union(
             deduplicated.getIntroducedTransforms(),
@@ -347,8 +347,8 @@ public class GreedyPipelineFuser {
             .collect(Collectors.toSet()));
   }
 
-  private static ExecutableStage sanitizeComponents(ExecutableStage stage) {
-    /* Possible inputs to a PTransform can only be those which are
+  private static ExecutableStage sanitizeDanglingPTransformInputs(ExecutableStage stage) {
+    /* Possible inputs to a PTransform can only be those which are:
      * <ul>
      *  <li>Explicit input PCollection to the stage
      *  <li>Outputs of a PTransform within the same stage
