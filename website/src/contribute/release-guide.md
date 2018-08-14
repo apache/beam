@@ -304,7 +304,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
       ./beam/release/src/main/scripts/start_snapshot_build.sh
 
 * Tasks included
-  1. Install [hub](https://github.com/github/hub) within your agreement.
+  1. Install [hub](https://github.com/github/hub) with your agreement.
   1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
   1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
   
@@ -331,7 +331,7 @@ There are 2 ways to perform this verification, either running automation script(
       ./beam/release/src/main/scripts/verify_release_build.sh
 
 * Tasks included
-  1. Install ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` within your agreements.
+  1. Install ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` with your agreements.
   1. Run ```gradle release build``` against release branch.
   
 * Tasks you need to do manually
@@ -646,7 +646,7 @@ If there are no issues, reply on the vote thread to close the voting. Then, tall
 ### Run validation tests
 All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validation)
 
-Since there are a bunch of tests, we recommend you running validatoins using automation script. In case of script failure, you can still run all of them manually.
+Since there are a bunch of tests, we recommend you running validations using automation script. In case of script failure, you can still run all of them manually.
 
 #### Run validations using run_rc_validation.sh
 * Script: [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
