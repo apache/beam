@@ -172,7 +172,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   private CompressedSource(
       FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    super(sourceDelegate.getFileOrPatternSpecProvider(), Long.MAX_VALUE);
+    super(
+        sourceDelegate.getFileOrPatternSpecProvider(),
+        sourceDelegate.getEmptyMatchTreatment(),
+        Long.MAX_VALUE);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
   }
