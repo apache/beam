@@ -514,6 +514,16 @@ deps:
     artifact: netty-transport-native-epoll
     owners: chamikara
 
+  io.opencensus:opencensus-api:
+    group: io.opencensus
+    artifact: opencensus-api
+    owners:
+
+  io.opencensus:opencensus-contrib-grpc-metrics:
+    group: io.opencensus
+    artifact: opencensus-contrib-grpc-metrics
+    owners:
+
   io.spring.gradle:propdeps-plugin:
     group: io.spring.gradle
     artifact: propdeps-plugin
@@ -827,6 +837,11 @@ deps:
   org.apache.kafka:kafka-clients:
     group: org.apache.kafka
     artifact: kafka-clients
+    owners:
+
+  org.apache.kudu:kudu-client:
+    group: org.apache.kudu
+    artifact: kudu-client
     owners:
 
   org.apache.logging.log4j:log4j-api:
