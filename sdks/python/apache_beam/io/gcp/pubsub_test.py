@@ -450,7 +450,7 @@ class TestReadFromPubSub(unittest.TestCase):
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, 'a_label', with_attributes=True))
+                              None, None, with_attributes=True))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
 
@@ -469,7 +469,7 @@ class TestReadFromPubSub(unittest.TestCase):
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
              | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
-                                     None, 'a_label'))
+                                     None, None))
     assert_that(pcoll, equal_to(expected_elements))
     p.run()
 
@@ -486,8 +486,7 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, 'a_label'))
+             | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
     assert_that(pcoll, equal_to(expected_elements))
     p.run()
 
@@ -513,7 +512,7 @@ class TestReadFromPubSub(unittest.TestCase):
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
              | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, 'a_label',
+                 'projects/fakeprj/topics/a_topic', None, None,
                  with_attributes=True, timestamp_attribute='time'))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
@@ -540,31 +539,37 @@ class TestReadFromPubSub(unittest.TestCase):
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
              | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, 'a_label',
+                 'projects/fakeprj/topics/a_topic', None, None,
                  with_attributes=True, timestamp_attribute='time'))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
 
   @mock.patch('google.cloud.pubsub')
-  def test_read_messages_timestamp_attribute_fail_missing(self, mock_pubsub):
+  def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = 'data'
     message_id = 'message_id'
-    attributes = {'time': '1337'}
+    attributes = {}
     publish_time = '2018-03-12T13:37:01.234567Z'
     payloads = [
         create_client_message(data, message_id, attributes, publish_time)]
+    expected_elements = [
+        TestWindowedValue(
+            PubsubMessage(data, attributes),
+            timestamp.Timestamp.from_rfc3339(publish_time),
+            [window.GlobalWindow()]),
+    ]
 
     mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
     mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
-    _ = (p
-         | ReadFromPubSub(
-             'projects/fakeprj/topics/a_topic', None, 'a_label',
-             with_attributes=True, timestamp_attribute='nonexistent'))
-    with self.assertRaisesRegexp(KeyError, r'Timestamp.*nonexistent'):
-      p.run()
+    pcoll = (p
+             | ReadFromPubSub(
+                 'projects/fakeprj/topics/a_topic', None, None,
+                 with_attributes=True, timestamp_attribute='nonexistent'))
+    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
+    p.run()
 
   @mock.patch('google.cloud.pubsub')
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
@@ -582,9 +587,29 @@ class TestReadFromPubSub(unittest.TestCase):
     p.options.view_as(StandardOptions).streaming = True
     _ = (p
          | ReadFromPubSub(
-             'projects/fakeprj/topics/a_topic', None, 'a_label',
+             'projects/fakeprj/topics/a_topic', None, None,
              with_attributes=True, timestamp_attribute='time'))
     with self.assertRaisesRegexp(ValueError, r'parse'):
+      p.run()
+
+  @mock.patch('google.cloud.pubsub')
+  def test_read_message_id_label_unsupported(self, mock_pubsub):
+    # id_label is unsupported in DirectRunner.
+    data = 'data'
+    message_id = 'message_id'
+    attributes = {'time': '1337 unparseable'}
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [
+        create_client_message(data, message_id, attributes, publish_time)]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
+
+    p = TestPipeline()
+    p.options.view_as(StandardOptions).streaming = True
+    _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
+    with self.assertRaisesRegexp(NotImplementedError,
+                                 r'id_label is not supported'):
       p.run()
 
 
@@ -658,6 +683,35 @@ class TestWriteToPubSub(unittest.TestCase):
                          with_attributes=True))
     with self.assertRaisesRegexp(AttributeError,
                                  r'str.*has no attribute.*data'):
+      p.run()
+
+  @mock.patch('google.cloud.pubsub')
+  def test_write_messages_unsupported_features(self, mock_pubsub):
+    data = 'data'
+    attributes = {'key': 'value'}
+    payloads = [PubsubMessage(data, attributes)]
+    expected_payloads = [[data, attributes]]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient,
+                                           messages_write=expected_payloads)
+
+    p = TestPipeline()
+    p.options.view_as(StandardOptions).streaming = True
+    _ = (p
+         | Create(payloads)
+         | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                         id_label='a_label'))
+    with self.assertRaisesRegexp(NotImplementedError,
+                                 r'id_label is not supported'):
+      p.run()
+    p = TestPipeline()
+    p.options.view_as(StandardOptions).streaming = True
+    _ = (p
+         | Create(payloads)
+         | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                         timestamp_attribute='timestamp'))
+    with self.assertRaisesRegexp(NotImplementedError,
+                                 r'timestamp_attribute is not supported'):
       p.run()
 
 
