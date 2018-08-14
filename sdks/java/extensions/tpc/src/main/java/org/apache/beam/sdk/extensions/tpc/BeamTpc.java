@@ -25,7 +25,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
-import org.apache.beam.sdk.extensions.tpc.query.TpcDsQuery;
+import org.apache.beam.sdk.extensions.tpc.query.TpcHQuery;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -47,28 +48,28 @@ public class BeamTpc {
       Pipeline pipeline, CSVFormat csvFormat, TpcOptions tpcOptions) {
     ImmutableMap<String, Schema> hSchemas =
         ImmutableMap.<String, Schema>builder()
-            .put("customer", Schemas.getCustomerDsSchema)
-//            .put("lineitem", Schemas.lineitemSchema)
-//            .put("nation", Schemas.nationSchema)
-//            .put("orders", Schemas.orderSchema)
-//            .put("part", Schemas.partSchema)
-//            .put("partsupp", Schemas.partsuppSchema)
-//            .put("region", Schemas.regionSchema)
-//            .put("supplier", Schemas.supplierSchema)
-              .put("store_sales", Schemas.storeSalesSchema)
-              .put("catalog_sales", Schemas.catalogSalesSchema)
-              .put("item", Schemas.itemSchema)
-              .put("date_dim", Schemas.dateDimSchema)
-              .put("promotion", Schemas.promotionSchema)
-              .put("customer_demographics", Schemas.customerDemographicsSchema)
-              .put("web_sales", Schemas.webSalesSchema)
-              .put("inventory", Schemas.inventorySchema)
+            .put("customer", Schemas.CUSTOMER_SCHEMA)
+            .put("lineitem", Schemas.LINEITEM_SCHEMA)
+            .put("nation", Schemas.NATION_SCHEMA)
+            .put("orders", Schemas.ORDER_SCHEMA)
+            .put("part", Schemas.PART_SCHEMA)
+            .put("partsupp", Schemas.PARTSUPP_SCHEMA)
+            .put("region", Schemas.REGION_SCHEMA)
+            .put("supplier", Schemas.SUPPLIER_SCHEMA)
+            //              .put("store_sales", Schemas.storeSalesSchema)
+            //              .put("catalog_sales", Schemas.catalogSalesSchema)
+            //              .put("item", Schemas.itemSchema)
+            //              .put("date_dim", Schemas.dateDimSchema)
+            //              .put("promotion", Schemas.promotionSchema)
+            //              .put("customer_demographics", Schemas.customerDemographicsSchema)
+            //              .put("web_sales", Schemas.webSalesSchema)
+            //              .put("inventory", Schemas.inventorySchema)
             .build();
 
     PCollectionTuple tables = PCollectionTuple.empty(pipeline);
 
     for (Map.Entry<String, Schema> tableSchema : hSchemas.entrySet()) {
-      String filePattern = tpcOptions.getInputFile() + tableSchema.getKey() + ".dat";
+      String filePattern = tpcOptions.getInputFile() + tableSchema.getKey() + ".tbl";
 
       PCollection<Row> table =
           new TextTable(
@@ -77,7 +78,8 @@ public class BeamTpc {
                   new TextTableProvider.CsvToRow(tableSchema.getValue(), csvFormat),
                   new TextTableProvider.RowToCsv(csvFormat))
               .buildIOReader(pipeline.begin())
-              .setCoder(tableSchema.getValue().getRowCoder()).setName(tableSchema.getKey());
+              .setCoder(tableSchema.getValue().getRowCoder())
+              .setName(tableSchema.getKey());
 
       tables = tables.and(new TupleTag<>(tableSchema.getKey()), table);
     }
@@ -89,6 +91,8 @@ public class BeamTpc {
     // Option for lanunch Tpc benchmark.
     TpcOptions tpcOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcOptions.class);
+
+    FileSystems.setDefaultPipelineOptions(tpcOptions);
 
     Pipeline pipeline = Pipeline.create(tpcOptions);
 
@@ -104,9 +108,9 @@ public class BeamTpc {
 
     tables
         .apply(
-            "SqlTransform " + "DS" + ":" + tpcOptions.getQuery(),
-            SqlTransform.query(TpcDsQuery.getQuery(tpcOptions.getQuery())))
-//            SqlTransform.query(TpcDsQuery.QUERY7))
+            "SqlTransform " + "H" + ":" + tpcOptions.getQuery(),
+            SqlTransform.query(TpcHQuery.getQuery(tpcOptions.getQuery())))
+        //            SqlTransform.query(TpcDsQuery.QUERY7))
         .apply(resultMonitor.getTransform())
         .apply(
             "exp_table",
@@ -128,7 +132,7 @@ public class BeamTpc {
     pipelineResult.waitUntilFinish();
     long endTs = System.currentTimeMillis();
 
-    System.out.println("performance: " + ((endTs - startTs)/1000) + "s");
+    System.out.println("performance: " + ((endTs - startTs) / 1000) + "s");
 
     TpcPerf perf = new TpcPerf();
 

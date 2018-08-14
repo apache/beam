@@ -17,46 +17,47 @@
  */
 package org.apache.beam.sdk.extensions.tpc.query;
 
-/** Ds.*/
+/** Ds. */
 public class TpcDsQuery {
-    public static final String QUERY3 =
-            "select  dt.d_year \n" +
-            "       ,item.i_brand_id brand_id \n" +
-            "       ,item.i_brand brand\n" +
-            "       ,sum(ss_sales_price) sum_agg\n" +
-            " from  date_dim dt \n" +
-            "      ,store_sales\n" +
-            "      ,item\n" +
-            " where dt.d_date_sk = store_sales.ss_sold_date_sk\n" +
-            "   and store_sales.ss_item_sk = item.i_item_sk\n" +
-            "   and item.i_manufact_id = 816\n" +
-            "   and dt.d_moy=11\n" +
-            " group by dt.d_year\n" +
-            "      ,item.i_brand\n" +
-            "      ,item.i_brand_id\n" +
-            " order by dt.d_year\n" +
-            "         ,sum_agg desc\n" +
-            "         ,brand_id\n" +
-            " limit 100";
+  public static final String QUERY3 =
+      "select  dt.d_year \n"
+          + "       ,item.i_brand_id brand_id \n"
+          + "       ,item.i_brand brand\n"
+          + "       ,sum(ss_sales_price) sum_agg\n"
+          + " from  date_dim dt \n"
+          + "      ,store_sales\n"
+          + "      ,item\n"
+          + " where dt.d_date_sk = store_sales.ss_sold_date_sk\n"
+          + "   and store_sales.ss_item_sk = item.i_item_sk\n"
+          + "   and item.i_manufact_id = 816\n"
+          + "   and dt.d_moy=11\n"
+          + " group by dt.d_year\n"
+          + "      ,item.i_brand\n"
+          + "      ,item.i_brand_id\n"
+          + " order by dt.d_year\n"
+          + "         ,sum_agg desc\n"
+          + "         ,brand_id\n"
+          + " limit 100";
 
-    public static final String QUERY7 = "select  i_item_id, \n" +
-            "        avg(ss_quantity) agg1,\n" +
-            "        avg(ss_list_price) agg2,\n" +
-            "        avg(ss_coupon_amt) agg3,\n" +
-            "        avg(ss_sales_price) agg4 \n" +
-            " from store_sales, customer_demographics, date_dim, item, promotion\n" +
-            " where ss_sold_date_sk = d_date_sk and\n" +
-            "       ss_item_sk = i_item_sk and\n" +
-            "       ss_cdemo_sk = cd_demo_sk and\n" +
-            "       ss_promo_sk = p_promo_sk and\n" +
-            "       cd_gender = 'F' and \n" +
-            "       cd_marital_status = 'W' and\n" +
-            "       cd_education_status = 'College' and\n" +
-            "       (p_channel_email = 'N' or p_channel_event = 'N') and\n" +
-            "       d_year = 2001 \n" +
-            " group by i_item_id\n" +
-            " order by i_item_id\n" +
-            " limit 100";
+  public static final String QUERY7 =
+      "select  i_item_id, \n"
+          + "        avg(ss_quantity) agg1,\n"
+          + "        avg(ss_list_price) agg2,\n"
+          + "        avg(ss_coupon_amt) agg3,\n"
+          + "        avg(ss_sales_price) agg4 \n"
+          + " from store_sales, customer_demographics, date_dim, item, promotion\n"
+          + " where ss_sold_date_sk = d_date_sk and\n"
+          + "       ss_item_sk = i_item_sk and\n"
+          + "       ss_cdemo_sk = cd_demo_sk and\n"
+          + "       ss_promo_sk = p_promo_sk and\n"
+          + "       cd_gender = 'F' and \n"
+          + "       cd_marital_status = 'W' and\n"
+          + "       cd_education_status = 'College' and\n"
+          + "       (p_channel_email = 'N' or p_channel_event = 'N') and\n"
+          + "       d_year = 2001 \n"
+          + " group by i_item_id\n"
+          + " order by i_item_id\n"
+          + " limit 100";
 
   public static final String QUERY11 =
       "with year_total as (\n"
@@ -138,74 +139,84 @@ public class TpcDsQuery {
           + "         ,t_s_secyear.customer_email_address\n"
           + "limit 100";
 
-  public static final String QUERY22 = "select  i_product_name\n" +
-          "             ,i_brand\n" +
-          "             ,i_class\n" +
-          "             ,i_category\n" +
-          "             ,avg(inv_quantity_on_hand) qoh\n" +
-          "       from inventory\n" +
-          "           ,date_dim\n" +
-          "           ,item\n" +
-          "       where inv_date_sk=d_date_sk\n" +
-          "              and inv_item_sk=i_item_sk\n" +
-          "              and d_month_seq between 1200 and 1200 + 11\n" +
-          "       group by rollup(i_product_name\n" +
-          "                       ,i_brand\n" +
-          "                       ,i_class\n" +
-          "                       ,i_category)\n" +
-          "order by qoh, i_product_name, i_brand, i_class, i_category\n" +
-          "limit 100";
+  public static final String QUERY22 =
+      "select  i_product_name\n"
+          + "             ,i_brand\n"
+          + "             ,i_class\n"
+          + "             ,i_category\n"
+          + "             ,avg(inv_quantity_on_hand) qoh\n"
+          + "       from inventory\n"
+          + "           ,date_dim\n"
+          + "           ,item\n"
+          + "       where inv_date_sk=d_date_sk\n"
+          + "              and inv_item_sk=i_item_sk\n"
+          + "              and d_month_seq between 1200 and 1200 + 11\n"
+          + "       group by rollup(i_product_name\n"
+          + "                       ,i_brand\n"
+          + "                       ,i_class\n"
+          + "                       ,i_category)\n"
+          + "order by qoh, i_product_name, i_brand, i_class, i_category\n"
+          + "limit 100";
 
-  public static final String QUERY38 = "select  count(*) from (\n" +
-          "    select distinct c_last_name, c_first_name, d_date\n" +
-          "    from store_sales, date_dim, customer\n" +
-          "          where store_sales.ss_sold_date_sk = date_dim.d_date_sk\n" +
-          "      and store_sales.ss_customer_sk = customer.c_customer_sk\n" +
-          "      and d_month_seq between 1189 and 1189 + 11\n" +
-          "  intersect\n" +
-          "    select distinct c_last_name, c_first_name, d_date\n" +
-          "    from catalog_sales, date_dim, customer\n" +
-          "          where catalog_sales.cs_sold_date_sk = date_dim.d_date_sk\n" +
-          "      and catalog_sales.cs_bill_customer_sk = customer.c_customer_sk\n" +
-          "      and d_month_seq between 1189 and 1189 + 11\n" +
-          "  intersect\n" +
-          "    select distinct c_last_name, c_first_name, d_date\n" +
-          "    from web_sales, date_dim, customer\n" +
-          "          where web_sales.ws_sold_date_sk = date_dim.d_date_sk\n" +
-          "      and web_sales.ws_bill_customer_sk = customer.c_customer_sk\n" +
-          "      and d_month_seq between 1189 and 1189 + 11\n" +
-          ") hot_cust\n" +
-          "limit 100";
+  public static final String QUERY38 =
+      "select  count(*) from (\n"
+          + "    select distinct c_last_name, c_first_name, d_date\n"
+          + "    from store_sales, date_dim, customer\n"
+          + "          where store_sales.ss_sold_date_sk = date_dim.d_date_sk\n"
+          + "      and store_sales.ss_customer_sk = customer.c_customer_sk\n"
+          + "      and d_month_seq between 1189 and 1189 + 11\n"
+          + "  intersect\n"
+          + "    select distinct c_last_name, c_first_name, d_date\n"
+          + "    from catalog_sales, date_dim, customer\n"
+          + "          where catalog_sales.cs_sold_date_sk = date_dim.d_date_sk\n"
+          + "      and catalog_sales.cs_bill_customer_sk = customer.c_customer_sk\n"
+          + "      and d_month_seq between 1189 and 1189 + 11\n"
+          + "  intersect\n"
+          + "    select distinct c_last_name, c_first_name, d_date\n"
+          + "    from web_sales, date_dim, customer\n"
+          + "          where web_sales.ws_sold_date_sk = date_dim.d_date_sk\n"
+          + "      and web_sales.ws_bill_customer_sk = customer.c_customer_sk\n"
+          + "      and d_month_seq between 1189 and 1189 + 11\n"
+          + ") hot_cust\n"
+          + "limit 100";
 
-  public static final String QUERY42 = "select  dt.d_year\n" +
-          "    ,item.i_category_id\n" +
-          "    ,item.i_category\n" +
-          "    ,sum(ss_ext_sales_price)\n" +
-          " from   date_dim dt\n" +
-          "    ,store_sales\n" +
-          "    ,item\n" +
-          " where dt.d_date_sk = store_sales.ss_sold_date_sk\n" +
-          "    and store_sales.ss_item_sk = item.i_item_sk\n" +
-          "    and item.i_manager_id = 1   \n" +
-          "    and dt.d_moy=11\n" +
-          "    and dt.d_year=1998\n" +
-          " group by   dt.d_year\n" +
-          "        ,item.i_category_id\n" +
-          "        ,item.i_category\n" +
-          " order by       sum(ss_ext_sales_price) desc,dt.d_year\n" +
-          "        ,item.i_category_id\n" +
-          "        ,item.i_category\n" +
-          "limit 100";
+  public static final String QUERY42 =
+      "select  dt.d_year\n"
+          + "    ,item.i_category_id\n"
+          + "    ,item.i_category\n"
+          + "    ,sum(ss_ext_sales_price)\n"
+          + " from   date_dim dt\n"
+          + "    ,store_sales\n"
+          + "    ,item\n"
+          + " where dt.d_date_sk = store_sales.ss_sold_date_sk\n"
+          + "    and store_sales.ss_item_sk = item.i_item_sk\n"
+          + "    and item.i_manager_id = 1   \n"
+          + "    and dt.d_moy=11\n"
+          + "    and dt.d_year=1998\n"
+          + " group by   dt.d_year\n"
+          + "        ,item.i_category_id\n"
+          + "        ,item.i_category\n"
+          + " order by       sum(ss_ext_sales_price) desc,dt.d_year\n"
+          + "        ,item.i_category_id\n"
+          + "        ,item.i_category\n"
+          + "limit 100";
 
   public static String getQuery(int num) {
-      switch(num) {
-          case 3: return QUERY3;
-          case 7: return QUERY7;
-          case 11: return QUERY11;
-          case 22: return QUERY22;
-          case 38: return QUERY38;
-          case 42: return QUERY42;
-          default: throw new UnsupportedOperationException("unsupport DS query");
-      }
+    switch (num) {
+      case 3:
+        return QUERY3;
+      case 7:
+        return QUERY7;
+      case 11:
+        return QUERY11;
+      case 22:
+        return QUERY22;
+      case 38:
+        return QUERY38;
+      case 42:
+        return QUERY42;
+      default:
+        throw new UnsupportedOperationException("unsupport DS query");
+    }
   }
 }

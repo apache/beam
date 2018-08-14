@@ -27,7 +27,7 @@ public class Schemas {
   //  private final ImmutableMap<String, TpcdsTable> tableHMap;
   private final ImmutableMap<String, String> columnPrefixes;
 
-  public static final Schema storeSalesSchema =
+  public static Schema storeSalesSchema =
       Schema.builder()
           .addNullableField("ss_sold_date_sk", Schema.FieldType.INT32)
           .addNullableField("ss_sold_time_sk", Schema.FieldType.INT32)
@@ -54,7 +54,7 @@ public class Schemas {
           .addNullableField("ss_net_profit", Schema.FieldType.FLOAT)
           .build();
 
-  public static final Schema dateDimSchema =
+  public static Schema dateDimSchema =
       Schema.builder()
           .addNullableField("d_date_sk", Schema.FieldType.INT32)
           .addNullableField("d_date_id", Schema.FieldType.STRING)
@@ -86,7 +86,7 @@ public class Schemas {
           .addNullableField("d_current_year", Schema.FieldType.STRING)
           .build();
 
-  public static final Schema itemSchema =
+  public static Schema itemSchema =
       Schema.builder()
           .addNullableField("i_item_sk", Schema.FieldType.INT32)
           .addNullableField("i_item_id", Schema.FieldType.STRING) //                 .string,
@@ -113,7 +113,7 @@ public class Schemas {
           .addNullableField("i_product_name", Schema.FieldType.STRING) //            .string),
           .build();
 
-  public static final Schema inventorySchema =
+  public static Schema inventorySchema =
       Schema.builder()
           .addNullableField("inv_date_sk", Schema.FieldType.INT32)
           .addNullableField("inv_item_sk", Schema.FieldType.INT32)
@@ -159,7 +159,7 @@ public class Schemas {
           .addNullableField("cs_net_profit", Schema.FieldType.FLOAT) //            .decimal(7,2))
           .build();
 
-  public static Schema orderSchema =
+  public static final Schema ORDER_SCHEMA =
       Schema.builder()
           .addInt32Field("o_orderkey")
           .addInt32Field("o_custkey")
@@ -172,7 +172,7 @@ public class Schemas {
           .addStringField("o_comment")
           .build();
 
-  public static Schema customerSchema =
+  public static final Schema CUSTOMER_SCHEMA =
       Schema.builder()
           .addInt32Field("c_custkey")
           .addStringField("c_name")
@@ -206,7 +206,7 @@ public class Schemas {
           .addNullableField("c_last_review_date", Schema.FieldType.STRING) //        .string)
           .build();
 
-  public static Schema lineitemSchema =
+  public static final Schema LINEITEM_SCHEMA =
       Schema.builder()
           .addInt32Field("l_orderkey")
           .addInt32Field("l_partkey")
@@ -226,7 +226,7 @@ public class Schemas {
           .addStringField("l_comment")
           .build();
 
-  public static Schema partsuppSchema =
+  public static final Schema PARTSUPP_SCHEMA =
       Schema.builder()
           .addInt32Field("ps_partkey") // identifier
           .addInt32Field("ps_suppkey") // identifier
@@ -235,14 +235,14 @@ public class Schemas {
           .addStringField("ps_comment") // variable text, size 199
           .build();
 
-  public static Schema regionSchema =
+  public static final Schema REGION_SCHEMA =
       Schema.builder()
           .addInt32Field("r_regionkey") // identifier
           .addStringField("r_name") // fixed text, size 25
           .addStringField("r_comment") // variable text, size 152
           .build();
 
-  public static Schema supplierSchema =
+  public static final Schema SUPPLIER_SCHEMA =
       Schema.builder()
           .addInt32Field("s_suppkey") // identifier
           .addStringField("s_name") // fixed text, size 25
@@ -253,7 +253,7 @@ public class Schemas {
           .addStringField("s_comment") // variable text, size 101
           .build();
 
-  public static Schema partSchema =
+  public static final Schema PART_SCHEMA =
       Schema.builder()
           .addInt32Field("p_partkey")
           .addStringField("p_name")
@@ -266,7 +266,7 @@ public class Schemas {
           .addStringField("p_comment")
           .build();
 
-  public static Schema nationSchema =
+  public static final Schema NATION_SCHEMA =
       Schema.builder()
           .addInt32Field("n_nationkey")
           .addStringField("n_name")

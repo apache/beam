@@ -19,10 +19,7 @@ package org.apache.beam.sdk.extensions.tpc.query;
 
 /** queries in H benchmark. */
 public class TpcHQuery {
-  public static final String QUERYTEST =
-      "select\n"
-          + "\tcount(*) as count_order\n"
-          + "from store_sales";
+  public static final String QUERYTEST = "select\n" + "\tcount(*)\n" + "from lineitem";
 
   public static final String QUERY1 =
       "select\n"
@@ -131,4 +128,23 @@ public class TpcHQuery {
           + "\tand l_shipdate < date '1994-01-01' + interval '1' year\n"
           + "\tand l_discount between .06 - 0.01 and .06 + 0.01\n"
           + "\tand l_quantity < 24 limit 10";
+
+  public static String getQuery(int num) {
+    switch (num) {
+      case 0:
+        return QUERYTEST;
+      case 1:
+        return QUERY1;
+      case 3:
+        return QUERY3;
+      case 4:
+        return QUERY4;
+      case 5:
+        return QUERY5;
+      case 6:
+        return QUERY6;
+      default:
+        throw new UnsupportedOperationException("unsupported H query");
+    }
+  }
 }
