@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.joda.time.DateTimeZone.UTC;
 
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -67,35 +68,7 @@ public class BeamSqlCastTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0)).build());
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testCastToDate2() {
-    PCollection<Row> input =
-        pipeline.apply(
-            Create.of(Row.withSchema(INPUT_ROW_SCHEMA).addValues(1).addValue("20181018").build())
-                .withSchema(
-                    INPUT_ROW_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
-
-    Schema resultType =
-        Schema.builder().addInt32Field("f_int").addNullableField("f_date", DATETIME).build();
-
-    PCollection<Row> result =
-        input.apply(
-            SqlTransform.query(
-                "SELECT f_int, \n"
-                    + "   CAST( \n"
-                    + "     f_string AS DATE) \n"
-                    + "FROM PCOLLECTION"));
-
-    PAssert.that(result)
-        .containsInAnyOrder(
-            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0)).build());
+            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0, UTC)).build());
 
     pipeline.run();
   }
@@ -130,7 +103,7 @@ public class BeamSqlCastTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0)).build());
+            Row.withSchema(resultType).addValues(1, new DateTime(2018, 10, 18, 0, 0, UTC)).build());
 
     pipeline.run();
   }
