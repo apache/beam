@@ -44,7 +44,7 @@ def to_stable_runner_api(p):
 class PipelineAnalyzerTest(unittest.TestCase):
 
   def setUp(self):
-    self.runner = direct_runner.BundleBasedDirectRunner()
+    self.runner = direct_runner.DirectRunner()
     self.cache_manager = cache.FileBasedCacheManager()
 
   def tearDown(self):
