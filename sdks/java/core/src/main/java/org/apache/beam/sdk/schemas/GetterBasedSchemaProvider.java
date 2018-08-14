@@ -50,10 +50,14 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
   @Override
   public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
-    return o ->
-        Row.withSchema(schemaFor(typeDescriptor))
-            .withFieldValueGetters(fieldValueGetterFactory(), o)
-            .build();
+    // schemaFor is non deterministic - it might return fields in an arbitrary order. The reason
+    // why is that Java reflection does not guarantee the order in which it returns fields and
+    // methods, and these schemas are often based on reflective analysis of classes. Therefore it's
+    // important to capture the schema once here, so all invocations of the toRowFunction see the
+    // same version of the schema. If schemaFor were to be called inside the function, different
+    // workers would see different versions of the schema.
+    Schema schema = schemaFor(typeDescriptor);
+    return o -> Row.withSchema(schema).withFieldValueGetters(fieldValueGetterFactory(), o).build();
   }
 
   @Override
