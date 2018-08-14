@@ -29,37 +29,62 @@ import threading
 
 import pydot
 
+import apache_beam as beam
+from apache_beam.portability.api import beam_runner_api_pb2
+
 
 class PipelineGraph(object):
   """Creates a DOT representation of the pipeline. Thread-safe."""
 
   def __init__(self,
-               pipeline_proto,
+               pipeline,
                default_vertex_attrs=None,
                default_edge_attrs=None):
     """Constructor of PipelineGraph.
 
+    Examples:
+      graph = pipeline_graph.PipelineGraph(pipeline_proto)
+      graph.display_graph()
+
+      or
+
+      graph = pipeline_graph.PipelineGraph(pipeline)
+      graph.display_grapy()
+
     Args:
-      pipeline_proto: (Pipeline proto)
+      pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
       default_vertex_attrs: (Dict[str, str]) a dict of default vertex attributes
       default_edge_attrs: (Dict[str, str]) a dict of default edge attributes
     """
     self._lock = threading.Lock()
     self._graph = None
 
+    if isinstance(pipeline, beam_runner_api_pb2.Pipeline):
+      self._pipeline_proto = pipeline
+    elif isinstance(pipeline, beam.Pipeline):
+      self._pipeline_proto = pipeline.to_runner_api()
+    else:
+      raise TypeError('pipeline should either be a %s or %s, while %s is given'
+                      % (beam_runner_api_pb2.Pipeline, beam.Pipeline,
+                         type(pipeline)))
+
     # A dict from PCollection ID to a list of its consuming Transform IDs
     self._consumers = collections.defaultdict(list)
     # A dict from PCollection ID to its producing Transform ID
     self._producers = {}
 
-    transforms = pipeline_proto.components.transforms
-    for transform_id, transform in transforms.items():
-      if not self._is_top_level_transform(transform):
-        continue
-      for pcoll_id in transform.inputs.values():
+    for transform_id, transform_proto in self._top_level_transforms():
+      for pcoll_id in transform_proto.inputs.values():
         self._consumers[pcoll_id].append(transform_id)
-      for pcoll_id in transform.outputs.values():
+      for pcoll_id in transform_proto.outputs.values():
         self._producers[pcoll_id] = transform_id
+
+    # Set the default vertex color to blue.
+    default_vertex_attrs = default_vertex_attrs or {}
+    if 'color' not in default_vertex_attrs:
+      default_vertex_attrs['color'] = 'blue'
+    if 'fontcolor' not in default_vertex_attrs:
+      default_vertex_attrs['fontcolor'] = 'blue'
 
     vertex_dict, edge_dict = self._generate_graph_dicts()
     self._construct_graph(vertex_dict,
@@ -70,9 +95,25 @@ class PipelineGraph(object):
   def get_dot(self):
     return str(self._get_graph())
 
-  def _is_top_level_transform(self, transform):
-    return transform.unique_name and '/' not in transform.unique_name \
-        and not transform.unique_name.startswith('ref_')
+  def display_graph(self):
+    """Displays graph via IPython or prints DOT if not possible."""
+    try:
+      from IPython.core import display  # pylint: disable=import-error
+      display.display(display.HTML(self._get_graph().create_svg()))  # pylint: disable=protected-access
+    except ImportError:
+      print(str(self._get_graph()))
+
+  def _top_level_transforms(self):
+    """Yields all top level PTransforms (subtransforms of the root PTransform).
+
+    Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.
+    """
+    transforms = self._pipeline_proto.components.transforms
+    for root_transform_id in self._pipeline_proto.root_transform_ids:
+      root_transform_proto = transforms[root_transform_id]
+      for top_level_transform_id in root_transform_proto.subtransforms:
+        top_level_transform_proto = transforms[top_level_transform_id]
+        yield top_level_transform_id, top_level_transform_proto
 
   def _generate_graph_dicts(self):
     """From pipeline_proto and other info, generate the graph.
@@ -92,10 +133,7 @@ class PipelineGraph(object):
 
     self._edge_to_vertex_pairs = collections.defaultdict(list)
 
-    for _, transform in transforms.items():
-      if not self._is_top_level_transform(transform):
-        continue
-
+    for _, transform in self._top_level_transforms():
       vertex_dict[transform.unique_name] = {}
 
       for pcoll_id in transform.outputs.values():
