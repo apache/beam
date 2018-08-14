@@ -338,14 +338,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float * c_bigint", 1.0f)
             .addExpr("c_double * c_bigint", 1.0)
             .addExpr("1 / 1", 1)
-            .addExpr("1.0 / 1", ONE10)
-            .addExpr("1 / 1.0", ONE10)
-            .addExpr("1.0 / 1.0", ONE10)
+            .addExpr("1.0 / 1", ONE)
+            .addExpr("1 / 1.0", BigDecimal.ONE)
+            .addExpr("1.0 / 1.0", BigDecimal.ONE)
             .addExpr("c_tinyint / c_tinyint", (byte) 1)
             .addExpr("c_smallint / c_smallint", (short) 1)
             .addExpr("c_bigint / c_bigint", 1L)
-            .addExpr("c_decimal / c_decimal", ONE10)
-            .addExpr("c_tinyint / c_decimal", ONE10)
+            .addExpr("c_decimal / c_decimal", BigDecimal.ONE)
+            .addExpr("c_tinyint / c_decimal", BigDecimal.ONE)
             .addExpr("c_float / c_decimal", 1.0)
             .addExpr("c_double / c_decimal", 1.0)
             .addExpr("c_float / c_float", 1.0f)
@@ -355,13 +355,13 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_double / c_bigint", 1.0)
             .addExpr("mod(1, 1)", 0)
             .addExpr("mod(1.0, 1)", 0)
-            .addExpr("mod(1, 1.0)", ZERO)
+            .addExpr("mod(1, 1.0)", BigDecimal.ZERO)
             .addExpr("mod(1.0, 1.0)", ZERO)
             .addExpr("mod(c_tinyint, c_tinyint)", (byte) 0)
             .addExpr("mod(c_smallint, c_smallint)", (short) 0)
             .addExpr("mod(c_bigint, c_bigint)", 0L)
-            .addExpr("mod(c_decimal, c_decimal)", ZERO)
-            .addExpr("mod(c_tinyint, c_decimal)", ZERO)
+            .addExpr("mod(c_decimal, c_decimal)", BigDecimal.ZERO)
+            .addExpr("mod(c_tinyint, c_decimal)", BigDecimal.ZERO)
             // Test overflow
             .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
             .addExpr("c_smallint_max + c_smallint_max", (short) -2)
@@ -634,7 +634,6 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     checker.buildRunAndCheck(getAggregationTestPCollection());
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-5111")
   @Test
   @SqlOperatorTest(name = "$SUM0", kind = "SUM0")
   public void testSUM0() {
@@ -1047,7 +1046,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "RAND", kind = "OTHER_FUNCTION")
   public void testRand() {
     ExpressionChecker checker =
-        new ExpressionChecker().addExpr("RAND(c_integer)", new Random(INTEGER_VALUE).nextDouble());
+        new ExpressionChecker()
+            .addExpr(
+                "RAND(c_integer)", new Random(INTEGER_VALUE ^ (INTEGER_VALUE << 16)).nextDouble());
 
     checker.buildRunAndCheck();
   }
@@ -1120,6 +1121,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   public void testFloor() {
     ExpressionChecker checker =
         new ExpressionChecker()
+            .addExpr("FLOOR(ts TO SECOND)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"))
+            .addExpr("FLOOR(ts TO MINUTE)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:00"))
+            .addExpr("FLOOR(ts TO HOUR)", parseTimestampWithUTCTimeZone("1986-02-15 11:00:00"))
+            .addExpr("FLOOR(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-15 00:00:00"))
             .addExpr("FLOOR(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-02-01 00:00:00"))
             .addExpr("FLOOR(ts TO YEAR)", parseTimestampWithUTCTimeZone("1986-01-01 00:00:00"))
             .addExpr("FLOOR(c_double)", 1.0);
@@ -1133,21 +1138,15 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   public void testCeil() {
     ExpressionChecker checker =
         new ExpressionChecker()
+            .addExpr("CEIL(ts TO SECOND)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"))
+            .addExpr("CEIL(ts TO MINUTE)", parseTimestampWithUTCTimeZone("1986-02-15 11:36:00"))
+            .addExpr("CEIL(ts TO HOUR)", parseTimestampWithUTCTimeZone("1986-02-15 12:00:00"))
+            .addExpr("CEIL(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-16 00:00:00"))
             .addExpr("CEIL(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-03-01 00:00:00"))
             .addExpr("CEIL(ts TO YEAR)", parseTimestampWithUTCTimeZone("1987-01-01 00:00:00"))
             .addExpr("CEIL(c_double)", 2.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
-  }
-
-  @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4622")
-  public void testFloorAndCeilResolutionLimit() {
-    thrown.expect(IllegalArgumentException.class);
-    ExpressionChecker checker =
-        new ExpressionChecker()
-            .addExpr("FLOOR(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-01 00:00:00"));
-    checker.buildRunAndCheck();
   }
 
   @Test
