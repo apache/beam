@@ -448,6 +448,9 @@ class _ExecutorServiceParallelExecutor(object):
       self.executor_service.shutdown()
       self.executor_service.await_completion()
 
+  def request_shutdown(self):
+    self.executor_service.shutdown()
+
   def schedule_consumers(self, committed_bundle):
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]

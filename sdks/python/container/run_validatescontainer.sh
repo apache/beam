@@ -77,7 +77,7 @@ SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 python setup.py nosetests \
   --attr ValidatesContainer \
-  --nocapture \
+  --nologcapture \
   --processes=1 \
   --process-timeout=900 \
   --test-pipeline-options=" \

@@ -187,12 +187,17 @@ task installGcpTest(dependsOn: 'setupVirtualenv') {
   }
 }
 
-task localWordCount(dependsOn: 'installGcpTest') {
+task directRunnerIT(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct"
-      // TODO: Check that the output file is generated and runs.
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch TestDirectRunner"
+    }
+  }
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT streaming TestDirectRunner"
     }
   }
 }
@@ -281,7 +286,7 @@ flinkCompatibilityMatrix('Streaming')
 
 task postCommit() {
   dependsOn "preCommit"
-  dependsOn "localWordCount"
+  dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitITTests"
 }
