@@ -33,25 +33,25 @@ from apache_beam.runners.interactive import cache_manager as cache
 
 class PipelineAnalyzer(object):
   def __init__(self, cache_manager, pipeline_proto, underlying_runner,
-               desired_cache_labels=None):
+               options=None, desired_cache_labels=None):
     """Constructor of PipelineAnanlyzer.
 
     Args:
       cache_manager: (CacheManager)
       pipeline_proto: (Pipeline proto)
       underlying_runner: (PipelineRunner)
+      options: (PipelineOptions)
       desired_cache_labels: (Set[str]) a set of labels of the PCollection
         queried by the user.
     """
     self._cache_manager = cache_manager
     self._pipeline_proto = pipeline_proto
-    self._underlying_runner = underlying_runner
     self._desired_cache_labels = desired_cache_labels or []
 
     self._pipeline = beam.pipeline.Pipeline.from_runner_api(
         self._pipeline_proto,
-        self._underlying_runner,
-        options=None)
+        runner=underlying_runner,
+        options=options)
     # context returned from to_runner_api is more informative than that returned
     # from from_runner_api.
     _, self._context = self._pipeline.to_runner_api(return_context=True)
