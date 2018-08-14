@@ -54,12 +54,14 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests of {@link JmsIO}. */
+@Ignore("TODO(BEAM-5144): Fix this test before reenabling.")
 @RunWith(JUnit4.class)
 public class JmsIOTest {
 
