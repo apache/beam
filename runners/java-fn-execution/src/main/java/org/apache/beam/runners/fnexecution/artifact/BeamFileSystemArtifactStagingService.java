@@ -214,7 +214,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         checkNotNull(putArtifactRequest);
         checkNotNull(putArtifactRequest.getMetadata());
         metadata = putArtifactRequest.getMetadata();
-        LOG.info("stored metadata: {}", metadata);
+        LOG.debug("stored metadata: {}", metadata);
         // Check the base path exists or create the base path
         try {
           ResourceId artifactsDirId =
@@ -224,7 +224,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           artifactId =
               artifactsDirId.resolve(
                   encodedFileName(metadata.getMetadata()), StandardResolveOptions.RESOLVE_FILE);
-          LOG.info(
+          LOG.debug(
               "Going to stage artifact {} to {}.", metadata.getMetadata().getName(), artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
           hasher = Hashing.md5().newHasher();
@@ -281,7 +281,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     @Override
     public void onCompleted() {
       // Close the stream.
-      LOG.info("Staging artifact completed for " + artifactId);
+      LOG.debug("Staging artifact completed for " + artifactId);
       if (artifactWritableByteChannel != null) {
         try {
           artifactWritableByteChannel.close();
