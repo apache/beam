@@ -128,25 +128,13 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     transform_dict = {}  # maps PTransform IDs to properties
     pcoll_dict = {}  # maps PCollection IDs to properties
 
-    def leaf_transform_ids(parent_id):
-      parent = transforms[parent_id]
-      if parent.subtransforms:
-        for child in parent.subtransforms:
-          for leaf in leaf_transform_ids(child):
-            yield leaf
-      else:
-        yield parent_id
-
     for transform_id, transform in transforms.items():
       if not super(
           InteractivePipelineGraph, self)._is_top_level_transform(transform):
         continue
 
       transform_dict[transform.unique_name] = {
-          'required':
-              all(
-                  leaf in self._required_transforms
-                  for leaf in leaf_transform_ids(transform_id))
+          'required': transform_id in self._required_transforms
       }
 
       for pcoll_id in transform.outputs.values():
