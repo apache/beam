@@ -53,47 +53,33 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
   """Creates the DOT representation of an interactive pipeline. Thread-safe."""
 
   def __init__(self,
-               pipeline_proto,
+               pipeline,
                required_transforms=None,
                referenced_pcollections=None,
                cached_pcollections=None):
     """Constructor of PipelineGraph.
 
-    Examples:
-      pipeline_graph = PipelineGraph(pipeline_proto)
-      print(pipeline_graph.get_dot())
-      pipeline_graph.display_graph()
-
     Args:
-      pipeline_proto: (Pipeline proto) Pipeline to be rendered.
+      pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
       required_transforms: (dict from str to PTransform proto) Mapping from
           transform ID to transforms that leads to visible results.
       referenced_pcollections: (dict from str to PCollection proto) PCollection
           ID mapped to PCollection referenced during pipeline execution.
-      cached_pcollections: (set of str) A set of PCollection IDs of those whose
+      cached_pcollections: (set of str) a set of PCollection IDs of those whose
           cached results are used in the execution.
     """
-    self._pipeline_proto = pipeline_proto
     self._required_transforms = required_transforms or {}
     self._referenced_pcollections = referenced_pcollections or {}
     self._cached_pcollections = cached_pcollections or set()
 
     super(InteractivePipelineGraph, self).__init__(
-        pipeline_proto=pipeline_proto,
+        pipeline=pipeline,
         default_vertex_attrs={'color': 'gray', 'fontcolor': 'gray'},
         default_edge_attrs={'color': 'gray'}
     )
 
     transform_updates, pcollection_updates = self._generate_graph_update_dicts()
     self._update_graph(transform_updates, pcollection_updates)
-
-  def display_graph(self):
-    """Displays graph via IPython or prints DOT if not possible."""
-    try:
-      from IPython.core import display  # pylint: disable=import-error
-      display.display(display.HTML(self._get_graph().create_svg()))  # pylint: disable=protected-access
-    except ImportError:
-      print(str(self._get_graph()))
 
   def update_pcollection_stats(self, pcollection_stats):
     """Updates PCollection stats.
@@ -123,21 +109,15 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
       vertex_dict: (Dict[str, Dict[str, str]]) maps vertex name to attributes
       edge_dict: (Dict[str, Dict[str, str]]) maps vertex name to attributes
     """
-    transforms = self._pipeline_proto.components.transforms
-
     transform_dict = {}  # maps PTransform IDs to properties
     pcoll_dict = {}  # maps PCollection IDs to properties
 
-    for transform_id, transform in transforms.items():
-      if not super(
-          InteractivePipelineGraph, self)._is_top_level_transform(transform):
-        continue
-
-      transform_dict[transform.unique_name] = {
+    for transform_id, transform_proto in self._top_level_transforms():
+      transform_dict[transform_proto.unique_name] = {
           'required': transform_id in self._required_transforms
       }
 
-      for pcoll_id in transform.outputs.values():
+      for pcoll_id in transform_proto.outputs.values():
         pcoll_dict[pcoll_id] = {
             'cached': pcoll_id in self._cached_pcollections,
             'referenced': pcoll_id in self._referenced_pcollections
