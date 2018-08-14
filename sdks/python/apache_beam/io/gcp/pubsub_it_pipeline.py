@@ -48,13 +48,20 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   pipeline_options.view_as(StandardOptions).streaming = True
   p = beam.Pipeline(options=pipeline_options)
+  runner_name = type(p.runner).__name__
 
   # Read from PubSub into a PCollection.
-  messages = p | beam.io.ReadFromPubSub(
-      subscription=known_args.input_subscription,
-      id_label=id_label,
-      with_attributes=with_attributes,
-      timestamp_attribute=timestamp_attribute)
+  if runner_name == 'TestDirectRunner':
+    messages = p | beam.io.ReadFromPubSub(
+        subscription=known_args.input_subscription,
+        with_attributes=with_attributes,
+        timestamp_attribute=timestamp_attribute)
+  else:
+    messages = p | beam.io.ReadFromPubSub(
+        subscription=known_args.input_subscription,
+        id_label=id_label,
+        with_attributes=with_attributes,
+        timestamp_attribute=timestamp_attribute)
 
   def add_attribute(msg, timestamp=beam.DoFn.TimestampParam):
     msg.data += '-seen'
@@ -72,10 +79,14 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
     output = messages | 'modify_data' >> beam.Map(modify_data)
 
   # Write to PubSub.
-  _ = output | beam.io.WriteToPubSub(known_args.output_topic,
-                                     id_label=id_label,
-                                     with_attributes=with_attributes,
-                                     timestamp_attribute=timestamp_attribute)
+  if runner_name == 'TestDirectRunner':
+    _ = output | beam.io.WriteToPubSub(known_args.output_topic,
+                                       with_attributes=with_attributes)
+  else:
+    _ = output | beam.io.WriteToPubSub(known_args.output_topic,
+                                       id_label=id_label,
+                                       with_attributes=with_attributes,
+                                       timestamp_attribute=timestamp_attribute)
 
   result = p.run()
   result.wait_until_finish()

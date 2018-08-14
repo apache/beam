@@ -48,28 +48,53 @@ class PubSubIntegrationTest(unittest.TestCase):
 
   ID_LABEL = 'id'
   TIMESTAMP_ATTRIBUTE = 'timestamp'
-  INPUT_MESSAGES = [
-      # Use ID_LABEL attribute to deduplicate messages with the same ID.
-      PubsubMessage('data001', {ID_LABEL: 'foo'}),
-      PubsubMessage('data001', {ID_LABEL: 'foo'}),
-      PubsubMessage('data001', {ID_LABEL: 'foo'}),
-      # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the IT
-      # pipeline writes back the timestamp of each element (as reported by
-      # Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
-      PubsubMessage('data002', {
-          TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-      }),
-  ]
-  EXPECTED_OUTPUT_MESSAGES = [
-      PubsubMessage('data001-seen', {'processed': 'IT'}),
-      PubsubMessage('data002-seen', {
-          TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
-          'processed': 'IT',
-      }),
-  ]
+  INPUT_MESSAGES = {
+      # TODO(BEAM-4275): DirectRunner doesn't support reading or writing
+      # label_ids, nor writing timestamp attributes. Once these features exist,
+      # TestDirectRunner and TestDataflowRunner should behave identically.
+      'TestDirectRunner': [
+          PubsubMessage('data001', {}),
+          # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
+          # IT pipeline writes back the timestamp of each element (as reported
+          # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
+          PubsubMessage('data002', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          }),
+      ],
+      'TestDataflowRunner': [
+          # Use ID_LABEL attribute to deduplicate messages with the same ID.
+          PubsubMessage('data001', {ID_LABEL: 'foo'}),
+          PubsubMessage('data001', {ID_LABEL: 'foo'}),
+          PubsubMessage('data001', {ID_LABEL: 'foo'}),
+          # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
+          # IT pipeline writes back the timestamp of each element (as reported
+          # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
+          PubsubMessage('data002', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          })
+      ],
+  }
+  EXPECTED_OUTPUT_MESSAGES = {
+      'TestDirectRunner': [
+          PubsubMessage('data001-seen', {'processed': 'IT'}),
+          PubsubMessage('data002-seen', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+              'processed': 'IT',
+          }),
+      ],
+      'TestDataflowRunner': [
+          PubsubMessage('data001-seen', {'processed': 'IT'}),
+          PubsubMessage('data002-seen', {
+              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+              'processed': 'IT',
+          }),
+      ],
+  }
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.uuid = str(uuid.uuid4())
 
@@ -99,19 +124,26 @@ class PubSubIntegrationTest(unittest.TestCase):
         True - Reads and writes message data and attributes. Also verifies
         id_label and timestamp_attribute features.
     """
-    # Build expected dataset.
-    # Set extra options to the pipeline for test purpose
+    # Set on_success_matcher to verify pipeline state and pubsub output. These
+    # verifications run on a (remote) worker.
+
+    # Expect the state to be RUNNING since a streaming pipeline is usually
+    # never DONE. The test runner will cancel the pipeline after verification.
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
-    expected_messages = self.EXPECTED_OUTPUT_MESSAGES
+    expected_messages = self.EXPECTED_OUTPUT_MESSAGES[self.runner_name]
     if not with_attributes:
       expected_messages = [pubsub_msg.data for pubsub_msg in expected_messages]
+    if self.runner_name == 'TestDirectRunner':
+      strip_attributes = None
+    else:
+      strip_attributes = [self.ID_LABEL, self.TIMESTAMP_ATTRIBUTE]
     pubsub_msg_verifier = PubSubMessageMatcher(
         self.project,
         OUTPUT_SUB + self.uuid,
         expected_messages,
         timeout=MESSAGE_MATCHER_TIMEOUT_S,
         with_attributes=with_attributes,
-        strip_attributes=[self.ID_LABEL, self.TIMESTAMP_ATTRIBUTE])
+        strip_attributes=strip_attributes)
     extra_opts = {'input_subscription': self.input_sub.full_name,
                   'output_topic': self.output_topic.full_name,
                   'wait_until_finish_duration': TEST_PIPELINE_DURATION_MS,
@@ -120,7 +152,7 @@ class PubSubIntegrationTest(unittest.TestCase):
 
     # Generate input data and inject to PubSub.
     test_utils.wait_for_subscriptions_created([self.input_sub])
-    for msg in self.INPUT_MESSAGES:
+    for msg in self.INPUT_MESSAGES[self.runner_name]:
       self.input_topic.publish(msg.data, **msg.attributes)
 
     # Get pipeline options from command argument: --test-pipeline-options,
