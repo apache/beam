@@ -19,14 +19,13 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.PipelineOptionUnexpectedPropertyException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -121,22 +121,24 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
     }
 
-    PipelineOptions options = null;
+    PipelineOptions options;
     try {
       options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
-    } catch (IllegalArgumentException e) {
-      Matcher matcher =
-          Pattern.compile("Class (.+) missing a property named \\'(.+)\\'\\.(.*)")
-              .matcher(e.getMessage());
-      if (matcher.matches()) {
-        throw new IllegalArgumentException(
+    } catch (PipelineOptionUnexpectedPropertyException e) {
+      String errorMessage =
+          String.format(
+              "Pipeline option '%s' is not supported in this context. It must be "
+                  + "cleared by 'RESET %s'.",
+              e.getPropertyName(), e.getPropertyName());
+
+      if (e.getClosestMatches().size() == 1) {
+        errorMessage +=
             String.format(
-                "You may have SET an unregistered option '%s', which could have failed current "
-                    + "query. You could run 'RESET %s' in Shell to reset the option.",
-                matcher.group(2), matcher.group(2)));
-      } else {
-        throw e;
+                " Did you mean 'SET %s'?", Iterables.getOnlyElement(e.getClosestMatches()));
+      } else if (e.getClosestMatches().size() > 1) {
+        errorMessage += String.format(" Did you mean SET one of %s?", e.getClosestMatches());
       }
+      throw new IllegalArgumentException(errorMessage, e);
     }
 
     options.as(ApplicationNameOptions.class).setAppName("BeamSql");
