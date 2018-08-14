@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import datetime
 import os
 import tempfile
 import urllib
@@ -80,9 +81,14 @@ class CacheManager(object):
 class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
-  def __init__(self, temp_dir=None):
-    self._temp_dir = temp_dir or tempfile.mkdtemp(
-        prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+  def __init__(self, cache_dir=None):
+    if cache_dir:
+      self._cache_dir = filesystems.FileSystems.join(
+          cache_dir,
+          datetime.datetime.now().strftime("cache-%y-%m-%d-%H:%M:%S"))
+    else:
+      self._cache_dir = tempfile.mkdtemp(
+          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
 
   def exists(self, *labels):
@@ -116,14 +122,14 @@ class FileBasedCacheManager(CacheManager):
                                coder=SafeFastPrimitivesCoder())._sink
 
   def cleanup(self):
-    if filesystems.FileSystems.exists(self._temp_dir):
-      filesystems.FileSystems.delete([self._temp_dir])
+    if filesystems.FileSystems.exists(self._cache_dir):
+      filesystems.FileSystems.delete([self._cache_dir])
 
   def _glob_path(self, *labels):
     return self._path(*labels) + '-*-of-*'
 
   def _path(self, *labels):
-    return filesystems.FileSystems.join(self._temp_dir, *labels)
+    return filesystems.FileSystems.join(self._cache_dir, *labels)
 
   def _match(self, *labels):
     match = filesystems.FileSystems.match([self._glob_path(*labels)])
