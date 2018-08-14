@@ -423,7 +423,9 @@ Javadoc to the Javadoc for other modules that Beam depends on.
 
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
-For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.
+For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want. 
+
+*BUT* the final step of rc creation is `Build and stage python wheels`, which need to done manually.
 
 ### Run build_release_candidate.sh to create RC
 * Script: [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
@@ -570,6 +572,14 @@ Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/s
 * Update the Pydoc link on this page to point to the new version (in `src/documentation/sdks/pydoc/current.md`).
 
 Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)
+
+#### Build and stage python wheels
+
+There is a wrapper repo [beam-wheels](https://github.com/apache/beam-wheels) to help build python wheels.
+
+If you are interested in how it works, please refer to the [structure section](https://github.com/apache/beam-wheels#structure).
+
+Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
 
 #### Checklist to proceed to the next step
 
