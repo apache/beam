@@ -56,7 +56,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -146,6 +145,7 @@ public class ProcessBundleDescriptors {
     if (stateEndpoint != null) {
       bundleDescriptorBuilder.setStateApiServiceDescriptor(stateEndpoint);
     }
+
     bundleDescriptorBuilder
         .putAllCoders(components.getCodersMap())
         .putAllEnvironments(components.getEnvironmentsMap())

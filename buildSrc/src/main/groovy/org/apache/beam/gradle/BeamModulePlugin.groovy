@@ -19,9 +19,11 @@
 package org.apache.beam.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import groovy.json.JsonOutput
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.plugins.quality.FindBugs
@@ -191,6 +193,30 @@ class BeamModulePlugin implements Plugin<Project> {
     String root = null // Sets the docker repository root (optional).
     String name = null // Sets the short container image name, such as "go" (required).
     String tag = null // Sets the image tag (optional).
+  }
+
+  // A class defining the configuration for PortableValidatesRunner.
+  class PortableValidatesRunnerConfiguration {
+    // Task name for validate runner case.
+    String name = 'validatesPortableRunner'
+    // Fully qualified JobServerClass name to use.
+    String jobServerDriver
+    // A string representing the jobServer Configuration.
+    String jobServerConfig
+    // Categories for tests to run.
+    Closure testCategories = {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    }
+    // Configuration for the classpath when running the test.
+    Configuration testClasspathConfiguration
   }
 
   def isRelease(Project project) {
@@ -1058,6 +1084,10 @@ artifactId=${project.name}
           testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
         }
 
+        if (runner?.equalsIgnoreCase('flink')) {
+          testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
+        }
+
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
           testCompile it.project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
@@ -1390,6 +1420,39 @@ artifactId=${project.name}
         main = "${config.type}-java-${config.runner}".toLowerCase()
         classpath = project.project(':release').sourceSets.main.runtimeClasspath
         args argsNeeded
+      }
+    }
+
+
+    /** ***********************************************************************************************/
+
+    // Method to create the PortableValidatesRunnerTask.
+    // The method takes PortableValidatesRunnerConfiguration as parameter.
+    project.ext.createPortableValidatesRunnerTask = {
+      /*
+       * We need to rely on manually specifying these evaluationDependsOn to ensure that
+       * the following projects are evaluated before we evaluate this project. This is because
+       * we are attempting to reference the "sourceSets.test.output" directly.
+       */
+      project.evaluationDependsOn(":beam-sdks-java-core")
+      project.evaluationDependsOn(":beam-runners-core-java")
+      def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
+      def name = config.name
+      def beamTestPipelineOptions = [
+        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--jobServerDriver=${config.jobServerDriver}",
+      ]
+      if (config.jobServerConfig) {
+        beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
+      }
+      project.tasks.create(name: name, type: Test) {
+        group = "Verification"
+        description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+        classpath = config.testClasspathConfiguration
+        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+        maxParallelForks 1
+        useJUnit(config.testCategories)
       }
     }
   }

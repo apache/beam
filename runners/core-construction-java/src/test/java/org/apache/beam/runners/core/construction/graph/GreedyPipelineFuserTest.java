@@ -1144,4 +1144,135 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("goTransform")));
   }
+
+  @Test
+  public void sanitizedTransforms() throws Exception {
+
+    PCollection flattenOutput = pc("flatten.out");
+    PCollection read1Output = pc("read1.out");
+    PCollection read2Output = pc("read2.out");
+    PCollection impulse1Output = pc("impulse1.out");
+    PCollection impulse2Output = pc("impulse2.out");
+    PTransform flattenTransform =
+        PTransform.newBuilder()
+            .setUniqueName("Flatten")
+            .putInputs(read1Output.getUniqueName(), read1Output.getUniqueName())
+            .putInputs(read2Output.getUniqueName(), read2Output.getUniqueName())
+            .putOutputs(flattenOutput.getUniqueName(), flattenOutput.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+
+    PTransform read1Transform =
+        PTransform.newBuilder()
+            .setUniqueName("read1")
+            .putInputs(impulse1Output.getUniqueName(), impulse1Output.getUniqueName())
+            .putOutputs(read1Output.getUniqueName(), read1Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform read2Transform =
+        PTransform.newBuilder()
+            .setUniqueName("read2")
+            .putInputs(impulse2Output.getUniqueName(), impulse2Output.getUniqueName())
+            .putOutputs(read2Output.getUniqueName(), read2Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+
+    PTransform impulse1Transform =
+        PTransform.newBuilder()
+            .setUniqueName("impulse1")
+            .putOutputs(impulse1Output.getUniqueName(), impulse1Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform impulse2Transform =
+        PTransform.newBuilder()
+            .setUniqueName("impulse2")
+            .putOutputs(impulse2Output.getUniqueName(), impulse2Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+    Pipeline impulse =
+        Pipeline.newBuilder()
+            .addRootTransformIds(impulse1Transform.getUniqueName())
+            .addRootTransformIds(impulse2Transform.getUniqueName())
+            .addRootTransformIds(flattenTransform.getUniqueName())
+            .setComponents(
+                Components.newBuilder()
+                    .putCoders("coder", Coder.newBuilder().build())
+                    .putCoders("windowCoder", Coder.newBuilder().build())
+                    .putWindowingStrategies(
+                        "ws",
+                        WindowingStrategy.newBuilder().setWindowCoderId("windowCoder").build())
+                    .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+                    .putPcollections(flattenOutput.getUniqueName(), flattenOutput)
+                    .putTransforms(flattenTransform.getUniqueName(), flattenTransform)
+                    .putPcollections(read1Output.getUniqueName(), read1Output)
+                    .putTransforms(read1Transform.getUniqueName(), read1Transform)
+                    .putPcollections(read2Output.getUniqueName(), read2Output)
+                    .putTransforms(read2Transform.getUniqueName(), read2Transform)
+                    .putPcollections(impulse1Output.getUniqueName(), impulse1Output)
+                    .putTransforms(impulse1Transform.getUniqueName(), impulse1Transform)
+                    .putPcollections(impulse2Output.getUniqueName(), impulse2Output)
+                    .putTransforms(impulse2Transform.getUniqueName(), impulse2Transform)
+                    .build())
+            .build();
+    FusedPipeline fused = GreedyPipelineFuser.fuse(impulse);
+
+    assertThat(fused.getRunnerExecutedTransforms(), hasSize(2));
+    assertThat(fused.getFusedStages(), hasSize(2));
+
+    assertThat(
+        fused.getFusedStages(),
+        containsInAnyOrder(
+            ExecutableStageMatcher.withInput(impulse1Output.getUniqueName())
+                .withTransforms(flattenTransform.getUniqueName(), read1Transform.getUniqueName()),
+            ExecutableStageMatcher.withInput(impulse2Output.getUniqueName())
+                .withTransforms(flattenTransform.getUniqueName(), read2Transform.getUniqueName())));
+    assertThat(
+        fused
+            .getFusedStages()
+            .stream()
+            .flatMap(
+                s ->
+                    s.getComponents()
+                        .getTransformsOrThrow(flattenTransform.getUniqueName())
+                        .getInputsMap()
+                        .values()
+                        .stream())
+            .collect(Collectors.toList()),
+        containsInAnyOrder(read1Output.getUniqueName(), read2Output.getUniqueName()));
+  }
 }

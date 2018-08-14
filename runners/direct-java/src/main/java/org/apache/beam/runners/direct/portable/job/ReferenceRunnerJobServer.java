@@ -18,17 +18,34 @@
 package org.apache.beam.runners.direct.portable.job;
 
 import java.io.IOException;
+import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A program that runs a {@link ReferenceRunnerJobService}. */
 public class ReferenceRunnerJobServer {
+  private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobServer.class);
+  private final ServerConfiguration configuration;
+  private GrpcFnServer<ReferenceRunnerJobService> server;
+
+  private ReferenceRunnerJobServer(ServerConfiguration configuration) {
+    this.configuration = configuration;
+  }
 
   public static void main(String[] args) throws Exception {
+    try {
+      runServer(parseConfiguration(args));
+    } catch (CmdLineException ignored) {
+    }
+  }
+
+  private static ServerConfiguration parseConfiguration(String[] args) throws CmdLineException {
     ServerConfiguration configuration = new ServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -36,9 +53,9 @@ public class ReferenceRunnerJobServer {
     } catch (CmdLineException e) {
       e.printStackTrace(System.err);
       printUsage(parser);
-      return;
+      throw e;
     }
-    runServer(configuration);
+    return configuration;
   }
 
   private static void printUsage(CmdLineParser parser) {
@@ -62,6 +79,33 @@ public class ReferenceRunnerJobServer {
       server.getServer().awaitTermination();
     }
     System.out.println("Server shut down, exiting");
+  }
+
+  public static ReferenceRunnerJobServer fromParams(String[] args) {
+    try {
+      return new ReferenceRunnerJobServer(parseConfiguration(args));
+    } catch (CmdLineException e) {
+      throw new IllegalArgumentException(
+          "Unable to parse command line arguments " + Arrays.asList(args), e);
+    }
+  }
+
+  public String start() throws Exception {
+    ServerFactory serverFactory = ServerFactory.createDefault();
+    server =
+        createServer(configuration, serverFactory, ReferenceRunnerJobService.create(serverFactory));
+
+    return server.getApiServiceDescriptor().getUrl();
+  }
+
+  public void stop() {
+    if (server != null) {
+      try {
+        server.close();
+      } catch (Exception e) {
+        LOG.error("Unable to stop job server.", e);
+      }
+    }
   }
 
   private static GrpcFnServer<ReferenceRunnerJobService> createServer(

@@ -80,11 +80,11 @@ class DisplayManager(object):
     self._text_to_print['summary'] = (
         'Using %s cached PCollections\nExecuting %s of %s '
         'transforms.') % (
-            len(caches_used), len(required_transforms) - len(caches_used) - 1,
-            len([
-                t for t in pipeline_proto.components.transforms.values()
-                if not t.subtransforms
-            ]))
+            # TODO(qinyeli): required_transforms includes ReadCache and
+            # WriteCache fix it.
+            len(caches_used), len(required_transforms),
+            len(pipeline_proto.components.transforms[
+                pipeline_proto.root_transform_ids[0]].subtransforms))
     self._text_to_print.update(
         {pcoll_id: "" for pcoll_id in referenced_pcollections})
 
@@ -93,7 +93,7 @@ class DisplayManager(object):
     self._pcollection_stats = {}
     for pcoll_id in pipeline_info.all_pcollections():
       self._pcollection_stats[pcoll_id] = {
-          'cache_label': pipeline_info.derivation(pcoll_id).cache_label(),
+          'cache_label': pipeline_info.cache_label(pcoll_id),
           'version': -1,
           'sample': []
       }
@@ -101,7 +101,8 @@ class DisplayManager(object):
     self._producers = {}
     for _, transform in pipeline_proto.components.transforms.items():
       for pcoll_id in transform.outputs.values():
-        self._producers[pcoll_id] = transform.unique_name
+        if pcoll_id not in self._producers or '/' not in transform.unique_name:
+          self._producers[pcoll_id] = transform.unique_name
 
     # For periodic update.
     self._lock = threading.Lock()

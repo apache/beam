@@ -170,7 +170,7 @@ public class PortableExecutionTest implements Serializable {
             options,
             Collections.EMPTY_LIST);
     jobInvocation.start();
-    long timeout = System.currentTimeMillis() + 30 * 1000;
+    long timeout = System.currentTimeMillis() + 60 * 1000;
     while (jobInvocation.getState() != Enum.DONE && System.currentTimeMillis() < timeout) {
       Thread.sleep(1000);
     }
