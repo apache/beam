@@ -272,10 +272,11 @@ class _DirectWriteToPubSubFn(DoFn):
 
     # TODO(BEAM-4275): Add support for id_label and timestamp_attribute.
     if sink.id_label:
-      raise NotImplementedError('id_label is not supported in Direct Runner')
+      raise NotImplementedError('DirectRunner: id_label is not supported for '
+                                'PubSub writes')
     if sink.timestamp_attribute:
-      raise NotImplementedError('timestamp_attribute is not supported in Direct'
-                                ' Runner')
+      raise NotImplementedError('DirectRunner: timestamp_attribute is not '
+                                'supported for PubSub writes')
 
   def start_bundle(self):
     from google.cloud import pubsub
@@ -423,11 +424,8 @@ class DirectPipelineResult(PipelineResult):
           'result.wait_until_finish() to wait for completion of pipeline '
           'execution.')
 
-  def _is_in_terminal_state(self):
-    return self._state is not PipelineState.RUNNING
-
   def wait_until_finish(self, duration=None):
-    if not self._is_in_terminal_state():
+    if not PipelineState.is_terminal(self.state):
       if duration:
         raise NotImplementedError(
             'DirectRunner does not support duration argument.')
@@ -444,3 +442,13 @@ class DirectPipelineResult(PipelineResult):
 
   def metrics(self):
     return self._evaluation_context.metrics()
+
+  def cancel(self):
+    """Shuts down pipeline workers.
+
+    For testing use only. Does not properly wait for pipeline workers to shut
+    down.
+    """
+    self._state = PipelineState.CANCELLING
+    self._executor.shutdown()
+    self._state = PipelineState.CANCELLED

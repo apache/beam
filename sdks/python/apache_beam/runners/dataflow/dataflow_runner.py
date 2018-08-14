@@ -1072,18 +1072,7 @@ class DataflowPipelineResult(PipelineResult):
   def has_job(self):
     return self._job is not None
 
-  @property
-  def state(self):
-    """Return the current state of the remote job.
-
-    Returns:
-      A PipelineState object.
-    """
-    if not self.has_job:
-      return PipelineState.UNKNOWN
-
-    self._update_job()
-
+  def _get_job_state(self):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     # TODO: Move this table to a another location.
@@ -1105,15 +1094,25 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
+  @property
+  def state(self):
+    """Return the current state of the remote job.
+
+    Returns:
+      A PipelineState object.
+    """
+    if not self.has_job:
+      return PipelineState.UNKNOWN
+
+    self._update_job()
+
+    return self._get_job_state()
+
   def is_in_terminal_state(self):
     if not self.has_job:
       return True
 
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
-    return self._job.currentState in [
-        values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
-        values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
-        values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
+    return PipelineState.is_terminal(self._get_job_state())
 
   def wait_until_finish(self, duration=None):
     if not self.is_in_terminal_state():

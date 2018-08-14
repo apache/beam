@@ -30,9 +30,10 @@
 # Usage check.
 
 if (( $# < 2 )); then
-  printf "Usage: \n$> ./scripts/run_postcommit.sh <test_type> <pipeline_type> [gcp_location] [gcp_project]"
+  printf "Usage: \n$> ./scripts/run_postcommit.sh <test_type> <pipeline_type> <runner_type> [gcp_location] [gcp_project]"
   printf "\n\ttest_type: [required] ValidatesRunner or IT"
   printf "\n\tpipeline_type: [required] streaming or batch"
+  printf "\n\trunner_type: [optional] TestDataflowRunner or TestDirectRunner"
   printf "\n\tgcp_location: [optional] A gs:// path to stage artifacts and output results"
   printf "\n\tgcp_project: [optional] A GCP project to run Dataflow pipelines\n"
   exit 1
@@ -56,13 +57,15 @@ if [[ "*sdks/python" != $PWD ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
 fi
 
-# Where to store integration test outputs.
-GCS_LOCATION=${3:-gs://temp-storage-for-end-to-end-tests}
+RUNNER=${3:-TestDataflowRunner}
 
-PROJECT=${4:-apache-beam-testing}
+# Where to store integration test outputs.
+GCS_LOCATION=${4:-gs://temp-storage-for-end-to-end-tests}
+
+PROJECT=${5:-apache-beam-testing}
 
 # Create a tarball
-python setup.py sdist
+python setup.py -q sdist
 
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
@@ -70,9 +73,10 @@ SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 echo "pyhamcrest" > postcommit_requirements.txt
 echo "mock" >> postcommit_requirements.txt
 
-# Options used to run testing pipeline on Cloud Dataflow Service.
+# Options used to run testing pipeline on Cloud Dataflow Service. Also used for
+# running on DirectRunner (some options ignored).
 PIPELINE_OPTIONS=(
-  "--runner=TestDataflowRunner"
+  "--runner=$RUNNER"
   "--project=$PROJECT"
   "--staging_location=$GCS_LOCATION/staging-it"
   "--temp_location=$GCS_LOCATION/temp-it"
@@ -91,17 +95,23 @@ else
   echo ">>> Set test pipeline to batch"
 fi
 
+TESTS=""
+if [[ "$3" = "TestDirectRunner" ]]; then
+  TESTS="--tests=\
+apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it,\
+apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest"
+fi
 
 ###########################################################################
-# Run tests on the Google Cloud Dataflow service and validate that jobs
-# finish successfully.
+# Run tests and validate that jobs finish successfully.
 
 JOINED_OPTS=$(IFS=" " ; echo "${PIPELINE_OPTIONS[*]}")
 
-echo ">>> RUNNING TEST DATAFLOW RUNNER $1 tests"
+echo ">>> RUNNING $RUNNER $1 tests"
 python setup.py nosetests \
   --attr $1 \
-  --nocapture \
+  --nologcapture \
   --processes=8 \
   --process-timeout=3000 \
-  --test-pipeline-options="$JOINED_OPTS"
+  --test-pipeline-options="$JOINED_OPTS" \
+  $TESTS
