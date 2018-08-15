@@ -147,6 +147,7 @@ rat {
 
     // Ignore ownership files
     "ownership/**/*",
+    "**/OWNERS",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
