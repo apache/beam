@@ -34,19 +34,18 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Rename this to FlinkBatchExecutableStageContext for consistency.
 /** Implementation of a {@link FlinkExecutableStageContext} for batch jobs. */
-class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
-  private static final Logger LOG = LoggerFactory.getLogger(BatchFlinkExecutableStageContext.class);
+class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext {
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkBatchExecutableStageContext.class);
 
   private final JobBundleFactory jobBundleFactory;
 
-  private static BatchFlinkExecutableStageContext create(JobInfo jobInfo) throws Exception {
+  private static FlinkBatchExecutableStageContext create(JobInfo jobInfo) throws Exception {
     JobBundleFactory jobBundleFactory = DockerJobBundleFactory.create(jobInfo);
-    return new BatchFlinkExecutableStageContext(jobBundleFactory);
+    return new FlinkBatchExecutableStageContext(jobBundleFactory);
   }
 
-  private BatchFlinkExecutableStageContext(JobBundleFactory jobBundleFactory) {
+  private FlinkBatchExecutableStageContext(JobBundleFactory jobBundleFactory) {
     this.jobBundleFactory = jobBundleFactory;
   }
 
@@ -77,16 +76,16 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
     INSTANCE;
 
     @SuppressWarnings("Immutable") // observably immutable
-    private final LoadingCache<JobInfo, BatchFlinkExecutableStageContext> cachedContexts;
+    private final LoadingCache<JobInfo, FlinkBatchExecutableStageContext> cachedContexts;
 
     BatchFactory() {
       cachedContexts =
           CacheBuilder.newBuilder()
               .weakValues()
               .build(
-                  new CacheLoader<JobInfo, BatchFlinkExecutableStageContext>() {
+                  new CacheLoader<JobInfo, FlinkBatchExecutableStageContext>() {
                     @Override
-                    public BatchFlinkExecutableStageContext load(JobInfo jobInfo) throws Exception {
+                    public FlinkBatchExecutableStageContext load(JobInfo jobInfo) throws Exception {
                       return create(jobInfo);
                     }
                   });
