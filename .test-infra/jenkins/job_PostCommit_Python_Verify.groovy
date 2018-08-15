@@ -37,4 +37,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python 
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
+
+  // Publish all test results to Jenkins. Note that Nose documentation
+  // specifically mentions that it produces JUnit compatible test results.
+  publishers {
+    archiveJunit('**/nosetests.xml')
+  }
 }
