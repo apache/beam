@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Precommit Test Policies"
+title: "Pre-commit Test Policies"
 permalink: /contribute/precommit-policies/
 section_menu: section-menu/contribute.html
 ---
@@ -18,40 +18,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Precommit test policies
+# Pre-commit test policies
 
 ## Definitions
 
-- Precommit test - Any single test in a precommit test suite.
-- Precommit test suite - A collection of precommit tests that have a common
-denominator. A test suite runs in a single Jenkins job. Currently, suites are
-grouped by SDK languages, e.g., Python, Java, and Go.
+- Pre-commit test - Any single test in a pre-commit test suite.
+- Pre-commit test suite - A collection of pre-commit tests that have a common
+  denominator. A test suite runs in a single Jenkins job. Currently, suites are
+  grouped by SDK languages, e.g., Python, Java, and Go.
 
 ## Policies
 
 ### Pull Requests
 
-- A PR must pass precommit tests before being committed to the main Beam repo.
-  - The relevant precommit test suites are automatically launched according to
+- A PR must pass pre-commit tests before being committed to the main Beam repo.
+  - The relevant pre-commit test suites are automatically launched according to
     PR contents.
 
 ### Problems
 
 #### Breakage
 
-Breakage is when one or more tests in a precommit test suite fails or
+Breakage is when one or more tests in a pre-commit test suite fails or
 is flaky (occasionally fails).
 
 - Breakages should be fixed within 8 hours.
 
 #### Slowness
 
-Slowness is when the total time to run a precommit suite exceeds 30 minutes\*,
+Slowness is when the total time to run a pre-commit suite exceeds 30 minutes\*,
 including the time the job spends in the Jenkins queue.
 
 - Slowness should be fixed within 24 hours.
 
-\* See the [Precommit Slowness Triage
+\* See the [Pre-commit Slowness Triage
 Guide](/contribute/precommit-triage-guide/) for a precise definition of slowness
 and for information on dealing with slowness.
 

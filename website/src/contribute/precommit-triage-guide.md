@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Precommit Slowness Triage Guide"
+title: "Pre-commit Slowness Triage Guide"
 permalink: /contribute/precommit-triage-guide/
 section_menu: section-menu/contribute.html
 ---
@@ -18,49 +18,61 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Precommit Slowness Triage Guide
+# Pre-commit Slowness Triage Guide
 
-Beam precommit jobs are suites of tests run automatically on Jenkins build
+Beam pre-commit jobs are suites of tests run automatically on Jenkins build
 machines for each pull request (PR) submitted to
 [apache/beam](https://github.com/apache/beam). For more information and the
-difference between precommits and postcommits, see
+difference between pre-commits and post-commits, see
 [testing](/contribute/testing/).
 
-## What are fast precommits?
+## What are fast pre-commits?
 
-Precommit tests are required to pass before a pull request (PR) may be merged.
+Pre-commit tests are required to pass before a pull request (PR) is merged.
 When these tests are slow they slow down Beam's development process.
-
-The aim is to have 95% of precommit jobs complete within 30 minutes
+The aim is to have 95% of pre-commit jobs complete within 30 minutes
 (failing or passing).
+
 Technically, the 95th percentile of running time should be below 30 minutes over
 the past 4 weeks, where running time is the duration of time the job spends in
 the Jenkins queue + the actual time it spends running.
 
-## Detemining Slowness
+## Determining Slowness
 
-The current method for determining if precommmits are slow is to look at the
-[Jupyter
-notebook](https://github.com/apache/beam/tree/master/.test-infra/jupyter)
-`precommit_job_times.ipynb`.
+There are two main signs of slowness:
+
+1. Pre-commit jobs are timing out after 30 minutes. This can be determined from
+   the console log of a job.
+1. Pre-commits aren't timing out, but the total wait time for pre-commit results
+   is >30m. This can be determined using a Jupyter notebook.
+
+### Notebook
+
+The Beam repo contains a [Jupyter
+notebook](https://github.com/apache/beam/tree/master/.test-infra/jupyter) named
+`precommit_job_times.ipynb` that can be used to gather and visualize statistics
+about pre-commit running times.
 
 Run the notebook. It should output a table with running times. The numbers in
 the column `totalDurationMinutes_all` and the rows with a `job_name` like `4
 weeks 95th` contain the target numbers for determining slowness.
 If any of these numbers are above 30, triaging is required.
 
-### Example
+#### Example
 Here's an example table of running times:
-![example precommit duration table](/images/precommit_durations.png)
 
-In this example, Go precommits are taking approximately 14 minutes, which is
-fast. Java and Python precommits are taking 78 and 32 minutes respectively,
-which is slow. Both Java and Python precommits require triage.
+![example pre-commit duration table](/images/precommit_durations.png)
+
+(Note that this example was created when pre-commits did not have 30m timeouts.)
+
+In this example, Go pre-commits are taking approximately 14 minutes, which is
+fast. Java and Python pre-commits are taking 78 and 32 minutes respectively,
+which is slow. Both Java and Python pre-commits require triage.
 
 ## Triage Process
 
 1. [Search for existing
-   issues](https://issues.apache.org/jira/issues/?filter=12344461)
+   issues](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20labels%20%3D%20precommit%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)
 1. Create a new issue if needed: [Apache
    JIRA](https://issues.apache.org/jira/issues)
   - Project: Beam
@@ -73,48 +85,48 @@ which is slow. Both Java and Python precommits require triage.
 
 ## Resolution
 
-It is expected that slowness is resolved promptly. See [precommit test
+It is important that we quickly fix slow pre-commit tests. See [pre-commit test
 policies](/contribute/precommit-policies/) for details.
 
 ## Possible Causes and Solutions
 
-This section lists some starting off points for fixing precommit slowness.
+This section lists some starting points for fixing pre-commit slowness.
 
-### Jenkins
+### Resource Exhaustion
 
 Have a look at the graphs in the Jupyter notebook. Does the rise in total
 duration match the rise in queuing time? If so, the slowness might be unrelated
-to this specific precommit job.
+to this specific pre-commit job.
 
 Example of when total and queuing durations rise and fall together (mostly):
-![graph of precommit times](/images/precommit_graph_queuing_time.png)
+![graph of pre-commit times](/images/precommit_graph_queuing_time.png)
 
 Since Jenkins machines are a limited resource, other jobs can
-affect precommit queueing times. Try to figure out if other jobs have been
+affect pre-commit queueing times. Try to figure out if other jobs have been
 recently slower, increased in frequency, or new jobs have been introduced.
 
 Another option is to look at adding more Jenkins machines.
 
 ### Slow individual tests
 
-Sometimes a precommit job is slowed down due to one or more tests. One way of
+Sometimes a pre-commit job is slowed down due to one or more tests. One way of
 determining if this is the case is by looking at individual test timings.
 
 Where to find individual test timings:
 
-- Look at the `Gradle Build Scan` link on the precommit job's Jenkins page. This
-  page will contain individual test timings for Java tests only (2018-08).
-- Look at the `Test Result` link on the precommit job's Jenkins page. This
+- Look at the `Gradle Build Scan` link on the pre-commit job's Jenkins page.
+  This page will contain individual test timings for Java tests only (2018-08).
+- Look at the `Test Result` link on the pre-commit job's Jenkins page. This
   should be available for Java and Python tests (2018-08).
 
 Sometimes tests can be made faster by refactoring. A test that spends a lot of
 time waiting (such as an integration test) could be made to run concurrently with
 the other tests.
 
-If a test is determined to be too slow to be part of precommit tests, it could
-be removed from precommit and placed in postcommit instead (but it should be in
-postcommit already). In addition, ensure that the code covered by the removed
-test is covered by a unit test in precommit.
+If a test is determined to be too slow to be part of pre-commit tests, it should
+be removed from pre-commit and placed in post-commit instead. In addition,
+ensure that the code covered by the removed test is [covered by a unit test in
+pre-commit](/contribute/postcommits-policies-details/#precommit_for_postcommit).
 
 ### Slow integration tests
 
