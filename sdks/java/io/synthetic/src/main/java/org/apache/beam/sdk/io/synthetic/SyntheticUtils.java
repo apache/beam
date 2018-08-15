@@ -18,15 +18,26 @@
 
 package org.apache.beam.sdk.io.synthetic;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 
 /** Utility functions used in {@link org.apache.beam.sdk.io.synthetic}. */
 class SyntheticUtils {
+
+  public static <T extends SyntheticOptions> T optionsFromString(String json, Class<T> type)
+      throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    T result = mapper.readValue(json, type);
+    result.validate();
+    return result;
+  }
+
   // cpu delay implementation:
 
   private static final long MASK = (1L << 16) - 1L;
