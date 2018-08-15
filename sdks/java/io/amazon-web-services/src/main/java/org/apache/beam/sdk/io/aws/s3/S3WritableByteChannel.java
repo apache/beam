@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
+import static com.amazonaws.util.Md5Utils.md5AsBase64;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.hash.Hashing.md5;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -30,6 +32,7 @@ import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.Hasher;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -53,6 +56,7 @@ class S3WritableByteChannel implements WritableByteChannel {
   // AWS S3 parts are 1-indexed, not zero-indexed.
   private int partNumber = 1;
   private boolean open = true;
+  private Hasher hasher;
 
   S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType, S3Options options)
       throws IOException {
@@ -74,6 +78,7 @@ class S3WritableByteChannel implements WritableByteChannel {
         S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
     this.uploadBuffer = ByteBuffer.allocate(options.getS3UploadBufferSizeBytes());
     eTags = new ArrayList<>();
+    hasher = md5().newHasher();
 
     ObjectMetadata objectMetadata = new ObjectMetadata();
     objectMetadata.setContentType(contentType);
@@ -109,6 +114,7 @@ class S3WritableByteChannel implements WritableByteChannel {
       byte[] copyBuffer = new byte[bytesWritten];
       sourceBuffer.get(copyBuffer);
       uploadBuffer.put(copyBuffer);
+      hasher.putBytes(copyBuffer);
 
       if (!uploadBuffer.hasRemaining() || sourceBuffer.hasRemaining()) {
         flush();
@@ -129,6 +135,7 @@ class S3WritableByteChannel implements WritableByteChannel {
             .withUploadId(uploadId)
             .withPartNumber(partNumber++)
             .withPartSize(uploadBuffer.remaining())
+            .withMD5Digest(md5AsBase64(hasher.hash().asBytes()))
             .withInputStream(inputStream);
     request.setSSECustomerKey(options.getSSECustomerKey());
 
@@ -139,6 +146,7 @@ class S3WritableByteChannel implements WritableByteChannel {
       throw new IOException(e);
     }
     uploadBuffer.clear();
+    hasher = md5().newHasher();
     eTags.add(result.getPartETag());
   }
 
