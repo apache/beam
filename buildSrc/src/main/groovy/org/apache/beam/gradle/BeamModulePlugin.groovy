@@ -975,7 +975,7 @@ artifactId=${project.name}
           }
         }
         // Only sign artifacts if we are performing a release
-        if (isRelease(project)) {
+        if (isRelease(project) && !project.hasProperty('noSigning')) {
           project.apply plugin: "signing"
           project.signing {
             useGpgCmd()
