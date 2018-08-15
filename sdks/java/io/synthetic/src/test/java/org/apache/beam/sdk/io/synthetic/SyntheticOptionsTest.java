@@ -18,12 +18,10 @@
 
 package org.apache.beam.sdk.io.synthetic;
 
+import static org.apache.beam.sdk.io.synthetic.SyntheticUtils.optionsFromString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import org.apache.commons.math3.distribution.ExponentialDistribution;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.distribution.UniformRealDistribution;
@@ -38,35 +36,11 @@ import org.junit.runners.JUnit4;
 public class SyntheticOptionsTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
-  public SyntheticOptions fromString(String jsonString) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    SyntheticOptions result = mapper.readValue(jsonString, SyntheticOptions.class);
-    result.validate();
-    return result;
-  }
-
-  @Test
-  public void testFromString() throws Exception {
-    String options =
-        "{\"keySizeBytes\":64,\"valueSizeBytes\":64,"
-            + "\"numHotKeys\":16,\"hotKeyFraction\":0.25,\"seed\":12345,"
-            + "\"delayDistribution\":{\"type\":\"const\",\"const\":10}}";
-    SyntheticOptions syntheticOptions = fromString(options);
-
-    assertEquals(64, syntheticOptions.keySizeBytes);
-    assertEquals(64, syntheticOptions.valueSizeBytes);
-    assertEquals(16, syntheticOptions.numHotKeys);
-    assertEquals(0.25, syntheticOptions.hotKeyFraction, 0);
-    assertEquals(10, syntheticOptions.nextDelay(syntheticOptions.seed));
-    assertEquals(12345, syntheticOptions.seed);
-    assertNotNull(syntheticOptions.hashFunction());
-  }
-
   @Test
   public void testInvalidDelayDistribution() throws Exception {
     thrown.expect(JsonMappingException.class);
     String syntheticOptions = "{\"delayDistribution\":\"0\"}";
-    fromString(syntheticOptions);
+    optionsFromString(syntheticOptions, SyntheticOptions.class);
   }
 
   @Test
@@ -74,7 +48,7 @@ public class SyntheticOptionsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("keySizeBytes should be a positive number, but found -64");
     String options = "{\"keySizeBytes\":-64}";
-    fromString(options);
+    optionsFromString(options, SyntheticOptions.class);
   }
 
   @Test
@@ -82,7 +56,7 @@ public class SyntheticOptionsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("hotKeyFraction should be a non-negative number, but found -0.25");
     String options = "{\"hotKeyFraction\":-0.25}";
-    fromString(options);
+    optionsFromString(options, SyntheticOptions.class);
   }
 
   @Test
@@ -92,7 +66,7 @@ public class SyntheticOptionsTest {
         "lower bound of uniform distribution should be a non-negative number, but found -100.0");
     String syntheticOptions =
         "{\"delayDistribution\":{\"type\":\"uniform\",\"lower\":-100,\"upper\":200}}";
-    fromString(syntheticOptions);
+    optionsFromString(syntheticOptions, SyntheticOptions.class);
   }
 
   @Test
@@ -100,7 +74,7 @@ public class SyntheticOptionsTest {
     String syntheticOptions =
         "{\"seed\":12345,"
             + "\"delayDistribution\":{\"type\":\"uniform\",\"lower\":0,\"upper\":100}}";
-    SyntheticOptions sourceOptions = fromString(syntheticOptions);
+    SyntheticOptions sourceOptions = optionsFromString(syntheticOptions, SyntheticOptions.class);
     assertEquals(
         0,
         (long)
@@ -118,7 +92,7 @@ public class SyntheticOptionsTest {
     String syntheticOptions =
         "{\"seed\":12345,"
             + "\"delayDistribution\":{\"type\":\"normal\",\"mean\":100,\"stddev\":50}}";
-    SyntheticOptions sourceOptions = fromString(syntheticOptions);
+    SyntheticOptions sourceOptions = optionsFromString(syntheticOptions, SyntheticOptions.class);
     assertEquals(
         100,
         (long)
@@ -134,7 +108,7 @@ public class SyntheticOptionsTest {
   public void testRealDistributionDeserializerWithExpDistribution() throws Exception {
     String syntheticOptions =
         "{\"seed\":12345," + "\"delayDistribution\":{\"type\":\"exp\",\"mean\":10}}";
-    SyntheticOptions sourceOptions = fromString(syntheticOptions);
+    SyntheticOptions sourceOptions = optionsFromString(syntheticOptions, SyntheticOptions.class);
     assertEquals(
         10,
         (long)
