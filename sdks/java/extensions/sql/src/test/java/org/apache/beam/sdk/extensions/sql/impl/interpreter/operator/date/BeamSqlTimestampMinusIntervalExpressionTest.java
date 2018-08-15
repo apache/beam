@@ -66,7 +66,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.INTERVAL_DAY_MINUTE, TIMESTAMP, INTERVAL_3_MONTHS);
 
-    assertEquals(SqlTypeName.TIMESTAMP, minusExpression.getOutputType());
+    assertEquals(SqlTypeName.INTERVAL_DAY_MINUTE, minusExpression.getOutputType());
     assertEquals(Arrays.asList(TIMESTAMP, INTERVAL_3_MONTHS), minusExpression.getOperands());
   }
 
@@ -92,6 +92,19 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC, INTERVAL_3_MONTHS);
 
     assertFalse(minusExpression.accept());
+  }
+
+  @Test
+  public void testDoesNotAcceptWrongOutputType() {
+    Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
+    unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
+
+    for (SqlTypeName unsupportedType : unsupportedTypes) {
+      BeamSqlTimestampMinusIntervalExpression minusExpression =
+          minusExpression(unsupportedType, TIMESTAMP, INTERVAL_2_SEC);
+
+      assertFalse(minusExpression.accept());
+    }
   }
 
   @Test
