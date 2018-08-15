@@ -51,7 +51,8 @@ class FileBasedCacheManagerTest(unittest.TestCase):
 
   def mock_write_cache(self, pcoll_list, prefix, cache_label):
     """Cache the PCollection where cache.WriteCache would write to."""
-    cache_path = filesystems.FileSystems.join(self.test_dir, prefix)
+    cache_path = filesystems.FileSystems.join(
+        self.cache_manager._cache_dir, prefix)
     if not filesystems.FileSystems.exists(cache_path):
       filesystems.FileSystems.mkdirs(cache_path)
 
