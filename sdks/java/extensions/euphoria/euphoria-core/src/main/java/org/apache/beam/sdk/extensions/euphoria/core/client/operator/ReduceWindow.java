@@ -154,59 +154,31 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     // implement this operator via `ReduceByKey`
     final ReduceByKey rbk;
     final DAG<Operator<?, ?>> dag = DAG.empty();
-    if (windowing != null) {
-      rbk =
-          new ReduceByKey<InputT, Byte, V, OutputT, W>(
-              getName() + "::ReduceByKey",
-              getFlow(),
-              input,
-              getKeyExtractor(),
-              getKeyType(),
-              valueExtractor,
-              valueType,
-              windowing,
-              euphoriaWindowing,
-              reducer,
-              valueComparator,
-              getHints(),
-              TypeUtils.keyValues(getKeyType(), outputType));
-      dag.add(rbk);
-    } else {
-      // otherwise we use attached windowing, therefore
-      // we already know the window lables and can do group-by these
-      // labels to increase parallelism
-      FlatMap<InputT, KV<Window<?>, InputT>> map =
-          new FlatMap<>(
-              getName() + "::window-to-key",
-              getFlow(),
-              input,
-              (InputT in, Collector<KV<Window<?>, InputT>> c) -> {
-                c.collect(KV.of(c.getWindow(), in));
-              },
-              null,
-              null);
-      rbk =
-          new ReduceByKey<KV<Window<?>, InputT>, Window<?>, V, OutputT, W>(
-              getName() + "::ReduceByKey::attached",
-              getFlow(),
-              map.output(),
-              (KV<Window<?>, InputT> p) -> p.getKey(),
-              null,
-              p -> valueExtractor.apply(p.getValue()),
-              valueType,
-              null,
-              null,
-              reducer,
-              valueComparator,
-              getHints(),
-              null);
-      dag.add(map);
-      dag.add(rbk);
-    }
+
+    rbk =
+        new ReduceByKey<InputT, Byte, V, OutputT, W>(
+            getName() + "::ReduceByKey",
+            getFlow(),
+            input,
+            getKeyExtractor(),
+            getKeyType(),
+            valueExtractor,
+            valueType,
+            windowing,
+            euphoriaWindowing,
+            reducer,
+            valueComparator,
+            getHints(),
+            TypeUtils.keyValues(getKeyType(), outputType));
+    dag.add(rbk);
 
     MapElements<KV<Object, OutputT>, OutputT> format =
         new MapElements<KV<Object, OutputT>, OutputT>(
-            getName() + "::MapElements", getFlow(), (Dataset) rbk.output(), KV::getValue, null);
+            getName() + "::MapElements",
+            getFlow(),
+            (Dataset) rbk.output(),
+            KV::getValue,
+            outputType);
 
     dag.add(format);
     return dag;
