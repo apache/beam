@@ -29,6 +29,8 @@ import os
 import shutil
 import tempfile
 import time
+import sys
+from cStringIO import StringIO
 from builtins import object
 
 from mock import Mock
@@ -179,3 +181,12 @@ def _cleanup_pubsub(components):
     else:
       logging.debug('Cannot delete topic/subscription. %s does not exist.',
                     c.full_name)
+
+# Use it to disable SDTERR
+class BlockStderr(object):
+  def __enter__(self):
+    old_stdeer = sys.stderr
+    sys.stderr = mystderr = StringIO()
+    
+  def __exit__(self, *args, **kargs): 
+    sys.stderr = sys.__stderr__

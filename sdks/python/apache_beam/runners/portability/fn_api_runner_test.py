@@ -24,6 +24,8 @@ import tempfile
 import time
 import traceback
 import unittest
+import sys
+from cStringIO import StringIO
 from builtins import range
 
 import apache_beam as beam
@@ -36,6 +38,7 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
+from apache_beam.testing.test_utils import BlockStderr 
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -273,42 +276,47 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
   def test_error_message_includes_stage(self):
-    with self.assertRaises(BaseException) as e_cm:
-      with self.create_pipeline() as p:
-        def raise_error(x):
-          raise RuntimeError('x')
-        # pylint: disable=expression-not-assigned
-        (p
-         | beam.Create(['a', 'b'])
-         | 'StageA' >> beam.Map(lambda x: x)
-         | 'StageB' >> beam.Map(lambda x: x)
-         | 'StageC' >> beam.Map(raise_error)
-         | 'StageD' >> beam.Map(lambda x: x))
-    self.assertIn('StageC', e_cm.exception.args[0])
-    self.assertNotIn('StageB', e_cm.exception.args[0])
+    # disable STDERR
+    with BlockStderr() as b:
+      
+      with self.assertRaises(BaseException) as e_cm:
+        with self.create_pipeline() as p:
+          def raise_error(x):
+              raise RuntimeError('x')
+          # pylint: disable=expression-not-assigned
+          (p
+          | beam.Create(['a', 'b'])
+          | 'StageA' >> beam.Map(lambda x: x)
+          | 'StageB' >> beam.Map(lambda x: x)
+          | 'StageC' >> beam.Map(raise_error)
+          | 'StageD' >> beam.Map(lambda x: x))
+      self.assertIn('StageC', e_cm.exception.args[0])
+      self.assertNotIn('StageB', e_cm.exception.args[0])
 
   def test_error_traceback_includes_user_code(self):
+    # disable STDERR
+    with BlockStderr() as b:
 
-    def first(x):
-      return second(x)
+      def first(x):
+        return second(x)
 
-    def second(x):
-      return third(x)
+      def second(x):
+        return third(x)
 
-    def third(x):
-      raise ValueError('x')
+      def third(x):
+          raise ValueError('x')
 
-    try:
-      with self.create_pipeline() as p:
-        p | beam.Create([0]) | beam.Map(first)  # pylint: disable=expression-not-assigned
-    except Exception:  # pylint: disable=broad-except
-      message = traceback.format_exc()
-    else:
-      raise AssertionError('expected exception not raised')
-
-    self.assertIn('first', message)
-    self.assertIn('second', message)
-    self.assertIn('third', message)
+      try:
+        with self.create_pipeline() as p:
+          p | beam.Create([0]) | beam.Map(first)  # pylint: disable=expression-not-assigned
+      except Exception:  # pylint: disable=broad-except
+        message = traceback.format_exc()
+      else:
+        raise AssertionError('expected exception not raised')
+      
+      self.assertIn('first', message)
+      self.assertIn('second', message)
+      self.assertIn('third', message)
 
   def test_no_subtransform_composite(self):
 
