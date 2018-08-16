@@ -1,0 +1,62 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Output Format"
+ext.summary = "IO to write data to sinks that implement Hadoop Output Format."
+
+def log4j_version = "2.6.2"
+def elastic_search_version = "5.0.0"
+// Migrate to using a version of the driver compatible with Guava 20
+def cassandra_driver = "3.2.0"
+
+// Ban dependencies from the test runtime classpath
+configurations.testRuntimeClasspath {
+  // Ban hive-exec and mesos since they bundle protobuf without repackaging
+  exclude group: "org.apache.hive", module: "hive-exec"
+  exclude group: "org.apache.mesos", module: "mesos"
+  // Prevent a StackOverflow because of wiring LOG4J -> SLF4J -> LOG4J
+  exclude group: "org.slf4j", module: "log4j-over-slf4j"
+}
+
+dependencies {
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  compile library.java.guava
+  shadow library.java.slf4j_api
+  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
+  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-hadoop-input-format", configuration: "shadowTest")
+  testCompile library.java.postgres
+  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  shadow library.java.commons_io_2x
+}
+
