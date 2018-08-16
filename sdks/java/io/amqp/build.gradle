@@ -26,7 +26,7 @@ dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
-  shadow "org.apache.qpid:proton-j:0.13.1"
+  shadow "org.apache.qpid:proton-j:0.28.0"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
