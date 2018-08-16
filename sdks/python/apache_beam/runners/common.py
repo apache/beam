@@ -31,7 +31,7 @@ from builtins import object
 from builtins import zip
 
 from future.utils import raise_
-from past.builtins import unicode
+from past.builtins import basestring
 
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -672,12 +672,14 @@ class _OutputProcessor(OutputProcessor):
 
     output_element_count = 0
     for result in results:
+      if not isinstance(result.value,list):
+        raise TypeError("This is not a list")
       # results here may be a generator, which cannot call len on it.
       output_element_count += 1
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, (str, unicode)):
+        if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -724,7 +726,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, (str, unicode)):
+        if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 
