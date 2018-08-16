@@ -70,7 +70,7 @@ import org.junit.Test;
 
 /**
  * Contains all the examples from documentation page. Not all of them contains asserts, some do, but
- * thee rest is often here just to confirm that they compile. Once something break or changes, the
+ * the rest is often here just to confirm that they compile. Once something break or changes, the
  * documentation needs to change too.
  */
 public class DocumentationExamplesTest {
@@ -639,7 +639,7 @@ public class DocumentationExamplesTest {
   }
 
   /**
-   * Note that this one is not mentioned in documentation since due to hih number of RBK examples
+   * Note that this one is not mentioned in documentation due to high number of RBK examples
    * and rather lower explanation value. Please consider to include it in future
    */
   @Test
