@@ -178,9 +178,9 @@ public class DocumentationExamplesTest {
         FlatMap.named("FlatMap1")
             .of(dataset)
             .using(
-                (String s, Collector<String> c) -> {
-                  c.getCounter("my-counter").increment();
-                  c.collect(s);
+                (String value, Collector<String> context) -> {
+                  context.getCounter("my-counter").increment();
+                  context.collect(value);
                 })
             .output();
 
@@ -188,11 +188,11 @@ public class DocumentationExamplesTest {
         MapElements.named("MapThem")
             .of(dataset)
             .using(
-                (input, context) -> {
+                (value, context) -> {
                   // use simple counter
                   context.getCounter("my-counter").increment();
 
-                  return input.toLowerCase();
+                  return value.toLowerCase();
                 })
             .output();
   }
