@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
+
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -55,7 +57,7 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
   }
 
   static boolean accept(List<BeamSqlExpression> operands, SqlTypeName intervalType) {
-    return TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(intervalType)
+    return INTERVALS_DURATIONS_TYPES.containsKey(intervalType)
         && operands.size() == 2
         && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
         && SqlTypeName.TIMESTAMP.equals(operands.get(1).getOutputType());
@@ -88,11 +90,11 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
   }
 
   private static DurationFieldType durationFieldType(SqlTypeName intervalTypeToCount) {
-    if (!TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(intervalTypeToCount)) {
+    if (!INTERVALS_DURATIONS_TYPES.containsKey(intervalTypeToCount)) {
       throw new IllegalArgumentException(
           "Counting " + intervalTypeToCount.getName() + "s between dates is not supported");
     }
 
-    return TimeUnitUtils.INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);
+    return INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);
   }
 }
