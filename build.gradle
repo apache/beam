@@ -110,6 +110,10 @@ if (isCIBuild) {
 apply plugin: "org.nosphere.apache.rat"
 
 rat {
+  // Set input directory to that of the root project instead of the CWD. This
+  // makes .gitignore rules (added below) work properly.
+  inputDir = project.rootDir
+
   def exclusions = [
     // Ignore files we track but do not distribute
     ".github/**/*",
