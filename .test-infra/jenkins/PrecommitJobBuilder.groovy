@@ -98,6 +98,11 @@ class PrecommitJobBuilder {
       'master',
       timeoutMins,
       allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
+      wrappers {
+        buildInDocker {
+          dockerfile('src/.test-infra/jenkins/', 'Dockerfile')
+        }
+      }
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
