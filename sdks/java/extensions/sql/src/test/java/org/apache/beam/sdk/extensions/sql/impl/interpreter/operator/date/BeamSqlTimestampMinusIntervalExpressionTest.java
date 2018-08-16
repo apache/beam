@@ -37,7 +37,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -68,7 +67,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.INTERVAL_DAY_MINUTE, TIMESTAMP, INTERVAL_3_MONTHS);
 
-    assertEquals(SqlTypeName.TIMESTAMP, minusExpression.getOutputType());
+    assertEquals(SqlTypeName.INTERVAL_DAY_MINUTE, minusExpression.getOutputType());
     assertEquals(Arrays.asList(TIMESTAMP, INTERVAL_3_MONTHS), minusExpression.getOperands());
   }
 
@@ -96,7 +95,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     assertFalse(minusExpression.accept());
   }
 
-  @Ignore
+  @Test
   public void testDoesNotAcceptWrongOutputType() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
@@ -109,7 +108,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     }
   }
 
-  @Ignore
+  @Test
   public void testDoesNotAcceptWrongFirstOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
