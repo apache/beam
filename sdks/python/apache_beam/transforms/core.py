@@ -1358,6 +1358,10 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
   def to_runner_api_parameter(self, context):
+    # Note: Although this conditional seems identical to the one below it
+    # (if self.args or self.kwargs), there are cases where that condition
+    # triggers when there are no side inputs, so both of these conditionals
+    # are necessary.
     if self.side_inputs:
       args, kwargs = util.insert_values_in_args(self.args, self.kwargs,
                                                 self.side_inputs)
