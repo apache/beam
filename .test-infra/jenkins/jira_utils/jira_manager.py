@@ -47,6 +47,7 @@ class JiraManager:
       dep_latest_version,
       sdk_type: Java, Python
       group_id (optional): only required for Java dependencies
+    Return: Jira Issue
     """
     logging.info("Start handling the JIRA issues for {0} dependency: {1} {2}".format(
         sdk_type, dep_name, dep_latest_version))
@@ -100,6 +101,7 @@ class JiraManager:
       elif issue.fields.status.name == 'Open' or issue.fields.status.name == 'Reopened':
         self._append_descriptions(issue, dep_name, dep_latest_version)
         logging.info('Updated the existing issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
+      return issue
     except:
       raise
 
