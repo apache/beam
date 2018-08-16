@@ -83,7 +83,7 @@ public class DocumentationExamplesTest {
           "Quisque ipsum fermentum nisl at libero accumsan consectetur.",
           "Praesent lobortis ex eget ex rhoncus, quis malesuada risus tristique.",
           "Aliquam risus at orci, porttitor eu turpis et, porttitor semper ligula.");
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Ignore("We do not want to actually write output files from this test.")
   @Test
