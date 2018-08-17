@@ -173,6 +173,9 @@ dependencies {
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)
   miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
+  //LYFT CUSTOM
+  compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
+  compile "com.lyft:streamingplatform-kinesis:1.4-SNAPSHOT"
 }
 
 class ValidatesRunnerConfig {
