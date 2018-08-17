@@ -329,4 +329,40 @@ SqlSetOptionBeam SqlSetOptionBeam(Span s, String scope) :
     )
 }
 
+
+SqlRegisterExternalSchema SqlRegisterExternalSchema() :
+{
+    final Span s = Span.of();
+    SqlIdentifier name;
+    final SqlNode type;
+    SqlNode location = null;
+    SqlNode properties = null;
+}
+{
+    <REGISTER> <EXTERNAL> <SCHEMA> {
+        s.add(this);
+    }
+
+    name = CompoundIdentifier()
+
+    <TYPE>
+    (
+        type = StringLiteral()
+    |
+        type = SimpleIdentifier()
+    )
+    [ <LOCATION> location = StringLiteral() ]
+    [ <PROPERTIES> properties = StringLiteral() ]
+
+    {
+        return new SqlRegisterExternalSchema(
+            s.end(this),
+            name,
+            type,
+            location,
+            properties
+        );
+    }
+}
+
 // End parserImpls.ftl

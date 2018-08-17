@@ -149,7 +149,7 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
   private Table toTable() {
     return Table.builder()
         .type(SqlDdlNodes.getString(type))
-        .name(name.getSimple())
+        .name(name.names.get(name.names.size() - 1))
         .schema(columnList.stream().collect(toSchema()))
         .comment(SqlDdlNodes.getString(comment))
         .location(SqlDdlNodes.getString(location))

@@ -27,6 +27,7 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlRegisterExternalSchema"
         "org.apache.beam.sdk.schemas.Schema"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.calcite.sql.type.SqlTypeName"
@@ -38,6 +39,8 @@ data: {
         "IF"
         "LOCATION"
         "TBLPROPERTIES"
+        "REGISTER"
+        "PROPERTIES"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
@@ -46,6 +49,8 @@ data: {
         "IF"
         "LOCATION"
         "TBLPROPERTIES"
+        "REGISTER"
+        "PROPERTIES"
       ]
 
       # List of additional join types. Each is a method with no arguments.
@@ -56,6 +61,7 @@ data: {
       # List of methods for parsing custom SQL statements.
       statementParserMethods: [
         "SqlSetOptionBeam(Span.of(), null)"
+        "SqlRegisterExternalSchema()"
       ]
 
       # List of methods for parsing custom literals.

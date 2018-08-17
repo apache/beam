@@ -18,20 +18,26 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.calcite.schema.SchemaPlus;
+import org.apache.commons.compress.utils.Sets;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlParserImpl}. */
@@ -166,6 +172,27 @@ public class BeamDDLTest {
 
     env.executeDdl("drop table person");
     assertNull(tableProvider.getTables().get("person"));
+  }
+
+  @Test
+  public void testRegisterSchema() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+
+    assertEquals("beam", connection.getSchema());
+    assertEquals(
+        Sets.newHashSet("beam", "metadata"), connection.getRootSchema().getSubSchemaNames());
+
+    connection.createStatement().execute("register external schema newSchema type test");
+    assertThat(
+        connection.getRootSchema().getSubSchema("beam").getSubSchemaNames(), contains("newSchema"));
+    SchemaPlus beamSchema = connection.getRootSchema().getSubSchema("beam");
+    SchemaPlus newSchema = beamSchema.getSubSchema("newSchema");
+
+    connection
+        .createStatement()
+        .execute("create table beam.newSchema.someTable (field1 int) type test");
+    assertThat(newSchema.getTableNames(), contains("someTable"));
   }
 
   private static Table mockTable(String name, String type, String comment, JSONObject properties) {
