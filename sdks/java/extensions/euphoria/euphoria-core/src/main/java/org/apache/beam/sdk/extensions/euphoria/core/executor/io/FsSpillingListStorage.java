@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -38,11 +39,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListSt
  * @param <T> the type of elements stored in this list storage
  */
 @Audience(Audience.Type.EXECUTOR)
+@SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
 public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterable<T> {
 
   private final SerializerFactory serializerFactory;
   private final SpillFileFactory spillFileFactory;
-  private final int maxElemsInMemory;
+  private final int maxElementsInMemory;
 
   // ~ new elements are appended to this list and eventually this list
   // will be spilled to disk. therefore, this list contains the lastly
@@ -57,17 +59,17 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
   public FsSpillingListStorage(
       SerializerFactory serializerFactory,
       SpillFileFactory spillFileFactory,
-      int maxElemsInMemory) {
+      int maxElementsInMemory) {
 
     this.serializerFactory = Objects.requireNonNull(serializerFactory);
     this.spillFileFactory = Objects.requireNonNull(spillFileFactory);
-    this.maxElemsInMemory = maxElemsInMemory;
+    this.maxElementsInMemory = maxElementsInMemory;
   }
 
   @Override
   public void add(T element) {
     elems.add(element);
-    if (elems.size() > maxElemsInMemory) {
+    if (elems.size() > maxElementsInMemory) {
       spillElems();
     }
   }
