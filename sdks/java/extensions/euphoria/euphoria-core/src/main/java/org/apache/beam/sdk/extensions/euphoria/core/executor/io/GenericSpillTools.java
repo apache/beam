@@ -97,7 +97,9 @@ public class GenericSpillTools implements SpillTools {
                 + " settings");
       }
     } else {
-      tmpDir.mkdirs();
+      if (!tmpDir.mkdirs()) {
+        throw new IllegalStateException("Unable to create '" + tmpDir + "' directory.");
+      }
     }
     return () ->
         new File(tmpDir, String.format("euphoria-spill-%s.bin", UUID.randomUUID().toString()));

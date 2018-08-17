@@ -29,7 +29,7 @@ public class Operators {
    * implementation.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static final Set<Class<? extends Operator<?, ?>>> BASIC_OPS =
+  static final Set<Class<? extends Operator<?, ?>>> BASIC_OPS =
       (Set) Sets.newHashSet(FlatMap.class, ReduceStateByKey.class, Union.class);
 
   /**

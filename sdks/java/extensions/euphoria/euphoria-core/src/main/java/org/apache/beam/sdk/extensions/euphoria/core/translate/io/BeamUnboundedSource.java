@@ -219,7 +219,7 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      return Collections.singletonList(offsetTCoder);
     }
 
     @Override

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +41,10 @@ public class ListDataSink<T> implements DataSink<T> {
       Collections.synchronizedMap(new WeakHashMap<>());
 
   private final int sinkId = System.identityHashCode(this);
+
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
+
   @Nullable private Consumer<Dataset<T>> prepareDataset = null;
 
   @SuppressWarnings("unchecked")

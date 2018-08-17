@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +47,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class BeamFlow extends Flow {
 
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
+
   private final transient TranslationContext context;
   private final transient Pipeline pipeline;
   private Duration allowedLateness = Duration.ZERO;
