@@ -44,6 +44,7 @@ type ScopedDataManager struct {
 	mu     sync.Mutex
 }
 
+// NewScopedDataManager returns a ScopedDataManager for the given instruction.
 func NewScopedDataManager(mgr *DataChannelManager, instID string) *ScopedDataManager {
 	return &ScopedDataManager{mgr: mgr, instID: instID}
 }

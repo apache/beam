@@ -426,7 +426,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 
 		case graphx.URNIterableSideInputKey:
-			u = &FixedKey{UID: b.idgen.New(), Key: []byte(IterableSideInputKey), Out: out[0]}
+			u = &FixedKey{UID: b.idgen.New(), Key: []byte(iterableSideInputKey), Out: out[0]}
 
 		case graphx.URNInject:
 			c, _, err := b.makeCoderForPCollection(from)
