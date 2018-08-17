@@ -33,8 +33,8 @@ import org.apache.beam.sdk.values.TypeParameter;
 /**
  * Beam {@link StructuredCoder} for euphoria {@link Pair}.
  *
- * @param <K>
- * @param <V>
+ * @param <K> type of key
+ * @param <V> type of value
  */
 public class PairCoder<K, V> extends StructuredCoder<Pair<K, V>> {
 

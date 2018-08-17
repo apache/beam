@@ -22,8 +22,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 
 /**
- * @param <T>
- * @param <W>
+ * @param <T> type of element
+ * @param <W> type of window
  */
 @Audience(Audience.Type.CLIENT)
 public interface MergingWindowing<T, W extends Window<W>> extends Windowing<T, W> {

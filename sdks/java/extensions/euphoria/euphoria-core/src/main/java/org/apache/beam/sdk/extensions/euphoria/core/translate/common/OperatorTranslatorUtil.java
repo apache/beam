@@ -27,7 +27,18 @@ import org.apache.beam.sdk.values.PCollection;
 /** Shared utility methods among operator translators. */
 public class OperatorTranslatorUtil {
 
-  /** Transform input to KV elements. */
+  /**
+   * Transform input to KV elements.
+   *
+   * @param inputPCollection input PCollection
+   * @param keyExtractor key extractor
+   * @param keyCoder key coder
+   * @param valueCoder value coder
+   * @param transformName name of the transorm
+   * @param <K> type of key
+   * @param <ValueT> type of value
+   * @return keyed PCollection
+   */
   public static <K, ValueT> PCollection<KV<K, ValueT>> getKVInputCollection(
       PCollection<ValueT> inputPCollection,
       UnaryFunction<ValueT, K> keyExtractor,
