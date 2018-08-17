@@ -156,7 +156,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
    * Translation of {@link Collector} collect to Beam's context output. OperatorName serve as
    * namespace for Beam's metrics.
    */
-  private static class Collector<K, V, OutT>
+  static class Collector<K, V, OutT>
       implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> {
 
     private final String operatorName;

@@ -63,7 +63,12 @@ public class FullJoin {
     return new OfBuilder("FullJoin").of(left, right);
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Optional setter to give operator name.
+   *
+   * @param name of the operator
+   * @return OfBuilder
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }

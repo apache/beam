@@ -71,6 +71,7 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
    * outputs.
    *
    * @param input an input associated with this operator
+   * @param outputHints hints for output dataset
    * @return a newly created dataset associated with this operator as its output
    */
   protected final Dataset<OutputT> createOutput(
