@@ -60,6 +60,28 @@ class Repositories {
         url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
+
+      //LYFT CUSTOM pull in the central repo override from settings, if any
+      def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+      if (settingsXml.exists()) {
+        def serverId = "lyft-releases"
+        def repo = new XmlSlurper().parse(settingsXml).'**'.find { n -> n.name() == 'repository' && serverId.equals(n.id.text()) }
+        if (repo) {
+          def GroovyShell shell = new GroovyShell(new Binding([env:System.getenv()]))
+          maven {
+            url shell.evaluate('"' + repo.url.text() +'"')
+            name repo.id.text()
+            def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
+            if (m2SettingCreds) {
+              credentials {
+                username shell.evaluate('"' + m2SettingCreds.username.text() + '"')
+                password shell.evaluate('"' + m2SettingCreds.password.text() + '"')
+              }
+            }
+          }
+        }
+      }
+
     }
 
     // plugin to support repository authentication via ~/.m2/settings.xml

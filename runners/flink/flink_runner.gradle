@@ -176,6 +176,9 @@ dependencies {
   compile library.java.jackson_databind
   compile "org.apache.flink:flink-annotations:$flink_version"
   compile "org.apache.flink:flink-optimizer_2.11:$flink_version"
+  //LYFT CUSTOM
+  compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
+  compile "com.lyft:streamingplatform-kinesis:1.4-SNAPSHOT"
 }
 
 class ValidatesRunnerConfig {
