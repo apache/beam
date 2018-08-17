@@ -40,6 +40,7 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.test_utils import BlockStderr 
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
@@ -166,17 +167,20 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def test_error_message_includes_stage(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
-    with self.assertRaises(Exception):
-      with self.create_pipeline() as p:
-        def raise_error(x):
-          raise RuntimeError('x')
-        # pylint: disable=expression-not-assigned
-        (p
-         | beam.Create(['a', 'b'])
-         | 'StageA' >> beam.Map(lambda x: x)
-         | 'StageB' >> beam.Map(lambda x: x)
-         | 'StageC' >> beam.Map(raise_error)
-         | 'StageD' >> beam.Map(lambda x: x))
+
+     # disable STDERR
+    with BlockStderr() as b:
+      with self.assertRaises(Exception):
+        with self.create_pipeline() as p:
+          def raise_error(x):
+            raise RuntimeError('x')
+          # pylint: disable=expression-not-assigned
+          (p
+          | beam.Create(['a', 'b'])
+          | 'StageA' >> beam.Map(lambda x: x)
+          | 'StageB' >> beam.Map(lambda x: x)
+          | 'StageC' >> beam.Map(raise_error)
+          | 'StageD' >> beam.Map(lambda x: x))
 
   def test_error_traceback_includes_user_code(self):
     # TODO: figure out a way for runner to parse and raise the
