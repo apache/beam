@@ -42,6 +42,9 @@ interface OperatorTranslator<OperatorT extends Operator> {
    *
    * <p>This method allow us to have more {@link OperatorTranslator} implementations for one {@link
    * Operator} in case when some specialized translators are needed.
+   *
+   * @param operator operator to check
+   * @return true if operator can be translated
    */
   default boolean canTranslate(OperatorT operator) {
     return true;

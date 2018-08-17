@@ -106,6 +106,7 @@ public class BeamFlow extends Flow {
    * PCollection#isFinishedSpecifying() finished specifying}.
    *
    * @param pCollection the input {@link PCollection} to wrap into new flow
+   * @param <T> type of {@link PCollection} element
    * @return constructed flow
    */
   public static <T> BeamFlow of(PCollection<T> pCollection) {
@@ -118,6 +119,7 @@ public class BeamFlow extends Flow {
    *
    * @param name name of the flow
    * @param pCollection the input {@link PCollection} to wrap into new flow
+   * @param <T> type of {@link PCollection} element
    * @return constructed flow
    */
   public static <T> BeamFlow of(String name, PCollection<T> pCollection) {

@@ -59,9 +59,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class LeftJoin {
 
   /**
+   * Create builder.
+   *
    * @param left dataset
    * @param right dataset
    * @param <LeftT> type of left dataset
+   * @param <RightT> type of right dataset
+   * @return ByBuilder
    */
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {

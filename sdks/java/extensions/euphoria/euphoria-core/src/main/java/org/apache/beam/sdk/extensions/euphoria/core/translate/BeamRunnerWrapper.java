@@ -65,7 +65,12 @@ public class BeamRunnerWrapper {
     return new BeamRunnerWrapper(options).withAllowedLateness(java.time.Duration.ofHours(1));
   }
 
-  /** Blocks until a given {@link Flow} is executed. */
+  /**
+   * Execute {@link Flow} flow and wait for result.
+   *
+   * @param flow flow to execute
+   * @return result
+   */
   public Result executeSync(Flow flow) {
     final Pipeline pipeline;
     if (flow instanceof BeamFlow && ((BeamFlow) flow).hasPipeline()) {
@@ -81,6 +86,12 @@ public class BeamRunnerWrapper {
     return new Result(result);
   }
 
+  /**
+   * Execute {@link Flow} flow asynchronously..
+   *
+   * @param flow flow to execute
+   * @return result future
+   */
   public CompletableFuture<Result> executeAsync(Flow flow) {
     return CompletableFuture.supplyAsync(() -> executeSync(flow), submitExecutor);
   }
@@ -90,7 +101,7 @@ public class BeamRunnerWrapper {
 
     private final PipelineResult result;
 
-    public Result(PipelineResult result) {
+    Result(PipelineResult result) {
       this.result = result;
     }
 

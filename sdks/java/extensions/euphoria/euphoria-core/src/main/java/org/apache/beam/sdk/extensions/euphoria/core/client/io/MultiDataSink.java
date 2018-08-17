@@ -116,8 +116,8 @@ public class MultiDataSink<K, InputT> implements DataSink<InputT> {
   }
 
   /**
-   * @param <K>
-   * @param <InputT>
+   * @param <K> key to select DataSink where to save the element
+   * @param <InputT> key of input element
    */
   public static class Builder<K, InputT> {
 

@@ -161,9 +161,9 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
   }
 
   /**
-   * TODO: add javadoc.
+   * Implementation of {@link UnboundedSource.CheckpointMark} that just wraps offset.
    *
-   * @param <OffsetT>
+   * @param <OffsetT> type of offset for checkpoint mark
    */
   public static class BeamCheckpointMark<OffsetT>
       implements UnboundedSource.CheckpointMark, Serializable {

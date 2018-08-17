@@ -35,6 +35,8 @@ public class Operators {
   /**
    * Operators that are considered to be basic and expected to be natively supported by each runner
    * implementation.
+   *
+   * @return basic ops
    */
   public static Set<Class<? extends Operator<?, ?>>> getBasicOps() {
     return BASIC_OPS;

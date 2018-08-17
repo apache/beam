@@ -86,14 +86,25 @@ public class DoFnCollector<InputT, OutputT, ElemT>
    * Translation of {@link ReduceByKeyTranslator.Collector} collect to Beam's context output.
    * OperatorName serve as namespace for Beam's metrics.
    *
-   * @param <InputT>
-   * @param <OutputT>
-   * @param <ElemT>
+   * @param <InputT> type of input
+   * @param <OutputT> type of output
+   * @param <ElemT> type of element
    */
   public interface BeamCollector<InputT, OutputT, ElemT> extends Serializable {
 
+    /**
+     * Collect element.
+     *
+     * @param ctx process context
+     * @param elem element
+     */
     void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ElemT elem);
 
+    /**
+     * Get name of the operator.
+     *
+     * @return operator name
+     */
     String getOperatorName();
   }
 }

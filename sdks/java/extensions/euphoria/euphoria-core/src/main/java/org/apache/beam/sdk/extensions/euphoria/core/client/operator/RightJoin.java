@@ -58,13 +58,26 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Audience(Audience.Type.CLIENT)
 public class RightJoin {
 
-  /** TODO: complete javadoc. */
+  /**
+   * Create builder.
+   *
+   * @param left dataset
+   * @param right dataset
+   * @param <LeftT> type of left dataset
+   * @param <RightT> type of right dataset
+   * @return ByBuilder
+   */
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {
     return new OfBuilder("RightJoin").of(left, right);
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Optional setter to give operator name.
+   *
+   * @param name of the operator
+   * @return OfBuilder
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
