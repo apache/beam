@@ -30,8 +30,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ScopedStateManager scopes the global gRPC state manager to a single instruction.
-// The indirection makes it easier to control access.
+// ScopedSideInputReader scopes the global gRPC state manager to a single instruction
+// for side input use. The indirection makes it easier to control access.
 type ScopedSideInputReader struct {
 	mgr    *StateChannelManager
 	instID string
@@ -41,6 +41,7 @@ type ScopedSideInputReader struct {
 	mu     sync.Mutex
 }
 
+// NewScopedSideInputReader returns a ScopedSideInputReader for the given instruction.
 func NewScopedSideInputReader(mgr *StateChannelManager, instID string) *ScopedSideInputReader {
 	return &ScopedSideInputReader{mgr: mgr, instID: instID}
 }

@@ -26,7 +26,8 @@ import (
 
 // This file contains support for side input.
 
-const IterableSideInputKey = ""
+// iterableSideInputKey is the fixed runtime key value for iterable side input.
+const iterableSideInputKey = ""
 
 // SideInputAdapter provides a concrete ReStream from a low-level side input reader. It
 // encapsulates StreamID and coding as needed.
@@ -55,7 +56,7 @@ func NewSideInputAdapter(sid StreamID, c *coder.Coder) SideInputAdapter {
 }
 
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error) {
-	key, err := EncodeElement(s.kc, []byte(IterableSideInputKey))
+	key, err := EncodeElement(s.kc, []byte(iterableSideInputKey))
 	if err != nil {
 		return nil, err
 	}

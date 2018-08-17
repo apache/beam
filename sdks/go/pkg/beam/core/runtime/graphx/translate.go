@@ -54,6 +54,8 @@ const (
 	// uses the model pipeline and no longer falls back to Java.
 	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
 	URNDoFn     = "beam:go:transform:dofn:v1"
+
+	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
 )
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
@@ -228,7 +230,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 				// "", even if the input is already KV.
 
 				out := fmt.Sprintf("%v_keyed%v_%v", nodeID(in.From), edgeID(edge.Edge), i)
-				m.makeNode(out, m.coders.Add(MakeBytesKeyedCoder(in.From.Coder)), in.From)
+				m.makeNode(out, m.coders.Add(makeBytesKeyedCoder(in.From.Coder)), in.From)
 
 				payload := &pb.ParDoPayload{
 					DoFn: &pb.SdkFunctionSpec{
@@ -590,6 +592,12 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 		Urn:  URNDoFn,
 		Edge: ref,
 	})
+}
+
+// makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
+// even if the coder is already a KV coder.
+func makeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
+	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
 }
 
 func edgeID(edge *graph.MultiEdge) string {
