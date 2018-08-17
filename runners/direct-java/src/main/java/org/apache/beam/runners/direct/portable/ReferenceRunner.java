@@ -155,7 +155,7 @@ public class ReferenceRunner {
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     EvaluationContext ctxt =
         EvaluationContext.create(Instant::new, bundleFactory, graph, getKeyedPCollections(graph));
-    RootProviderRegistry rootRegistry = RootProviderRegistry.impulseRegistry(bundleFactory);
+    RootProviderRegistry rootRegistry = RootProviderRegistry.javaPortableRegistry(bundleFactory);
     int targetParallelism = Math.max(Runtime.getRuntime().availableProcessors(), 3);
     ServerFactory serverFactory = createServerFactory();
     ControlClientPool controlClientPool = MapControlClientPool.create();
