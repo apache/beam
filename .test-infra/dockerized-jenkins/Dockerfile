@@ -18,6 +18,20 @@
 
 FROM jenkins/jenkins:lts
 
+# Install docker client.
+USER root
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+RUN apt-key fingerprint 0EBFCD88 | grep '9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88'
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    apt-transport-https \
+  && rm -rf /var/lib/apt/lists/*
+RUN add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable"
+RUN apt-get update && apt-get install -y \
+    docker-ce \
+  && rm -rf /var/lib/apt/lists/*
+USER jenkins
+
 # Jenkins image specifies /var/jenkins_home as volume.
 # For matter of copying container, we want to avoid it.
 # We have to utilize different folder because docker doesn't

@@ -166,3 +166,20 @@ docker rm $(docker ps -a -q)
 docker rmi $(docker images -q)
 docker volume prune
 ```
+
+### Allow Jenkins to access local Docker install
+ This setup assumes you have docker installed and a `docker` group that's allowed
+to write to its socket file:
+ ```bash
+$ ls -l /var/run/docker.sock
+srw-rw---- 1 root docker 0 Aug 14 15:42 /var/run/docker.sock
+```
+ The following additional arguments to `docker run` will make the socket file
+available to the Jenkins container, and make the `jenkins` user a member of the
+`docker` group (using its ID on the host).
+ ```bash
+docker run -p 127.0.0.1:8080:8080 \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    --group-add $(getent group docker | cut -d: -f3) \
+    beamjenkins:latest
+```
