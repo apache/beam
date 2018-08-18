@@ -42,7 +42,7 @@ func (m *Flatten) Up(ctx context.Context) error {
 	return nil
 }
 
-func (m *Flatten) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (m *Flatten) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if m.active {
 		return nil // ok: ignore multiple start bundles. We just want the first one.
 	}

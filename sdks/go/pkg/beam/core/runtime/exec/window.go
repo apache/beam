@@ -40,7 +40,7 @@ func (w *WindowInto) Up(ctx context.Context) error {
 	return nil
 }
 
-func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return w.Out.StartBundle(ctx, id, data)
 }
 

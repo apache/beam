@@ -47,7 +47,11 @@ type iterNative struct {
 }
 
 func (v *iterNative) Init() error {
-	v.cur = v.s.Open()
+    cur, err := v.s.Open()
+    if err != nil {
+       return err
+    }
+	v.cur = cur
 	return nil
 }
 

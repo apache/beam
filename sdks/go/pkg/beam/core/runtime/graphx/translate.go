@@ -39,7 +39,7 @@ const (
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window:v1"
 
-	URNIterableSideInput = "beam:side_input:iterable:v1"
+	// URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
 
 	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
@@ -54,6 +54,8 @@ const (
 	// uses the model pipeline and no longer falls back to Java.
 	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
 	URNDoFn     = "beam:go:transform:dofn:v1"
+
+	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
 )
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
@@ -209,13 +211,131 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
 
+	var spec *pb.FunctionSpec
+	switch edge.Edge.Op {
+	case graph.Impulse:
+		// TODO(herohde) 7/18/2018: Encode data?
+		spec = &pb.FunctionSpec{Urn: URNImpulse}
+
+	case graph.ParDo:
+		si := make(map[string]*pb.SideInput)
+		for i, in := range edge.Edge.Input {
+			switch in.Kind {
+			case graph.Main:
+				// ignore: not a side input
+
+			case graph.Singleton, graph.Slice, graph.Iter, graph.ReIter:
+				// The only supported form of side input is MultiMap, but we
+				// want just iteration. So we must manually add a fixed key,
+				// "", even if the input is already KV.
+
+				out := fmt.Sprintf("%v_keyed%v_%v", nodeID(in.From), edgeID(edge.Edge), i)
+				m.makeNode(out, m.coders.Add(makeBytesKeyedCoder(in.From.Coder)), in.From)
+
+				payload := &pb.ParDoPayload{
+					DoFn: &pb.SdkFunctionSpec{
+						Spec: &pb.FunctionSpec{
+							Urn: URNIterableSideInputKey,
+							Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+								Urn: URNIterableSideInputKey,
+							})),
+						},
+						EnvironmentId: m.addDefaultEnv(),
+					},
+				}
+
+				keyedID := fmt.Sprintf("%v_keyed%v", edgeID(edge.Edge), i)
+				keyed := &pb.PTransform{
+					UniqueName: keyedID,
+					Spec: &pb.FunctionSpec{
+						Urn:     URNParDo,
+						Payload: protox.MustEncode(payload),
+					},
+					Inputs:  map[string]string{"i0": nodeID(in.From)},
+					Outputs: map[string]string{"i0": out},
+				}
+				m.transforms[keyedID] = keyed
+
+				// Fixup input map
+				inputs[fmt.Sprintf("i%v", i)] = out
+
+				si[fmt.Sprintf("i%v", i)] = &pb.SideInput{
+					AccessPattern: &pb.FunctionSpec{
+						Urn: URNMultimapSideInput,
+					},
+					ViewFn: &pb.SdkFunctionSpec{
+						Spec: &pb.FunctionSpec{
+							Urn: "foo",
+						},
+						EnvironmentId: m.addDefaultEnv(),
+					},
+					WindowMappingFn: &pb.SdkFunctionSpec{
+						Spec: &pb.FunctionSpec{
+							Urn: "bar",
+						},
+						EnvironmentId: m.addDefaultEnv(),
+					},
+				}
+
+			case graph.Map, graph.MultiMap:
+				panic("NYI")
+
+			default:
+				panic(fmt.Sprintf("unexpected input kind: %v", edge))
+			}
+		}
+
+		payload := &pb.ParDoPayload{
+			DoFn: &pb.SdkFunctionSpec{
+				Spec: &pb.FunctionSpec{
+					Urn:     URNJavaDoFn,
+					Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
+				},
+				EnvironmentId: m.addDefaultEnv(),
+			},
+			SideInputs: si,
+		}
+		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+
+	case graph.Combine:
+		payload := &pb.ParDoPayload{
+			DoFn: &pb.SdkFunctionSpec{
+				Spec: &pb.FunctionSpec{
+					Urn:     URNJavaDoFn,
+					Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
+				},
+				EnvironmentId: m.addDefaultEnv(),
+			},
+		}
+		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+
+	case graph.Flatten:
+		spec = &pb.FunctionSpec{Urn: URNFlatten}
+
+	case graph.CoGBK:
+		spec = &pb.FunctionSpec{Urn: URNGBK}
+
+	case graph.WindowInto:
+		payload := &pb.WindowIntoPayload{
+			WindowFn: &pb.SdkFunctionSpec{
+				Spec: makeWindowFn(edge.Edge.WindowFn),
+			},
+		}
+		spec = &pb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
+
+	case graph.External:
+		spec = &pb.FunctionSpec{Urn: edge.Edge.Payload.URN, Payload: edge.Edge.Payload.Data}
+
+	default:
+		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Edge.Op))
+	}
+
 	transform := &pb.PTransform{
 		UniqueName: edge.Name,
-		Spec:       m.makePayload(edge.Edge),
+		Spec:       spec,
 		Inputs:     inputs,
 		Outputs:    outputs,
 	}
-
 	m.transforms[id] = transform
 	return id
 }
@@ -292,7 +412,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pb.PTransform{
 		UniqueName: gbkID,
-		Spec:       m.makePayload(edge.Edge),
+		Spec:       &pb.FunctionSpec{Urn: URNGBK},
 		Inputs:     map[string]string{"i0": out},
 		Outputs:    map[string]string{"i0": gbkOut},
 	}
@@ -335,76 +455,6 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		Subtransforms: subtransforms,
 	}
 	return id
-}
-
-func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
-	switch edge.Op {
-	case graph.Impulse:
-		// TODO(herohde) 7/18/2018: Encode data?
-		return &pb.FunctionSpec{Urn: URNImpulse}
-
-	case graph.ParDo:
-		si := make(map[string]*pb.SideInput)
-		for i, in := range edge.Input {
-			switch in.Kind {
-			case graph.Main:
-				// ignore: not a side input
-			case graph.Singleton, graph.Slice, graph.Iter, graph.ReIter:
-				si[fmt.Sprintf("i%v", i)] = &pb.SideInput{
-					AccessPattern: &pb.FunctionSpec{Urn: URNIterableSideInput},
-					// TODO(herohde) 7/16/2018: side input data
-				}
-			case graph.Map, graph.MultiMap:
-				panic("NYI")
-			default:
-				panic(fmt.Sprintf("unexpected input kind: %v", edge))
-			}
-		}
-
-		payload := &pb.ParDoPayload{
-			DoFn: &pb.SdkFunctionSpec{
-				Spec: &pb.FunctionSpec{
-					Urn:     URNJavaDoFn,
-					Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
-				},
-				EnvironmentId: m.addDefaultEnv(),
-			},
-			SideInputs: si,
-		}
-		return &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
-
-	case graph.Combine:
-		payload := &pb.ParDoPayload{
-			DoFn: &pb.SdkFunctionSpec{
-				Spec: &pb.FunctionSpec{
-					Urn:     URNJavaDoFn,
-					Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
-				},
-				EnvironmentId: m.addDefaultEnv(),
-			},
-		}
-		return &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
-
-	case graph.Flatten:
-		return &pb.FunctionSpec{Urn: URNFlatten}
-
-	case graph.CoGBK:
-		return &pb.FunctionSpec{Urn: URNGBK}
-
-	case graph.WindowInto:
-		payload := &pb.WindowIntoPayload{
-			WindowFn: &pb.SdkFunctionSpec{
-				Spec: makeWindowFn(edge.WindowFn),
-			},
-		}
-		return &pb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
-
-	case graph.External:
-		return &pb.FunctionSpec{Urn: edge.Payload.URN, Payload: edge.Payload.Data}
-
-	default:
-		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Op))
-	}
 }
 
 func (m *marshaller) addNode(n *graph.Node) string {
@@ -542,6 +592,12 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 		Urn:  URNDoFn,
 		Edge: ref,
 	})
+}
+
+// makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
+// even if the coder is already a KV coder.
+func makeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
+	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
 }
 
 func edgeID(edge *graph.MultiEdge) string {

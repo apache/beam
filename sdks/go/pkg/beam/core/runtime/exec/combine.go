@@ -65,7 +65,7 @@ func (n *Combine) Up(ctx context.Context) error {
 }
 
 // StartBundle initializes processing this bundle for combines.
-func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *Combine) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
@@ -93,7 +93,10 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 	}
 	first := true
 
-	stream := values[0].Open()
+	stream, err := values[0].Open()
+	if err != nil {
+		return n.fail(err)
+	}
 	defer stream.Close()
 	for {
 		v, err := stream.Read()
@@ -243,7 +246,7 @@ func (n *LiftedCombine) String() string {
 }
 
 // StartBundle initializes the in memory cache of keys to accumulators.
-func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
@@ -334,7 +337,10 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value FullValue,
 	}
 	first := true
 
-	stream := values[0].Open()
+	stream, err := values[0].Open()
+	if err != nil {
+		return n.fail(err)
+	}
 	defer stream.Close()
 	for {
 		v, err := stream.Read()

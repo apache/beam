@@ -49,7 +49,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	log.Info(ctx, plan)
 
-	if err = plan.Execute(ctx, "", nil); err != nil {
+	if err = plan.Execute(ctx, "", exec.DataContext{}); err != nil {
 		plan.Down(ctx) // ignore any teardown errors
 		return err
 	}

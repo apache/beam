@@ -35,7 +35,7 @@ func TestFlatten(t *testing.T) {
 		t.Fatalf("failed to construct plan: %v", err)
 	}
 
-	if err := p.Execute(context.Background(), "1", nil); err != nil {
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 	if err := p.Down(context.Background()); err != nil {
