@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -67,7 +68,7 @@ class JiraManager:
             Created a parent issue for {1}""".format(summary, group_id))
           try:
             parent_issue = self._create_issue(group_id, None)
-            print parent_issue.key
+            print(parent_issue.key)
           except:
             logging.error("""Failed creating a parent issue for {0}.
               Stop handling the JIRA issue for {1}, {2}""".format(group_id, dep_name, dep_latest_version))
