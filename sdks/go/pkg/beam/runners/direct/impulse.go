@@ -39,7 +39,7 @@ func (n *Impulse) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 

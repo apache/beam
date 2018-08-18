@@ -83,7 +83,7 @@ func (p *Plan) ID() string {
 // Execute executes the plan with the given data context and bundle id. Units
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
-func (p *Plan) Execute(ctx context.Context, id string, manager DataManager) error {
+func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
 	ctx = metrics.SetBundleID(ctx, p.id)
 	if p.status == Initializing {
 		for _, u := range p.units {
