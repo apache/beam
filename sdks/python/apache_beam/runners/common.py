@@ -686,7 +686,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, (str,unicode)):
+        if not isinstance(tag, (str, unicode)):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -729,11 +729,11 @@ class _OutputProcessor(OutputProcessor):
     if results is None:
       return
 
-    for result in results:
+    for result in results:g
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, (str,unicode)):
+        if not isinstance(tag, (str, unicode)):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 
