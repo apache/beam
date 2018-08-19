@@ -681,8 +681,6 @@ class _OutputProcessor(OutputProcessor):
 
     output_element_count = 0
     for result in results:
-      if not isinstance(result.value,list):
-        raise TypeError("This is not a list")
       # results here may be a generator, which cannot call len on it.
       output_element_count += 1
       tag = None
