@@ -107,6 +107,7 @@ disable =
   len-as-condition,
   locally-disabled,
   locally-enabled,
+  logging-not-lazy,
   misplaced-bare-raise,
   missing-docstring,
   multiple-statements,
