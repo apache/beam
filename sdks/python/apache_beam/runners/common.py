@@ -729,7 +729,7 @@ class _OutputProcessor(OutputProcessor):
     if results is None:
       return
 
-    for result in results:g
+    for result in results:
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
