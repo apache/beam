@@ -14,3 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+"""
+Utility functions used for integrating Metrics API into load tests pipelines.
+"""
+
+from __future__ import absolute_import
+
+import time
+
+import apache_beam as beam
+from apache_beam.metrics import Metrics
+
+
+class MeasureTime(beam.DoFn):
+  def __init__(self):
+    self.runtime_start = Metrics.distribution('pardo', 'runtime.start')
+    self.runtime_end = Metrics.distribution('pardo', 'runtime.end')
+
+  def start_bundle(self):
+    self.runtime_start.update(time.time())
+
+  def finish_bundle(self):
+    self.runtime_end.update(time.time())
+
+  def process(self, element):
+    yield element

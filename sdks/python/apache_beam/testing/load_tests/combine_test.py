@@ -50,40 +50,62 @@ python setup.py nosetests \
 
 """
 
-import apache_beam as beam
-import unittest
+from __future__ import absolute_import
+
 import json
 import logging
+import unittest
 
+import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class CombineTest(unittest.TestCase):
-    def parseTestPipelineOptions(self):
-        return {
-            'numRecords': self.inputOptions.get('num_records'),
-            'keySizeBytes': self.inputOptions.get('key_size'),
-            'valueSizeBytes': self.inputOptions.get('value_size'),
-            'bundleSizeDistribution': {'type': self.inputOptions.get('bundle_size_distribution_type', 'const'),
-                                       'param': self.inputOptions.get('bundle_size_distribution_param', 0)},
-            'forceNumInitialBundles': self.inputOptions.get('force_initial_num_bundles', 0)
-        }
+  def parseTestPipelineOptions(self):
+    return {
+        'numRecords': self.inputOptions.get('num_records'),
+        'keySizeBytes': self.inputOptions.get('key_size'),
+        'valueSizeBytes': self.inputOptions.get('value_size'),
+        'bundleSizeDistribution': {
+            'type': self.inputOptions.get(
+                'bundle_size_distribution_type', 'const'
+            ),
+            'param': self.inputOptions.get('bundle_size_distribution_param', 0)
+        },
+        'forceNumInitialBundles': self.inputOptions.get(
+            'force_initial_num_bundles', 0
+        )
+    }
 
-    def setUp(self):
-        self.pipeline = TestPipeline(is_integration_test=True)
-        self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
+  def setUp(self):
+    self.pipeline = TestPipeline(is_integration_test=True)
+    self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
 
-    def testCombineGlobally(self):
-        with self.pipeline as p:
-            output = (p
-                      | beam.io.Read(synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
-                      | beam.CombineGlobally(beam.combiners.ToListCombineFn())
-                      )
+  class _GetElement(beam.DoFn):
+    def process(self, element):
+      yield element
 
-            p.run().wait_until_finish()
+  def testCombineGlobally(self):
+    with self.pipeline as p:
+      # pylint: disable=expression-not-assigned
+      (p
+       | beam.io.Read(synthetic_pipeline.SyntheticSource(
+           self.parseTestPipelineOptions()))
+       | 'Measure time' >> beam.ParDo(MeasureTime())
+       | 'Combine with Top' >> beam.CombineGlobally(
+           beam.combiners.TopCombineFn(1000))
+       | 'Consume' >> beam.ParDo(self._GetElement())
+      )
+
+      result = p.run()
+      result.wait_until_finish()
+      metrics = result.metrics().query()
+      for dist in metrics['distributions']:
+        logging.info("Distribution: %s", dist)
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.DEBUG)
-    unittest.main()
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main()
