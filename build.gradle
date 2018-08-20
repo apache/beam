@@ -141,12 +141,7 @@ rat {
     // Ruby build files
     "**/Gemfile.lock",
     "**/Rakefile",
-    "**/_config.yml",
-    "**/_config_test.yml",
     "**/.htaccess",
-    "website/.bundle/**/*",
-    "website/.sass-cache/**/*",
-    "website/.testcontent/**/*",
     "website/src/_sass/_bootstrap.scss",
     "website/src/_sass/bootstrap/**/*",
     "website/src/js/bootstrap*.js",
