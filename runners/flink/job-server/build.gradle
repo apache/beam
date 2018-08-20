@@ -60,4 +60,8 @@ runShadow {
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
 }
 
-createPortableValidatesRunnerTask(jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver", testClasspathConfiguration: configurations.validatesPortableRunner)
+createPortableValidatesRunnerTask(
+        jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
+        jobServerConfig: "--clean-artifacts-per-job",
+        testClasspathConfiguration: configurations.validatesPortableRunner
+)
