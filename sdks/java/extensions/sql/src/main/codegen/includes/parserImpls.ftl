@@ -146,8 +146,10 @@ Schema.Field Field() :
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
  */
-SqlCreate SqlCreateTable(Span s, boolean replace) :
+SqlCreate SqlCreateExternalTable() :
 {
+    final Span s = Span.of();
+    final boolean replace = false;
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
@@ -157,7 +159,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     SqlNode tblProperties = null;
 }
 {
-    <TABLE> ifNotExists = IfNotExistsOpt()
+
+    <CREATE> <EXTERNAL> <TABLE> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
     fieldList = FieldListParens()
     <TYPE>
@@ -171,7 +178,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
     {
         return
-            new SqlCreateTable(
+            new SqlCreateExternalTable(
                 s.end(this),
                 replace,
                 ifNotExists,
