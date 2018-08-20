@@ -41,6 +41,7 @@ import org.fusesource.mqtt.client.Topic;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -137,6 +138,7 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 30 * 1000)
+  @Ignore("Investigating BEAM-5150")
   public void testRead() throws Exception {
     PCollection<byte[]> output =
         pipeline.apply(
