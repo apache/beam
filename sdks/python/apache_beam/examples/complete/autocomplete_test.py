@@ -33,7 +33,7 @@ from apache_beam.testing.util import equal_to
 class AutocompleteTest(unittest.TestCase):
 
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
-  KINGLEAR_HASH_SUM = 3104188901048578415956L
+  KINGLEAR_HASH_SUM = 3104188901048578415956
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 
   def test_top_prefixes(self):
