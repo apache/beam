@@ -74,7 +74,7 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
       SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     keyCoder.encode(value.key(), outStream);
-    valueCoder.encode(value.value, outStream, context);
+    valueCoder.encode(value.value(), outStream, context);
   }
 
   @Override

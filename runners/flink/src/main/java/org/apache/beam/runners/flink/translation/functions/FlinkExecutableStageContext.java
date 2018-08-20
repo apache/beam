@@ -36,7 +36,7 @@ public interface FlinkExecutableStageContext {
   }
 
   static Factory batchFactory() {
-    return BatchFlinkExecutableStageContext.BatchFactory.INSTANCE;
+    return FlinkBatchExecutableStageContext.BatchFactory.INSTANCE;
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
