@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import unittest
+
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
