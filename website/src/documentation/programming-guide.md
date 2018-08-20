@@ -1519,7 +1519,9 @@ together.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
+{:.language-java}
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
+
 {:.language-java}
 In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn's `@ProcessElement` method.
 Any combination of these parameters can be added to your process method in any order.
@@ -1569,7 +1571,7 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
   }})
 ```
 
-{::.language-java}
+{:.language-java}
 `@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
