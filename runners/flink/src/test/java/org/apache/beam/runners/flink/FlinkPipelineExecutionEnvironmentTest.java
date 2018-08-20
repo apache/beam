@@ -41,7 +41,6 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("[auto]");
 
-    FlinkRunner flinkRunner = FlinkRunner.fromOptions(options);
     FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
     Pipeline pipeline = Pipeline.create();
 
@@ -58,7 +57,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
         .apply(Window.into(FixedWindows.of(Duration.standardHours(1))))
         .apply(TextIO.write().withNumShards(1).withWindowedWrites().to("/dummy/path"));
 
-    flinkEnv.translate(flinkRunner, pipeline);
+    flinkEnv.translate(pipeline);
 
     // no exception should be thrown
   }
