@@ -63,7 +63,7 @@ public class BeamSqlLineTest {
   public void testSqlLine_ddl() throws Exception {
     BeamSqlLine.main(
         new String[] {
-          "-e", "CREATE TABLE test (id INTEGER) TYPE 'text';", "-e", "DROP TABLE test;"
+          "-e", "CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text';", "-e", "DROP TABLE test;"
         });
   }
 
@@ -74,7 +74,7 @@ public class BeamSqlLineTest {
     BeamSqlLine.main(
         new String[] {
           "-e",
-          "CREATE TABLE test (id INTEGER) TYPE 'text' LOCATION '"
+          "CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text' LOCATION '"
               + simpleTable.getAbsolutePath()
               + "';",
           "-e",
@@ -102,7 +102,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b VARCHAR, "
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR, "
                 + "col_c VARCHAR, col_x TINYINT, col_y INT, col_z BIGINT) TYPE 'test';",
             "INSERT INTO table_test VALUES ('a', 'b', 'c', 1, 2, 3);",
             "SELECT * FROM table_test;");
@@ -122,7 +122,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', 'hello';",
             "SELECT * FROM table_test;");
 
@@ -138,7 +138,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', 'foo';",
             "INSERT INTO table_test SELECT '3', 'bar';",
             "INSERT INTO table_test SELECT '4', 'foo';",
@@ -157,7 +157,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', TIMESTAMP '2018-07-01 21:26:06';",
             "INSERT INTO table_test SELECT '3', TIMESTAMP '2018-07-01 21:26:07';",
             "SELECT TUMBLE_START(col_b, INTERVAL '1' SECOND), count(*) FROM table_test "
@@ -177,7 +177,7 @@ public class BeamSqlLineTest {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args =
         buildArgs(
-            "CREATE TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
+            "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b TIMESTAMP) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', TIMESTAMP '2018-07-01 21:26:06';",
             "INSERT INTO table_test SELECT '4', TIMESTAMP '2018-07-01 21:26:07';",
             "INSERT INTO table_test SELECT '6', TIMESTAMP '2018-07-01 21:26:08';",

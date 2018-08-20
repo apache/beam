@@ -59,7 +59,7 @@ public class PubsubToBigqueryIT implements Serializable {
         BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
 
     String createTableString =
-        "CREATE TABLE pubsub_topic (\n"
+        "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -75,7 +75,7 @@ public class PubsubToBigqueryIT implements Serializable {
     sqlEnv.executeDdl(createTableString);
 
     String createTableStatement =
-        "CREATE TABLE bq_table( \n"
+        "CREATE EXTERNAL TABLE bq_table( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
             + ") \n"
