@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/**
- * @param <InputT> type of input to extract timestamp from
- */
+/** @param <InputT> type of input to extract timestamp from */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface ExtractEventTime<InputT> extends Serializable {
