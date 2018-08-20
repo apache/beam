@@ -143,14 +143,15 @@ To find a committer for your area, look for similar code merges or ask on
 
 Use @mention in the pull request to notify the reviewer.
 
-The pull request and any changes pushed to it will trigger precommit jobs.
-If a test fails and appears unrelated to your change, you can cause tests
-to be re-run by adding a single line comment on your PR
+The pull request and any changes pushed to it will trigger [pre-commit
+jobs](/contribute/testing/). If a test fails and appears unrelated to your
+change, you can cause tests to be re-run by adding a single line comment on your
+PR
 
      retest this please
 
 There are other trigger phrases for post-commit tests found in
-.testinfra/jenkins, but use these sparingly because postcommit
+.testinfra/jenkins, but use these sparingly because post-commit
 tests consume shared development resources.
 
 ### Developing with the Python SDK
