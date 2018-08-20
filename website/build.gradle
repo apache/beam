@@ -19,47 +19,81 @@
 // Define common lifecycle tasks and artifact types
 apply plugin: "base"
 
+def dockerImageTag = 'beam-website'
+def dockerWorkDir = "/repo"
+def buildDir = "$project.rootDir/build/website"
+
+task buildDockerImage(type: Exec) {
+  inputs.files 'Gemfile', 'Gemfile.lock'
+  commandLine 'docker', 'build', '-t', dockerImageTag, '.'
+}
+
+task createDockerContainer(type: Exec) {
+  dependsOn buildDockerImage
+  standardOutput = new ByteArrayOutputStream()
+  ext.containerId = {
+    return standardOutput.toString().trim()
+  }
+  commandLine '/bin/bash', '-c',
+    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $dockerImageTag"
+}
+
+task startDockerContainer(type: Exec) {
+  dependsOn createDockerContainer
+  ext.containerId = {
+    return createDockerContainer.containerId()
+  }
+  commandLine 'docker', 'start',
+    "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
+}
+
+task stopAndRemoveDockerContainer(type: Exec) {
+  commandLine 'docker', 'rm', '-f', "${->createDockerContainer.containerId()}"
+}
+
+task setupBuildDir(type: Copy) {
+  from('.') {
+    include 'Gemfile*'
+    include 'Rakefile'
+  }
+  into buildDir
+}
+
 task cleanWebsite(type: Delete) {
-  delete '.sass-cache', 'vendor', '.testcontent', 'content'
+  delete buildDir
 }
 clean.dependsOn cleanWebsite
 
-task installBundler(type: Exec) {
-  commandLine './install_bundler.sh'
-}
-
-task installGems(type: Exec) {
-  mustRunAfter cleanWebsite, installBundler
-  inputs.file 'Gemfile.lock'
-  outputs.dir 'vendor'
-  commandLine 'bundle', 'install', '--deployment'
-}
-
-// TODO(BEAM-4696): Remove this once we can run Jenkins jobs within Docker
-task setupJenkins {
-  dependsOn installBundler, installGems
-}
-
 task buildWebsite(type: Exec) {
-  dependsOn installGems
-  mustRunAfter cleanWebsite, setupJenkins
+  dependsOn startDockerContainer, setupBuildDir
+  finalizedBy stopAndRemoveDockerContainer
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
-  outputs.dir '.sass-cache'
-  outputs.dir 'content'
-  outputs.dir '.testcontent'
-  commandLine 'bundle', 'exec', 'jekyll', 'build',
-    '--config', '_config.yml',
-    '--incremental'
+  outputs.dir "$buildDir/.sass-cache"
+  outputs.dir "$buildDir/content"
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec jekyll build \
+      --config $dockerWorkDir/website/_config.yml \
+      --incremental \
+      --source $dockerWorkDir/website/src
+      """
 }
 build.dependsOn buildWebsite
 
 task testWebsite(type: Exec) {
-  dependsOn buildWebsite
-  inputs.files 'Gemfile.lock', 'Rakefile'
-  inputs.dir '.testcontent'
-  commandLine 'bundle', 'exec', 'rake', 'test'
+  dependsOn startDockerContainer, buildWebsite
+  finalizedBy stopAndRemoveDockerContainer
+
+  inputs.files "$buildDir/Rakefile"
+  inputs.dir "$buildDir/content"
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec rake test"""
 }
+
 check.dependsOn testWebsite
 
 task preCommit {

@@ -63,16 +63,14 @@ class CommonJobProperties {
                                            String branch = 'master',
                                            int timeout = 100,
                                            boolean allowRemotePoll = true,
-                                           boolean localPerfTest = false,
-                                           String dockerImage = '') {
+                                           boolean localPerfTest = false) {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
             timeout,
             allowRemotePoll,
-            localPerfTest,
-            dockerImage)
+            localPerfTest)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -82,8 +80,7 @@ class CommonJobProperties {
                                                String defaultBranch,
                                                int defaultTimeout,
                                                boolean allowRemotePoll = true,
-                                               boolean localPerfTest = false,
-                                               String dockerImage='') {
+                                               boolean localPerfTest = false) {
     def jenkinsExecutorLabel = 'beam'
     if (localPerfTest) {
       jenkinsExecutorLabel = 'beam-perf'
@@ -118,13 +115,6 @@ class CommonJobProperties {
     }
 
     context.wrappers {
-      if (dockerImage) {
-        throw new UnsupportedOperationException(
-          '[INFRA-16524] Running jobs within Docker not yet supported.')
-        // buildInDocker {
-        //   image(dockerImage)
-        // }
-      }
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
         absolute(defaultTimeout)
