@@ -42,7 +42,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.Pair;
 
 /** Parse tree for {@code CREATE TABLE} statement. */
-public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement {
+public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableStatement {
   private final SqlIdentifier name;
   private final List<Schema.Field> columnList;
   private final SqlNode type;
@@ -51,10 +51,10 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
   private final SqlNode tblProperties;
 
   private static final SqlOperator OPERATOR =
-      new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
+      new SqlSpecialOperator("CREATE EXTERNAL TABLE", SqlKind.OTHER_DDL);
 
-  /** Creates a SqlCreateTable. */
-  public SqlCreateTable(
+  /** Creates a SqlCreateExternalTable. */
+  public SqlCreateExternalTable(
       SqlParserPos pos,
       boolean replace,
       boolean ifNotExists,
@@ -82,6 +82,7 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("CREATE");
+    writer.keyword("EXTERNAL");
     writer.keyword("TABLE");
     if (ifNotExists) {
       writer.keyword("IF NOT EXISTS");
@@ -161,4 +162,4 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
   }
 }
 
-// End SqlCreateTable.java
+// End SqlCreateExternalTable.java
