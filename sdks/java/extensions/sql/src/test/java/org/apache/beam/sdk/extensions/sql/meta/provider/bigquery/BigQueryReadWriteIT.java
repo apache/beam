@@ -93,7 +93,7 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
 
     String createTableStatement =
-        "CREATE TABLE TEST( \n"
+        "CREATE EXTERNAL TABLE TEST( \n"
             + "   c_bigint BIGINT, \n"
             + "   c_tinyint TINYINT, \n"
             + "   c_smallint SMALLINT, \n"
@@ -159,7 +159,7 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
 
     String createTableStatement =
-        "CREATE TABLE TEST( \n"
+        "CREATE EXTERNAL TABLE TEST( \n"
             + "   c_bigint BIGINT, \n"
             + "   c_tinyint TINYINT, \n"
             + "   c_smallint SMALLINT, \n"
@@ -227,7 +227,7 @@ public class BigQueryReadWriteIT implements Serializable {
             new BigQueryTableProvider());
 
     String createTableStatement =
-        "CREATE TABLE ORDERS_BQ( \n"
+        "CREATE EXTERNAL TABLE ORDERS_BQ( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR, \n "
             + "   arr ARRAY<VARCHAR> \n"

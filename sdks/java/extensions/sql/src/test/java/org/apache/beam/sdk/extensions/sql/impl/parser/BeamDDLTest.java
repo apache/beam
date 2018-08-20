@@ -49,7 +49,7 @@ public class BeamDDLTest {
     properties.put("hello", hello);
 
     env.executeDdl(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
@@ -66,7 +66,7 @@ public class BeamDDLTest {
   public void testParseCreateTable_withoutType() throws Exception {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(new TestTableProvider());
     env.executeDdl(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
             + "COMMENT 'person table' \n"
@@ -86,7 +86,7 @@ public class BeamDDLTest {
     properties.put("hello", hello);
 
     env.executeDdl(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
@@ -102,7 +102,7 @@ public class BeamDDLTest {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
     env.executeDdl(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
@@ -119,7 +119,7 @@ public class BeamDDLTest {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
     env.executeDdl(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
@@ -135,7 +135,7 @@ public class BeamDDLTest {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
-    env.executeDdl("CREATE TABLE person (id INT) TYPE text");
+    env.executeDdl("CREATE EXTERNAL TABLE person (id INT) TYPE text");
 
     assertEquals(
         Table.builder()
@@ -156,7 +156,7 @@ public class BeamDDLTest {
 
     assertNull(tableProvider.getTables().get("person"));
     env.executeDdl(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
