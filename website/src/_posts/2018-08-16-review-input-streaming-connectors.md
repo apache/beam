@@ -25,7 +25,7 @@ Spark Structured Streaming supports [file sources](https://spark.apache.org/docs
 
 Below are the main streaming input connectors for available for Beam and Spark DStreams in Java:
 
-<table>
+<table class="table table-bordered">
   <tr>
    <td>
    </td>
@@ -62,7 +62,6 @@ Below are the main streaming input connectors for available for Beam and Spark D
    <td><a href="{{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/FileIO.html">FileIO</a> + <a href="{{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html">GcsOptions</a>
    </td>
    <td rowspan="2" ><a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration</a>
-<p>
 and <a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream</a>
    </td>
   </tr>
@@ -118,7 +117,7 @@ Spark also has a Python SDK called [PySpark](http://spark.apache.org/docs/latest
 
 Below are the main streaming input connectors for available for Beam and Spark DStreams in Python:
 
-<table>
+<table class="table table-bordered">
   <tr>
    <td>
    </td>
@@ -204,15 +203,15 @@ and <a href="http://spark.apache.org/docs/latest/api/python/pyspark.streaming.ht
 
 ## Connectors for other languages
 
-### **Scala**
+### Scala
 
 Since Scala code is interoperable with Java and therefore has native compatibility with Java libraries (and vice versa), you can use the same Java connectors described above in your Scala programs. Apache Beam also has a [Scala API](https://github.com/spotify/scio) open-sourced [by Spotify](https://labs.spotify.com/2017/10/16/big-data-processing-at-spotify-the-road-to-scio-part-1/).
 
-### **Go**
+### Go
 
 A [Go SDK]({{ site.baseurl }}/documentation/sdks/go/) for Apache Beam is under active development. It is currently experimental and is not recommended for production. Spark does not have an official Go SDK.
 
-### **R**
+### R
 
 Apache Beam does not have an official R SDK. Spark Structured Streaming is supported by an [R SDK](https://spark.apache.org/docs/latest/sparkr.html#structured-streaming), but only for [file sources](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#input-sources) as a streaming input.
 
