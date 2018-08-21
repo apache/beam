@@ -55,7 +55,7 @@ dependencies {
 // task will not work because the flink runner classes only exist in the shadow
 // jar.
 runShadow {
-  def jobHost = project.hasProperty("jobHost") ? project.property("jobHost") : "localhost:8099"
+  def jobHost = project.hasProperty("jobHost") ? project.property("jobHost") : "localhost"
   def artifactsDir = project.hasProperty("artifactsDir") ?  project.property("artifactsDir") : "/tmp/flink-artifacts"
   def cleanArtifactsPerJob = project.hasProperty("cleanArtifactsPerJob")
   args = ["--job-host=${jobHost}", "--artifacts-dir=${artifactsDir}"]
