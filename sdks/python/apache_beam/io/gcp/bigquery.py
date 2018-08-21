@@ -98,9 +98,9 @@ TableSchema: Describes the schema (types and order) for values in each row.
 
 TableFieldSchema: Describes the schema (type, name) for one field.
   Has several attributes, including 'name' and 'type'. Common values for
-  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN'. All possible
-  values are described at:
-  https://cloud.google.com/bigquery/preparing-data-for-bigquery#datatypes
+  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC'.
+  All possible values are described at:
+  https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 
 TableRow: Holds all values in a table row. Has one attribute, 'f', which is a
   list of TableCell instances.
@@ -108,6 +108,9 @@ TableRow: Holds all values in a table row. Has one attribute, 'f', which is a
 TableCell: Holds the value for one cell (or field).  Has one attribute,
   'v', which is a JsonValue instance. This class is defined in
   apitools.base.py.extra_types.py module.
+
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
 """
 
 from __future__ import absolute_import
