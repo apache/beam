@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.io.synthetic;
 
-import static org.apache.beam.sdk.io.synthetic.SyntheticUtils.optionsFromString;
+import static org.apache.beam.sdk.io.synthetic.SyntheticTestUtils.optionsFromString;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
