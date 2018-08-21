@@ -38,13 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tensorflow.example.BytesList;
-import org.tensorflow.example.Example;
-import org.tensorflow.example.Feature;
-import org.tensorflow.example.FeatureList;
-import org.tensorflow.example.FeatureLists;
-import org.tensorflow.example.Features;
-import org.tensorflow.example.SequenceExample;
+import org.tensorflow.example.*;
 
 /**
  * Utility functions for TSAccum.

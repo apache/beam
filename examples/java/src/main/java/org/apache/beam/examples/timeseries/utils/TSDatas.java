@@ -158,7 +158,8 @@ public class TSDatas {
         feature.setFloatList(FloatList.newBuilder().addValue(data.getLongVal()));
         break;
       }
-
+      default:
+        break;
     }
     return feature.build();
   }

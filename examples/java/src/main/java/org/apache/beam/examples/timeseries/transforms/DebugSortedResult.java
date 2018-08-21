@@ -60,7 +60,7 @@ public class DebugSortedResult
 
             TSAccums.sortAccumList(accums);
 
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
 
             for (TimeSeriesData.TSAccum accum : accums) {
               boolean heartBeat = (accum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT));

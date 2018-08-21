@@ -139,7 +139,7 @@ public class TimeSeriesExample {
 
         Instant now = Instant.parse("2018-01-01T00:00Z");
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 1000; i++) {
 
           if (!((i % 10 == 0))) {
 

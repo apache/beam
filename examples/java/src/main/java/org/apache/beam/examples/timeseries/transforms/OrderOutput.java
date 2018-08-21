@@ -260,9 +260,8 @@ import org.slf4j.LoggerFactory;
         }
 
         if (LOG.isDebugEnabled() && i > 1) {
-          LOG.debug(String.format("Key major %s minor  had %s entries at time %s",
-              lastAccum.getKey().getMajorKey(), lastAccum.getKey().getMinorKeyString(), i,
-              c.window()));
+          LOG.debug(String.format("Key  %s had %s entries at time %s",
+              lastAccum.getKey().getMinorKeyString(), i, c.window()));
         }
 
         // Clear the list
