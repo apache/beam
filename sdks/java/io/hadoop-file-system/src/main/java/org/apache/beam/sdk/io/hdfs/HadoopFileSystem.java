@@ -88,7 +88,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         List<Metadata> metadata = new ArrayList<>();
         for (FileStatus fileStatus : fileStatuses) {
           if (fileStatus.isFile()) {
-            URI uri = dropEmptyAuthority(fileStatus.getPath().toUri().toString());
+            URI uri = fileStatus.getPath().toUri();
             metadata.add(
                 Metadata.builder()
                     .setResourceId(new HadoopResourceId(uri))
@@ -163,8 +163,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
           String.format("Expected file path but received directory path %s", singleResourceSpec));
     }
     return !singleResourceSpec.endsWith("/") && isDirectory
-        ? new HadoopResourceId(dropEmptyAuthority(singleResourceSpec + "/"))
-        : new HadoopResourceId(dropEmptyAuthority(singleResourceSpec));
+        ? new HadoopResourceId(URI.create(singleResourceSpec + "/"))
+        : new HadoopResourceId(URI.create(singleResourceSpec));
   }
 
   @Override
@@ -254,16 +254,6 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     public void close() throws IOException {
       closed = true;
       inputStream.close();
-    }
-  }
-
-  private static URI dropEmptyAuthority(String uriStr) {
-    URI uri = URI.create(uriStr);
-    String prefix = uri.getScheme() + ":///";
-    if (uriStr.startsWith(prefix)) {
-      return URI.create(uri.getScheme() + ":/" + uriStr.substring(prefix.length()));
-    } else {
-      return uri;
     }
   }
 }
