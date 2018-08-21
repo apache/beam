@@ -76,6 +76,7 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 60 * 1000)
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3604 Test timeout failure.")
   public void testReadNoClientId() throws Exception {
     final String topicName = "READ_TOPIC_NO_CLIENT_ID";
     Read mqttReader =
@@ -138,7 +139,7 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 30 * 1000)
-  @Ignore("Investigating BEAM-5150")
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5150 Flake Non-deterministic output.")
   public void testRead() throws Exception {
     PCollection<byte[]> output =
         pipeline.apply(
