@@ -53,7 +53,8 @@ if __name__ == '__main__':
             'java',
             '-jar', flinkJobServerJar,
             '--artifacts-dir', tmp_dir,
-            '--job-host', 'localhost:%s' % port,
+            '--job-host', 'localhost',
+            '--job-port', str(port),
         ]
       finally:
         shutil.rmtree(tmp_dir)

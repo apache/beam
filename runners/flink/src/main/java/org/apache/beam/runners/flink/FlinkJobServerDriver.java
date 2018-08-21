@@ -45,14 +45,21 @@ public class FlinkJobServerDriver implements Runnable {
 
   private final ListeningExecutorService executor;
   private final ServerConfiguration configuration;
-  private final ServerFactory serverFactory;
+  private final ServerFactory jobServerFactory;
+  private final ServerFactory artifactServerFactory;
   private GrpcFnServer<InMemoryJobService> jobServer;
   private GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
 
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
-    @Option(name = "--job-host", usage = "The job server host string")
+    @Option(name = "--job-host", usage = "The job server host name")
     private String host = "";
+
+    @Option(name = "--job-port", usage = "The job service port. (Default: 8099)")
+    private int port = 8099;
+
+    @Option(name = "--artifact-port", usage = "The artifact service port. (Default: 8098)")
+    private int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
@@ -100,24 +107,30 @@ public class FlinkJobServerDriver implements Runnable {
         new ThreadFactoryBuilder().setNameFormat("flink-runner-job-server").setDaemon(true).build();
     ListeningExecutorService executor =
         MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(threadFactory));
-    ServerFactory serverFactory = ServerFactory.createDefault();
-    return create(configuration, executor, serverFactory);
+    ServerFactory jobServerFactory = ServerFactory.createWithPortSupplier(() -> configuration.port);
+    ServerFactory artifactServerFactory =
+        ServerFactory.createWithPortSupplier(() -> configuration.artifactPort);
+    return create(configuration, executor, jobServerFactory, artifactServerFactory);
   }
 
   public static FlinkJobServerDriver create(
       ServerConfiguration configuration,
       ListeningExecutorService executor,
-      ServerFactory serverFactory) {
-    return new FlinkJobServerDriver(configuration, executor, serverFactory);
+      ServerFactory jobServerFactory,
+      ServerFactory artifactServerFactory) {
+    return new FlinkJobServerDriver(
+        configuration, executor, jobServerFactory, artifactServerFactory);
   }
 
   private FlinkJobServerDriver(
       ServerConfiguration configuration,
       ListeningExecutorService executor,
-      ServerFactory serverFactory) {
+      ServerFactory jobServerFactory,
+      ServerFactory artifactServerFactory) {
     this.configuration = configuration;
     this.executor = executor;
-    this.serverFactory = serverFactory;
+    this.jobServerFactory = jobServerFactory;
+    this.artifactServerFactory = jobServerFactory;
   }
 
   @Override
@@ -166,11 +179,13 @@ public class FlinkJobServerDriver implements Runnable {
     InMemoryJobService service = createJobService();
     GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer;
     if (Strings.isNullOrEmpty(configuration.host)) {
-      jobServiceGrpcFnServer = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+      jobServiceGrpcFnServer = GrpcFnServer.allocatePortAndCreateFor(service, jobServerFactory);
     } else {
       Endpoints.ApiServiceDescriptor descriptor =
-          Endpoints.ApiServiceDescriptor.newBuilder().setUrl(configuration.host).build();
-      jobServiceGrpcFnServer = GrpcFnServer.create(service, descriptor, serverFactory);
+          Endpoints.ApiServiceDescriptor.newBuilder()
+              .setUrl(configuration.host + ":" + configuration.port)
+              .build();
+      jobServiceGrpcFnServer = GrpcFnServer.create(service, descriptor, jobServerFactory);
     }
     LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
     return jobServiceGrpcFnServer;
@@ -200,8 +215,17 @@ public class FlinkJobServerDriver implements Runnable {
   private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
       throws IOException {
     BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
-    GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
-        GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    final GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService;
+    if (Strings.isNullOrEmpty(configuration.host)) {
+      artifactStagingService =
+          GrpcFnServer.allocatePortAndCreateFor(service, artifactServerFactory);
+    } else {
+      Endpoints.ApiServiceDescriptor descriptor =
+          Endpoints.ApiServiceDescriptor.newBuilder()
+              .setUrl(configuration.host + ":" + configuration.artifactPort)
+              .build();
+      artifactStagingService = GrpcFnServer.create(service, descriptor, artifactServerFactory);
+    }
     LOG.info(
         "ArtifactStagingService started on {}",
         artifactStagingService.getApiServiceDescriptor().getUrl());

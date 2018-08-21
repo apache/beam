@@ -129,6 +129,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             .addAll(gcsCredentialArgs())
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             .add("--network=host")
+            // We need to pass on the information about Docker-on-Mac environment (due to missing host networking on Mac)
+            .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"))
             .build();
 
     List<String> args =

@@ -204,18 +204,29 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 
 // Before running this, you need to:
 //
-// 1. build the SDK container:
+// 1. Build the SDK container:
 //
 //    ./gradlew -p sdks/python/container docker
 //
-// 2. start a local JobService, for example, the Portable Flink runner
+// 2. Either a) or b)
+//  a) If you want the Job Server to run in a Docker container:
+//
+//    ./gradlew :beam-runners-flink_2.11-job-server-container:docker
+//
+//  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
 //
 //    ./gradlew :beam-runners-flink_2.11-job-server:runShadow
 //
 // Then you can run this example:
 //
+//  Docker (2a):
+//
 //    ./gradlew :beam-sdks-python:portableWordCount
+//
+//  Local JobService (2b):
+//
+//    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
 //
 task portableWordCount(dependsOn: 'installGcpTest') {
   doLast {
@@ -225,11 +236,12 @@ task portableWordCount(dependsOn: 'installGcpTest') {
             "--output=/tmp/py-wordcount-direct",
             "--experiments=beam_fn_api",
             "--runner=PortableRunner",
-            "--job_endpoint=localhost:8099",
             "--sdk_location=container",
     ]
     if (project.hasProperty("streaming"))
       options += ["--streaming"]
+    if (project.hasProperty("jobEndpoint"))
+      options += ["--job_endpoint=${project.property('jobEndpoint')}"]
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"

@@ -19,7 +19,7 @@
 FROM openjdk:8
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
-ADD target/beam-runners-flink_2.11-job-server.jar /opt/apache/beam/jars/
+ADD target/beam-runners-flink-job-server.jar /opt/apache/beam/jars/
 ADD target/flink-job-server.sh /opt/apache/beam/
 
 WORKDIR /opt/apache/beam
