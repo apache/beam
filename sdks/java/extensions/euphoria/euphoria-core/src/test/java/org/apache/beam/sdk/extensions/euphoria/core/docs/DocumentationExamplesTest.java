@@ -639,8 +639,8 @@ public class DocumentationExamplesTest {
   }
 
   /**
-   * Note that this one is not mentioned in documentation due to high number of RBK examples
-   * and rather lower explanation value. Please consider to include it in future
+   * Note that this one is not mentioned in documentation due to high number of RBK examples and
+   * rather lower explanation value. Please consider to include it in future
    */
   @Test
   public void reduceByKeyTestOperatorContextManyOutputs() {
