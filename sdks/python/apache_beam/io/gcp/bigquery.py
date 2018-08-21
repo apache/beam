@@ -161,7 +161,7 @@ JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 MAX_RETRIES = 3
 
 
-def decimal_default_encoder(obj):
+def default_encoder(obj):
   if isinstance(obj, decimal.Decimal):
     return str(obj)
   raise TypeError(
@@ -182,7 +182,7 @@ class RowAsDictJsonCoder(coders.Coder):
     # to the programmer that they have used NAN/INF values.
     try:
       return json.dumps(
-          table_row, allow_nan=False, default=decimal_default_encoder)
+          table_row, allow_nan=False, default=default_encoder)
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
@@ -219,7 +219,7 @@ class TableRowJsonCoder(coders.Coder):
               zip(self.field_names,
                   [from_json_value(f.v) for f in table_row.f])),
           allow_nan=False,
-          default=decimal_default_encoder)
+          default=default_encoder)
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
@@ -1119,6 +1119,11 @@ class BigQueryWrapper(object):
     for row in rows:
       json_object = bigquery.JsonObject()
       for k, v in iteritems(row):
+        if isinstance(v, decimal.Decimal):
+          # decimal values are converted into string because JSON does not
+          # support the precision that decimal supports. BQ is able to handle
+          # inserts into NUMERIC columns by receiving JSON with string attrs.
+          v = str(v)
         json_object.additionalProperties.append(
             bigquery.JsonObject.AdditionalProperty(
                 key=k, value=to_json_value(v)))
