@@ -66,8 +66,12 @@ class S3TestUtils {
   }
 
   static S3FileSystem buildMockedS3FileSystem(S3Options options) {
+    return buildMockedS3FileSystem(options, Mockito.mock(AmazonS3.class));
+  }
+
+  static S3FileSystem buildMockedS3FileSystem(S3Options options, AmazonS3 client) {
     S3FileSystem s3FileSystem = new S3FileSystem(options);
-    s3FileSystem.setAmazonS3Client(Mockito.mock(AmazonS3.class));
+    s3FileSystem.setAmazonS3Client(client);
     return s3FileSystem;
   }
 

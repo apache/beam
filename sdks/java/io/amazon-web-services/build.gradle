@@ -42,4 +42,5 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
   shadowTest library.java.slf4j_jdk14
+  testCompile "io.findify:s3mock_2.12:0.2.4"
 }
