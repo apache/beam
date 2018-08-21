@@ -30,6 +30,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -37,6 +38,17 @@ import org.junit.Test;
 public class BeamComplexTypeTest {
   private static final Schema innerRowSchema =
       Schema.builder().addStringField("one").addInt64Field("two").build();
+
+  private static final Schema innerRowWithArraySchema =
+      Schema.builder().addStringField("one").addArrayField("array", FieldType.INT64).build();
+
+  private static final Schema nestedRowWithArraySchema =
+      Schema.builder()
+          .addStringField("field1")
+          .addRowField("field2", innerRowWithArraySchema)
+          .addInt64Field("field3")
+          .addArrayField("field4", FieldType.array(FieldType.STRING))
+          .build();
 
   private static final Schema nestedRowSchema =
       Schema.builder()
@@ -160,6 +172,24 @@ public class BeamComplexTypeTest {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("int64").build()).addValue(6L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5189")
+  @Test
+  public void testFieldAccessToNestedRow() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            sqlEnv.parseQuery(
+                "SELECT nestedRowTestTable.col.RowField.one, nestedRowTestTable.col.RowFieldTwo.two FROM nestedRowTestTable"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addStringField("field1").addInt64Field("field2").build())
+                .addValues("inner_str_one", 3L)
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 }
