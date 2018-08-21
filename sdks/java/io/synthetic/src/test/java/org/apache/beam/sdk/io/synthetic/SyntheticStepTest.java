@@ -50,7 +50,7 @@ public class SyntheticStepTest {
   @Test
   public void testSyntheticStepWithPreservingInputKeyDistribution() throws Exception {
     SyntheticStep.Options options =
-        SyntheticUtils.optionsFromString(
+        SyntheticTestUtils.optionsFromString(
             "{\"outputRecordsPerInputRecord\": 2,"
                 + " \"preservesInputKeyDistribution\": true,"
                 + "\"keySizeBytes\": 10,"
@@ -87,7 +87,7 @@ public class SyntheticStepTest {
   @Test
   public void testSyntheticStepWithoutPreservingInputKeyDistribution() throws Exception {
     SyntheticStep.Options options =
-        SyntheticUtils.optionsFromString(
+        SyntheticTestUtils.optionsFromString(
             "{\"outputRecordsPerInputRecord\": 2,"
                 + " \"preservesInputKeyDistribution\": false,"
                 + "\"keySizeBytes\": 10,"
