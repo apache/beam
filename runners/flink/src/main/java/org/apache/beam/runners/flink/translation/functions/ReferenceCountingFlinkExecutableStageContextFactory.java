@@ -19,11 +19,11 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -47,25 +47,21 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
   private static final int TTL_IN_SECONDS = 30;
   private static final int MAX_RETRY = 3;
 
-  private final ScheduledExecutorService executor =
-      Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setDaemon(true).build());
+  private final Creator creator;
+  private transient volatile ScheduledExecutorService executor;
+  private transient volatile ConcurrentHashMap<String, WrappedContext> keyRegistry;
 
-  private final ConcurrentHashMap<String, WrappedContext> keyRegistry = new ConcurrentHashMap<>();
-  private final ThrowingFunction<JobInfo, FlinkExecutableStageContext> creator;
-
-  public static ReferenceCountingFlinkExecutableStageContextFactory create(
-      ThrowingFunction<JobInfo, FlinkExecutableStageContext> creator) {
+  public static ReferenceCountingFlinkExecutableStageContextFactory create(Creator creator) {
     return new ReferenceCountingFlinkExecutableStageContextFactory(creator);
   }
 
-  private ReferenceCountingFlinkExecutableStageContextFactory(
-      ThrowingFunction<JobInfo, FlinkExecutableStageContext> creator) {
+  private ReferenceCountingFlinkExecutableStageContextFactory(Creator creator) {
     this.creator = creator;
   }
 
   @Override
   public FlinkExecutableStageContext get(JobInfo jobInfo) {
-    // Retry is needed in case where an existing wrapper is picked from the keyRegistry but by
+    // Retry is needed in case where an existing wrapper is picked from the cache but by
     // the time we accessed wrapper.referenceCount, the wrapper was tombstoned by a pending
     // release task.
     // This race condition is highly unlikely to happen as there is no systematic coding
@@ -78,16 +74,17 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     for (int retry = 0; retry < MAX_RETRY; retry++) {
       // ConcurrentHashMap will handle the thread safety at the creation time.
       WrappedContext wrapper =
-          keyRegistry.computeIfAbsent(
-              jobInfo.jobId(),
-              jobId -> {
-                try {
-                  return new WrappedContext(jobInfo, creator.apply(jobInfo));
-                } catch (Exception e) {
-                  throw new RuntimeException(
-                      "Unable to create context for job " + jobInfo.jobId(), e);
-                }
-              });
+          getCache()
+              .computeIfAbsent(
+                  jobInfo.jobId(),
+                  jobId -> {
+                    try {
+                      return new WrappedContext(jobInfo, creator.apply(jobInfo));
+                    } catch (Exception e) {
+                      throw new RuntimeException(
+                          "Unable to create context for job " + jobInfo.jobId(), e);
+                    }
+                  });
       // Take a lock on wrapper before modifying reference count.
       // Use null referenceCount == null as a tombstone for the wrapper.
       synchronized (wrapper) {
@@ -106,14 +103,40 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
             MAX_RETRY, jobInfo.jobId()));
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   private void scheduleRelease(JobInfo jobInfo) {
-    WrappedContext wrapper = keyRegistry.get(jobInfo.jobId());
+    WrappedContext wrapper = getCache().get(jobInfo.jobId());
     Preconditions.checkState(
         wrapper != null, "Releasing context for unknown job: " + jobInfo.jobId());
     // Schedule task to clean the container later.
-    @SuppressWarnings("FutureReturnValueIgnored")
-    ScheduledFuture unused =
-        executor.schedule(() -> release(wrapper), TTL_IN_SECONDS, TimeUnit.SECONDS);
+    getExecutor().schedule(() -> release(wrapper), TTL_IN_SECONDS, TimeUnit.SECONDS);
+  }
+
+  private ConcurrentHashMap<String, WrappedContext> getCache() {
+    // Lazily initialize keyRegistry because serialization will set it to null.
+    if (keyRegistry != null) {
+      return keyRegistry;
+    }
+    synchronized (this) {
+      if (keyRegistry == null) {
+        keyRegistry = new ConcurrentHashMap<>();
+      }
+      return keyRegistry;
+    }
+  }
+
+  private ScheduledExecutorService getExecutor() {
+    // Lazily initialize executor because serialization will set it to null.
+    if (executor != null) {
+      return executor;
+    }
+    synchronized (this) {
+      if (executor == null) {
+        executor =
+            Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setDaemon(true).build());
+      }
+      return executor;
+    }
   }
 
   @VisibleForTesting
@@ -124,7 +147,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
       if (wrapper.referenceCount.decrementAndGet() == 0) {
         // Tombstone wrapper.
         wrapper.referenceCount = null;
-        if (keyRegistry.remove(wrapper.jobInfo.jobId(), wrapper)) {
+        if (getCache().remove(wrapper.jobInfo.jobId(), wrapper)) {
           try {
             wrapper.closeActual();
           } catch (Exception e) {
@@ -199,4 +222,8 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
           + '}';
     }
   }
+
+  /** Interface for creator which extends Serializable. */
+  public interface Creator
+      extends ThrowingFunction<JobInfo, FlinkExecutableStageContext>, Serializable {}
 }

@@ -21,8 +21,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlinkExecutableStageContextFactory.Creator;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,7 +35,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactoryTest {
   @Test
   public void testCreateReuseReleaseCreate() throws Exception {
 
-    ThrowingFunction<JobInfo, FlinkExecutableStageContext> creator = mock(ThrowingFunction.class);
+    Creator creator = mock(Creator.class);
     FlinkExecutableStageContext c1 = mock(FlinkExecutableStageContext.class);
     FlinkExecutableStageContext c2 = mock(FlinkExecutableStageContext.class);
     FlinkExecutableStageContext c3 = mock(FlinkExecutableStageContext.class);
