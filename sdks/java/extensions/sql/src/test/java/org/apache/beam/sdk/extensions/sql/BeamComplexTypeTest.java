@@ -37,8 +37,7 @@ import org.junit.Test;
 public class BeamComplexTypeTest {
   private static final Schema innerRowSchema =
       Schema.builder().addStringField("one").addInt64Field("two").build();
-  private static final Schema innerRowWithArraySchema =
-      Schema.builder().addStringField("one").addArrayField("array", FieldType.INT64).build();
+
   private static final Schema nestedRowSchema =
       Schema.builder()
           .addStringField("nonRowfield1")
@@ -46,13 +45,14 @@ public class BeamComplexTypeTest {
           .addInt64Field("nonRowfield2")
           .addRowField("RowFieldTwo", innerRowSchema)
           .build();
-  private static final Schema nestedRowWithArraySchema =
+
+  private static final Schema rowWithArraySchema =
       Schema.builder()
           .addStringField("field1")
-          .addRowField("field2", innerRowWithArraySchema)
-          .addInt64Field("field3")
-          .addArrayField("field4", FieldType.INT64)
+          .addInt64Field("field2")
+          .addArrayField("field3", FieldType.INT64)
           .build();
+
   private static final Schema flattenedRowSchema =
       Schema.builder()
           .addStringField("field1")
@@ -62,10 +62,18 @@ public class BeamComplexTypeTest {
           .addStringField("field5")
           .addInt64Field("field6")
           .build();
+
   private static final ReadOnlyTableProvider readOnlyTableProvider =
       new ReadOnlyTableProvider(
           "test_provider",
           ImmutableMap.of(
+              "arrayWithRowTestTable",
+              MockedBoundedTable.of(FieldType.array(FieldType.row(innerRowSchema)), "col")
+                  .addRows(
+                      Arrays.asList(Row.withSchema(innerRowSchema).addValues("str", 1L).build())),
+              "nestedArrayTestTable",
+              MockedBoundedTable.of(FieldType.array(FieldType.array(FieldType.INT64)), "col")
+                  .addRows(Arrays.asList(Arrays.asList(1L, 2L, 3L), Arrays.asList(4L, 5L))),
               "nestedRowTestTable",
               MockedBoundedTable.of(Schema.FieldType.row(nestedRowSchema), "col")
                   .addRows(
@@ -79,17 +87,11 @@ public class BeamComplexTypeTest {
               "basicRowTestTable",
               MockedBoundedTable.of(Schema.FieldType.row(innerRowSchema), "col")
                   .addRows(Row.withSchema(innerRowSchema).addValues("innerStr", 1L).build()),
-              "complicatedRowTestTable",
-              MockedBoundedTable.of(Schema.FieldType.row(nestedRowWithArraySchema), "col")
+              "rowWithArrayTestTable",
+              MockedBoundedTable.of(Schema.FieldType.row(rowWithArraySchema), "col")
                   .addRows(
-                      Row.withSchema(nestedRowWithArraySchema)
-                          .addValues(
-                              "str",
-                              Row.withSchema(innerRowWithArraySchema)
-                                  .addValues("inner_str_one", Arrays.asList(1L, 2L, 3L))
-                                  .build(),
-                              4L,
-                              Arrays.asList(5L, 6L))
+                      Row.withSchema(rowWithArraySchema)
+                          .addValues("str", 4L, Arrays.asList(5L, 6L))
                           .build())));
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -99,12 +101,39 @@ public class BeamComplexTypeTest {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
     PCollection<Row> stream =
         BeamSqlRelUtils.toPCollection(
-            pipeline,
-            sqlEnv.parseQuery("SELECT nestedRowTestTable.col.RowFieldTwo FROM nestedRowTestTable"));
+            pipeline, sqlEnv.parseQuery("SELECT nestedRowTestTable.col FROM nestedRowTestTable"));
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(flattenedRowSchema)
                 .addValues("str", "inner_str_one", 1L, 2L, "inner_str_two", 3L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testArrayWithRow() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            sqlEnv.parseQuery("SELECT arrayWithRowTestTable.col[0] FROM arrayWithRowTestTable"));
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(innerRowSchema).addValues("str", 1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testNestedArray() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            sqlEnv.parseQuery(
+                "SELECT nestedArrayTestTable.col[0][2], nestedArrayTestTable.col[1][0] FROM nestedArrayTestTable"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("field1").addInt64Field("field2").build())
+                .addValues(3L, 4L)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -121,15 +150,16 @@ public class BeamComplexTypeTest {
   }
 
   @Test
-  public void testComplicatedRow() {
+  public void testRowWithArray() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
     PCollection<Row> stream =
         BeamSqlRelUtils.toPCollection(
             pipeline,
             sqlEnv.parseQuery(
-                "SELECT complicatedRowTestTable.col.field2 FROM complicatedRowTestTable"));
-    PAssert.that(stream).containsInAnyOrder();
-    // .containsInAnyOrder(Row.withSchema(Schema.builder().addInt64Field("int64").build()).addValue(2L).build());
+                "SELECT rowWithArrayTestTable.col.field3[1] FROM rowWithArrayTestTable"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("int64").build()).addValue(6L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 }
