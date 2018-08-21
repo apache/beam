@@ -264,6 +264,11 @@ public class HadoopFileSystemTest {
     // match dir spec with '/'
     assertEquals(testPath("dir/"), fileSystem.matchNewResource(testPath("dir/").toString(), true));
 
+    // match should preserve empty authority
+    assertEquals(
+        "hdfs:///dir/file", fileSystem.matchNewResource("hdfs:///dir/file", false).toString());
+    assertEquals("hdfs:///dir/", fileSystem.matchNewResource("hdfs:///dir", true).toString());
+
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Expected file path but received directory path");
     fileSystem.matchNewResource(testPath("dir/").toString(), false);
