@@ -129,6 +129,7 @@ class CommonJobProperties {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
         string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
+      timestamps()
     }
   }
 
