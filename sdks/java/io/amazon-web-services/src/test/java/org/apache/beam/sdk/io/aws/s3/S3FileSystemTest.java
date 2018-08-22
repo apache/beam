@@ -37,6 +37,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import akka.http.scaladsl.Http;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
@@ -67,8 +68,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -77,16 +78,17 @@ import org.mockito.ArgumentMatcher;
 /** Test case for {@link S3FileSystem}. */
 @RunWith(JUnit4.class)
 public class S3FileSystemTest {
-  private S3Mock api;
-  private AmazonS3 client;
+  private static S3Mock api;
+  private static AmazonS3 client;
 
-  @Before
-  public void before() {
-    api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
-    api.start();
+  @BeforeClass
+  public static void beforeClass() {
+    api = new S3Mock.Builder().withInMemoryBackend().build();
+    Http.ServerBinding binding = api.start();
 
     EndpointConfiguration endpoint =
-        new EndpointConfiguration("http://localhost:8001", "us-west-2");
+        new EndpointConfiguration(
+            "http://localhost:" + binding.localAddress().getPort(), "us-west-2");
     client =
         AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
@@ -95,8 +97,8 @@ public class S3FileSystemTest {
             .build();
   }
 
-  @After
-  public void after() {
+  @AfterClass
+  public static void afterClass() {
     api.stop();
   }
 
