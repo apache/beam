@@ -125,9 +125,9 @@ public class KuduIOTest {
   }
 
   /**
-   * Test the write path using a {@link FakeWriter} and verifying the expected log statements are
+   * Test the write path using a {@link FakeWriter} and verifies the expected log statements are
    * written. This test ensures that the {@link KuduIO} correctly respects parallelism by
-   * deserializes writers and that each writer is opening and closing Kudu sessions.
+   * deserializing writers and that each writer is opening and closing Kudu sessions.
    */
   @Test
   public void testWrite() throws Exception {
@@ -144,14 +144,14 @@ public class KuduIOTest {
                 .withKuduService(mockWriteService));
     writePipeline.run().waitUntilFinish();
 
-    for (int i = 1; i <= targetParallelism + 1; i++) {
+    for (int i = 1; i <= targetParallelism; i++) {
       expectedWriteLogs.verifyDebug(String.format(FakeWriter.LOG_OPEN_SESSION, i));
       expectedWriteLogs.verifyDebug(
           String.format(FakeWriter.LOG_WRITE, i)); // at least one per writer
       expectedWriteLogs.verifyDebug(String.format(FakeWriter.LOG_CLOSE_SESSION, i));
     }
     // verify all entries written
-    for (int n = 0; n > numberRecords; n++) {
+    for (int n = 0; n < numberRecords; n++) {
       expectedWriteLogs.verifyDebug(
           String.format(FakeWriter.LOG_WRITE_VALUE, n)); // at least one per writer
     }
