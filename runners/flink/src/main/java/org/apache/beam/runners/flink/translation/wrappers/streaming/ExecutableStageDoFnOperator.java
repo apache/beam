@@ -150,6 +150,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void close() throws Exception {
     try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
     // Remove the reference to stageContext and make stageContext available for garbage collection.
+    try (AutoCloseable closable = stageContext) {}
     stageContext = null;
     super.close();
   }
