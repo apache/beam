@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import os
 import platform
+import sys
 import warnings
 from distutils.version import StrictVersion
 
@@ -100,9 +101,15 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
+REQUIRED_PACKAGES_PY2 = [
+    'avro>=1.8.1,<2.0.0'
+]
 
-REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
+REQUIRED_PACKAGES_PY3 = [
+    'avro-python3>=1.8.1,<2.0.0'
+]
+
+REQUIRED_PACKAGES_PY23 = [
     'crcmod>=1.7,<2.0',
     'dill>=0.2.6,<=0.2.8.2',
     'fastavro==0.21.4',
@@ -138,6 +145,11 @@ GCP_REQUIREMENTS = [
     # GCP packages required by tests
     'google-cloud-bigquery==0.25.0',
 ]
+
+if sys.version_info[0] == 2:
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES_PY2 + REQUIRED_PACKAGES_PY23
+elif sys.version_info[0] >= 3:
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES_PY3 + REQUIRED_PACKAGES_PY23
 
 
 # We must generate protos after setup_requires are installed.
