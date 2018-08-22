@@ -47,7 +47,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
-public class AwsModuleTest {
+public class AwsModuleAmazonSNSMock {
 
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new AwsModule());
 
