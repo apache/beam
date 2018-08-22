@@ -17,7 +17,15 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(
+  // Override the default shading configuration to exclude everything since
+  // AWS-KPL library has hard dependency on guava.
+  shadowClosure: {
+    dependencies {
+      exclude(dependency(".*:.*"))
+    }
+  }
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
