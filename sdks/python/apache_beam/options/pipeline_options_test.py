@@ -38,14 +38,18 @@ class PipelineOptionsTest(unittest.TestCase):
 
   TEST_CASES = [
       {'flags': ['--num_workers', '5'],
-       'expected': {'num_workers': 5, 'mock_flag': False, 'mock_option': None},
+       'expected': {'num_workers': 5,
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
           'expected': {
               'profile_cpu': True, 'profile_location': 'gs://bucket/',
-              'mock_flag': False, 'mock_option': None},
+              'mock_flag': False, 'mock_option': None,
+              'mock_multi_option': None},
           'display_data': [
               DisplayDataItemMatcher('profile_cpu',
                                      True),
@@ -53,32 +57,52 @@ class PipelineOptionsTest(unittest.TestCase):
                                      'gs://bucket/')]
       },
       {'flags': ['--num_workers', '5', '--mock_flag'],
-       'expected': {'num_workers': 5, 'mock_flag': True, 'mock_option': None},
+       'expected': {'num_workers': 5,
+                    'mock_flag': True,
+                    'mock_option': None,
+                    'mock_multi_option': None},
        'display_data': [
            DisplayDataItemMatcher('num_workers', 5),
            DisplayDataItemMatcher('mock_flag', True)]
       },
       {'flags': ['--mock_option', 'abc'],
-       'expected': {'mock_flag': False, 'mock_option': 'abc'},
+       'expected': {'mock_flag': False,
+                    'mock_option': 'abc',
+                    'mock_multi_option': None},
        'display_data': [
            DisplayDataItemMatcher('mock_option', 'abc')]
       },
       {'flags': ['--mock_option', ' abc def '],
-       'expected': {'mock_flag': False, 'mock_option': ' abc def '},
+       'expected': {'mock_flag': False,
+                    'mock_option': ' abc def ',
+                    'mock_multi_option': None},
        'display_data': [
            DisplayDataItemMatcher('mock_option', ' abc def ')]
       },
       {'flags': ['--mock_option= abc xyz '],
-       'expected': {'mock_flag': False, 'mock_option': ' abc xyz '},
+       'expected': {'mock_flag': False,
+                    'mock_option': ' abc xyz ',
+                    'mock_multi_option': None},
        'display_data': [
            DisplayDataItemMatcher('mock_option', ' abc xyz ')]
       },
-      {'flags': ['--mock_option=gs://my bucket/my folder/my file'],
+      {'flags': ['--mock_option=gs://my bucket/my folder/my file',
+                 '--mock_multi_option=op1',
+                 '--mock_multi_option=op2'],
        'expected': {'mock_flag': False,
-                    'mock_option': 'gs://my bucket/my folder/my file'},
+                    'mock_option': 'gs://my bucket/my folder/my file',
+                    'mock_multi_option': ['op1', 'op2']},
        'display_data': [
            DisplayDataItemMatcher(
-               'mock_option', 'gs://my bucket/my folder/my file')]
+               'mock_option', 'gs://my bucket/my folder/my file'),
+           DisplayDataItemMatcher('mock_multi_option', ['op1', 'op2'])]
+      },
+      {'flags': ['--mock_multi_option=op1', '--mock_multi_option=op2'],
+       'expected': {'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': ['op1', 'op2']},
+       'display_data': [
+           DisplayDataItemMatcher('mock_multi_option', ['op1', 'op2'])]
       },
   ]
 
@@ -89,6 +113,8 @@ class PipelineOptionsTest(unittest.TestCase):
     def _add_argparse_args(cls, parser):
       parser.add_argument('--mock_flag', action='store_true', help='mock flag')
       parser.add_argument('--mock_option', help='mock option')
+      parser.add_argument(
+          '--mock_multi_option', action='append', help='mock multi option')
       parser.add_argument('--option with space', help='mock option with space')
 
   def test_display_data(self):
@@ -107,6 +133,9 @@ class PipelineOptionsTest(unittest.TestCase):
       self.assertEqual(options.view_as(
           PipelineOptionsTest.MockOptions).mock_option,
                        case['expected']['mock_option'])
+      self.assertEqual(options.view_as(
+          PipelineOptionsTest.MockOptions).mock_multi_option,
+                       case['expected']['mock_multi_option'])
 
   def test_from_dictionary(self):
     for case in PipelineOptionsTest.TEST_CASES:
