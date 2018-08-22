@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
@@ -35,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implementation of a {@link FlinkExecutableStageContext} for batch jobs. */
-class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext {
+class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkBatchExecutableStageContext.class);
 
   private final JobBundleFactory jobBundleFactory;
@@ -68,32 +65,20 @@ class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext {
   }
 
   @Override
-  protected void finalize() throws Exception {
+  public void close() throws Exception {
     jobBundleFactory.close();
   }
 
   enum BatchFactory implements Factory {
-    INSTANCE;
+    REFERENCE_COUNTING;
 
-    @SuppressWarnings("Immutable") // observably immutable
-    private final LoadingCache<JobInfo, FlinkBatchExecutableStageContext> cachedContexts;
-
-    BatchFactory() {
-      cachedContexts =
-          CacheBuilder.newBuilder()
-              .weakValues()
-              .build(
-                  new CacheLoader<JobInfo, FlinkBatchExecutableStageContext>() {
-                    @Override
-                    public FlinkBatchExecutableStageContext load(JobInfo jobInfo) throws Exception {
-                      return create(jobInfo);
-                    }
-                  });
-    }
+    private static final ReferenceCountingFlinkExecutableStageContextFactory actualFactory =
+        ReferenceCountingFlinkExecutableStageContextFactory.create(
+            FlinkBatchExecutableStageContext::create);
 
     @Override
     public FlinkExecutableStageContext get(JobInfo jobInfo) {
-      return cachedContexts.getUnchecked(jobInfo);
+      return actualFactory.get(jobInfo);
     }
   }
 }

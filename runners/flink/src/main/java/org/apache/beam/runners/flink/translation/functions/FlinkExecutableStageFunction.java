@@ -65,8 +65,8 @@ public class FlinkExecutableStageFunction<InputT>
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
-  private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
+  private transient FlinkExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
 
@@ -127,7 +127,7 @@ public class FlinkExecutableStageFunction<InputT>
   @Override
   public void close() throws Exception {
     try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
-    // Remove the reference to stageContext and make stageContext available for garbage collection.
+    try (AutoCloseable closable = stageContext) {}
     stageContext = null;
   }
 
