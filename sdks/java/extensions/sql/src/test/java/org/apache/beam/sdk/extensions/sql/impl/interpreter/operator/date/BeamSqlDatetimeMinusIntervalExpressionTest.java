@@ -40,58 +40,28 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/** Unit tests for {@link BeamSqlTimestampMinusIntervalExpression}. */
-public class BeamSqlTimestampMinusIntervalExpressionTest {
+/** Unit tests for {@link BeamSqlDatetimeMinusIntervalExpression}. */
+public class BeamSqlDatetimeMinusIntervalExpressionTest {
   private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
 
   private static final DateTime DATE = new DateTime(329281L);
   private static final DateTime DATE_MINUS_2_SEC = DATE.minusSeconds(2);
 
-  private static final BeamSqlPrimitive TIMESTAMP =
-      BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, DATE);
+  private static final BeamSqlPrimitive DATETIME = BeamSqlPrimitive.of(SqlTypeName.DATE, DATE);
 
   private static final BeamSqlPrimitive INTERVAL_2_SEC =
       BeamSqlPrimitive.of(
           SqlTypeName.INTERVAL_SECOND, TimeUnit.SECOND.multiplier.multiply(new BigDecimal(2)));
 
-  private static final BeamSqlPrimitive INTERVAL_3_MONTHS =
-      BeamSqlPrimitive.of(
-          SqlTypeName.INTERVAL_MONTH, TimeUnit.MONTH.multiplier.multiply(new BigDecimal(3)));
-
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testBasicProperties() {
-    BeamSqlTimestampMinusIntervalExpression minusExpression =
-        minusExpression(SqlTypeName.INTERVAL_DAY_MINUTE, TIMESTAMP, INTERVAL_3_MONTHS);
-
-    assertEquals(SqlTypeName.INTERVAL_DAY_MINUTE, minusExpression.getOutputType());
-    assertEquals(Arrays.asList(TIMESTAMP, INTERVAL_3_MONTHS), minusExpression.getOperands());
-  }
-
-  @Test
   public void testAcceptsHappyPath() {
-    BeamSqlTimestampMinusIntervalExpression minusExpression =
-        minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
+    BeamSqlDatetimeMinusIntervalExpression minusExpression =
+        minusExpression(SqlTypeName.TIMESTAMP, DATETIME, INTERVAL_2_SEC);
 
     assertTrue(minusExpression.accept());
-  }
-
-  @Test
-  public void testDoesNotAcceptOneOperand() {
-    BeamSqlTimestampMinusIntervalExpression minusExpression =
-        minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP);
-
-    assertFalse(minusExpression.accept());
-  }
-
-  @Test
-  public void testDoesNotAcceptThreeOperands() {
-    BeamSqlTimestampMinusIntervalExpression minusExpression =
-        minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC, INTERVAL_3_MONTHS);
-
-    assertFalse(minusExpression.accept());
   }
 
   @Test
@@ -100,8 +70,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
-      BeamSqlTimestampMinusIntervalExpression minusExpression =
-          minusExpression(unsupportedType, TIMESTAMP, INTERVAL_2_SEC);
+      BeamSqlDatetimeMinusIntervalExpression minusExpression =
+          minusExpression(unsupportedType, DATETIME, INTERVAL_2_SEC);
 
       assertFalse(minusExpression.accept());
     }
@@ -110,13 +80,13 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
   @Test
   public void testDoesNotAcceptWrongFirstOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
-    unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
+    unsupportedTypes.removeAll(SqlTypeName.DATETIME_TYPES);
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
       doReturn(unsupportedType).when(unsupportedOperand).getOutputType();
 
-      BeamSqlTimestampMinusIntervalExpression minusExpression =
+      BeamSqlDatetimeMinusIntervalExpression minusExpression =
           minusExpression(SqlTypeName.TIMESTAMP, unsupportedOperand, INTERVAL_2_SEC);
 
       assertFalse(minusExpression.accept());
@@ -132,8 +102,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
       doReturn(unsupportedType).when(unsupportedOperand).getOutputType();
 
-      BeamSqlTimestampMinusIntervalExpression minusExpression =
-          minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, unsupportedOperand);
+      BeamSqlDatetimeMinusIntervalExpression minusExpression =
+          minusExpression(SqlTypeName.TIMESTAMP, DATETIME, unsupportedOperand);
 
       assertFalse(minusExpression.accept());
     }
@@ -145,8 +115,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
       doReturn(unsupportedType).when(unsupportedOperand).getOutputType();
 
-      BeamSqlTimestampMinusIntervalExpression minusExpression =
-          minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, unsupportedOperand);
+      BeamSqlDatetimeMinusIntervalExpression minusExpression =
+          minusExpression(SqlTypeName.TIMESTAMP, DATETIME, unsupportedOperand);
 
       assertTrue(minusExpression.accept());
     }
@@ -154,8 +124,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
 
   @Test
   public void testEvaluateHappyPath() {
-    BeamSqlTimestampMinusIntervalExpression minusExpression =
-        minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
+    BeamSqlDatetimeMinusIntervalExpression minusExpression =
+        minusExpression(SqlTypeName.TIMESTAMP, DATETIME, INTERVAL_2_SEC);
 
     BeamSqlPrimitive subtractionResult =
         minusExpression.evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
@@ -164,8 +134,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     assertEquals(DATE_MINUS_2_SEC, subtractionResult.getDate());
   }
 
-  private static BeamSqlTimestampMinusIntervalExpression minusExpression(
+  private static BeamSqlDatetimeMinusIntervalExpression minusExpression(
       SqlTypeName intervalsToCount, BeamSqlExpression... operands) {
-    return new BeamSqlTimestampMinusIntervalExpression(Arrays.asList(operands), intervalsToCount);
+    return new BeamSqlDatetimeMinusIntervalExpression(Arrays.asList(operands), intervalsToCount);
   }
 }
