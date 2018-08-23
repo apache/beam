@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import argparse
+from builtins import list
 from builtins import object
 
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -182,6 +183,9 @@ class PipelineOptions(HasDisplayData):
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+      elif isinstance(v, list):
+        for i in v:
+          flags.append('--%s=%s' % (k, i))
       else:
         flags.append('--%s=%s' % (k, v))
 
