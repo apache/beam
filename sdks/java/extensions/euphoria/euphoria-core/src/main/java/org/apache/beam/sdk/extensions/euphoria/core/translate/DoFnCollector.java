@@ -59,7 +59,7 @@ public class DoFnCollector<InputT, OutputT, ElemT>
 
   @Override
   public Window<?> getWindow() {
-    // TODO: we need to return the element's window here
+    // TODO: this should be removed
     return GlobalWindowing.Window.get();
   }
 

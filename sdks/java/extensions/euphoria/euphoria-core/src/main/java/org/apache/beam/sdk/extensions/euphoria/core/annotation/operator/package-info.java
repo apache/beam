@@ -15,5 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** TODO: complete javadoc. */
+/**
+ * This package contains a set of annotations wch allows to mark operators to explicitly tell that
+ * they have varions properties.
+ */
 package org.apache.beam.sdk.extensions.euphoria.core.annotation.operator;

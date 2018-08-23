@@ -208,7 +208,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceWindow builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     final String name;
@@ -223,7 +223,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceWindow builder which adds value extracor to operator under build. */
   public static class ValueBuilder<InputT> {
 
     private final BuilderParams<InputT, ?, ?, ?> params;
@@ -307,7 +307,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceWindow builder which adds reducer function to operator under build. */
   public static class ReduceBuilder<InputT, V> {
 
     private final BuilderParams<InputT, V, ?, ?> params;
@@ -363,7 +363,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceWindow builder which adds windowing to operator under build. */
   public static class WindowByBuilder<InputT, V, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>>,
           OptionalMethodBuilder<
@@ -476,7 +476,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceWindow builder which adds value comparator to operator under build. */
   public static class SortableOutputBuilder<InputT, V, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>> {
 

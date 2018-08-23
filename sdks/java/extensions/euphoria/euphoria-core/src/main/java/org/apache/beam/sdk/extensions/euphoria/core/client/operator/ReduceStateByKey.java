@@ -234,7 +234,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceStateByKey builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -249,7 +249,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceStateByKey builder which adds key extractor to operator under build. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final String name;
@@ -276,7 +276,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceStateByKey builder which adds value extractor to operator under build. */
   public static class ValueByBuilder<InputT, K> {
 
     private final BuilderParams<InputT, K, ?, ?, ?, ?> params;
@@ -310,7 +310,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceStateByKey builder which adds state to operator under build. */
   public static class StateFactoryBuilder<InputT, K, V> {
 
     private final BuilderParams<InputT, K, V, ?, ?, ?> params;
@@ -350,7 +350,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceStateByKey builder which adds state merger to operator under build.. */
   public static class MergeStateByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
@@ -375,7 +375,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceStateByKey builder which adds windowing to operator under build.. */
   public static class WindowOfBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, StateT, ?>>,
           Builders.Output<KV<K, OutputT>>,
@@ -478,7 +478,6 @@ public class ReduceStateByKey<
           InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
       implements Builders.Output<KV<K, OutputT>>, Builders.OutputValues<K, OutputT> {
 
-    /** TODO: complete javadoc. */
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
     OutputBuilder(BuilderParams<InputT, K, V, OutputT, StateT, W> params) {

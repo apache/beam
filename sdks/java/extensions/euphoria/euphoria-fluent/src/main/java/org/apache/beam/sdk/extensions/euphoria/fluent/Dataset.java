@@ -28,7 +28,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders.Output;
 
-/** TODO: complete javadoc. */
+/** Fluent version of {@link org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset}. */
 public class Dataset<T> {
 
   private final org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T> wrap;

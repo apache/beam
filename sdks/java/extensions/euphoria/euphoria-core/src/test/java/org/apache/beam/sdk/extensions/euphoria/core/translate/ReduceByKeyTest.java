@@ -17,38 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import static org.junit.Assert.assertTrue;
-
 import java.util.Arrays;
-import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.CountTrigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Simple test suite for RBK. */
@@ -144,7 +126,6 @@ public class ReduceByKeyTest {
   }
 
   @Test
-  @Ignore
   public void testElementTimestamp() {
 
     Flow flow = Flow.create();
@@ -158,113 +139,25 @@ public class ReduceByKeyTest {
                 // ~ note: exactly one element for the window on purpose (to test out
                 // all is well even in case our `.combineBy` user function is not called.)
                 KV.of(4, 21_456L)));
-    ListDataSink<Integer> sink = ListDataSink.get();
     Dataset<KV<Integer, Long>> input = flow.createInput(source);
 
     input = AssignEventTime.of(input).using(KV::getValue).output();
+
     Dataset<KV<String, Integer>> reduced =
         ReduceByKey.of(input)
             .keyBy(e -> "", TypeDescriptors.strings())
             .valueBy(KV::getKey, TypeDescriptors.integers())
             .combineBy(Sums.ofInts(), TypeDescriptors.integers())
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
-            .triggeredBy(AfterWatermark.pastEndOfWindow())
+            .triggeredBy(DefaultTrigger.of())
             .discardingFiredPanes()
             .output();
-    // ~ now use a custom windowing with a trigger which does
-    // the assertions subject to this test (use RSBK which has to
-    // use triggering, unlike an optimized RBK)
-    Dataset<KV<String, Integer>> output =
-        ReduceStateByKey.of(reduced)
-            .keyBy(KV::getKey)
-            .valueBy(KV::getValue)
-            .stateFactory(SumState::new)
-            .mergeStatesBy(SumState::combine)
-            //.windowBy(new AssertingWindowing<>()) //TODO apply Beam windowing
-            .output();
-    FlatMap.of(output)
-        .using(
-            (UnaryFunctor<KV<String, Integer>, Integer>)
-                (elem, context) -> context.collect(elem.getValue()))
-        .output()
-        .persist(sink);
+
+    ListDataSink<KV<String, Integer>> sink = ListDataSink.get();
+    reduced.persist(sink);
 
     BeamRunnerWrapper.ofDirect().executeSync(flow);
-    DatasetAssert.unorderedEquals(sink.getOutputs(), 4, 6);
-  }
-
-  static class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
-
-    @Override
-    public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
-      // ~ we expect the 'element time' to be the end of the window which produced the
-      // element in the preceding upstream (stateful and windowed) operator
-      assertTrue(
-          "Invalid timestamp " + el.getTimestamp(),
-          el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);
-      return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Trigger<TimeInterval> getTrigger() {
-      return new CountTrigger(1) {
-        @Override
-        public boolean isStateful() {
-          return false;
-        }
-
-        @Override
-        public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
-          // ~ we expect the 'time' to be the end of the window which produced the
-          // element in the preceding upstream (stateful and windowed) operator
-          assertTrue("Invalid timestamp " + time, time == 15_000L - 1 || time == 25_000L - 1);
-          return super.onElement(time, window, ctx);
-        }
-      };
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof AssertingWindowing;
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-  }
-
-  static class SumState implements State<Integer, Integer> {
-
-    private final ValueStorage<Integer> sum;
-
-    SumState(StateContext context, Collector<Integer> collector) {
-      sum =
-          context
-              .getStorageProvider()
-              .getValueStorage(ValueStorageDescriptor.of("sum-state", Integer.class, 0));
-    }
-
-    static void combine(SumState target, Iterable<SumState> others) {
-      for (SumState other : others) {
-        target.add(other.sum.get());
-      }
-    }
-
-    @Override
-    public void add(Integer element) {
-      sum.set(sum.get() + element);
-    }
-
-    @Override
-    public void flush(Collector<Integer> context) {
-      context.collect(sum.get());
-    }
-
-    @Override
-    public void close() {
-      sum.clear();
-    }
+    DatasetAssert.unorderedEquals(
+        sink.getOutputs(), KV.of("", 1), KV.of("", 2), KV.of("", 3), KV.of("", 4));
   }
 }

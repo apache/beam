@@ -91,7 +91,7 @@ public class Fold implements Serializable {
    * @param fold the associative fold function
    * @return the {@link ReduceFunctor}
    */
-  @SuppressWarnings("ReturnValueIgnored") // TODO : remove
+  @SuppressWarnings("ReturnValueIgnored")
   public static <InputT, OutputT> ReduceFunctor<InputT, OutputT> whileEmittingEach(
       OutputT identity, BinaryFunction<OutputT, InputT, OutputT> fold) {
 
