@@ -325,6 +325,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .intercept(delegateOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
+            .method(ElementMatchers.named("invokeOnWindowExpiration"))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(
+                    clazzDescription, signature.onWindowExpiration()))
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(
                 delegateWithDowncastOrThrow(clazzDescription, signature.getInitialRestriction()))
@@ -390,6 +394,14 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     return (method == null)
         ? FixedValue.originType()
         : new DoFnMethodDelegation(doFnType, method.targetMethod());
+  }
+
+  /** Delegates method with extra parameters to the given method if available, or does nothing. */
+  private static Implementation delegateMethodWithExtraParametersOrNoop(
+      TypeDescription doFnType, DoFnSignature.MethodWithExtraParameters method) {
+    return (method == null)
+        ? FixedValue.originType()
+        : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
   }
 
   /** Delegates to the given method if available, or throws UnsupportedOperationException. */
@@ -512,6 +524,47 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           Assigner.DEFAULT.assign(
               targetMethod.getReturnType(), instrumentedMethod.getReturnType(), Typing.STATIC),
           MethodReturn.of(instrumentedMethod.getReturnType()));
+    }
+  }
+
+  /**
+   * Implements {@link DoFnInvoker}'s method with extra parameters by delegating to a "target
+   * method" of the wrapped {@link DoFn}.
+   */
+  static class DoFnMethodWithExtraParametersDelegation extends DoFnMethodDelegation {
+    private final DoFnSignature.MethodWithExtraParameters signature;
+
+    public DoFnMethodWithExtraParametersDelegation(
+        TypeDescription clazzDescription, DoFnSignature.MethodWithExtraParameters signature) {
+      super(clazzDescription, signature.targetMethod());
+      this.signature = signature;
+    }
+
+    @Override
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
+      // Parameters of the wrapper invoker method:
+      //   DoFn.ArgumentProvider
+      // Parameters of the wrapped DoFn method:
+      //   a dynamic set of allowed "extra" parameters in any order subject to
+      //   validation prior to getting the DoFnSignature
+      ArrayList<StackManipulation> parameters = new ArrayList<>();
+
+      // To load the delegate, push `this` and then access the field
+      StackManipulation pushDelegate =
+          new StackManipulation.Compound(
+              MethodVariableAccess.REFERENCE.loadFrom(0),
+              FieldAccess.forField(delegateField).read());
+
+      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
+
+      // Push the extra arguments in their actual order.
+      for (DoFnSignature.Parameter param : signature.extraParameters()) {
+        parameters.add(
+            new StackManipulation.Compound(
+                pushExtraContextFactory,
+                ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushDelegate)));
+      }
+      return new StackManipulation.Compound(parameters);
     }
   }
 
@@ -722,7 +775,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
    * {@link ProcessElement} method.
    */
-  private static final class ProcessElementDelegation extends DoFnMethodDelegation {
+  private static final class ProcessElementDelegation
+      extends DoFnMethodWithExtraParametersDelegation {
     private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
 
     static {
@@ -739,33 +793,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(
         TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
-      super(doFnType, signature.targetMethod());
+      super(doFnType, signature);
       this.signature = signature;
-    }
-
-    @Override
-    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
-      // Parameters of the wrapper invoker method:
-      //   DoFnInvoker.ArgumentProvider
-      // Parameters of the wrapped DoFn method:
-      //   [DoFn.ProcessContext, BoundedWindow, InputProvider, OutputReceiver] in any order
-      ArrayList<StackManipulation> pushParameters = new ArrayList<>();
-
-      // To load the delegate, push `this` and then access the field
-      StackManipulation pushDelegate =
-          new StackManipulation.Compound(
-              MethodVariableAccess.REFERENCE.loadFrom(0),
-              FieldAccess.forField(delegateField).read());
-
-      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
-
-      // Push the arguments in their actual order.
-      for (DoFnSignature.Parameter param : signature.extraParameters()) {
-        pushParameters.add(
-            new StackManipulation.Compound(
-                pushExtraContextFactory, getExtraContextParameter(param, pushDelegate)));
-      }
-      return new StackManipulation.Compound(pushParameters);
     }
 
     @Override

@@ -84,6 +84,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract LifecycleMethod teardown();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
+  @Nullable
+  public abstract OnWindowExpirationMethod onWindowExpiration();
+
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
 
@@ -146,6 +150,8 @@ public abstract class DoFnSignature {
     abstract Builder setSetup(LifecycleMethod setup);
 
     abstract Builder setTeardown(LifecycleMethod teardown);
+
+    abstract Builder setOnWindowExpiration(OnWindowExpirationMethod onWindowExpiration);
 
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
 
@@ -753,6 +759,44 @@ public abstract class DoFnSignature {
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
           id,
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
+    }
+  }
+
+  /** Describes a {@link DoFn.OnWindowExpiration} method. */
+  @AutoValue
+  public abstract static class OnWindowExpirationMethod implements MethodWithExtraParameters {
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For {@link
+     * org.apache.beam.sdk.transforms.DoFn.OnWindowExpiration}, this means that any state must be
+     * stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static OnWindowExpirationMethod create(
+        Method targetMethod,
+        boolean requiresStableInput,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnWindowExpirationMethod(
           targetMethod,
           requiresStableInput,
           windowT,
