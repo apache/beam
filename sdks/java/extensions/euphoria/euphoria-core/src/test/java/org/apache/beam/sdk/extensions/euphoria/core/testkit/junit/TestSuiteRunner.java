@@ -43,7 +43,7 @@ import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** TODO: add javadoc. */
+/** Junit runner which is able to run all the test in test suite. */
 public class TestSuiteRunner extends Suite {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSuiteRunner.class);

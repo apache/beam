@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Util;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.junit.Test;
 
-/** TODO: complete javadoc. */
+/** Split unit testing. */
 public class SplitTest {
 
   @Test

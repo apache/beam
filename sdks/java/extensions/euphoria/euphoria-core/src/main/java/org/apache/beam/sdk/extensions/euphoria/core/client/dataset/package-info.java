@@ -15,5 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** TODO: complete javadoc. */
+/**
+ * {@link org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset} and its
+ * implementations.
+ */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset;

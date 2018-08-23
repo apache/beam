@@ -69,7 +69,7 @@ public class BeamUnboundedSource<T, OffsetT extends Serializable>
 
   @Override
   public void validate() {
-    // TODO
+    // TODO how to valide?
   }
 
   @Override

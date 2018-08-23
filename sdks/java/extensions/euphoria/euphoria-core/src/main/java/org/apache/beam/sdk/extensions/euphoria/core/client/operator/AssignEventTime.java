@@ -109,7 +109,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     return eventTimeFn;
   }
 
-  /** TODO: complete javadoc. */
+  /** AssignEventTime builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -124,7 +124,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** AssignEventTime builder which adds event time extractor to operator under build. */
   public static class UsingBuilder<InputT> {
 
     private final String name;

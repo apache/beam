@@ -15,5 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** TODO: complete javadoc. */
+/** API stability related annotations. */
 package org.apache.beam.sdk.extensions.euphoria.core.annotation.stability;
