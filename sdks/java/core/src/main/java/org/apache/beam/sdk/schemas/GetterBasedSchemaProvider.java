@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -58,19 +59,24 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // workers would see different versions of the schema.
     Schema schema = schemaFor(typeDescriptor);
 
-    // Since we know that this factory is always called from inside the lambda with the same class
-    // and schema, return a caching factory that caches the first value seen. This prevents having
-    // to lookup the getter list each time createGetters is called.
+    // Since we know that this factory is always called from inside the lambda with the same schema,
+    // return a caching factory that caches the first value seen for each class. This prevents
+    // having to lookup the getter list each time createGetters is called.
     FieldValueGetterFactory getterFactory =
         new FieldValueGetterFactory() {
-          transient List<FieldValueGetter> getters;
+          transient HashMap<Class, List<FieldValueGetter>> gettersMap;
 
           @Override
           public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
+            if (gettersMap == null) {
+              gettersMap = new HashMap<>();
+            }
+            List<FieldValueGetter> getters = gettersMap.get(targetClass);
             if (getters != null) {
               return getters;
             }
             getters = fieldValueGetterFactory().createGetters(targetClass, schema);
+            gettersMap.put(targetClass, getters);
             return getters;
           }
         };
