@@ -75,7 +75,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 
-/** AmazonSNSMock case for {@link S3FileSystem}. */
+/** Test case for {@link S3FileSystem}. */
 @RunWith(JUnit4.class)
 public class S3FileSystemTest {
   private static S3Mock api;
