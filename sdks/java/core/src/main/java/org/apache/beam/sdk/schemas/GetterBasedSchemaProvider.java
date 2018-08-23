@@ -54,10 +54,27 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // why is that Java reflection does not guarantee the order in which it returns fields and
     // methods, and these schemas are often based on reflective analysis of classes. Therefore it's
     // important to capture the schema once here, so all invocations of the toRowFunction see the
-    // same version of the schema. If schemaFor were to be called inside the function, different
+    // same version of the schema. If schemaFor were to be called inside the lambda below, different
     // workers would see different versions of the schema.
     Schema schema = schemaFor(typeDescriptor);
-    return o -> Row.withSchema(schema).withFieldValueGetters(fieldValueGetterFactory(), o).build();
+
+    // Since we know that this factory is always called from inside the lambda with the same class
+    // and schema, return a caching factory that caches the first value seen. This prevents having
+    // to lookup the getter list each time createGetters is called.
+    FieldValueGetterFactory getterFactory =
+        new FieldValueGetterFactory() {
+          transient List<FieldValueGetter> getters;
+
+          @Override
+          public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
+            if (getters != null) {
+              return getters;
+            }
+            getters = fieldValueGetterFactory().createGetters(targetClass, schema);
+            return getters;
+          }
+        };
+    return o -> Row.withSchema(schema).withFieldValueGetters(getterFactory, o).build();
   }
 
   @Override
