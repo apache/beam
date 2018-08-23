@@ -27,10 +27,8 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.io.BaseEncoding;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
@@ -49,7 +47,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
-import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodDelegation;
+import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodWithExtraParametersDelegation;
 
 /**
  * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
@@ -184,13 +182,13 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    * An "invokeOnTimer" method implementation akin to @ProcessElement, but simpler because no
    * splitting-related parameters need to be handled.
    */
-  private static class InvokeOnTimerDelegation extends DoFnMethodDelegation {
+  private static class InvokeOnTimerDelegation extends DoFnMethodWithExtraParametersDelegation {
 
     private final DoFnSignature.OnTimerMethod signature;
 
     public InvokeOnTimerDelegation(
         TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature) {
-      super(clazzDescription, signature.targetMethod());
+      super(clazzDescription, signature);
       this.signature = signature;
     }
 
@@ -207,33 +205,6 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
               .getOnly();
       // Delegating the method call doesn't require any changes to the instrumented type.
       return instrumentedType;
-    }
-
-    @Override
-    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
-      // Parameters of the wrapper invoker method:
-      //   DoFn.ArgumentProvider
-      // Parameters of the wrapped DoFn method:
-      //   a dynamic set of allowed "extra" parameters in any order subject to
-      //   validation prior to getting the DoFnSignature
-      ArrayList<StackManipulation> parameters = new ArrayList<>();
-
-      // To load the delegate, push `this` and then access the field
-      StackManipulation pushDelegate =
-          new StackManipulation.Compound(
-              MethodVariableAccess.REFERENCE.loadFrom(0),
-              FieldAccess.forField(delegateField).read());
-
-      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
-
-      // Push the extra arguments in their actual order.
-      for (DoFnSignature.Parameter param : signature.extraParameters()) {
-        parameters.add(
-            new StackManipulation.Compound(
-                pushExtraContextFactory,
-                ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushDelegate)));
-      }
-      return new StackManipulation.Compound(parameters);
     }
   }
 
