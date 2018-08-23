@@ -23,7 +23,7 @@ import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.concurrent.GuardedBy;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -39,9 +39,9 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -73,6 +73,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
+  private transient LinkedBlockingQueue<KV<String, OutputT>> outputQueue;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -127,6 +128,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
+    outputQueue = new LinkedBlockingQueue<>();
   }
 
   // TODO: currently assumes that every element is a separate bundle,
@@ -137,12 +139,29 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     checkState(
         stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
+    OutputReceiverFactory receiverFactory =
+        new OutputReceiverFactory() {
+          @Override
+          public FnDataReceiver<OutputT> create(String pCollectionId) {
+            return (receivedElement) -> {
+              // handover to queue, do not block the grpc thread
+              outputQueue.put(KV.of(pCollectionId, receivedElement));
+            };
+          }
+        };
+
     try (RemoteBundle bundle =
-        stageBundleFactory.getBundle(
-            new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
+        stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
       logger.debug(String.format("Sending value: %s", element));
       // TODO(BEAM-4681): Add support to Flink to support portable timers.
       Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(element);
+      // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
+    }
+
+    // RemoteBundle close blocks until all results are received
+    KV<String, OutputT> result;
+    while ((result = outputQueue.poll()) != null) {
+      outputManager.output(outputMap.get(result.getKey()), (WindowedValue) result.getValue());
     }
   }
 
@@ -191,33 +210,5 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @ProcessElement
     public void doNothing(ProcessContext context) {}
-  }
-
-  /**
-   * Receiver factory that wraps outgoing elements with the corresponding union tag for a
-   * multiplexed PCollection.
-   */
-  private static class ReceiverFactory implements OutputReceiverFactory {
-
-    private final Object collectorLock = new Object();
-
-    @GuardedBy("collectorLock")
-    private final BufferedOutputManager<RawUnionValue> collector;
-
-    private final Map<String, TupleTag<?>> outputMap;
-
-    ReceiverFactory(BufferedOutputManager collector, Map<String, TupleTag<?>> outputMap) {
-      this.collector = collector;
-      this.outputMap = outputMap;
-    }
-
-    @Override
-    public <OutputT> FnDataReceiver<OutputT> create(String collectionId) {
-      return (receivedElement) -> {
-        synchronized (collectorLock) {
-          collector.output(outputMap.get(collectionId), (WindowedValue) receivedElement);
-        }
-      };
-    }
   }
 }
