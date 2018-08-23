@@ -30,13 +30,9 @@ import org.joda.time.DateTime;
 import org.joda.time.DurationFieldType;
 import org.joda.time.Period;
 
-/**
- * '-' operator for 'timestamp - interval' expressions.
- *
- * <p>See {@link BeamSqlDatetimeMinusExpression} for other kinds of datetime types subtraction.
- */
-public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
-  public BeamSqlTimestampMinusIntervalExpression(
+/** minus ('-') operator for 'datetime - interval' expressions. */
+public class BeamSqlDatetimeMinusIntervalExpression extends BeamSqlExpression {
+  public BeamSqlDatetimeMinusIntervalExpression(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
@@ -49,7 +45,7 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
   static boolean accept(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     return operands.size() == 2
         && SqlTypeName.TIMESTAMP.equals(outputType)
-        && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
+        && SqlTypeName.DATETIME_TYPES.contains(operands.get(0).getOutputType())
         && TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
   }
 
