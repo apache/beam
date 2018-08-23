@@ -43,7 +43,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Mer
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
@@ -55,7 +54,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.NoopTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
@@ -745,29 +743,6 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             assertEquals(Long.valueOf(3), counters.get("odds"));
           }
         });
-  }
-
-  static class TestWindowing implements Windowing<Integer, IntWindow> {
-
-    @Override
-    public Iterable<IntWindow> assignWindowsToElement(WindowedElement<?, Integer> input) {
-      return Collections.singleton(new IntWindow(input.getElement() / 4));
-    }
-
-    @Override
-    public Trigger<IntWindow> getTrigger() {
-      return NoopTrigger.get();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof TestWindowing;
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
   }
 
   private static class TestWindowFn extends WindowFn<Number, CountWindow> {

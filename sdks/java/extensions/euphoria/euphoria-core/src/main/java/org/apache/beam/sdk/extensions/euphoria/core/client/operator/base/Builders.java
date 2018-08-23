@@ -153,7 +153,7 @@ public class Builders {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Output builder, usually last building step. */
   public interface Output<T> {
 
     /**
@@ -165,7 +165,7 @@ public class Builders {
     Dataset<T> output(OutputHint... outputHints);
   }
 
-  /** TODO: complete javadoc. */
+  /** Similar to {@link Output}, but it adds method which extracts values from {@link KV}. */
   public interface OutputValues<K, V> extends Output<KV<K, V>> {
 
     /**

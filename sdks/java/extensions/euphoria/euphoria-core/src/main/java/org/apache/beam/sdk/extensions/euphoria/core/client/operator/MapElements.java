@@ -139,7 +139,7 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     return mapper;
   }
 
-  /** TODO: complete javadoc. */
+  /** MapElements builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -154,7 +154,7 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** MapElements builder which adds mapper to operator under build. */
   public static class UsingBuilder<InputT> {
 
     private final String name;

@@ -195,7 +195,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** SumByKey builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -210,7 +210,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** SumByKey builder which adds key extractor to operator under build. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final BuilderParams<InputT, ?, ?> params;
@@ -239,7 +239,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** SumByKey builder which adds value extractor to operator under build. */
   public static class ValueByWindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
           Builders.Output<KV<K, Long>>,
@@ -282,7 +282,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** SumByKey builder which adds windowing to operator under build. */
   public static class WindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
           Builders.Output<KV<K, Long>>,

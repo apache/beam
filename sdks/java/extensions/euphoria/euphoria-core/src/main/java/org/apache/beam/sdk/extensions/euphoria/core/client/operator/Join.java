@@ -280,7 +280,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Join builder which adds input {@link Dataset Datasets} to operator under build. */
   public static class OfBuilder {
 
     private final String name;
@@ -305,7 +305,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Join builder which adds key extractors to operator under build. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
@@ -335,7 +335,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Join builder which adds joint function to operator under build. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final BuilderParams<LeftT, RightT, K, ?, ?> params;
@@ -364,7 +364,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Join builder which adds input key extractors to operator under build. */
   public static class WindowingBuilder<LeftT, RightT, K, OutputT>
       implements Builders.Output<KV<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
@@ -492,7 +492,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Abstract join state base. */
   private abstract class AbstractJoinState implements State<Either<LeftT, RightT>, OutputT> {
 
     final ListStorage<LeftT> leftElements;

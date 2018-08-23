@@ -80,7 +80,6 @@ public class BeamRunnerWrapper {
               flow, accumulatorFactory, options, settings, allowedLateness, true);
     }
     final PipelineResult result = pipeline.run();
-    // TODO handle result
     State state = result.waitUntilFinish();
     LOG.info("Pipeline result state: {}.", state);
     return new Result(result);

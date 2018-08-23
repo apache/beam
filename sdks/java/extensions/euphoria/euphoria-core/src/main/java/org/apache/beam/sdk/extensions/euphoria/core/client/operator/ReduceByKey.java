@@ -202,7 +202,6 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     return new OfBuilder(name);
   }
 
-  /** TODO: complete javadoc. */
   static <V> ReduceFunctor<V, V> toReduceFunctor(CombinableReduceFunction<V> combinableFunction) {
 
     return new ReduceFunctor<V, V>() {
@@ -268,7 +267,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     return valueType;
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds reduce function to operator under build. */
   public interface ReduceBy<InputT, K, V> {
 
     /**
@@ -345,7 +344,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     @Nullable BinaryFunction<V, V, Integer> valuesComparator;
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -360,7 +359,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds key extractor function to operator under build. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final BuilderParams<InputT, ?, ?, ?, ?> params = new BuilderParams<>();
@@ -388,7 +387,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds value extractor to operator under build. */
   public static class ValueByReduceByBuilder<InputT, K> implements ReduceBy<InputT, K, InputT> {
 
     private final BuilderParams<InputT, K, ?, ?, ?> params;
@@ -444,7 +443,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds combinable reduce function to operator under build. */
   public static class ReduceByCombineByBuilder<InputT, K, V> implements ReduceBy<InputT, K, V> {
 
     private final BuilderParams<InputT, K, V, ?, ?> params;
@@ -474,7 +473,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds widowing to operator under build. */
   public static class WindowByBuilder<InputT, K, V, OutputT>
       implements Builders.Output<KV<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
@@ -529,7 +528,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** ReduceByKey builder which adds comparator to operator under build. */
   public static class WithSortedValuesBuilder<InputT, K, V, OutputT>
       extends WindowByBuilder<InputT, K, V, OutputT> {
 
@@ -624,7 +623,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** TODO: complete javadoc when ReduceStateByKey is supported. */
   static class CombiningReduceState<V1>
       implements State<V1, V1>, StateSupport.MergeFrom<CombiningReduceState<V1>> {
 
@@ -685,7 +684,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** TODO: complete javadoc when supported. */
   private static class NonCombiningReduceState<InputT, OutputT>
       implements State<InputT, OutputT>,
           StateSupport.MergeFrom<NonCombiningReduceState<InputT, OutputT>> {

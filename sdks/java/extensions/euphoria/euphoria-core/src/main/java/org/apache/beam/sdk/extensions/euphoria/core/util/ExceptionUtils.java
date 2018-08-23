@@ -23,14 +23,14 @@ import java.util.function.Consumer;
 public class ExceptionUtils {
 
   /**
-   * Catches any exception thrown by provided {@link Supplier} and rethrows it as {@link
+   * Catches any exception thrown by provided {@link ThrowingSupplier} and rethrows it as {@link
    * RuntimeException}.
    *
    * @param supplier to provide value, that can throw checked exception
    * @param <T> type of value the supplier returns
    * @return supplied value
    */
-  public static <T> T unchecked(Supplier<T> supplier) {
+  public static <T> T unchecked(ThrowingSupplier<T> supplier) {
     try {
       return supplier.apply();
     } catch (InterruptedException e) {
@@ -95,19 +95,19 @@ public class ExceptionUtils {
     return () -> new IllegalStateException(message);
   }
 
-  /** TODO: complete javadoc. */
+  /** User defined {@link Exception} throwing supplier */
   @FunctionalInterface
-  public interface Supplier<T> {
+  public interface ThrowingSupplier<T> {
     T apply() throws Exception;
   }
 
-  /** TODO: complete javadoc. */
+  /** User defined {@link Exception} throwing action. */
   @FunctionalInterface
   public interface Action {
     void apply() throws Exception;
   }
 
-  /** TODO: complete javadoc. */
+  /** User defined {@link Exception} throwing consumer. */
   @FunctionalInterface
   public interface ThrowingConsumer<T> {
     void consume(T what) throws Exception;

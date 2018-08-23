@@ -165,7 +165,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Operator builder defining input {@link Dataset}. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -180,7 +180,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Operator builder defining mapping function. */
   public static class MappedBuilder<InputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, InputT, ?>>,
           Builders.Output<InputT>,
@@ -271,7 +271,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Operator builder defining windowing. */
   public static class WindowingBuilder<InputT, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, OutputT, ?>>,
           Builders.Output<OutputT>,

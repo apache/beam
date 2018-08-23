@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -30,9 +29,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
@@ -45,9 +41,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateC
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateFactory;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.CountTrigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
@@ -705,43 +698,6 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   // ------------------------------------
-
-  static class TimeAssertingWindowing<T> implements Windowing<T, TimeInterval> {
-
-    @Override
-    public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
-      return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Trigger<TimeInterval> getTrigger() {
-      return new CountTrigger(1) {
-        @Override
-        public boolean isStateful() {
-          return false;
-        }
-
-        @Override
-        public Trigger.TriggerResult onElement(long time, Window window, TriggerContext ctx) {
-          // ~ we expect the 'time' to be the end of the window which produced the
-          // element in the preceding upstream (stateful and windowed) operator
-          assertTrue("Invalid timestamp " + time, time == 15_000L - 1 || time == 25_000L - 1);
-          return super.onElement(time, window, ctx);
-        }
-      };
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof TimeAssertingWindowing;
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-  }
 
   /** String with invalid hash code implementation returning constant. */
   public static class Word {

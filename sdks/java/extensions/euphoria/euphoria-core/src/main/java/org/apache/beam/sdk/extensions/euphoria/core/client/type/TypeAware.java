@@ -32,7 +32,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * transforms needs to know which type of elements are producing explicitly.
  */
 public class TypeAware {
-  //TODO add test to assert type descriptpr propagation through builders and chain of operators
 
   /** Returns {@link TypeDescriptor} of this operator output type. */
   public interface Output<OutputT> extends Named {

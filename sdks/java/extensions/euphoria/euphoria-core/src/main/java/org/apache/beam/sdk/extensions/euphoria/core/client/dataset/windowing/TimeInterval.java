@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** TODO: complete javadoc. */
+/** Euphoria's window defines as time interval. */
 @Audience(Audience.Type.CLIENT)
 public final class TimeInterval extends Window<TimeInterval> {
 

@@ -80,7 +80,7 @@ public class RightJoin {
     return new OfBuilder(name);
   }
 
-  /** TODO: complete javadoc. */
+  /** RightJoin builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder {
 
     private final String name;
@@ -105,7 +105,7 @@ public class RightJoin {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** RightJoin builder which adds key extractors to operator under build. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
@@ -135,7 +135,7 @@ public class RightJoin {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** RightJoin builder which adds join function to operator under build. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final BuilderParams<LeftT, RightT, K, ?, ?> params;

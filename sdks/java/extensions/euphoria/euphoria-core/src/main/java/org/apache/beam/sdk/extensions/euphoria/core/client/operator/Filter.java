@@ -110,7 +110,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
             outputType));
   }
 
-  /** TODO: complete javadoc. */
+  /** Filter builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -125,7 +125,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Filter builder which adds filtering predicate to operator under build. */
   public static class ByBuilder<InputT> {
 
     private final String name;

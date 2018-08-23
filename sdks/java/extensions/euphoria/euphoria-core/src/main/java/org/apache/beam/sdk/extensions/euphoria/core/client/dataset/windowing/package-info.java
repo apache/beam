@@ -15,5 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** TODO: complete javadoc. */
+/** Remnants of pre-Beam Euphoria windowing. Left for backward compatibility. */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;

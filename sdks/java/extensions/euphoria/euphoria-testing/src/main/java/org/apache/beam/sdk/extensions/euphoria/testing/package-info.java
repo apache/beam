@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** TODO add package comment. */
+/** Testing related utilities. */
 package org.apache.beam.sdk.extensions.euphoria.testing;

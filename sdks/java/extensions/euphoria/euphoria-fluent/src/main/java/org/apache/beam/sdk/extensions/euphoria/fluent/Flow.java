@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 
-/** TODO: complete javadoc. */
+/** Fluent version of the {@link org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow}. */
 public class Flow {
   private final org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow wrap;
 

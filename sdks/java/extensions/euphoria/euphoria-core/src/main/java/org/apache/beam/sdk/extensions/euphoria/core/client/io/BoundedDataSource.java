@@ -27,7 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 public interface BoundedDataSource<T> extends DataSource<T> {
 
   long SIZE_UNKNOWN = -1L;
-  long DEFAULT_BATCH_SIZE = 128 * 1024 * 1024;
 
   @Override
   default boolean isBounded() {

@@ -154,7 +154,7 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     return dataSets;
   }
 
-  /** TODO: complete javadoc. */
+  /** Union builder which adds input {@link Dataset} to operator under build. */
   public static class OfBuilder {
 
     private final String name;

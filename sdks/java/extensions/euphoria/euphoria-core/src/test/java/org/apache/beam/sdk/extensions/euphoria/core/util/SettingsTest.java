@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-/** TODO: complete javadoc. */
+/** Test to assert basic {@link Settings} functionality. */
 public class SettingsTest {
 
   @Test
