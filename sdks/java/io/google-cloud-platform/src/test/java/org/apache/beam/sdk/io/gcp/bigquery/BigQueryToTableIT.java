@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.model.Dataset;
-import com.google.api.services.bigquery.model.DatasetReference;
-import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -30,7 +27,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,6 +36,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -49,8 +46,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -65,9 +60,9 @@ public class BigQueryToTableIT {
   private String project;
   private final String BIG_QUERY_DATASET_ID = "java_query_to_table_it";
   private final String OUTPUT_TABLE_NAME = "output_table";
-  private Bigquery bqClient;
   private BigQueryOptions bqOption;
   private String outputTable;
+  private BigqueryClient bqClient;
 
   public interface BigQueryToTableOptions extends TestPipelineOptions {
 
@@ -77,8 +72,9 @@ public class BigQueryToTableIT {
 
     void setQuery(String query);
 
-    @Description("BigQuery table to write to, specified as "
-        + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
+    @Description(
+        "BigQuery table to write to, specified as "
+            + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
     @Validation.Required
     String getOutput();
 
@@ -121,27 +117,15 @@ public class BigQueryToTableIT {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
     bqOption = options.as(BigQueryOptions.class);
-    bqClient = new Bigquery.Builder(
-                Transport.getTransport(),
-                Transport.getJsonFactory(),
-                chainHttpRequestInitializer(
-                    bqOption.getGcpCredential(),
-                    new RetryHttpRequestInitializer(ImmutableList.of(404))))
-                .setApplicationName(bqOption.getAppName())
-                .setGoogleClientRequestInitializer(bqOption.getGoogleApiTrace()).build();
-    bqClient.datasets()
-        .insert(project, new Dataset()
-            .setDatasetReference(new DatasetReference()
-                .setDatasetId(BIG_QUERY_DATASET_ID)))
-        .execute();
-
+    bqClient = new BigqueryClient(bqOption.getAppName());
+    bqClient.createNewDataset(project, BIG_QUERY_DATASET_ID);
     outputTable = project + ":" + BIG_QUERY_DATASET_ID + "." + OUTPUT_TABLE_NAME;
   }
 
   @After
   public void cleanBqEnvironment() throws Exception {
-    bqClient.tables().delete(project, BIG_QUERY_DATASET_ID, OUTPUT_TABLE_NAME).execute();
-    bqClient.datasets().delete(project, BIG_QUERY_DATASET_ID).execute();
+    bqClient.deleteTable(project, BIG_QUERY_DATASET_ID, OUTPUT_TABLE_NAME);
+    bqClient.deleteDataset(project, BIG_QUERY_DATASET_ID);
   }
 
   private void runBigQueryToTablePipeline() {
@@ -152,14 +136,16 @@ public class BigQueryToTableIT {
     }
     PCollection<TableRow> input = p.apply(bigQueryRead);
     if (options.getReshuffle()) {
-      input = input
-          .apply(WithKeys.<Void, TableRow>of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), TableRowJsonCoder.of()))
-          .apply(Reshuffle.<Void, TableRow>of())
-          .apply(Values.<TableRow>create());
+      input =
+          input
+              .apply(WithKeys.<Void, TableRow>of((Void) null))
+              .setCoder(KvCoder.of(VoidCoder.of(), TableRowJsonCoder.of()))
+              .apply(Reshuffle.<Void, TableRow>of())
+              .apply(Values.<TableRow>create());
     }
     input.apply(
-        BigQueryIO.writeTableRows().to(options.getOutput())
+        BigQueryIO.writeTableRows()
+            .to(options.getOutput())
             .withSchema(options.getOutputSchema())
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
 
@@ -177,14 +163,14 @@ public class BigQueryToTableIT {
 
     runBigQueryToTablePipeline();
 
-    QueryRequest query = new QueryRequest()
-        .setQuery(String.format("SELECT fruit from [%s];", outputTable));
-    QueryResponse response = bqClient.jobs().query(project, query).execute();
-    List<String> tableResult = response.getRows()
-        .stream()
-        .flatMap(row -> row.getF().stream()
-            .map(cell -> cell.getV().toString()))
-        .collect(Collectors.toList());
+    QueryResponse response =
+        bqClient.queryWithRetries(String.format("SELECT fruit from [%s];", outputTable), project);
+    List<String> tableResult =
+        response
+            .getRows()
+            .stream()
+            .flatMap(row -> row.getF().stream().map(cell -> cell.getV().toString()))
+            .collect(Collectors.toList());
 
     assertEquals(expectedList, tableResult);
   }
