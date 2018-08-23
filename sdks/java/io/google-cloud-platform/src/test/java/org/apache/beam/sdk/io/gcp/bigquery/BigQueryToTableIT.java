@@ -99,17 +99,6 @@ public class BigQueryToTableIT {
     void setUsingStandardSql(boolean usingStandardSql);
   }
 
-  private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
-    if (credential == null) {
-      return new ChainingHttpRequestInitializer(
-          new NullCredentialInitializer(), httpRequestInitializer);
-    } else {
-      return new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential), httpRequestInitializer);
-    }
-  }
-
   @Before
   public void setupBqEnvironment() throws Exception {
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
