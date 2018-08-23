@@ -66,7 +66,7 @@ public class BigqueryClient {
 
     if (credential.createScopedRequired()) {
       Collection<String> bigqueryScope =
-          Lists.newArrayList(BigqueryScopes.CLOUD_PLATFORM_READ_ONLY);
+          Lists.newArrayList(BigqueryScopes.all());
       credential = credential.createScoped(bigqueryScope);
     }
     return credential;
