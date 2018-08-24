@@ -64,7 +64,9 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // having to lookup the getter list each time createGetters is called.
     FieldValueGetterFactory getterFactory =
         new FieldValueGetterFactory() {
-          private transient ConcurrentHashMap<Class, List<FieldValueGetter>> gettersMap;
+          @Nullable
+          private transient ConcurrentHashMap<Class, List<FieldValueGetter>> gettersMap = null;
+
           private final FieldValueGetterFactory innerFactory = fieldValueGetterFactory();
 
           @Override
@@ -89,7 +91,9 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
     FieldValueSetterFactory setterFactory =
         new FieldValueSetterFactory() {
-          private volatile ConcurrentHashMap<Class, List<FieldValueSetter>> settersMap;
+          @Nullable
+          private volatile ConcurrentHashMap<Class, List<FieldValueSetter>> settersMap = null;
+
           private final FieldValueSetterFactory innerFactory = fieldValueSetterFactory();
 
           @Override
