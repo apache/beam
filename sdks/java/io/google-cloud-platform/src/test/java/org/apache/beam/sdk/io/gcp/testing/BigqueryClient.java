@@ -130,6 +130,7 @@ public class BigqueryClient {
               projectId,
               new Dataset().setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
           .execute();
+      LOG.info("Successfully created new dataset : " + datasetId);
     } catch (Exception e) {
       LOG.debug("Exceptions catched when creating new dataset: " + e.getMessage());
     }
@@ -138,6 +139,7 @@ public class BigqueryClient {
   public void deleteTable(String projectId, String datasetId, String tableName) {
     try {
       bqClient.tables().delete(projectId, datasetId, tableName).execute();
+      LOG.info("Successfully deleted table: " + tableName);
     } catch (Exception e) {
       LOG.debug("Exception catched when deleting table: " + e.getMessage());
     }
@@ -155,6 +157,7 @@ public class BigqueryClient {
 
     try {
       bqClient.datasets().delete(projectId, datasetId).execute();
+      LOG.info("Successfully deleted dataset: " + datasetId);
     } catch (Exception e) {
       LOG.debug("Exceptions catched when deleting dataset: " + e.getMessage());
     }
