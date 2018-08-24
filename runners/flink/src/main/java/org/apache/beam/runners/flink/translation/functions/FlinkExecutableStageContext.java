@@ -21,8 +21,6 @@ import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** The Flink context required in order to execute {@link ExecutableStage stages}. */
 public interface FlinkExecutableStageContext extends AutoCloseable {
@@ -42,7 +40,4 @@ public interface FlinkExecutableStageContext extends AutoCloseable {
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
-
-  StateRequestHandler getStateRequestHandler(
-      ExecutableStage executableStage, RuntimeContext runtimeContext);
 }

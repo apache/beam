@@ -475,6 +475,22 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     checkInvokeFinishBundleByCount();
   }
 
+  /**
+   * Add the side input value. Here we are assuming that views have already been materialized and
+   * are sent over the wire as {@link Iterable}. Subclasses may elect to perform materialization in
+   * state and receive side input incrementally instead.
+   *
+   * @param streamRecord
+   */
+  protected void addSideInputValue(StreamRecord<RawUnionValue> streamRecord) {
+    @SuppressWarnings("unchecked")
+    WindowedValue<Iterable<?>> value =
+        (WindowedValue<Iterable<?>>) streamRecord.getValue().getValue();
+
+    PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
+    sideInputHandler.addSideInputValue(sideInput, value);
+  }
+
   @Override
   public final void processElement2(StreamRecord<RawUnionValue> streamRecord) throws Exception {
     // we finish the bundle because the newly arrived side-input might
@@ -484,12 +500,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     invokeFinishBundle();
     checkInvokeStartBundle();
 
-    @SuppressWarnings("unchecked")
-    WindowedValue<Iterable<?>> value =
-        (WindowedValue<Iterable<?>>) streamRecord.getValue().getValue();
-
-    PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
-    sideInputHandler.addSideInputValue(sideInput, value);
+    // add the side input, which may cause pushed back elements become eligible for processing
+    addSideInputValue(streamRecord);
 
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
 

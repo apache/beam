@@ -29,10 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,12 +174,6 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     @Override
     public StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
       return context.getStageBundleFactory(executableStage);
-    }
-
-    @Override
-    public StateRequestHandler getStateRequestHandler(
-        ExecutableStage executableStage, RuntimeContext runtimeContext) {
-      return context.getStateRequestHandler(executableStage, runtimeContext);
     }
 
     @Override
