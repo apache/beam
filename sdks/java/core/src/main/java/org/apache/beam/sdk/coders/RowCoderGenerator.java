@@ -53,7 +53,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -163,6 +162,7 @@ public abstract class RowCoderGenerator {
 
   private static class EncodeInstruction implements Implementation {
     static final ForLoadedType LOADED_TYPE = new ForLoadedType(EncodeInstruction.class);
+
     @Override
     public ByteCodeAppender appender(Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
@@ -208,8 +208,9 @@ public abstract class RowCoderGenerator {
     // The encode method of the generated Coder delegates to this method to evaluate all of the
     // per-field Coders.
     @SuppressWarnings("unchecked")
-    static void encodeDelegate(Coder[] coders, Row value, OutputStream outputStream,
-                               boolean hasNullableFields) throws IOException {
+    static void encodeDelegate(
+        Coder[] coders, Row value, OutputStream outputStream, boolean hasNullableFields)
+        throws IOException {
       NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
         Object fieldValue = value.getValue(idx);
