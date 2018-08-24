@@ -76,7 +76,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     this.projectId = projectId;
     this.query = query;
     this.expectedChecksum = expectedChecksum;
-    this.bigqueryClient = new BigqueryClient(applicationName);
+    this.bigqueryClient = BigqueryClient.getClient(applicationName);
   }
 
   @Override

@@ -56,7 +56,7 @@ public class BigqueryClient {
 
   private Bigquery bqClient;
 
-  private Credentials getDefaultCredential() {
+  private static Credentials getDefaultCredential() {
     GoogleCredentials credential;
     try {
       credential = GoogleCredentials.getApplicationDefault();
@@ -72,19 +72,21 @@ public class BigqueryClient {
     return credential;
   }
 
-  public BigqueryClient(Bigquery client) {
-    bqClient = client;
-  }
-
-  public BigqueryClient(String applicationName) {
+  public static Bigquery getNewBigquerryClient(String applicationName) {
     HttpTransport transport = Transport.getTransport();
     JsonFactory jsonFactory = Transport.getJsonFactory();
     Credentials credential = getDefaultCredential();
+    return new Bigquery.Builder(transport, jsonFactory, new HttpCredentialsAdapter(credential))
+        .setApplicationName(applicationName)
+        .build();
+  }
 
-    bqClient =
-        new Bigquery.Builder(transport, jsonFactory, new HttpCredentialsAdapter(credential))
-            .setApplicationName(applicationName)
-            .build();
+  public static BigqueryClient getClient(String applicationName) {
+    return new BigqueryClient(applicationName);
+  }
+
+  public BigqueryClient(String applicationName) {
+    bqClient = BigqueryClient.getNewBigquerryClient(applicationName);
   }
 
   @Nonnull
