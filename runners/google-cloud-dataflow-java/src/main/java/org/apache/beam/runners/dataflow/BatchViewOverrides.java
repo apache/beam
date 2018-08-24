@@ -22,8 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ForwardingMap;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -637,7 +637,7 @@ class BatchViewOverrides {
       public void processElement(ProcessContext c) throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
         Optional<W> previousWindow = Optional.absent();
-        Multimap<K, WindowedValue<V>> multimap = HashMultimap.create();
+        Multimap<K, WindowedValue<V>> multimap = ArrayListMultimap.create();
         for (KV<W, WindowedValue<KV<K, V>>> kv : c.element().getValue()) {
           Object currentWindowStructuralValue = windowCoder.structuralValue(kv.getKey());
           if (previousWindowStructuralValue.isPresent()
@@ -652,7 +652,7 @@ class BatchViewOverrides {
                     valueInEmptyWindows(
                         new TransformedMap<>(
                             IterableWithWindowedValuesToIterable.of(), resultMap))));
-            multimap = HashMultimap.create();
+            multimap = ArrayListMultimap.create();
           }
 
           multimap.put(
