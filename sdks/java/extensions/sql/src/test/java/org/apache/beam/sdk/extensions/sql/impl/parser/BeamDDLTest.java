@@ -38,7 +38,7 @@ import org.junit.Test;
 public class BeamDDLTest {
 
   @Test
-  public void testParseCreateTable_full() throws Exception {
+  public void testParseCreateExternalTable_full() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
@@ -63,7 +63,7 @@ public class BeamDDLTest {
   }
 
   @Test(expected = ParseException.class)
-  public void testParseCreateTable_withoutType() throws Exception {
+  public void testParseCreateExternalTable_withoutType() throws Exception {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(new TestTableProvider());
     env.executeDdl(
         "CREATE EXTERNAL TABLE person (\n"
@@ -74,8 +74,21 @@ public class BeamDDLTest {
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
   }
 
+  @Test(expected = ParseException.class)
+  public void testParseCreateTable() throws Exception {
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(new TestTableProvider());
+    env.executeDdl(
+        "CREATE TABLE person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name') \n"
+            + "TYPE 'text' \n"
+            + "COMMENT 'person table' \n"
+            + "LOCATION '/home/admin/person'\n"
+            + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
+  }
+
   @Test
-  public void testParseCreateTable_withoutTableComment() throws Exception {
+  public void testParseCreateExternalTable_withoutTableComment() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
@@ -97,7 +110,7 @@ public class BeamDDLTest {
   }
 
   @Test
-  public void testParseCreateTable_withoutTblProperties() throws Exception {
+  public void testParseCreateExternalTable_withoutTblProperties() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
@@ -114,7 +127,7 @@ public class BeamDDLTest {
   }
 
   @Test
-  public void testParseCreateTable_withoutLocation() throws Exception {
+  public void testParseCreateExternalTable_withoutLocation() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
@@ -131,7 +144,7 @@ public class BeamDDLTest {
   }
 
   @Test
-  public void testParseCreateTable_minimal() throws Exception {
+  public void testParseCreateExternalTable_minimal() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 

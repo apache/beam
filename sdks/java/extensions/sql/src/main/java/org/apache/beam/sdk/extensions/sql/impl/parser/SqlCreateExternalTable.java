@@ -41,7 +41,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.Pair;
 
-/** Parse tree for {@code CREATE TABLE} statement. */
+/** Parse tree for {@code CREATE EXTERNAL TABLE} statement. */
 public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableStatement {
   private final SqlIdentifier name;
   private final List<Schema.Field> columnList;
