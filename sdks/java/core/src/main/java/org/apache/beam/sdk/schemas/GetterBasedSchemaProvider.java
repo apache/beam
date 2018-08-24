@@ -27,6 +27,7 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -64,18 +65,19 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // having to lookup the getter list each time createGetters is called.
     FieldValueGetterFactory getterFactory =
         new FieldValueGetterFactory() {
-          transient HashMap<Class, List<FieldValueGetter>> gettersMap;
+          transient ConcurrentHashMap<Class, List<FieldValueGetter>> gettersMap;
+          FieldValueGetterFactory innerFactory = fieldValueGetterFactory();
 
           @Override
           public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
             if (gettersMap == null) {
-              gettersMap = new HashMap<>();
+              gettersMap = new ConcurrentHashMap<>();
             }
             List<FieldValueGetter> getters = gettersMap.get(targetClass);
             if (getters != null) {
               return getters;
             }
-            getters = fieldValueGetterFactory().createGetters(targetClass, schema);
+            getters = innerFactory.createGetters(targetClass, schema);
             gettersMap.put(targetClass, getters);
             return getters;
           }
