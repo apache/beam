@@ -191,6 +191,17 @@ SqlCreate SqlCreateExternalTable() :
     }
 }
 
+SqlCreate SqlCreateTableNotSupportedMessage(Span s, boolean replace) :
+{
+}
+{
+  <TABLE>
+  {
+    throw new ParseException("'CREATE TABLE' is not supported in BeamSQL. You can use "
+    + "'CREATE EXTERNAL TABLE' to register an external data source to BeamSQL");
+  }
+}
+
 SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     final boolean ifExists;
