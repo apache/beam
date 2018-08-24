@@ -564,7 +564,7 @@ public abstract class Row implements Serializable {
       if (!this.values.isEmpty()) {
         List<Object> storageValues = attached ? this.values : verify(schema, this.values);
         checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, verify(schema, storageValues));
+        return new RowWithStorage(schema, storageValues);
       } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
         return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
