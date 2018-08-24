@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
@@ -68,6 +69,11 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class DockerJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
+
+  // Port offset for MacOS since we don't have host networking and need to use published ports
+  private static final int MAC_PORT_START = 8100;
+  private static final int MAC_PORT_END = 8200;
+  private static final AtomicInteger MAC_PORT = new AtomicInteger(MAC_PORT_START);
 
   /** Factory that creates {@link JobBundleFactory} for the given {@link JobInfo}. */
   public interface JobBundleFactoryFactory {
@@ -218,8 +224,15 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         // https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
         // The special hostname has historically changed between versions, so this is subject to
         // breakages and will likely only support the latest version at any time.
-        return ServerFactory.createWithUrlFactory(
-            (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString());
+
+        // We need to use a fixed port range due to non-existing host networking in Docker-for-Mac.
+        // The port range needs to be published when bringing up the Docker container, see
+        // DockerEnvironmentFactory.
+
+        return ServerFactory.createWithUrlFactoryAndPortSupplier(
+            (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString(),
+            // We only use the published Docker ports 8100-8200 in a round-robin fashion
+            () -> MAC_PORT.getAndUpdate(val -> val == MAC_PORT_END ? MAC_PORT_START : val + 1));
       default:
         LOG.warn("Unknown Docker platform. Falling back to default server factory");
         return ServerFactory.createDefault();
@@ -229,7 +242,10 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private static Platform getPlatform() {
     String osName = System.getProperty("os.name").toLowerCase();
     // TODO: Make this more robust?
-    if (osName.startsWith("mac")) {
+    // The DOCKER_MAC_CONTAINER environment variable is necessary to detect whether we run on
+    // a container on MacOs. MacOs internally uses a Linux VM which makes it indistinguishable from Linux.
+    // We still need to apply port mapping due to missing host networking.
+    if (osName.startsWith("mac") || "1".equals(System.getenv("DOCKER_MAC_CONTAINER"))) {
       return Platform.MAC;
     } else if (osName.startsWith("linux")) {
       return Platform.LINUX;
