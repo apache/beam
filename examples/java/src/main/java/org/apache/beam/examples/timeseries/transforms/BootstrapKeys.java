@@ -19,15 +19,14 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import java.util.Date;
-
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
 /**
- * In order to Backfill any key at least one value from that key needs to be observed by the system. This class will
- * take the TSConfiguration.firstTime value and apply that as the timestamp to use for the first time this key will be
- * added.
+ * In order to Backfill any key at least one value from that key needs to be observed by the system.
+ * This class will take the TSConfiguration.firstTime value and apply that as the timestamp to use
+ * for the first time this key will be added.
  */
 public class BootstrapKeys extends DoFn<TimeSeriesData.TSDataPoint, TimeSeriesData.TSDataPoint> {
 
@@ -37,8 +36,8 @@ public class BootstrapKeys extends DoFn<TimeSeriesData.TSDataPoint, TimeSeriesDa
     this.startTime = startTime;
   }
 
-  @DoFn.ProcessElement public void process(DoFn.ProcessContext c) {
+  @DoFn.ProcessElement
+  public void process(DoFn.ProcessContext c) {
     c.outputWithTimestamp(c, new Instant(new Date(startTime).getTime()));
   }
-
 }

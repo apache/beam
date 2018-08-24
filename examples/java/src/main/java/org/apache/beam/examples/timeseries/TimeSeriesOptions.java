@@ -16,21 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.beam.examples.timeseries.transforms;
+package org.apache.beam.examples.timeseries;
 
-import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * Extract the value from a KV.
- *
- * @param <T>
- */
-public class GetValueFromKV<T> extends DoFn<KV<TimeSeriesData.TSKey, T>, T> {
+public interface TimeSeriesOptions extends PipelineOptions {
 
-  @DoFn.ProcessElement
-  public void processElement(ProcessContext c) {
-    c.output(c.element().getValue());
-  }
+  @Description("Project ID - Used for GCP I/O ")
+  String getProjectId();
+
+  void setProjectId(String projectId);
+
+  @Description("BigTable Instance ID - Used for GCP I/O ")
+  String getBigTableInstanceId();
+
+  void setBigTableInstanceId(String bigTableInstanceId);
+
+  @Description("BigTable Table ID - Used for GCP I/O ")
+  String getBigTableTableId();
+
+  void setBigTableTableId(String projectId);
 }

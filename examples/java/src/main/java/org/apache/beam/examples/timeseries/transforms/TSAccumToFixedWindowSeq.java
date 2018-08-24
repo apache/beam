@@ -19,13 +19,15 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import com.google.common.collect.Lists;
+import com.google.protobuf.util.Timestamps;
+import java.util.List;
 import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -35,13 +37,11 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
-/**
- * Converts a series of TSAccum into a TSAccumSequence.
- */
-public class TSAccumToFixedWindowSeq extends
-    PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>>> {
+/** Converts a series of TSAccum into a TSAccumSequence. */
+public class TSAccumToFixedWindowSeq
+    extends PTransform<
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TSAccumToFixedWindowSeq.class);
 
@@ -53,32 +53,69 @@ public class TSAccumToFixedWindowSeq extends
     this.fixedWindowDuration = fixedWindowDuration;
   }
 
-  @Override public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>> expand(
+  @Override
+  public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
-    return input.apply(Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(
-        FixedWindows.of(fixedWindowDuration))
-        .withAllowedLateness(configuration.downSampleDuration().plus(Duration.millis(1)))
-        .discardingFiredPanes()).apply(GroupByKey.create()).apply(ParDo
-        .of(new DoFn<KV<TimeSeriesData.TSKey, Iterable<TimeSeriesData.TSAccum>>, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>>() {
+    return input
+        .apply(
+            Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(
+                    FixedWindows.of(fixedWindowDuration))
+                .withAllowedLateness(configuration.downSampleDuration().plus(Duration.millis(1)))
+                .discardingFiredPanes())
+        .apply(GroupByKey.create())
+        .apply(
+            ParDo.of(
+                new DoFn<
+                    KV<TimeSeriesData.TSKey, Iterable<TimeSeriesData.TSAccum>>,
+                    KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>>() {
 
-          @ProcessElement public void processElement(ProcessContext c, IntervalWindow w) {
+                  @ProcessElement
+                  public void processElement(ProcessContext c, IntervalWindow w) {
 
-            List<TimeSeriesData.TSAccum> list = Lists
-                .newArrayList(c.element().getValue().iterator());
-            TSAccums.sortAccumList(list);
+                    com.google.protobuf.Timestamp lowerBoundary = null;
+                    com.google.protobuf.Timestamp upperBoundary =
+                        com.google.protobuf.Timestamp.newBuilder().build();
 
-            TimeSeriesData.TSAccumSequence.Builder seq = TimeSeriesData.TSAccumSequence
-                .newBuilder();
+                    // TODO switch to buffered sorter
 
-            seq.setKey(c.element().getKey());
+                    List<TimeSeriesData.TSAccum> list =
+                        Lists.newArrayList(c.element().getValue().iterator());
+                    TSAccums.sortAccumList(list);
 
-            for (TimeSeriesData.TSAccum accum : list) {
-              seq.addAccums(accum);
-            }
-            c.output(KV.of(c.element().getKey(), seq.build()));
-          }
-        }));
+                    TimeSeriesData.TSAccumSequence.Builder seq =
+                        TimeSeriesData.TSAccumSequence.newBuilder();
 
+                    seq.setKey(c.element().getKey());
+
+                    for (TimeSeriesData.TSAccum accum : list) {
+
+                      if (lowerBoundary == null) {
+                        lowerBoundary = accum.getLowerWindowBoundary();
+                      } else {
+                        lowerBoundary =
+                            (Timestamps.comparator()
+                                        .compare(lowerBoundary, accum.getLowerWindowBoundary())
+                                    < 0
+                                ? lowerBoundary
+                                : accum.getLowerWindowBoundary());
+                      }
+
+                      upperBoundary =
+                          (Timestamps.comparator()
+                                      .compare(upperBoundary, accum.getUpperWindowBoundary())
+                                  > 0
+                              ? upperBoundary
+                              : accum.getUpperWindowBoundary());
+
+                      seq.addAccums(accum);
+                    }
+
+                    seq.setLowerWindowBoundary(lowerBoundary);
+                    seq.setUpperWindowBoundary(upperBoundary);
+
+                    c.output(KV.of(c.element().getKey(), seq.build()));
+                  }
+                }));
   }
 }

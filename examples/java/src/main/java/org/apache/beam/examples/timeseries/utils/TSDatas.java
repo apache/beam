@@ -19,14 +19,11 @@
 package org.apache.beam.examples.timeseries.utils;
 
 import com.google.protobuf.util.Timestamps;
+import java.math.BigDecimal;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.tensorflow.example.*;
 
-import java.math.BigDecimal;
-
-/**
- * Utility functions for TSData.
- */
+/** Utility functions for TSData. */
 public class TSDatas {
 
   public static String getStringValue(TimeSeriesData.Data data) {
@@ -34,13 +31,13 @@ public class TSDatas {
     switch (data.getDataPointCase()) {
       case DOUBLE_VAL:
         return String.valueOf(data.getDoubleVal());
-      case LONG_VAL: {
-        return String.valueOf(data.getLongVal());
-      }
+      case LONG_VAL:
+        {
+          return String.valueOf(data.getLongVal());
+        }
       default:
         return "";
     }
-
   }
 
   public static TimeSeriesData.Data sumData(TimeSeriesData.Data a, TimeSeriesData.Data b) {
@@ -48,26 +45,27 @@ public class TSDatas {
     TimeSeriesData.Data.Builder data = TimeSeriesData.Data.newBuilder();
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
-      case DOUBLE_VAL: {
-        Double sum = a.getDoubleVal() + b.getDoubleVal();
-        return data.setDoubleVal(sum).build();
-      }
-      case LONG_VAL: {
-        Long sum = a.getLongVal() + b.getLongVal();
-        return data.setLongVal(sum).build();
-      }
+      case DOUBLE_VAL:
+        {
+          Double sum = a.getDoubleVal() + b.getDoubleVal();
+          return data.setDoubleVal(sum).build();
+        }
+      case LONG_VAL:
+        {
+          Long sum = a.getLongVal() + b.getLongVal();
+          return data.setLongVal(sum).build();
+        }
       case FLOAT_VAL:
         break;
       default:
         return data.build();
-
     }
 
     return data.build();
   }
 
-  public static TimeSeriesData.Data.DataPointCase getCaseFromTwoTSDataValues(TimeSeriesData.Data a,
-      TimeSeriesData.Data b) {
+  public static TimeSeriesData.Data.DataPointCase getCaseFromTwoTSDataValues(
+      TimeSeriesData.Data a, TimeSeriesData.Data b) {
 
     // a or b may not have had the value set, so we need to return the first that has
 
@@ -107,12 +105,14 @@ public class TSDatas {
     }
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
-      case DOUBLE_VAL: {
-        return (a.getDoubleVal() < b.getDoubleVal()) ? a : b;
-      }
-      case LONG_VAL: {
-        return (a.getLongVal() < b.getLongVal()) ? a : b;
-      }
+      case DOUBLE_VAL:
+        {
+          return (a.getDoubleVal() < b.getDoubleVal()) ? a : b;
+        }
+      case LONG_VAL:
+        {
+          return (a.getLongVal() < b.getLongVal()) ? a : b;
+        }
       case FLOAT_VAL:
         return (a.getFloatVal() < b.getFloatVal()) ? a : b;
       default:
@@ -125,18 +125,21 @@ public class TSDatas {
     TimeSeriesData.Data.Builder data = TimeSeriesData.Data.newBuilder();
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
-      case DOUBLE_VAL: {
-        Double max = (a.getDoubleVal() > b.getDoubleVal()) ? a.getDoubleVal() : b.getDoubleVal();
-        return data.setDoubleVal(max).build();
-      }
-      case LONG_VAL: {
-        Long max = (a.getLongVal() > b.getLongVal()) ? a.getLongVal() : b.getLongVal();
-        return data.setLongVal(max).build();
-      }
-      case INT_VAL: {
-        Integer max = (a.getIntVal() > b.getIntVal()) ? a.getIntVal() : b.getIntVal();
-        return data.setIntVal(max).build();
-      }
+      case DOUBLE_VAL:
+        {
+          Double max = (a.getDoubleVal() > b.getDoubleVal()) ? a.getDoubleVal() : b.getDoubleVal();
+          return data.setDoubleVal(max).build();
+        }
+      case LONG_VAL:
+        {
+          Long max = (a.getLongVal() > b.getLongVal()) ? a.getLongVal() : b.getLongVal();
+          return data.setLongVal(max).build();
+        }
+      case INT_VAL:
+        {
+          Integer max = (a.getIntVal() > b.getIntVal()) ? a.getIntVal() : b.getIntVal();
+          return data.setIntVal(max).build();
+        }
       case FLOAT_VAL:
         Float max = (a.getFloatVal() > b.getFloatVal()) ? a.getFloatVal() : b.getFloatVal();
         return data.setFloatVal(max).build();
@@ -149,23 +152,31 @@ public class TSDatas {
     Feature.Builder feature = Feature.newBuilder();
 
     switch (data.getDataPointCase()) {
-      case DOUBLE_VAL: {
-        feature.setFloatList(
-            FloatList.newBuilder().addValue(BigDecimal.valueOf(data.getDoubleVal()).floatValue()));
-        break;
-      }
-      case LONG_VAL: {
-        feature.setFloatList(FloatList.newBuilder().addValue(data.getLongVal()));
-        break;
-      }
+      case DOUBLE_VAL:
+        {
+          feature.setFloatList(
+              FloatList.newBuilder()
+                  .addValue(BigDecimal.valueOf(data.getDoubleVal()).floatValue()));
+          break;
+        }
+      case LONG_VAL:
+        {
+          feature.setFloatList(FloatList.newBuilder().addValue(data.getLongVal()));
+          break;
+        }
+      case INT_VAL:
+        {
+          feature.setInt64List(Int64List.newBuilder().addValue(data.getIntVal()));
+          break;
+        }
       default:
         break;
     }
     return feature.build();
   }
 
-  public static TimeSeriesData.TSDataPoint findMinTimeStamp(TimeSeriesData.TSDataPoint a,
-      TimeSeriesData.TSDataPoint b) {
+  public static TimeSeriesData.TSDataPoint findMinTimeStamp(
+      TimeSeriesData.TSDataPoint a, TimeSeriesData.TSDataPoint b) {
 
     // Check if either timestamp is zero, if yes then return the other value
     if (Timestamps.toMillis(a.getTimestamp()) == 0 && Timestamps.toMillis(b.getTimestamp()) > 0) {
@@ -179,8 +190,8 @@ public class TSDatas {
     return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) > 0) ? a : b;
   }
 
-  public static TimeSeriesData.TSDataPoint findMaxTimeStamp(TimeSeriesData.TSDataPoint a,
-      TimeSeriesData.TSDataPoint b) {
+  public static TimeSeriesData.TSDataPoint findMaxTimeStamp(
+      TimeSeriesData.TSDataPoint a, TimeSeriesData.TSDataPoint b) {
 
     return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) < 0) ? a : b;
   }

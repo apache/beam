@@ -23,14 +23,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.example.Example;
 
-/**
- * Convert TensorFlow Example object to byte[].
- */
+/** Convert TensorFlow Example object to byte[]. */
 public class TFExampleToBytes extends DoFn<Example, byte[]> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TFExampleToBytes.class);
 
-  @ProcessElement public void processElement(ProcessContext c) {
+  @ProcessElement
+  public void processElement(ProcessContext c) {
 
     c.output(c.element().toByteArray());
   }

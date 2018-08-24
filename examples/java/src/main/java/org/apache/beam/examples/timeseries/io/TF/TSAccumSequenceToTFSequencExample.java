@@ -19,30 +19,28 @@
 package org.apache.beam.examples.timeseries.io.TF;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.UnsupportedEncodingException;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
-import org.apache.beam.examples.timeseries.utils.TSAccums;
+import org.apache.beam.examples.timeseries.utils.TSAccumSequences;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.example.SequenceExample;
 
-import java.io.UnsupportedEncodingException;
-
-/**
- * Convert TSAccumSequence to TF Sequence Example.
- */
+/** Convert TSAccumSequence to TF Sequence Example. */
 public class TSAccumSequenceToTFSequencExample
     extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>, SequenceExample> {
 
-  private static final Logger LOG = LoggerFactory
-      .getLogger(TSAccumSequenceToTFSequencExample.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(TSAccumSequenceToTFSequencExample.class);
 
-  @ProcessElement public void processElement(ProcessContext c) {
+  @ProcessElement
+  public void processElement(ProcessContext c) {
 
     try {
 
-      c.output(TSAccums.getSequenceExampleFromAccumSequence(c.element().getValue()));
+      c.output(TSAccumSequences.getSequenceExampleFromAccumSequence(c.element().getValue()));
 
     } catch (UnsupportedEncodingException e) {
 
@@ -53,5 +51,4 @@ public class TSAccumSequenceToTFSequencExample
       LOG.info("Invalid Protobuf when reading Accum Sequence", e);
     }
   }
-
 }

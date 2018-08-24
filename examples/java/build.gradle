@@ -47,6 +47,9 @@ configurations.sparkRunnerPreCommit {
 
 dependencies {
   compile library.java.guava
+  // https://mvnrepository.com/artifact/org.tensorflow/proto
+  compile 'org.tensorflow:proto:1.10.0'
+  compile 'com.google.cloud.bigtable:bigtable-hbase-beam:1.5.0'
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")

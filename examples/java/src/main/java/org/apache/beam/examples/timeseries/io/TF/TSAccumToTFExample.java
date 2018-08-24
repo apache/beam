@@ -19,7 +19,6 @@
 package org.apache.beam.examples.timeseries.io.TF;
 
 import java.io.UnsupportedEncodingException;
-
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -28,15 +27,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.example.Example;
 
-/**
- * Convert a TSAccum to a TFExample.
- */
-public class TSAccumToTFExample extends
-    DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, KV<TimeSeriesData.TSKey, Example>> {
+/** Convert a TSAccum to a TFExample. */
+public class TSAccumToTFExample
+    extends DoFn<
+        KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, KV<TimeSeriesData.TSKey, Example>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TSAccumToTFExample.class);
 
-  @ProcessElement public void processElement(ProcessContext c) {
+  @ProcessElement
+  public void processElement(ProcessContext c) {
 
     try {
 
@@ -45,8 +44,6 @@ public class TSAccumToTFExample extends
     } catch (UnsupportedEncodingException e) {
 
       LOG.info("Unable to convert string to UTF-8", e);
-
     }
   }
-
 }

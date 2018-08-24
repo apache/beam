@@ -24,23 +24,24 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.DateTime;
 
-/**
- * Utility functions for TSMultiVarientDataPoint.
- */
+/** Utility functions for TSMultiVarientDataPoint. */
 public class TSMultiVarientDataPoints {
 
-  public static class ConvertMultiToUniDataPoint extends
-      DoFn<TimeSeriesData.TSMUltiVarientDataPoint, KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> {
+  public static class ConvertMultiToUniDataPoint
+      extends DoFn<
+          TimeSeriesData.TSMUltiVarientDataPoint,
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> {
 
-    @ProcessElement public void process(ProcessContext c) {
+    @ProcessElement
+    public void process(ProcessContext c) {
 
       TimeSeriesData.TSMUltiVarientDataPoint mdp = c.element();
 
       for (String key : mdp.getDataMap().keySet()) {
-        TimeSeriesData.TSDataPoint dp = extractDataFromMultiVarientDataPoint(c.element(), key,
-            c.element().getDataMap().get(key));
+        TimeSeriesData.TSDataPoint dp =
+            extractDataFromMultiVarientDataPoint(
+                c.element(), key, c.element().getDataMap().get(key));
         c.output(KV.of(dp.getKey(), dp));
-
       }
     }
   }
@@ -48,11 +49,11 @@ public class TSMultiVarientDataPoints {
   public static class ExtractTimeStamp
       extends DoFn<TimeSeriesData.TSMUltiVarientDataPoint, TimeSeriesData.TSMUltiVarientDataPoint> {
 
-    @ProcessElement public void process(ProcessContext c) {
+    @ProcessElement
+    public void process(ProcessContext c) {
 
-      c.outputWithTimestamp(c.element(),
-          new DateTime(Timestamps.toMillis(c.element().getTimestamp())).toInstant());
-
+      c.outputWithTimestamp(
+          c.element(), new DateTime(Timestamps.toMillis(c.element().getTimestamp())).toInstant());
     }
   }
 
@@ -61,10 +62,9 @@ public class TSMultiVarientDataPoints {
 
     return TimeSeriesData.TSDataPoint.newBuilder()
         .setKey(meta.getKey().toBuilder().setMinorKeyString(minorKey))
-        .setTimestamp(meta.getTimestamp()).setData(data).putAllMetadata(meta.getMetadataMap())
+        .setTimestamp(meta.getTimestamp())
+        .setData(data)
+        .putAllMetadata(meta.getMetadataMap())
         .build();
-
   }
 }
-
-

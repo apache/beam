@@ -21,12 +21,11 @@ package org.apache.beam.examples.timeseries.utils;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.util.Timestamps;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
+import javax.annotation.Nullable;
 import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,11 +39,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
-/**
- * Utility functions for MultiVarrientTSAccum.
- */
+/** Utility functions for MultiVarrientTSAccum. */
 public class MultiVarrientTSAccums {
 
   public static final String MAJOR_KEY = "ts_key_major";
@@ -70,7 +65,8 @@ public class MultiVarrientTSAccums {
   public static class CreateTableRowDoFn
       extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>, TableRow> {
 
-    @ProcessElement public void processElement(ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
 
       TimeSeriesData.MultiVarientTSAccum multiAccum = c.element().getValue();
 
@@ -92,8 +88,8 @@ public class MultiVarrientTSAccums {
     return prefix + "_" + str;
   }
 
-  public static TableRow generateTableRowFromTSAccum(TableRow row, String prefix,
-      TimeSeriesData.TSAccum accum) {
+  public static TableRow generateTableRowFromTSAccum(
+      TableRow row, String prefix, TimeSeriesData.TSAccum accum) {
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -104,27 +100,34 @@ public class MultiVarrientTSAccums {
     generateTableRowFromTSDataAccum(row, addPrefix(prefix, CURRENT), accum.getDataAccum());
 
     // Set Previous
-    generateTableRowFromTSDataAccum(row, addPrefix(prefix, PREVIOUS),
-        accum.getPreviousWindowValue().getDataAccum());
+    generateTableRowFromTSDataAccum(
+        row, addPrefix(prefix, PREVIOUS), accum.getPreviousWindowValue().getDataAccum());
 
     // Set First & Last data value
-    addTSDataPointFieldsToTableTow(row, addPrefix(prefix, FIRST_IN_WINDOW_DATA_VALUE),
+    addTSDataPointFieldsToTableTow(
+        row,
+        addPrefix(prefix, FIRST_IN_WINDOW_DATA_VALUE),
         accum.getDataAccum().getFirst().getData());
-    addTSDataPointFieldsToTableTow(row, addPrefix(prefix, LAST_IN_WINDOW_DATA_VALUE),
+    addTSDataPointFieldsToTableTow(
+        row,
+        addPrefix(prefix, LAST_IN_WINDOW_DATA_VALUE),
         accum.getDataAccum().getLast().getData());
 
     // Set Window Boundaries
-    row.set(addPrefix(prefix, LOWER_WINDOW_BOUNDARY), simpleDateFormat
-        .format(new DateTime(Timestamps.toMillis(accum.getLowerWindowBoundary())).toDate()));
-    row.set(addPrefix(prefix, UPPER_WINDOW_BOUNDARY), simpleDateFormat
-        .format(new DateTime(Timestamps.toMillis(accum.getUpperWindowBoundary())).toDate()));
+    row.set(
+        addPrefix(prefix, LOWER_WINDOW_BOUNDARY),
+        simpleDateFormat.format(
+            new DateTime(Timestamps.toMillis(accum.getLowerWindowBoundary())).toDate()));
+    row.set(
+        addPrefix(prefix, UPPER_WINDOW_BOUNDARY),
+        simpleDateFormat.format(
+            new DateTime(Timestamps.toMillis(accum.getUpperWindowBoundary())).toDate()));
 
     return row;
-
   }
 
-  private static TableRow generateTableRowFromTSDataAccum(TableRow row, String prefix,
-      TimeSeriesData.Accum accum) {
+  private static TableRow generateTableRowFromTSDataAccum(
+      TableRow row, String prefix, TimeSeriesData.Accum accum) {
 
     // Set Sum
     addTSDataPointFieldsToTableTow(row, addPrefix(prefix, COUNT), accum.getCount());
@@ -135,36 +138,35 @@ public class MultiVarrientTSAccums {
     //addTSDataPointFieldsToTableTow(row, addPrefix(prefix,AVG), accum.getSum()/accum.getCount());
 
     return row;
-
   }
 
-  private static TableRow addTSDataPointFieldsToTableTow(TableRow row, String rowName,
-      TimeSeriesData.Data data) {
+  private static TableRow addTSDataPointFieldsToTableTow(
+      TableRow row, String rowName, TimeSeriesData.Data data) {
 
     switch (data.getDataPointCase()) {
-      case INT_VAL: {
-        String rowNameWithSuffix = rowName;
-        row.set(rowNameWithSuffix, data.getIntVal());
-        return row;
-      }
-      case LONG_VAL: {
-        String rowNameWithSuffix = rowName;
-        row.set(rowNameWithSuffix, data.getLongVal());
-        return row;
-      }
+      case INT_VAL:
+        {
+          String rowNameWithSuffix = rowName;
+          row.set(rowNameWithSuffix, data.getIntVal());
+          return row;
+        }
+      case LONG_VAL:
+        {
+          String rowNameWithSuffix = rowName;
+          row.set(rowNameWithSuffix, data.getLongVal());
+          return row;
+        }
       default:
         //String rowNameWithSuffix = rowName + UNKNOWN_SUFFIX;
         //row.set(rowNameWithSuffix, data.toString());
         return row;
     }
-
   }
 
-  /**
-   * BigQuery Data types.
-   */
+  /** BigQuery Data types. */
   public enum BQDTTYPE {
-    INT64, FLOAT64
+    INT64,
+    FLOAT64
   }
 
   public static List<TableFieldSchema> getRawSchema(Map<String, BQDTTYPE> bqDtType) {
@@ -176,19 +178,26 @@ public class MultiVarrientTSAccums {
 
     for (String tsColumn : bqDtType.keySet()) {
 
-      fields.add(new TableFieldSchema().setName(addPrefix(tsColumn, LOWER_WINDOW_BOUNDARY))
-          .setType("TIMESTAMP"));
-      fields.add(new TableFieldSchema().setName(addPrefix(tsColumn, UPPER_WINDOW_BOUNDARY))
-          .setType("TIMESTAMP"));
+      fields.add(
+          new TableFieldSchema()
+              .setName(addPrefix(tsColumn, LOWER_WINDOW_BOUNDARY))
+              .setType("TIMESTAMP"));
+      fields.add(
+          new TableFieldSchema()
+              .setName(addPrefix(tsColumn, UPPER_WINDOW_BOUNDARY))
+              .setType("TIMESTAMP"));
 
-      fields.add(new TableFieldSchema().setName(addPrefix(tsColumn, FIRST_IN_WINDOW_DATA_VALUE))
-          .setType(bqDtType.get(tsColumn).name()));
-      fields.add(new TableFieldSchema().setName(addPrefix(tsColumn, LAST_IN_WINDOW_DATA_VALUE))
-          .setType(bqDtType.get(tsColumn).name()));
+      fields.add(
+          new TableFieldSchema()
+              .setName(addPrefix(tsColumn, FIRST_IN_WINDOW_DATA_VALUE))
+              .setType(bqDtType.get(tsColumn).name()));
+      fields.add(
+          new TableFieldSchema()
+              .setName(addPrefix(tsColumn, LAST_IN_WINDOW_DATA_VALUE))
+              .setType(bqDtType.get(tsColumn).name()));
 
       fields.addAll(addDataPoints(addPrefix(tsColumn, CURRENT)));
       fields.addAll(addDataPoints(addPrefix(tsColumn, PREVIOUS)));
-
     }
 
     return fields;
@@ -209,11 +218,11 @@ public class MultiVarrientTSAccums {
     return fields;
   }
 
-  /**
-   *
-   */
-  public static class GroupByMajorKey extends
-      PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>>> {
+  /** */
+  public static class GroupByMajorKey
+      extends PTransform<
+          PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
+          PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>>> {
 
     TSConfiguration configuration;
 
@@ -224,41 +233,56 @@ public class MultiVarrientTSAccums {
 
     private static final Logger LOG = LoggerFactory.getLogger(GroupByMajorKey.class);
 
-    @Override public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>> expand(
+    @Override
+    public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>> expand(
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
-      return input.apply("Re-Key to Major Key", ParDo
-          .of(new DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, KV<String, TimeSeriesData.TSAccum>>() {
+      return input
+          .apply(
+              "Re-Key to Major Key",
+              ParDo.of(
+                  new DoFn<
+                      KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>,
+                      KV<String, TimeSeriesData.TSAccum>>() {
 
-            @ProcessElement public void process(ProcessContext c) {
+                    @ProcessElement
+                    public void process(ProcessContext c) {
 
-              c.outputWithTimestamp(KV.of(c.element().getKey().getMajorKey() + Timestamps
-                      .toMillis(c.element().getValue().getUpperWindowBoundary()),
-                  c.element().getValue()), new Instant(
-                  Timestamps.toMillis(c.element().getValue().getUpperWindowBoundary())));
+                      c.outputWithTimestamp(
+                          KV.of(
+                              c.element().getKey().getMajorKey()
+                                  + Timestamps.toMillis(
+                                      c.element().getValue().getUpperWindowBoundary()),
+                              c.element().getValue()),
+                          new Instant(
+                              Timestamps.toMillis(
+                                  c.element().getValue().getUpperWindowBoundary())));
+                    }
+                  }))
+          .apply(GroupByKey.create())
+          .apply(
+              ParDo.of(
+                  new DoFn<
+                      KV<String, Iterable<TimeSeriesData.TSAccum>>,
+                      KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>>() {
 
-            }
-          })).apply(GroupByKey.create()).apply(ParDo
-          .of(new DoFn<KV<String, Iterable<TimeSeriesData.TSAccum>>, KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>>() {
+                    @ProcessElement
+                    public void process(ProcessContext c) {
 
-            @ProcessElement public void process(ProcessContext c) {
+                      // TODO : Fix this mess...
+                      TimeSeriesData.TSKey key = null;
 
-              // TODO : Fix this mess...
-              TimeSeriesData.TSKey key = null;
+                      TimeSeriesData.MultiVarientTSAccum.Builder multiVarientTSAccum =
+                          TimeSeriesData.MultiVarientTSAccum.newBuilder();
 
-              TimeSeriesData.MultiVarientTSAccum.Builder multiVarientTSAccum = TimeSeriesData.MultiVarientTSAccum
-                  .newBuilder();
-
-              for (TimeSeriesData.TSAccum accum : c.element().getValue()) {
-                multiVarientTSAccum.putProperties(accum.getKey().getMinorKeyString(), accum);
-                key = accum.getKey();
-              }
-              c.output(KV.of(key, multiVarientTSAccum.build()));
-
-            }
-          }));
+                      for (TimeSeriesData.TSAccum accum : c.element().getValue()) {
+                        multiVarientTSAccum.putProperties(
+                            accum.getKey().getMinorKeyString(), accum);
+                        key = accum.getKey();
+                      }
+                      c.output(KV.of(key, multiVarientTSAccum.build()));
+                    }
+                  }));
     }
-
   }
-
 }

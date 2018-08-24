@@ -120,6 +120,11 @@ message TSAccumSequence {
     TSKey key = 1;
     PipelineVersion pipelineVersion = 2;
     repeated TSAccum accums = 3;
+
+    google.protobuf.Timestamp lowerWindowBoundary = 4;
+    google.protobuf.Timestamp upperWindowBoundary = 5;
+
+
 }
 
 // MultiVarient TSAccum holds all the accums as a bag of properties, the key being the minor key from the Univarient

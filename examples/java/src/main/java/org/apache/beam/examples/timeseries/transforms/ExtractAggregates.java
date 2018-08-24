@@ -19,7 +19,6 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import java.util.Iterator;
-
 import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
@@ -37,10 +36,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Given a Univariant timeseries this transform will downsample and aggregate the values bases on the TSConfigration.
+ * Given a Univariant timeseries this transform will downsample and aggregate the values bases on
+ * the TSConfigration.
  */
-@SuppressWarnings("serial") public class ExtractAggregates extends
-    PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>>, PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
+@SuppressWarnings("serial")
+public class ExtractAggregates
+    extends PTransform<
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>>,
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExtractAggregates.class);
 
@@ -50,23 +53,30 @@ import org.slf4j.LoggerFactory;
     this.configuration = configuration;
   }
 
-  @Override public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
+  @Override
+  public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> input) {
-    return input.apply(Window.into(FixedWindows.of(configuration.downSampleDuration())))
-        .apply(Combine.perKey(new DownSampleCombinerGen())).setCoder(KvCoder
-            .of(ProtoCoder.of(TimeSeriesData.TSKey.class),
+    return input
+        .apply(Window.into(FixedWindows.of(configuration.downSampleDuration())))
+        .apply(Combine.perKey(new DownSampleCombinerGen()))
+        .setCoder(
+            KvCoder.of(
+                ProtoCoder.of(TimeSeriesData.TSKey.class),
                 ProtoCoder.of(TimeSeriesData.TSAccum.class)));
   }
 
-  public static class DownSampleCombinerGen extends
-      CombineFn<TimeSeriesData.TSDataPoint, TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
+  public static class DownSampleCombinerGen
+      extends CombineFn<
+          TimeSeriesData.TSDataPoint, TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
 
-    @Override public TimeSeriesData.TSAccum createAccumulator() {
+    @Override
+    public TimeSeriesData.TSAccum createAccumulator() {
       return TimeSeriesData.TSAccum.newBuilder().build();
     }
 
-    @Override public TimeSeriesData.TSAccum addInput(TimeSeriesData.TSAccum accumulator,
-        TimeSeriesData.TSDataPoint dataPoint) {
+    @Override
+    public TimeSeriesData.TSAccum addInput(
+        TimeSeriesData.TSAccum accumulator, TimeSeriesData.TSDataPoint dataPoint) {
 
       TimeSeriesData.TSAccum.Builder accumBuilder = TimeSeriesData.TSAccum.newBuilder(accumulator);
 
@@ -84,19 +94,20 @@ import org.slf4j.LoggerFactory;
 
       TimeSeriesData.Accum.Builder dataAccum = TimeSeriesData.Accum.newBuilder();
 
-      dataAccum.setCount(TimeSeriesData.Data.newBuilder()
-          .setIntVal(accumulator.getDataAccum().getCount().getIntVal() + 1));
+      dataAccum.setCount(
+          TimeSeriesData.Data.newBuilder()
+              .setIntVal(accumulator.getDataAccum().getCount().getIntVal() + 1));
 
       dataAccum.setSum(TSDatas.sumData(accumulator.getDataAccum().getSum(), newData));
 
-      dataAccum
-          .setMinValue(TSDatas.findMinDataIfSet(accumulator.getDataAccum().getMinValue(), newData));
+      dataAccum.setMinValue(
+          TSDatas.findMinDataIfSet(accumulator.getDataAccum().getMinValue(), newData));
 
       dataAccum.setMaxValue(TSDatas.findMaxData(accumulator.getDataAccum().getMaxValue(), newData));
 
       // Keep the first data point seen in this accum without mutation
-      dataAccum
-          .setFirst(TSDatas.findMinTimeStamp(accumulator.getDataAccum().getFirst(), dataPoint));
+      dataAccum.setFirst(
+          TSDatas.findMinTimeStamp(accumulator.getDataAccum().getFirst(), dataPoint));
 
       // Keep the last data point seen in this accum without mutation
       dataAccum.setLast(TSDatas.findMaxTimeStamp(accumulator.getDataAccum().getLast(), dataPoint));
@@ -104,11 +115,10 @@ import org.slf4j.LoggerFactory;
       accumBuilder.setDataAccum(dataAccum);
 
       return accumBuilder.build();
-
     }
 
-    @Override public TimeSeriesData.TSAccum mergeAccumulators(
-        Iterable<TimeSeriesData.TSAccum> accumulators) {
+    @Override
+    public TimeSeriesData.TSAccum mergeAccumulators(Iterable<TimeSeriesData.TSAccum> accumulators) {
 
       Iterator<TimeSeriesData.TSAccum> iterator = accumulators.iterator();
 
@@ -122,10 +132,10 @@ import org.slf4j.LoggerFactory;
       return current.build();
     }
 
-    @Override public TimeSeriesData.TSAccum extractOutput(TimeSeriesData.TSAccum accum) {
+    @Override
+    public TimeSeriesData.TSAccum extractOutput(TimeSeriesData.TSAccum accum) {
 
       return accum;
     }
-
   }
 }

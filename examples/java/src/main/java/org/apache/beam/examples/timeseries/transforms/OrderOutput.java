@@ -21,10 +21,8 @@ package org.apache.beam.examples.timeseries.transforms;
 import com.google.common.collect.Lists;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
-
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
@@ -49,11 +47,12 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Create ordered output from the fixed windowed aggregations.
- */
-@SuppressWarnings("serial") public class OrderOutput extends
-    PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
+/** Create ordered output from the fixed windowed aggregations. */
+@SuppressWarnings("serial")
+public class OrderOutput
+    extends PTransform<
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(OrderOutput.class);
 
@@ -63,40 +62,44 @@ import org.slf4j.LoggerFactory;
     this.configuration = configuration;
   }
 
-  @Override public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
+  @Override
+  public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
     // Move into Global Time Domain, this allows Keyed State to retain its value across windows.
     // Late Data is dropped at this stage.
 
-    PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> windowNoLateData = input.apply(
-        Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(new GlobalWindows())
-            .withAllowedLateness(Duration.ZERO));
+    PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> windowNoLateData =
+        input.apply(
+            Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                .withAllowedLateness(Duration.ZERO));
     return windowNoLateData.apply(ParDo.of(new GetPreviousData(configuration)));
   }
 
   /**
-   * When a new key is seen (state == null) for the first time, we will create a timer to fire in the next window boundary.
-   * If this is not the first time the key is seen we check the ttl to see if a new timer is required.
-   * In-between timers firing, we will add all new elements to a List.
-   * lets have 3 elements coming in at various time and then there is NULL for forth time slice [t1,t2,t3, NULL]
-   * t1 arrives and we set timer to fire at t1.plus(downsample duration + fixed offset).
-   * <p>
-   * Then we have state.set(t1).
-   * t2 arrives and we add t1 to t2 as the previous value and we output the value
-   * state.set(t2)
-   * <p>
-   * t3 arrives and we add t2 to t3 as the previous value and we output the value
-   * state.set(t3)
-   * <p>
-   * at time 4 we have no entry, here we use the last known state which is t3 and we change the time values.
-   * <p>
-   * NOTE: Need to see if this is really needed
-   * In case there is more than one element arriving before the timer fires, we will also hold a List of elements
-   * If the list of elements is > 0 then we loop through the core logic until the list is exhausted
+   * When a new key is seen (state == null) for the first time, we will create a timer to fire in
+   * the next window boundary. If this is not the first time the key is seen we check the ttl to see
+   * if a new timer is required. In-between timers firing, we will add all new elements to a List.
+   * lets have 3 elements coming in at various time and then there is NULL for forth time slice
+   * [t1,t2,t3, NULL] t1 arrives and we set timer to fire at t1.plus(downsample duration + fixed
+   * offset).
+   *
+   * <p>Then we have state.set(t1). t2 arrives and we add t1 to t2 as the previous value and we
+   * output the value state.set(t2)
+   *
+   * <p>t3 arrives and we add t2 to t3 as the previous value and we output the value state.set(t3)
+   *
+   * <p>at time 4 we have no entry, here we use the last known state which is t3 and we change the
+   * time values.
+   *
+   * <p>NOTE: Need to see if this is really needed In case there is more than one element arriving
+   * before the timer fires, we will also hold a List of elements If the list of elements is > 0
+   * then we loop through the core logic until the list is exhausted
    */
-  public static class GetPreviousData extends
-      DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
+  public static class GetPreviousData
+      extends DoFn<
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>,
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
 
     TSConfiguration configuration;
 
@@ -106,20 +109,28 @@ import org.slf4j.LoggerFactory;
 
     // Setup our state objects
 
-    @StateId("lastKnownState") private final StateSpec<ValueState<TimeSeriesData.TSAccum>> lastKnownState = StateSpecs
-        .value(ProtoCoder.of(TimeSeriesData.TSAccum.class));
-    @StateId("holdingList") private final StateSpec<BagState<TimeSeriesData.TSAccum>> holdingList = StateSpecs
-        .bag(ProtoCoder.of(TimeSeriesData.TSAccum.class));
-    @TimerId("alarm") private final TimerSpec alarm = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    @StateId("lastKnownState")
+    private final StateSpec<ValueState<TimeSeriesData.TSAccum>> lastKnownState =
+        StateSpecs.value(ProtoCoder.of(TimeSeriesData.TSAccum.class));
+
+    @StateId("holdingList")
+    private final StateSpec<BagState<TimeSeriesData.TSAccum>> holdingList =
+        StateSpecs.bag(ProtoCoder.of(TimeSeriesData.TSAccum.class));
+
+    @TimerId("alarm")
+    private final TimerSpec alarm = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     /**
-     * This is the simple path... A new element is here so we add it to the list of elements and set a timer
+     * This is the simple path... A new element is here so we add it to the list of elements and set
+     * a timer
      *
      * @param c
      * @param holdingList
      * @param timer
      */
-    @ProcessElement public void processElement(ProcessContext c,
+    @ProcessElement
+    public void processElement(
+        ProcessContext c,
         @StateId("holdingList") BagState<TimeSeriesData.TSAccum> holdingList,
         @TimerId("alarm") Timer timer) {
 
@@ -132,9 +143,9 @@ import org.slf4j.LoggerFactory;
 
     /**
      * This one is a little more complex...
-     * <p>
-     * In terms of timers, first we need to see if there are no new Accums,
-     * If not we check the last heartbeat accum value  and see if the current time - time of last Accum is > then max TTL
+     *
+     * <p>In terms of timers, first we need to see if there are no new Accums, If not we check the
+     * last heartbeat accum value and see if the current time - time of last Accum is > then max TTL
      * We also now set the previous values into the current value
      *
      * @param c
@@ -142,7 +153,9 @@ import org.slf4j.LoggerFactory;
      * @param timer
      * @param lastKnownState
      */
-    @OnTimer("alarm") public void onTimer(OnTimerContext c,
+    @OnTimer("alarm")
+    public void onTimer(
+        OnTimerContext c,
         @StateId("holdingList") BagState<TimeSeriesData.TSAccum> holdingList,
         @TimerId("alarm") Timer timer,
         @StateId("lastKnownState") ValueState<TimeSeriesData.TSAccum> lastKnownState) {
@@ -168,8 +181,10 @@ import org.slf4j.LoggerFactory;
           TimeSeriesData.TSAccum.Builder outputPartial = lastAccum.toBuilder();
 
           outputPartial.setLowerWindowBoundary(lastAccum.getUpperWindowBoundary());
-          outputPartial.setUpperWindowBoundary(Timestamps.add(lastAccum.getUpperWindowBoundary(),
-              Durations.fromMillis(configuration.downSampleDuration().getMillis())));
+          outputPartial.setUpperWindowBoundary(
+              Timestamps.add(
+                  lastAccum.getUpperWindowBoundary(),
+                  Durations.fromMillis(configuration.downSampleDuration().getMillis())));
 
           // Set the last known state without previous window value
           lastKnownState.write(outputPartial.build());
@@ -182,9 +197,9 @@ import org.slf4j.LoggerFactory;
 
           checkAccumOrderCorrectness(output, c.timestamp());
 
-          c.outputWithTimestamp(KV.of(output.getKey(), output),
+          c.outputWithTimestamp(
+              KV.of(output.getKey(), output),
               new Instant(Timestamps.toMillis(output.getUpperWindowBoundary())));
-
         }
 
         // Check if this timer has already passed the time to live duration since the last call.
@@ -193,21 +208,21 @@ import org.slf4j.LoggerFactory;
 
           // Check if we are within the TTL for a key to emit.
 
-          if (Timestamps.toMillis(Timestamps.add(lastAccum.getUpperWindowBoundary(),
-              Durations.fromMillis(configuration.timeToLive().getMillis()))) > c.timestamp()
-              .getMillis()) {
+          if (Timestamps.toMillis(
+                  Timestamps.add(
+                      lastAccum.getUpperWindowBoundary(),
+                      Durations.fromMillis(configuration.timeToLive().getMillis())))
+              > c.timestamp().getMillis()) {
             return;
-
           }
 
-          Instant alarm = new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
-              .plus(configuration.downSampleDuration());
+          Instant alarm =
+              new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
+                  .plus(configuration.downSampleDuration());
 
           timer.set(alarm);
-
         }
         return;
-
       }
 
       // If there are items in the list sort them and then process and output each element
@@ -232,7 +247,8 @@ import org.slf4j.LoggerFactory;
 
           checkAccumOrderCorrectness(output, c.timestamp());
 
-          c.outputWithTimestamp(KV.of(output.getKey(), output),
+          c.outputWithTimestamp(
+              KV.of(output.getKey(), output),
               new Instant(Timestamps.toMillis(output.getUpperWindowBoundary())));
         }
 
@@ -247,21 +263,23 @@ import org.slf4j.LoggerFactory;
           TimeSeriesData.TSAccum next = listIterator.next();
 
           // Add current to next
-          TimeSeriesData.TSAccum output = next.toBuilder().setPreviousWindowValue(lastAccum)
-              .build();
+          TimeSeriesData.TSAccum output =
+              next.toBuilder().setPreviousWindowValue(lastAccum).build();
 
           checkAccumOrderCorrectness(output, c.timestamp());
 
-          c.outputWithTimestamp(KV.of(output.getKey(), output),
+          c.outputWithTimestamp(
+              KV.of(output.getKey(), output),
               new Instant(Timestamps.toMillis(output.getUpperWindowBoundary())));
 
           lastAccum = next;
-
         }
 
         if (LOG.isDebugEnabled() && i > 1) {
-          LOG.debug(String.format("Key  %s had %s entries at time %s",
-              lastAccum.getKey().getMinorKeyString(), i, c.window()));
+          LOG.debug(
+              String.format(
+                  "Key  %s had %s entries at time %s",
+                  lastAccum.getKey().getMinorKeyString(), i, c.window()));
         }
 
         // Clear the list
@@ -269,13 +287,12 @@ import org.slf4j.LoggerFactory;
 
         lastKnownState.write(lastAccum);
 
-        Instant alarm = new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
-            .plus(configuration.downSampleDuration());
+        Instant alarm =
+            new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
+                .plus(configuration.downSampleDuration());
 
         timer.set(alarm);
-
       }
-
     }
   }
 
@@ -287,19 +304,19 @@ import org.slf4j.LoggerFactory;
       return;
     }
 
-    if (Timestamps.toMillis(accum.getLowerWindowBoundary()) < Timestamps
-        .toMillis(accum.getPreviousWindowValue().getUpperWindowBoundary())) {
+    if (Timestamps.toMillis(accum.getLowerWindowBoundary())
+        < Timestamps.toMillis(accum.getPreviousWindowValue().getUpperWindowBoundary())) {
 
-      LOG.error(String
-          .format("Timer Timestamp is %s Current Value is %s previous is %s value of old is %s",
-              timestamp, Timestamps.toString(accum.getLowerWindowBoundary()),
+      LOG.error(
+          String.format(
+              "Timer Timestamp is %s Current Value is %s previous is %s value of old is %s",
+              timestamp,
+              Timestamps.toString(accum.getLowerWindowBoundary()),
               Timestamps.toString(accum.getPreviousWindowValue().getUpperWindowBoundary()),
               accum.getKey()));
 
       throw new IllegalStateException(
           " Accum has previous value with uper boundary greater than existsing lower boundary");
-
     }
   }
-
 }

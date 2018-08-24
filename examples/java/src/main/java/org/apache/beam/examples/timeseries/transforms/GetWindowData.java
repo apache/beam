@@ -29,28 +29,34 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Extract the window information from a TSAccum.
- */
-public class GetWindowData extends
-    PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
+/** Extract the window information from a TSAccum. */
+public class GetWindowData
+    extends PTransform<
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(GetWindowData.class);
 
-  @Override public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
+  @Override
+  public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
-    return input.apply(ParDo
-        .of(new DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>() {
+    return input.apply(
+        ParDo.of(
+            new DoFn<
+                KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>,
+                KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>() {
 
-          @ProcessElement public void process(ProcessContext c, IntervalWindow w) {
-            c.output(KV.of(c.element().getKey(),
-                TimeSeriesData.TSAccum.newBuilder(c.element().getValue())
-                    .setLowerWindowBoundary(Timestamps.fromMillis(w.start().getMillis()))
-                    .setUpperWindowBoundary(Timestamps.fromMillis(w.end().getMillis())).build()));
-
-          }
-        }));
-
+              @ProcessElement
+              public void process(ProcessContext c, IntervalWindow w) {
+                c.output(
+                    KV.of(
+                        c.element().getKey(),
+                        TimeSeriesData.TSAccum.newBuilder(c.element().getValue())
+                            .setLowerWindowBoundary(Timestamps.fromMillis(w.start().getMillis()))
+                            .setUpperWindowBoundary(Timestamps.fromMillis(w.end().getMillis()))
+                            .build()));
+              }
+            }));
   }
 }
