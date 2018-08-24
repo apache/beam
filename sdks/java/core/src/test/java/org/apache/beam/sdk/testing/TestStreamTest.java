@@ -368,7 +368,7 @@ public class TestStreamTest implements Serializable {
         new IntervalWindow(new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(30)));
 
     PAssert.that(sum)
-        .inEarlyPanes(window)
+        .inEarlyPane(window)
         .satisfies(
             input -> {
               assertThat(StreamSupport.stream(input.spliterator(), false).count(), is(3L));
