@@ -378,7 +378,8 @@ public abstract class Row implements Serializable {
 
     public Builder attachValues(List<Object> values) {
       this.attached = true;
-      return addValues(values);
+      this.values = values;
+      return this;
     }
 
     public Builder withFieldValueGetters(
