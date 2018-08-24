@@ -100,7 +100,7 @@ public class BigQueryToTableIT {
   }
 
   @Before
-  public void setupBqEnvironment() throws Exception {
+  public void setupBqEnvironment() {
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
@@ -112,8 +112,7 @@ public class BigQueryToTableIT {
   }
 
   @After
-  public void cleanBqEnvironment() throws Exception {
-    bqClient.deleteTable(project, BIG_QUERY_DATASET_ID, OUTPUT_TABLE_NAME);
+  public void cleanBqEnvironment() {
     bqClient.deleteDataset(project, BIG_QUERY_DATASET_ID);
   }
 
