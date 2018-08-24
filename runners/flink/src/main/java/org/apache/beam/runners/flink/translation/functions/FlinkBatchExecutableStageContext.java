@@ -51,8 +51,7 @@ class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext, A
     return jobBundleFactory.forStage(executableStage);
   }
 
-  @Override
-  public StateRequestHandler getStateRequestHandler(
+  public static StateRequestHandler getStateRequestHandler(
       ExecutableStage executableStage, RuntimeContext runtimeContext) {
     SideInputHandlerFactory sideInputHandlerFactory =
         FlinkBatchSideInputHandlerFactory.forStage(executableStage, runtimeContext);
