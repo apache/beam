@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -97,6 +99,18 @@ public class BeamSqlEnv {
    */
   public void registerUdaf(String functionName, Combine.CombineFn combineFn) {
     defaultSchema.add(functionName, new UdafImpl(combineFn));
+  }
+
+  /** Load all UDF/UDAF from {@link UdfUdafProvider}. */
+  public void loadUdfUdafFromProvider() {
+    ServiceLoader.<UdfUdafProvider>load(UdfUdafProvider.class)
+        .forEach(
+            ins -> {
+              ins.getBeamSqlUdfs().forEach((udfName, udfClass) -> registerUdf(udfName, udfClass));
+              ins.getSerializableFunctionUdfs()
+                  .forEach((udfName, udfFn) -> registerUdf(udfName, udfFn));
+              ins.getUdafs().forEach((udafName, udafFn) -> registerUdaf(udafName, udafFn));
+            });
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
