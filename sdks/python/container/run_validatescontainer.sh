@@ -25,14 +25,16 @@
 #
 # Execute from the root of the repository: sdks/python/container/run_validatescontainer.sh
 
+echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+
 set -e
 set -v
 
 # Where to store integration test outputs.
-GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
-PROJECT=apache-beam-testing
+PROJECT=${PROJECT:-apache-beam-testing}
 
 # Verify in the root of the repository
 test -d sdks/python/container
