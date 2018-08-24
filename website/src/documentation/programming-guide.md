@@ -1346,6 +1346,7 @@ determined by the input data, or depend on a different branch of your pipeline.
   PCollection<String> wordsBelowCutOff =
   words.apply(ParDo
       .of(new DoFn<String, String>() {
+          @ProcessElement
           public void processElement(ProcessContext c) {
             String word = c.element();
             // In our DoFn, access the side input.
@@ -1486,6 +1487,7 @@ together.
 // Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
   .of(new DoFn<String, String>() {
+     @ProcessElement
      public void processElement(ProcessContext c) {
        String word = c.element();
        if (word.length() <= wordLengthCutOff) {
@@ -2387,6 +2389,7 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
       PCollection<LogEntry> unstampedLogs = ...;
       PCollection<LogEntry> stampedLogs =
           unstampedLogs.apply(ParDo.of(new DoFn<LogEntry, LogEntry>() {
+            @ProcessElement
             public void processElement(ProcessContext c) {
               // Extract the timestamp from log entry we're currently processing.
               Instant logTimeStamp = extractTimeStampFromLogEntry(c.element());
