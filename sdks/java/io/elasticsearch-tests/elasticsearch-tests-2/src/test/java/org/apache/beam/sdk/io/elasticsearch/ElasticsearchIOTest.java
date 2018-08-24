@@ -220,4 +220,16 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();
   }
+
+  @Test
+  public void testDefaultRetryPredicate() throws IOException {
+    elasticsearchIOTestCommon.testDefaultRetryPredicate(restClient);
+  }
+
+  @Test
+  public void testWriteRetry() throws Throwable {
+    elasticsearchIOTestCommon.setExpectedException(expectedException);
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetry();
+  }
 }
