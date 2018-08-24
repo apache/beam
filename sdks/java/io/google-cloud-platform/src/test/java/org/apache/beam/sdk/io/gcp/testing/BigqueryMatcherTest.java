@@ -26,34 +26,38 @@ import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.math.BigInteger;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link BigqueryMatcher}. */
-@RunWith(JUnit4.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(BigqueryClient.class)
 public class BigqueryMatcherTest {
   private final String appName = "test-app";
   private final String projectId = "test-project";
   private final String query = "test-query";
 
   @Rule public ExpectedException thrown = ExpectedException.none();
-  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
   @Mock private BigqueryClient mockBigqueryClient;
   @Mock private PipelineResult mockResult;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
+    PowerMockito.mockStatic(BigqueryClient.class);
+    when(BigqueryClient.getClient(anyString())).thenReturn(mockBigqueryClient);
   }
 
   @Test

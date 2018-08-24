@@ -37,16 +37,19 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link BigqueryClient}. */
-@RunWith(JUnit4.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(BigqueryClient.class)
 public class BigqueryClientTest {
   private final String projectId = "test-project";
   private final String query = "test-query";
   private BigqueryClient bqClient;
 
   @Rule public ExpectedException thrown = ExpectedException.none();
-  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
   @Mock private Bigquery mockBigqueryClient;
   @Mock private Bigquery.Jobs mockJobs;
   @Mock private Bigquery.Jobs.Query mockQuery;
@@ -56,7 +59,9 @@ public class BigqueryClientTest {
     MockitoAnnotations.initMocks(this);
     when(mockBigqueryClient.jobs()).thenReturn(mockJobs);
     when(mockJobs.query(anyString(), any(QueryRequest.class))).thenReturn(mockQuery);
-    bqClient = spy(new BigqueryClient(mockBigqueryClient));
+    PowerMockito.mockStatic(BigqueryClient.class);
+    when(BigqueryClient.getNewBigquerryClient(anyString())).thenReturn(mockBigqueryClient);
+    bqClient = spy(new BigqueryClient("test-app"));
   }
 
   @Test
