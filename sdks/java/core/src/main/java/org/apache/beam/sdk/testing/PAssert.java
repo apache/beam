@@ -257,7 +257,7 @@ public class PAssert {
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
      *     specified window.
      */
-    IterableAssert<T> inEarlyPanes(BoundedWindow window);
+    IterableAssert<T> inEarlyPane(BoundedWindow window);
 
     /**
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
@@ -352,7 +352,7 @@ public class PAssert {
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
      *     the specified window.
      */
-    SingletonAssert<T> inEarlyPanes(BoundedWindow window);
+    SingletonAssert<T> inEarlyPane(BoundedWindow window);
 
     /**
      * Asserts that the value in question is equal to the provided value, according to {@link
@@ -532,7 +532,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionContentsAssert<T> inEarlyPanes(BoundedWindow window) {
+    public PCollectionContentsAssert<T> inEarlyPane(BoundedWindow window) {
       return withPane(window, PaneExtractors.earlyPanes());
     }
 
@@ -724,7 +724,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionSingletonIterableAssert<T> inEarlyPanes(BoundedWindow window) {
+    public PCollectionSingletonIterableAssert<T> inEarlyPane(BoundedWindow window) {
       return withPanes(window, PaneExtractors.earlyPanes());
     }
 
@@ -834,7 +834,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionViewAssert<ElemT, ViewT> inEarlyPanes(BoundedWindow window) {
+    public PCollectionViewAssert<ElemT, ViewT> inEarlyPane(BoundedWindow window) {
       return inPane(window, PaneExtractors.earlyPanes());
     }
 
