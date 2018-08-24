@@ -101,6 +101,7 @@ public class BigQueryToTableIT {
   public void setupBqEnvironment() {
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
+    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
     bqOption = options.as(BigQueryOptions.class);
