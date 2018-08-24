@@ -146,7 +146,8 @@ task googleCloudPlatformIntegrationTest(type: Test) {
           "--tempRoot=${dataflowTempRoot}",
   ])
 
-  include '**/*IT.class'
+  //include '**/*IT.class'
+  include '**/BigQueryToTableIT.class'
   exclude '**/PubsubReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
