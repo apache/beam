@@ -28,6 +28,9 @@ import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableList;
+import com.google.api.services.bigquery.model.TableList.Tables;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -121,20 +124,41 @@ public class BigqueryClient {
         lastException);
   }
 
-  public void createNewDataset(String projectId, String datasetId) throws Exception {
-    bqClient
-        .datasets()
-        .insert(
-            projectId,
-            new Dataset().setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
-        .execute();
+  public void createNewDataset(String projectId, String datasetId) {
+    try {
+      bqClient
+          .datasets()
+          .insert(
+              projectId,
+              new Dataset().setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
+          .execute();
+    } catch (Exception e) {
+      LOG.debug("Exceptions catched when creating new dataset: " + e.getMessage());
+    }
   }
 
-  public void deleteTable(String projectId, String datasetId, String tableName) throws Exception {
-    bqClient.tables().delete(projectId, datasetId, tableName).execute();
+  public void deleteTable(String projectId, String datasetId, String tableName) {
+    try {
+      bqClient.tables().delete(projectId, datasetId, tableName).execute();
+    } catch (Exception e) {
+      LOG.debug("Exception catched when deleting table: " + e.getMessage());
+    }
   }
 
-  public void deleteDataset(String projectId, String datasetId) throws Exception {
-    bqClient.datasets().delete(projectId, datasetId).execute();
+  public void deleteDataset(String projectId, String datasetId) {
+    try {
+      TableList tables = bqClient.tables().list(projectId, datasetId).execute();
+      for (Tables table : tables.getTables()) {
+        this.deleteTable(projectId, datasetId, table.getTableReference().getTableId());
+      }
+    } catch (Exception e) {
+      LOG.debug("Exceptions catched when listing all tables: " + e.getMessage());
+    }
+
+    try {
+      bqClient.datasets().delete(projectId, datasetId).execute();
+    } catch (Exception e) {
+      LOG.debug("Exceptions catched when deleting dataset: " + e.getMessage());
+    }
   }
 }
