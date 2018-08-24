@@ -124,6 +124,8 @@ message TSAccumSequence {
     google.protobuf.Timestamp lowerWindowBoundary = 4;
     google.protobuf.Timestamp upperWindowBoundary = 5;
 
+    google.protobuf.Duration duration = 6;
+
 
 }
 

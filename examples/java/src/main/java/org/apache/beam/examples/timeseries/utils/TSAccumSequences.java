@@ -19,6 +19,7 @@
 package org.apache.beam.examples.timeseries.utils;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
@@ -126,7 +127,7 @@ public class TSAccumSequences {
     return downSampleType.name() + "_PREV";
   }
 
-  /** Push to TF Examples generated from TSAccum's to BigTable */
+  /** Push to TF Examples generated from TSAccum's to BigTable **/
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccumSequence>, PCollection<Mutation>> {
 
@@ -141,13 +142,16 @@ public class TSAccumSequences {
     public static class WriteTFAccumToBigTable
         extends DoFn<TimeSeriesData.TSAccumSequence, Mutation> {
 
+
+      // Create key structure of majorkey-duration(ms)-lowerWindow-upperWindow
+      // Minor key becomes column
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         c.output(
             new Put(createBigTableKey(c.element()))
                 .addColumn(
                     OutPutToBigTable.TF_ACCUM,
-                    OutPutToBigTable.DOWNSAMPLE_SIZE_MS,
+                    Bytes.toBytes(c.element().getKey().getMinorKeyString()),
                     TSAccumSequences.getSequenceExampleFromAccumSequence(c.element())
                         .toByteArray()));
       }
@@ -159,8 +163,7 @@ public class TSAccumSequences {
           String.join(
               "-",
               accumSequence.getKey().getMajorKey(),
-              accumSequence.getKey().getMinorKeyString(),
-              "SQ",
+              Long.toString(Durations.toMillis(accumSequence.getDuration())),
               Long.toString(Timestamps.toMillis(accumSequence.getLowerWindowBoundary())),
               Long.toString(Timestamps.toMillis(accumSequence.getUpperWindowBoundary()))));
     }

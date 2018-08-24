@@ -19,6 +19,7 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import com.google.common.collect.Lists;
+import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
@@ -113,6 +114,7 @@ public class TSAccumToFixedWindowSeq
 
                     seq.setLowerWindowBoundary(lowerBoundary);
                     seq.setUpperWindowBoundary(upperBoundary);
+                    seq.setDuration(Durations.fromMillis(fixedWindowDuration.getMillis()));
 
                     c.output(KV.of(c.element().getKey(), seq.build()));
                   }

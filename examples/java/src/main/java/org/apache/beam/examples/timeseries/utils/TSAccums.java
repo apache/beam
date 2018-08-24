@@ -20,6 +20,7 @@ package org.apache.beam.examples.timeseries.utils;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
 import java.util.Comparator;
@@ -238,8 +239,7 @@ public class TSAccums {
           String.join(
               "-",
               accum.getKey().getMajorKey(),
-              accum.getKey().getMinorKeyString(),
-              "E",
+              Long.toString(Durations.toMillis(accum.getDuration())),
               Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
               Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))));
     }
