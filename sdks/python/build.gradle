@@ -219,10 +219,20 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //
 task portableWordCount(dependsOn: 'installGcpTest') {
   doLast {
+    // TODO: Figure out GCS credentials and use real GCS input and output.
+    def options = [
+            "--input=/etc/profile",
+            "--output=/tmp/py-wordcount-direct",
+            "--experiments=beam_fn_api",
+            "--runner=PortableRunner",
+            "--job_endpoint=localhost:8099",
+            "--sdk_location=container",
+    ]
+    if (project.hasProperty("streaming"))
+      options += ["--streaming"]
     exec {
       executable 'sh'
-      // TODO: Figure out GCS credentials and use real GCS input and output.
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --input /etc/profile --output /tmp/py-wordcount-direct --experiments=beam_fn_api --runner=PortableRunner --job_endpoint=localhost:8099 --sdk_location=container"
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
     }
   }
