@@ -48,18 +48,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Integration test for BigqueryIO with DataflowRunner and DirectRunner. */
 @RunWith(JUnit4.class)
 public class BigQueryToTableIT {
 
   private BigQueryToTableOptions options;
   private String project;
   private final String timestamp = Long.toString(System.currentTimeMillis());
-  private final String BIG_QUERY_DATASET_ID = "bq_query_to_table_" + timestamp;
-  private final String OUTPUT_TABLE_NAME = "output_table";
+  private final String bigQueryDatasetId = "bq_query_to_table_" + timestamp;
+  private final String outputTableName = "output_table";
   private BigQueryOptions bqOption;
   private String outputTable;
   private BigqueryClient bqClient;
 
+  /** Customized PipelineOption for BigQueryToTable Pipeline. */
   public interface BigQueryToTableOptions extends TestPipelineOptions {
 
     @Description("The BigQuery query to be used for creating the source")
@@ -103,13 +105,13 @@ public class BigQueryToTableIT {
 
     bqOption = options.as(BigQueryOptions.class);
     bqClient = new BigqueryClient(bqOption.getAppName());
-    bqClient.createNewDataset(project, BIG_QUERY_DATASET_ID);
-    outputTable = project + ":" + BIG_QUERY_DATASET_ID + "." + OUTPUT_TABLE_NAME;
+    bqClient.createNewDataset(project, bigQueryDatasetId);
+    outputTable = project + ":" + bigQueryDatasetId + "." + outputTableName;
   }
 
   @After
   public void cleanBqEnvironment() {
-    bqClient.deleteDataset(project, BIG_QUERY_DATASET_ID);
+    bqClient.deleteDataset(project, bigQueryDatasetId);
   }
 
   private void runBigQueryToTablePipeline() {
