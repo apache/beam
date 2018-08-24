@@ -28,7 +28,6 @@ import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
-import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableList;
 import com.google.api.services.bigquery.model.TableList.Tables;
 import com.google.auth.Credentials;
@@ -68,8 +67,7 @@ public class BigqueryClient {
     }
 
     if (credential.createScopedRequired()) {
-      Collection<String> bigqueryScope =
-          Lists.newArrayList(BigqueryScopes.all());
+      Collection<String> bigqueryScope = Lists.newArrayList(BigqueryScopes.all());
       credential = credential.createScoped(bigqueryScope);
     }
     return credential;
