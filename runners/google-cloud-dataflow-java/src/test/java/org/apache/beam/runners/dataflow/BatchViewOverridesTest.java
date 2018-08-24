@@ -572,6 +572,12 @@ public class BatchViewOverridesTest {
                                 windowA,
                                 WindowedValue.of(
                                     KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                            // [BEAM-5184] Specifically test with a duplicate value to ensure that
+                            // duplicate key/values are not lost.
+                            KV.of(
+                                windowA,
+                                WindowedValue.of(
+                                    KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
                                 WindowedValue.of(
@@ -613,7 +619,7 @@ public class BatchViewOverridesTest {
 
     outputMap = output.get(0).getValue().getValue();
     assertEquals(2, outputMap.size());
-    assertThat(outputMap.get(1L), containsInAnyOrder(11L, 12L));
+    assertThat(outputMap.get(1L), containsInAnyOrder(11L, 11L, 12L));
     assertThat(outputMap.get(2L), containsInAnyOrder(21L));
 
     outputMap = output.get(1).getValue().getValue();
