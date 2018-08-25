@@ -378,7 +378,8 @@ public abstract class Row implements Serializable {
 
     public Builder attachValues(List<Object> values) {
       this.attached = true;
-      return addValues(values);
+      this.values = values;
+      return this;
     }
 
     public Builder withFieldValueGetters(
@@ -564,7 +565,7 @@ public abstract class Row implements Serializable {
       if (!this.values.isEmpty()) {
         List<Object> storageValues = attached ? this.values : verify(schema, this.values);
         checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, verify(schema, storageValues));
+        return new RowWithStorage(schema, storageValues);
       } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
         return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
