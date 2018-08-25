@@ -107,7 +107,7 @@ REQUIRED_PACKAGES = [
     'fastavro==0.19.7',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<=0.11.3',
+    'httplib2>=0.11.0,<=0.11.3',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
@@ -133,7 +133,7 @@ GCP_REQUIREMENTS = [
     'google-apitools>=0.5.18,<=0.5.20',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
     'googledatastore==7.0.1',
-    'google-cloud-pubsub==0.26.0',
+    'google-cloud-pubsub==0.35.4',
     'proto-google-cloud-pubsub-v1==0.15.4',
     # GCP packages required by tests
     'google-cloud-bigquery==0.25.0',
