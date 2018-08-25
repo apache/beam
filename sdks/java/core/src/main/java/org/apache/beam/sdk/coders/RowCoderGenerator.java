@@ -51,6 +51,7 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 
@@ -147,9 +148,12 @@ public abstract class RowCoderGenerator {
 
   private static DynamicType.Builder<Coder> implementMethods(
       Schema schema, DynamicType.Builder<Coder> builder) {
+    boolean hasNullableFields = schema.getFields().stream().anyMatch(Field::getNullable);
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))
+        .defineMethod("hasNullableFields", boolean.class, Visibility.PRIVATE, Ownership.STATIC)
+        .intercept(FixedValue.reference(hasNullableFields))
         .method(ElementMatchers.named("encode"))
         .intercept(new EncodeInstruction())
         .method(ElementMatchers.named("decode"))
@@ -176,6 +180,13 @@ public abstract class RowCoderGenerator {
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // OutputStream.
                 MethodVariableAccess.REFERENCE.loadFrom(2),
+                // hasNullableFields
+                MethodInvocation.invoke(
+                    implementationContext
+                        .getInstrumentedType()
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("hasNullableFields"))
+                        .getOnly()),
                 // Call EncodeInstruction.encodeDelegate
                 MethodInvocation.invoke(
                     LOADED_TYPE
@@ -197,9 +208,10 @@ public abstract class RowCoderGenerator {
     // The encode method of the generated Coder delegates to this method to evaluate all of the
     // per-field Coders.
     @SuppressWarnings("unchecked")
-    static void encodeDelegate(Coder[] coders, Row value, OutputStream outputStream)
+    static void encodeDelegate(
+        Coder[] coders, Row value, OutputStream outputStream, boolean hasNullableFields)
         throws IOException {
-      NULL_LIST_CODER.encode(scanNullFields(value), outputStream);
+      NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
       for (int idx = 0; idx < value.getFieldCount(); ++idx) {
         Object fieldValue = value.getValue(idx);
         if (value.getValue(idx) != null) {
@@ -210,11 +222,13 @@ public abstract class RowCoderGenerator {
 
     // Figure out which fields of the Row are null, and returns a BitSet. This allows us to save
     // on encoding each null field separately.
-    private static BitSet scanNullFields(Row row) {
+    private static BitSet scanNullFields(Row row, boolean hasNullableFields) {
       BitSet nullFields = new BitSet(row.getFieldCount());
-      for (int idx = 0; idx < row.getFieldCount(); ++idx) {
-        if (row.getValue(idx) == null) {
-          nullFields.set(idx);
+      if (hasNullableFields) {
+        for (int idx = 0; idx < row.getFieldCount(); ++idx) {
+          if (row.getValue(idx) == null) {
+            nullFields.set(idx);
+          }
         }
       }
       return nullFields;
