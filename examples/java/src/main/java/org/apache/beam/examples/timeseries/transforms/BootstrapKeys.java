@@ -20,6 +20,7 @@ package org.apache.beam.examples.timeseries.transforms;
 
 import java.util.Date;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
@@ -28,6 +29,7 @@ import org.joda.time.Instant;
  * This class will take the TSConfiguration.firstTime value and apply that as the timestamp to use
  * for the first time this key will be added.
  */
+@Experimental
 public class BootstrapKeys extends DoFn<TimeSeriesData.TSDataPoint, TimeSeriesData.TSDataPoint> {
 
   private long startTime;

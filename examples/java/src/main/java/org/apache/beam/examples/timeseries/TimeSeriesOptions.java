@@ -18,9 +18,11 @@
 
 package org.apache.beam.examples.timeseries;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+@Experimental
 public interface TimeSeriesOptions extends PipelineOptions {
 
   @Description("Project ID - Used for GCP I/O ")

@@ -23,6 +23,7 @@ import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
 import org.apache.beam.examples.timeseries.utils.TSDatas;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.Combine;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
  * the TSConfigration.
  */
 @SuppressWarnings("serial")
+@Experimental
 public class ExtractAggregates
     extends PTransform<
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>>,

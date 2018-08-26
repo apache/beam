@@ -19,6 +19,7 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.values.KV;
  *
  * @param <T>
  */
+@Experimental
 public class GetValueFromKV<T> extends DoFn<KV<TimeSeriesData.TSKey, T>, T> {
 
   @DoFn.ProcessElement

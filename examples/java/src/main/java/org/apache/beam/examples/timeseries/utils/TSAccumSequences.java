@@ -23,6 +23,7 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -35,9 +36,16 @@ import org.slf4j.LoggerFactory;
 import org.tensorflow.example.*;
 
 /** Utility functions for TSAccum. */
+@Experimental
 public class TSAccumSequences {
 
   static final Logger LOG = LoggerFactory.getLogger(TSAccumSequences.class);
+
+  private static final String LOWER_WINDOW_BOUNDARY = "LOWER_WINDOW_BOUNDARY";
+  private static final String UPPER_WINDOW_BOUNDARY = "UPPER_WINDOW_BOUNDARY";
+
+  private static final String FIRST_TIME_STAMP = "FIRST_TIME_STAMP";
+  private static final String LAST_TIME_STAMP = "LAST_TIME_STAMP";
 
   public static SequenceExample getSequenceExampleFromAccumSequence(
       TimeSeriesData.TSAccumSequence sequence)
@@ -58,6 +66,18 @@ public class TSAccumSequences {
                 Feature.newBuilder()
                     .setBytesList(
                         BytesList.newBuilder().addValue(sequence.getKey().getMinorKeyStringBytes()))
+                    .build())
+            .putFeature(
+                LOWER_WINDOW_BOUNDARY,
+                Feature.newBuilder()
+                    .setFloatList(
+                FloatList.newBuilder().addValue(Timestamps.toMillis(sequence.getLowerWindowBoundary())))
+                    .build())
+            .putFeature(
+                UPPER_WINDOW_BOUNDARY,
+                Feature.newBuilder()
+                    .setFloatList(
+                        FloatList.newBuilder().addValue(Timestamps.toMillis(sequence.getUpperWindowBoundary())))
                     .build()));
 
     FeatureList.Builder sum = FeatureList.newBuilder();
@@ -132,7 +152,6 @@ public class TSAccumSequences {
       extends PTransform<PCollection<TimeSeriesData.TSAccumSequence>, PCollection<Mutation>> {
 
     public static final byte[] TF_ACCUM = Bytes.toBytes("TF_ACCUM");
-    public static final byte[] DOWNSAMPLE_SIZE_MS = Bytes.toBytes("DOWNSAMPLE_SIZE_MS");
 
     @Override
     public PCollection<Mutation> expand(PCollection<TimeSeriesData.TSAccumSequence> input) {

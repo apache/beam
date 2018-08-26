@@ -26,6 +26,7 @@ import java.util.List;
 import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -96,6 +97,7 @@ public class OrderOutput
    * before the timer fires, we will also hold a List of elements If the list of elements is > 0
    * then we loop through the core logic until the list is exhausted
    */
+  @Experimental
   public static class GetPreviousData
       extends DoFn<
           KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>,

@@ -32,6 +32,7 @@ import org.apache.beam.examples.timeseries.transforms.OrderOutput;
 import org.apache.beam.examples.timeseries.transforms.TSAccumToFixedWindowSeq;
 import org.apache.beam.examples.timeseries.utils.TSMultiVarientDataPoints;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -51,6 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The output of this pipeline is to a File path.
  */
+@Experimental
 public class TimeSeriesExampleToFile {
 
   static final Logger LOG = LoggerFactory.getLogger(TimeSeriesExampleToFile.class);
@@ -143,7 +145,7 @@ public class TimeSeriesExampleToFile {
             TimeSeriesData.TSMUltiVarientDataPoint mvts =
                 TimeSeriesData.TSMUltiVarientDataPoint.newBuilder()
                     .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
-                    .putData("x", TimeSeriesData.Data.newBuilder().setIntVal(i).build())
+                    .putData("x", TimeSeriesData.Data.newBuilder().setDoubleVal(i).build())
                     .putData("y", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())
                     .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis()))
                     .build();

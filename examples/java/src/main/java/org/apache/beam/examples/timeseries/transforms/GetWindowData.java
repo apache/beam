@@ -20,6 +20,7 @@ package org.apache.beam.examples.timeseries.transforms;
 
 import com.google.protobuf.util.Timestamps;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Extract the window information from a TSAccum. */
+@Experimental
 public class GetWindowData
     extends PTransform<
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,

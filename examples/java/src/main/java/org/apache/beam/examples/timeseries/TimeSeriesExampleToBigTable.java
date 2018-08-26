@@ -30,6 +30,7 @@ import org.apache.beam.examples.timeseries.utils.TSAccumSequences;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
 import org.apache.beam.examples.timeseries.utils.TSMultiVarientDataPoints;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,6 +49,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The output of this pipeline is to Google Cloud Bigtable.
  */
+@Experimental
 public class TimeSeriesExampleToBigTable {
 
   static final Logger LOG = LoggerFactory.getLogger(TimeSeriesExampleToBigTable.class);
@@ -56,7 +58,7 @@ public class TimeSeriesExampleToBigTable {
 
   /**
    * Timeseries example that outputs to BigTable --projectId=<projectid>
-   * --bigTableInstanceId=bigtable --bigTableTableId=timeseries *
+   * --bigTableInstanceId=bigtable --bigTableTableId=timeseries
    */
   public static void main(String[] args) {
 

@@ -27,6 +27,7 @@ import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.tensorflow.example.*;
 
 /** Utility functions for TSAccum. */
+@Experimental
 public class TSAccums {
 
   static final Logger LOG = LoggerFactory.getLogger(TSAccums.class);

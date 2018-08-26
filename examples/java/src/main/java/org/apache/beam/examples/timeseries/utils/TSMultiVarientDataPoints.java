@@ -20,11 +20,13 @@ package org.apache.beam.examples.timeseries.utils;
 
 import com.google.protobuf.util.Timestamps;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.DateTime;
 
 /** Utility functions for TSMultiVarientDataPoint. */
+@Experimental
 public class TSMultiVarientDataPoints {
 
   public static class ConvertMultiToUniDataPoint
