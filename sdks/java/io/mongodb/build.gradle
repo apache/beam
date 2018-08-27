@@ -37,6 +37,6 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
-  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
+  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.1.1"
+  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:2.0.5"
 }
