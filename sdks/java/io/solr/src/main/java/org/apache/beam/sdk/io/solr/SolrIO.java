@@ -539,9 +539,7 @@ public class SolrIO {
      *
      * @param batchSize maximum batch size in number of documents
      */
-    @VisibleForTesting
-    Write withMaxBatchSize(int batchSize) {
-      // TODO remove this configuration, we can figure out the best number
+    public Write withMaxBatchSize(int batchSize) {
       // by tuning batchSize when pipelines run.
       checkArgument(batchSize > 0, "batchSize must be larger than 0, but was: %s", batchSize);
       return builder().setMaxBatchSize(batchSize).build();
