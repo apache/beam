@@ -30,7 +30,7 @@ class PrecommitJobBuilder {
   String gradleTask
 
   /** Overall job timeout. */
-  int timeoutMins = 120
+  int timeoutMins = 30
 
   /** If defined, set of path expressions used to trigger the job on commit. */
   List<String> triggerPathPatterns = []
@@ -92,6 +92,10 @@ class PrecommitJobBuilder {
 
   private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
     def allowRemotePoll = !usesRegionFilter
+    if (nameBase == 'Java') {
+      // BEAM-5035: Parallel builds are very flaky
+      timeoutMins = 120
+    }
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
       'master',
