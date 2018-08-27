@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import com.google.common.base.Splitter;
 import java.util.List;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -77,6 +78,8 @@ public class FlinkExecutionEnvironments {
     } else {
       flinkBatchEnv.getConfig().disableObjectReuse();
     }
+
+    applyLatencyTrackingInterval(flinkBatchEnv.getConfig(), options);
 
     return flinkBatchEnv;
   }
@@ -163,6 +166,8 @@ public class FlinkExecutionEnvironments {
       }
     }
 
+    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
     // State backend
     final AbstractStateBackend stateBackend = options.getStateBackend();
     if (stateBackend != null) {
@@ -170,5 +175,11 @@ public class FlinkExecutionEnvironments {
     }
 
     return flinkStreamEnv;
+  }
+
+  private static void applyLatencyTrackingInterval(
+      ExecutionConfig config, FlinkPipelineOptions options) {
+    long latencyTrackingInterval = options.getLatencyTrackingInterval();
+    config.setLatencyTrackingInterval(latencyTrackingInterval);
   }
 }
