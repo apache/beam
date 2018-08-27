@@ -61,6 +61,7 @@ public class ElasticsearchIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
   private static final String ES_IP = "127.0.0.1";
+  private static final int MAX_STARTUP_WAITING_TIME_MSEC = 5000;
 
   private static Node node;
   private static RestClient restClient;
@@ -101,6 +102,21 @@ public class ElasticsearchIOTest implements Serializable {
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
+    int waitingTime = 0;
+    int healthCheckFrequency = 500;
+    while ((waitingTime < MAX_STARTUP_WAITING_TIME_MSEC)
+        && restClient.performRequest("HEAD", "/").getStatusLine().getStatusCode() != 200) {
+      try {
+        Thread.sleep(healthCheckFrequency);
+        waitingTime += healthCheckFrequency;
+      } catch (InterruptedException e) {
+        LOG.warn(
+            "Waiting thread was interrupted while waiting for connection to Elasticsearch to be available");
+      }
+    }
+    if (waitingTime >= MAX_STARTUP_WAITING_TIME_MSEC) {
+      throw new IOException("Max startup waiting for embedded Elasticsearch to start was exceeded");
+    }
   }
 
   @AfterClass
