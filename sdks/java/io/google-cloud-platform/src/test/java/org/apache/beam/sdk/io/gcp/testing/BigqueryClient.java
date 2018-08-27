@@ -44,7 +44,35 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A wrapper class to call bigquery api. */
+/**
+ * A wrapper class to call Bigquery API calls.
+ *
+ * <p>Example:
+ *
+ * <p>Get a new Bigquery client:
+ *
+ * <pre>{@code [
+ *    BigqueryClient client = BigqueryClient.getNewBigquerryClient(applicationName);
+ * ]}</pre>
+ *
+ * Execute a query with retries
+ *
+ * <pre>{@code [
+ *    QueryResponse response = client.queryWithRetries(queryString, projectId);
+ * ]}</pre>
+ *
+ * Create a new dataset in one project
+ *
+ * <pre>{@code [
+ *    client.createNewDataset(projectId, datasetId);
+ * ]}</pre>
+ *
+ * Delete a dataset in one project, included its all tables.
+ *
+ * <pre>{@code [
+ *    client.deleteDataset(projectId, datasetId);
+ * ]}</pre>
+ */
 public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
   // The maximum number of retries to execute a BigQuery RPC
