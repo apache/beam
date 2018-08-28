@@ -41,6 +41,8 @@ import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as Apache Beam {@link
@@ -68,6 +70,9 @@ import org.apache.hadoop.fs.Path;
  * </ul>
  */
 class HadoopFileSystem extends FileSystem<HadoopResourceId> {
+  private static final Logger LOG = LoggerFactory.getLogger(HadoopFileSystem.class);
+
+  @VisibleForTesting static final String LOG_CREATE_DIRECTORY = "Creating directory %s";
   @VisibleForTesting final org.apache.hadoop.fs.FileSystem fileSystem;
 
   HadoopFileSystem(Configuration configuration) throws IOException {
@@ -129,14 +134,22 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       // implementing it. The DFSFileSystem implemented concat by deleting the srcs after which
       // is not what we want. Also, all the other FileSystem implementations I saw threw
       // UnsupportedOperationException within concat.
-      FileUtil.copy(
-          fileSystem,
-          srcResourceIds.get(i).toPath(),
-          fileSystem,
-          destResourceIds.get(i).toPath(),
-          false,
-          true,
-          fileSystem.getConf());
+      boolean success =
+          FileUtil.copy(
+              fileSystem,
+              srcResourceIds.get(i).toPath(),
+              fileSystem,
+              destResourceIds.get(i).toPath(),
+              false,
+              true,
+              fileSystem.getConf());
+      if (!success) {
+        // Defensive coding as this this should not happen in practice
+        throw new IOException(
+            String.format(
+                "Unable to copy resource %s to %s. No further information provided by underlying filesystem.",
+                srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+      }
     }
   }
 
@@ -145,13 +158,37 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
       throws IOException {
     for (int i = 0; i < srcResourceIds.size(); ++i) {
-      fileSystem.rename(srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath());
+
+      // rename in HDFS requires the target directory to exist or silently fails (BEAM-4861)
+      Path targetDirectory = destResourceIds.get(i).toPath().getParent();
+      if (!fileSystem.exists(targetDirectory)) {
+        LOG.debug(
+            String.format(
+                LOG_CREATE_DIRECTORY, Path.getPathWithoutSchemeAndAuthority(targetDirectory)));
+        boolean success = fileSystem.mkdirs(targetDirectory);
+        if (!success) {
+          throw new IOException(
+              String.format(
+                  "Unable to create target directory %s. No further information provided by underlying filesystem.",
+                  targetDirectory));
+        }
+      }
+
+      boolean success =
+          fileSystem.rename(srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath());
+      if (!success) {
+        throw new IOException(
+            String.format(
+                "Unable to rename resource %s to %s. No further information provided by underlying filesystem.",
+                srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+      }
     }
   }
 
   @Override
   protected void delete(Collection<HadoopResourceId> resourceIds) throws IOException {
     for (HadoopResourceId resourceId : resourceIds) {
+      // ignore response as issues are surfaced with exception
       fileSystem.delete(resourceId.toPath(), false);
     }
   }
