@@ -19,12 +19,14 @@ package org.apache.beam.sdk.util;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -46,6 +48,7 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
 
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final KvCoder<K, InputT> kvCoder;
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   private AppliedCombineFn(
@@ -53,18 +56,20 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
       Coder<AccumT> accumulatorCoder,
       Iterable<PCollectionView<?>> sideInputViews,
       KvCoder<K, InputT> kvCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.accumulatorCoder = accumulatorCoder;
     this.sideInputViews = sideInputViews;
     this.kvCoder = kvCoder;
+    this.outputCoders = outputCoders;
     this.windowingStrategy = windowingStrategy;
   }
 
   public static <K, InputT, AccumT, OutputT>
       AppliedCombineFn<K, InputT, AccumT, OutputT> withAccumulatorCoder(
           GlobalCombineFn<? super InputT, AccumT, OutputT> fn, Coder<AccumT> accumCoder) {
-    return withAccumulatorCoder(fn, accumCoder, null, null, null);
+    return withAccumulatorCoder(fn, accumCoder, null, null, null, null);
   }
 
   public static <K, InputT, AccumT, OutputT>
@@ -73,12 +78,13 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
           Coder<AccumT> accumCoder,
           Iterable<PCollectionView<?>> sideInputViews,
           KvCoder<K, InputT> kvCoder,
+          Map<TupleTag<?>, Coder<?>> outputCoders,
           WindowingStrategy<?, ?> windowingStrategy) {
     // Casting down the K and InputT is safe because they're only used as inputs.
     @SuppressWarnings("unchecked")
     GlobalCombineFn<InputT, AccumT, OutputT> clonedFn =
         (GlobalCombineFn<InputT, AccumT, OutputT>) SerializableUtils.clone(fn);
-    return create(clonedFn, accumCoder, sideInputViews, kvCoder, windowingStrategy);
+    return create(clonedFn, accumCoder, sideInputViews, kvCoder, outputCoders, windowingStrategy);
   }
 
   @VisibleForTesting
@@ -86,8 +92,9 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
       AppliedCombineFn<K, InputT, AccumT, OutputT> withInputCoder(
           GlobalCombineFn<? super InputT, AccumT, OutputT> fn,
           CoderRegistry registry,
-          KvCoder<K, InputT> kvCoder) {
-    return withInputCoder(fn, registry, kvCoder, null, null);
+          KvCoder<K, InputT> kvCoder,
+          Map<TupleTag<?>, Coder<?>> outputCoders) {
+    return withInputCoder(fn, registry, kvCoder, outputCoders, null, null);
   }
 
   public static <K, InputT, AccumT, OutputT>
@@ -95,6 +102,7 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
           GlobalCombineFn<? super InputT, AccumT, OutputT> fn,
           CoderRegistry registry,
           KvCoder<K, InputT> kvCoder,
+          Map<TupleTag<?>, Coder<?>> outputCoders,
           Iterable<PCollectionView<?>> sideInputViews,
           WindowingStrategy<?, ?> windowingStrategy) {
     // Casting down the K and InputT is safe because they're only used as inputs.
@@ -104,7 +112,8 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
     try {
       Coder<AccumT> accumulatorCoder =
           clonedFn.getAccumulatorCoder(registry, kvCoder.getValueCoder());
-      return create(clonedFn, accumulatorCoder, sideInputViews, kvCoder, windowingStrategy);
+      return create(
+          clonedFn, accumulatorCoder, sideInputViews, kvCoder, outputCoders, windowingStrategy);
     } catch (CannotProvideCoderException e) {
       throw new IllegalStateException("Could not determine coder for accumulator", e);
     }
@@ -115,8 +124,10 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
       Coder<AccumT> accumulatorCoder,
       Iterable<PCollectionView<?>> sideInputViews,
       KvCoder<K, InputT> kvCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return new AppliedCombineFn<>(fn, accumulatorCoder, sideInputViews, kvCoder, windowingStrategy);
+    return new AppliedCombineFn<>(
+        fn, accumulatorCoder, sideInputViews, kvCoder, outputCoders, windowingStrategy);
   }
 
   public GlobalCombineFn<InputT, AccumT, OutputT> getFn() {
@@ -129,6 +140,10 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
 
   public Coder<AccumT> getAccumulatorCoder() {
     return accumulatorCoder;
+  }
+
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return outputCoders;
   }
 
   public KvCoder<K, InputT> getKvCoder() {

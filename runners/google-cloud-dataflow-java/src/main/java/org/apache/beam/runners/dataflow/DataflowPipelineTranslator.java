@@ -764,10 +764,20 @@ public class DataflowPipelineTranslator {
                 originalTransform.getSideInputs(),
                 context);
 
+            Map<TupleTag<?>, PValue> outputs = context.getOutputs(primitiveTransform);
+            Map<TupleTag<?>, Coder<?>> outputCoders =
+                outputs
+                    .entrySet()
+                    .stream()
+                    .filter(e -> e.getValue() instanceof PCollection)
+                    .collect(
+                        Collectors.toMap(
+                            e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
             AppliedCombineFn<? super K, ? super InputT, ?, OutputT> fn =
                 originalTransform.getAppliedFn(
                     context.getInput(primitiveTransform).getPipeline().getCoderRegistry(),
                     context.getInput(primitiveTransform).getCoder(),
+                    outputCoders,
                     context.getInput(primitiveTransform).getWindowingStrategy());
 
             stepContext.addEncodingInput(fn.getAccumulatorCoder());

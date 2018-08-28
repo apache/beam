@@ -155,6 +155,7 @@ public class CombineTranslation {
             combineFn,
             transform.getPipeline().getCoderRegistry(),
             inputCoder,
+            null, // We're just extracting the accumulator coder, so outputs don't matter.
             transform.getTransform().getSideInputs(),
             ((PCollection<?>) Iterables.getOnlyElement(transform.getOutputs().values()))
                 .getWindowingStrategy())

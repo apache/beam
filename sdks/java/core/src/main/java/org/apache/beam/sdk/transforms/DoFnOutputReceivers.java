@@ -94,11 +94,6 @@ public class DoFnOutputReceivers {
       this.outputCoders = outputCoders;
     }
 
-    // This exists for backwards compatibility with the Dataflow runner, and will be removed.
-    public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context) {
-      this.context = context;
-    }
-
     @Override
     public <T> OutputReceiver<T> get(TupleTag<T> tag) {
       return DoFnOutputReceivers.windowedReceiver(context, tag);
@@ -125,15 +120,6 @@ public class DoFnOutputReceivers {
   public static <T> MultiOutputReceiver windowedMultiReceiver(
       DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
     return new WindowedContextMultiOutputReceiver(context, outputCoders);
-  }
-
-  /**
-   * Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   *
-   * <p>This exists for backwards-compatibility with the Dataflow runner, and will be removed.
-   */
-  public static <T> MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
-    return new WindowedContextMultiOutputReceiver(context);
   }
 
   /**
