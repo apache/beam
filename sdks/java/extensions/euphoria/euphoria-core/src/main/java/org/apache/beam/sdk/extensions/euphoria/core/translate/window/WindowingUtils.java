@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.window;
 
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.WindowWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.WindowingRequiredException;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
@@ -60,5 +63,30 @@ public class WindowingUtils {
     beamWindow = beamWindow.withAllowedLateness(allowedLateness);
 
     return input.apply(operator.getName() + "::windowing", beamWindow);
+  }
+
+  /**
+   * Check whenever given inputs can be applied to {@link GroupByKey} or {@link
+   * org.apache.beam.sdk.transforms.join.CoGroupByKey}.
+   *
+   * @param operator operator under check
+   * @param inputs
+   * @param <T> type of operator under check
+   * @throws WindowingRequiredException
+   */
+  public static <T extends Operator> void checkGropupByKeyApplicalble(
+      T operator, PCollection<?>... inputs) throws WindowingRequiredException {
+
+    for (PCollection input : inputs) {
+      try {
+        GroupByKey.applicableTo(input);
+      } catch (IllegalStateException e) {
+        throw new WindowingRequiredException(
+            String.format(
+                "'%s' operator named '%s' requires valid windowing to be set when used with unbounded inputs. Please set windowing directly or prior it.",
+                operator.getClass().getSimpleName(), operator.getName()),
+            e);
+      }
+    }
   }
 }

@@ -82,6 +82,8 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     TupleTag<LeftT> leftTag = new TupleTag<>();
     TupleTag<RightT> rightTag = new TupleTag<>();
 
+    WindowingUtils.checkGropupByKeyApplicalble(operator, leftKvInput, rightKvInput);
+
     PCollection<KV<K, CoGbkResult>> coGrouped =
         KeyedPCollectionTuple.of(leftTag, leftKvInput)
             .and(rightTag, rightKvInput)

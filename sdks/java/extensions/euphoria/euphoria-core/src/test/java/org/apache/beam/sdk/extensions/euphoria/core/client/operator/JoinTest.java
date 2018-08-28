@@ -22,23 +22,32 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.WindowingRequiredException;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Test operator Join. */
 public class JoinTest {
+
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testBuild() {
@@ -412,5 +421,25 @@ public class JoinTest {
     Join join = (Join) flow.operators().iterator().next();
 
     TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
+  }
+
+  @Test(expected = WindowingRequiredException.class)
+  public void unboundedJoinWithoutWindowing() {
+    final BeamFlow flow = BeamFlow.of(pipeline);
+    pipeline.enableAutoRunIfMissing(true);
+
+    final ListDataSource<Integer> inputL =
+        ListDataSource.unbounded(Arrays.asList(1, 2, 3, 2, 3, 4));
+    final ListDataSource<Integer> inputR =
+        ListDataSource.unbounded(Arrays.asList(1, 2, 3, 2, 3, 4));
+
+    Dataset<Integer> inputDatasetL = flow.createInput(inputL);
+    Dataset<Integer> inputDatasetR = flow.createInput(inputR);
+
+    Join.named("unoinded inputs no windowing")
+        .of(inputDatasetL, inputDatasetR)
+        .by(UnaryFunction.identity(), UnaryFunction.identity())
+        .using((l, r, c) -> c.collect(l + r))
+        .output();
   }
 }
