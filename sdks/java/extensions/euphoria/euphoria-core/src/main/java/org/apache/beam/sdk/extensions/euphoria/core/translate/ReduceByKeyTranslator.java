@@ -76,6 +76,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
             .apply(operator.getName() + "::extract-keys", extractor)
             .setCoder(KvCoder.of(keyCoder, valueCoder));
 
+    WindowingUtils.checkGropupByKeyApplicalble(operator, extracted);
+
     if (operator.isCombinable()) {
       final PCollection<KV<K, V>> combined =
           extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
