@@ -48,6 +48,12 @@ def get_current_tracker():
     return None
 
 
+def for_test():
+  from apache_beam.utils.counters import CounterFactory
+  set_current_tracker(StateSampler('test', CounterFactory()))
+  return get_current_tracker()
+
+
 StateSamplerInfo = namedtuple(
     'StateSamplerInfo',
     ['state_name',
