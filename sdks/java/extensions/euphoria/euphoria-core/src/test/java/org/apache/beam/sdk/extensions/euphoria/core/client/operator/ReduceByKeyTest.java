@@ -22,21 +22,33 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.VoidSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.WindowingRequiredException;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Test operator ReduceByKey. */
 public class ReduceByKeyTest {
+
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testBuild() {
@@ -269,5 +281,39 @@ public class ReduceByKeyTest {
 
     rbk = (ReduceByKey) flow2.operators().iterator().next();
     TypePropagationAssert.assertOperatorTypeAwareness(rbk, reducedOutputType, keyType, valueType);
+  }
+
+  @Test(expected = WindowingRequiredException.class)
+  public void unboundedRBKWithoutWindowing() {
+    final BeamFlow flow = BeamFlow.of(pipeline);
+    pipeline.enableAutoRunIfMissing(true);
+
+    final ListDataSource<Integer> input = ListDataSource.unbounded(Arrays.asList(1, 2, 3, 2, 3, 4));
+
+    Dataset<Integer> inputDataset = flow.createInput(input);
+
+    ReduceByKey.named("RBK-without-windowing")
+        .of(inputDataset)
+        .keyBy(e -> e)
+        .reduceBy((Stream<Integer> a, Collector<Object> c) -> c.collect(1))
+        .output()
+        .persist(new VoidSink<>());
+  }
+
+  @Test(expected = WindowingRequiredException.class)
+  public void combinableUnboundedRBKWithoutWindowing() {
+    final BeamFlow flow = BeamFlow.of(pipeline);
+    pipeline.enableAutoRunIfMissing(true);
+
+    final ListDataSource<Integer> input = ListDataSource.unbounded(Arrays.asList(1, 2, 3, 2, 3, 4));
+
+    Dataset<Integer> inputDataset = flow.createInput(input);
+
+    ReduceByKey.named("combnable-RBK-without-windowing")
+        .of(inputDataset)
+        .keyBy(e -> e)
+        .combineBy(Fold.of((a, b) -> a + b))
+        .output()
+        .persist(new VoidSink<>());
   }
 }

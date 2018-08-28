@@ -28,4 +28,8 @@ public class WindowingRequiredException extends IllegalStateException {
   public WindowingRequiredException(String message) {
     super(message);
   }
+
+  public WindowingRequiredException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }
