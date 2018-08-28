@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.io;
+package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
-import java.io.Closeable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** An {@code Iterable} that is externalized to external storage (i.e. spilled to disk). */
+/**
+ * Thrown by executors at flow submission time when an invalid flow set up is detected, requiring
+ * the user to explicitly provide a windowing strategy to a certain operator.
+ */
 @Audience(Audience.Type.EXECUTOR)
-public interface ExternalIterable<T> extends Iterable<T>, Closeable {
+public class WindowingRequiredException extends IllegalStateException {
+  public WindowingRequiredException(String message) {
+    super(message);
+  }
 
-  // don't throw exceptions
-  @Override
-  void close();
+  public WindowingRequiredException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }
