@@ -378,6 +378,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Pdataflow-runner
 ```
 
+{:.runner-samza-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
+```
+
 To view the full code in Java, see
 **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
@@ -417,6 +423,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
+```
+
+{:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
 ```
 
 To view the full code in Python, see
@@ -459,6 +470,11 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+{:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
 ```
 
 To view the full code in Go, see
@@ -689,6 +705,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordC
      -Pdataflow-runner
 ```
 
+{:.runner-samza-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
+```
+
 To view the full code in Java, see
 [DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).
 
@@ -728,6 +750,11 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
+```
+
+{:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
 ```
 
 To view the full code in Python, see
@@ -770,6 +797,11 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --project your-gcp-project \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
                       --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+{:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
 ```
 
 To view the full code in Go, see
@@ -994,6 +1026,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
      -Pdataflow-runner
 ```
 
+{:.runner-samza-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
+```
+
 To view the full code in Java, see
 **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
 
@@ -1039,6 +1077,11 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
 ```
 
+{:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
@@ -1079,6 +1122,11 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+{:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
 ```
 
 To view the full code in Go, see
@@ -1305,6 +1353,11 @@ python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
+```
+
+{:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
 ```
 
 To view the full code in Python, see

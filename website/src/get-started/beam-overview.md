@@ -50,6 +50,7 @@ Beam currently supports Runners that work with the following distributed process
 * Apache Gearpump (incubating) ![Apache Gearpump logo]({{ "/images/logos/runners/gearpump.png" | prepend: site.baseurl }})
 * Apache Spark ![Apache Spark logo]({{ "/images/logos/runners/spark.png" | prepend: site.baseurl }})
 * Google Cloud Dataflow ![Google Cloud Dataflow logo]({{ "/images/logos/runners/dataflow.png" | prepend: site.baseurl }})
+* Apache Samza ![Apache Samza logo]({{ "/images/logos/runners/samza.png" | prepend: site.baseurl }})
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
 
