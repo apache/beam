@@ -37,10 +37,13 @@ import org.junit.Test;
 /** Unit Tests for ComplexTypes, including nested ROW etc. */
 public class BeamComplexTypeTest {
   private static final Schema innerRowSchema =
-      Schema.builder().addStringField("one").addInt64Field("two").build();
+      Schema.builder().addStringField("string_field").addInt64Field("long_field").build();
 
   private static final Schema innerRowWithArraySchema =
-      Schema.builder().addStringField("one").addArrayField("array", FieldType.INT64).build();
+      Schema.builder()
+          .addStringField("string_field")
+          .addArrayField("array_field", FieldType.INT64)
+          .build();
 
   private static final Schema nestedRowWithArraySchema =
       Schema.builder()
@@ -175,7 +178,6 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-5189")
   @Test
   public void testFieldAccessToNestedRow() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
@@ -183,12 +185,51 @@ public class BeamComplexTypeTest {
         BeamSqlRelUtils.toPCollection(
             pipeline,
             sqlEnv.parseQuery(
-                "SELECT nestedRowTestTable.col.RowField.one, nestedRowTestTable.col.RowFieldTwo.two FROM nestedRowTestTable"));
+                "SELECT nestedRowTestTable.col.RowField.string_field, nestedRowTestTable.col.RowFieldTwo.long_field FROM nestedRowTestTable"));
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder().addStringField("field1").addInt64Field("field2").build())
                 .addValues("inner_str_one", 3L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5189")
+  @Test
+  public void testSelectInnerRowOfNestedRow() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            sqlEnv.parseQuery("SELECT nestedRowTestTable.col.RowField FROM nestedRowTestTable"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addStringField("field1").addInt64Field("field2").build())
+                .addValues("inner_str_one", 1L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testRowConstructor() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(
+            pipeline, sqlEnv.parseQuery("SELECT ROW(1, ROW(2, 3), 'str', ROW('str2', 'str3'))"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addInt32Field("field1")
+                        .addInt32Field("field2")
+                        .addInt32Field("field3")
+                        .addStringField("field4")
+                        .addStringField("field5")
+                        .addStringField("field6")
+                        .build())
+                .addValues(1, 2, 3, "str", "str2", "str3")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
