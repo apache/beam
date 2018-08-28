@@ -21,12 +21,11 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasti
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertEquals;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
@@ -100,7 +99,8 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   @Before
   public void setup() {
     if (connectionConfiguration == null) {
-      connectionConfiguration = ConnectionConfiguration.create(fillAddresses(), ES_INDEX, ES_TYPE);
+      connectionConfiguration =
+          ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
     }
@@ -112,7 +112,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testSizes() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     elasticsearchIOTestCommon.testSizes();
   }
 
@@ -120,7 +120,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testRead() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testRead();
   }
@@ -129,7 +129,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testReadWithQuery() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithQuery();
   }
@@ -162,7 +162,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testSplit() throws Exception {
     //need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
-    createIndex(ES_INDEX);
+    createIndex(getEsIndex());
     ElasticSearchIOTestUtils.insertTestDocuments(
         connectionConfiguration, NUM_DOCS_UTESTS, getRestClient());
     PipelineOptions options = PipelineOptionsFactory.create();
