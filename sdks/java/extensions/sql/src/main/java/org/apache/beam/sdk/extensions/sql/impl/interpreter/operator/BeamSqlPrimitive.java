@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.joda.time.ReadableInstant;
@@ -131,6 +132,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       case CHAR:
       case VARCHAR:
         return value instanceof String || value instanceof NlsString;
+      case VARBINARY:
+        return value instanceof byte[] || value instanceof ByteString;
       case TIME:
       case TIMESTAMP:
       case DATE:
