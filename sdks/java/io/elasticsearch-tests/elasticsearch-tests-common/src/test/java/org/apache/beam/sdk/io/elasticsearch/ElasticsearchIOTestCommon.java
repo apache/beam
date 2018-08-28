@@ -82,7 +82,10 @@ class ElasticsearchIOTestCommon implements Serializable {
       "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
           + "{ \"field1\" : @ }\n";
 
-  static final String ES_INDEX = "beam";
+  static String getEsIndex() {
+    return "beam" + Thread.currentThread().getId();
+  }
+
   static final String ES_TYPE = "test";
   static final long NUM_DOCS_UTESTS = 400L;
   static final long NUM_DOCS_ITESTS = 50000L;
