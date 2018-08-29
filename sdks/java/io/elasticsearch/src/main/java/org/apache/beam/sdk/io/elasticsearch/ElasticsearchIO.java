@@ -24,6 +24,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -289,8 +292,8 @@ public class ElasticsearchIO {
      * @param keystorePassword the password of the client keystore.
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
-        checkArgument(keystorePassword != null, "keystorePassword can not be null");
-        return builder().setKeystorePassword(keystorePassword).build();
+      checkArgument(keystorePassword != null, "keystorePassword can not be null");
+      return builder().setKeystorePassword(keystorePassword).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
@@ -426,7 +429,7 @@ public class ElasticsearchIO {
           connectionConfiguration != null,
           "withConnectionConfiguration() is required");
       return input.apply(org.apache.beam.sdk.io.Read
-          .from(new BoundedElasticsearchSource(this, null, null, null)));
+                             .from(new BoundedElasticsearchSource(this, null, null, null)));
     }
 
     @Override
@@ -456,7 +459,7 @@ public class ElasticsearchIO {
 
     //constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
-        @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
+                                       @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
       this.backendVersion = backendVersion;
       this.spec = spec;
       this.shardPreference = shardPreference;
@@ -466,7 +469,7 @@ public class ElasticsearchIO {
 
     @VisibleForTesting
     BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
-        @Nullable Integer numSlices, @Nullable Integer sliceId) {
+                               @Nullable Integer numSlices, @Nullable Integer sliceId) {
       this.spec = spec;
       this.shardPreference = shardPreference;
       this.numSlices = numSlices;
@@ -572,7 +575,7 @@ public class ElasticsearchIO {
     }
 
     private static JsonNode getStats(ConnectionConfiguration connectionConfiguration,
-        boolean shardLevel) throws IOException {
+                                     boolean shardLevel) throws IOException {
       HashMap<String, String> params = new HashMap<>();
       if (shardLevel) {
         params.put("level", "shards");
@@ -610,7 +613,7 @@ public class ElasticsearchIO {
         //if there is more than one slice, add the slice to the user query
         String sliceQuery = String
             .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
-                source.numSlices);
+                    source.numSlices);
         query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
       }
       Response response;
@@ -628,7 +631,7 @@ public class ElasticsearchIO {
         }
       }
       HttpEntity queryEntity = new NStringEntity(query,
-          ContentType.APPLICATION_JSON);
+                                                 ContentType.APPLICATION_JSON);
       response =
           restClient.performRequest("GET", endPoint, params, queryEntity);
       JsonNode searchResult = parseResponse(response);
@@ -672,7 +675,14 @@ public class ElasticsearchIO {
       List<String> batch = new ArrayList<>();
       for (JsonNode hit : hits) {
         String document = hit.path("_source").toString();
-        batch.add(document);
+        JsonObject mainDocument = new JsonParser().parse(document).getAsJsonObject();
+        String matchedQueries = hit.path("matched_queries").toString();
+        if (matchedQueries == null || matchedQueries.length() == 0) {
+          matchedQueries = "[]";
+        }
+        JsonArray matchedQueriesDocument = new JsonParser().parse(matchedQueries).getAsJsonArray();
+        mainDocument.add("matched_queries", matchedQueriesDocument);
+        batch.add(mainDocument.toString());
       }
       batchIterator = batch.listIterator();
       current = batchIterator.next();
@@ -867,10 +877,10 @@ public class ElasticsearchIO {
       int backendVersion = Integer
           .parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
       checkArgument((backendVersion == 2 || backendVersion == 5),
-          "The Elasticsearch version to connect to is %s.x. "
-          + "This version of the ElasticsearchIO is only compatible with "
-          + "Elasticsearch v5.x and v2.x",
-          backendVersion);
+                    "The Elasticsearch version to connect to is %s.x. "
+                    + "This version of the ElasticsearchIO is only compatible with "
+                    + "Elasticsearch v5.x and v2.x",
+                    backendVersion);
       return backendVersion;
 
     } catch (IOException e) {
