@@ -73,11 +73,11 @@ RUN \
     pip install "guppy == 0.1.10" && \
     pip install "python-snappy == 0.5.3" && \
     # These are additional packages likely to be used by customers.
-    pip install "numpy == 1.13.3" --no-binary=:all: && \
+    pip install "numpy == 1.15" && \
     pip install "pandas == 0.18.1" && \
     pip install "scipy == 1.0.0" && \
     pip install "protobuf == 3.3.0" && \
-    pip install "tensorflow == 1.4.0" && \
+    pip install "tensorflow == 1.9" && \
     pip install "protorpc == 0.11.1" && \
     pip install "python-gflags == 3.0.6" && \
     # Check that the fast implementation of protobuf is used.
