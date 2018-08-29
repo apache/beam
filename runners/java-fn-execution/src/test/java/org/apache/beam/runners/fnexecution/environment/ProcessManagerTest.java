@@ -72,7 +72,7 @@ public class ProcessManagerTest {
   public void testLivenessCheck() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
     ProcessManager.RunningProcess process =
-        processManager.runCommand("1", "sleep", Arrays.asList("1000"));
+        processManager.runCommand("1", "sleep", Collections.singletonList("1000"));
     process.isAliveOrThrow();
     processManager.stopProcess("1");
     try {
@@ -81,5 +81,16 @@ public class ProcessManagerTest {
     } catch (IllegalStateException e) {
       // this is what we want
     }
+  }
+
+  @Test
+  public void testEnvironmentVariables() throws IOException {
+    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager.RunningProcess process =
+        processManager.runCommand("1", "/bin/bash",
+            Arrays.asList("-c", "'echo $WAIT_FOR > /tmp/bla'"),
+            Collections.singletonMap("WAIT_FOR", "1000"));
+    process.isAliveOrThrow();
+    processManager.stopProcess("1");
   }
 }

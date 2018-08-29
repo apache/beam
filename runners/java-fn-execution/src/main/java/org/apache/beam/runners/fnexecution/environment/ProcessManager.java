@@ -72,14 +72,30 @@ class ProcessManager {
    * @return A RunningProcess which can be checked for liveness
    */
   RunningProcess runCommand(String id, String command, List<String> args) throws IOException {
+    return runCommand(id, command, args, Collections.emptyMap());
+  }
+
+  /**
+   * Forks a process with the given command, arguments, and additional environment variables.
+   *
+   * @param id A unique id for the process
+   * @param command The name of the executable to run
+   * @param args Arguments to provide to the executable
+   * @param env Additional environment variables for the process to be forked
+   * @return A RunningProcess which can be checked for liveness
+   */
+  RunningProcess runCommand(String id, String command, List<String> args, Map<String, String> env)
+      throws IOException {
     checkNotNull(id, "Process id must not be null");
     checkNotNull(command, "Command must not be null");
     checkNotNull(args, "Process args must not be null");
+    checkNotNull(env, "Environment map must not be null");
 
     ProcessBuilder pb =
         new ProcessBuilder(ImmutableList.<String>builder().add(command).addAll(args).build());
+    pb.environment().putAll(env);
 
-    LOG.debug("Attempting to start SDK harness with command: " + pb.command());
+    LOG.debug("Attempting to start process with command: " + pb.command());
     Process newProcess = pb.start();
     // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
     pb.redirectErrorStream(true);
