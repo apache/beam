@@ -102,7 +102,6 @@ class ProcessManager {
     pb.environment().putAll(env);
 
     LOG.debug("Attempting to start process with command: " + pb.command());
-    Process newProcess = pb.start();
     // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
     pb.redirectErrorStream(true);
     if (System.getProperty("os.name", "").startsWith("Windows")) {
@@ -111,6 +110,7 @@ class ProcessManager {
       pb.redirectOutput(new File("/dev/null"));
     }
 
+    Process newProcess = pb.start();
     Process oldProcess = processes.put(id, newProcess);
     if (oldProcess != null) {
       oldProcess.destroy();
