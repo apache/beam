@@ -22,9 +22,19 @@ import unittest
 
 import mock
 
+import apache_beam as beam
 from apache_beam.coders import BytesCoder
+from apache_beam.coders import IterableCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.common import DoFnSignature
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import ElementEvent
+from apache_beam.testing.test_stream import ProcessingTimeEvent
+from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.test_stream import WatermarkEvent
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
@@ -80,7 +90,7 @@ class InterfaceTest(unittest.TestCase):
     # Construction of DoFnSignature performs validation of the given DoFn.
     # In particular, it ends up calling userstate._validate_stateful_dofn.
     # That behavior is explicitly tested below in test_validate_dofn()
-    DoFnSignature(dofn)
+    return DoFnSignature(dofn)
 
   @mock.patch(
       'apache_beam.transforms.userstate.UserStateUtils.validate_stateful_dofn')
@@ -116,6 +126,10 @@ class InterfaceTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DoFn.TimerParam(BagStateSpec('elements', BytesCoder()))
 
+  def test_stateful_dofn_detection(self):
+    self.assertFalse(UserStateUtils.is_stateful_dofn(DoFn()))
+    self.assertTrue(UserStateUtils.is_stateful_dofn(TestStatefulDoFn()))
+
   def test_good_signatures(self):
     class BasicStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
@@ -129,8 +143,32 @@ class InterfaceTest(unittest.TestCase):
       def expiry_callback(self, element, timer=DoFn.TimerParam(EXPIRY_TIMER)):
         yield element
 
-    self._validate_dofn(BasicStatefulDoFn())
-    self._validate_dofn(TestStatefulDoFn())
+    # Validate UserStateUtils.get_dofn_specs() and timer callbacks in
+    # DoFnSignature.
+    stateful_dofn = BasicStatefulDoFn()
+    signature = self._validate_dofn(stateful_dofn)
+    expected_specs = (set([BasicStatefulDoFn.BUFFER_STATE]),
+                      set([BasicStatefulDoFn.EXPIRY_TIMER]))
+    self.assertEqual(expected_specs,
+                      UserStateUtils.get_dofn_specs(stateful_dofn))
+    self.assertEqual(stateful_dofn.expiry_callback,
+        signature.timer_methods[BasicStatefulDoFn.EXPIRY_TIMER].method_value)
+
+    stateful_dofn = TestStatefulDoFn()
+    signature = self._validate_dofn(stateful_dofn)
+    expected_specs = (set([TestStatefulDoFn.BUFFER_STATE_1,
+                           TestStatefulDoFn.BUFFER_STATE_2]),
+                      set([TestStatefulDoFn.EXPIRY_TIMER_1,
+                           TestStatefulDoFn.EXPIRY_TIMER_2,
+                           TestStatefulDoFn.EXPIRY_TIMER_3]))
+    self.assertEqual(expected_specs,
+                      UserStateUtils.get_dofn_specs(stateful_dofn))
+    self.assertEqual(stateful_dofn.on_expiry_1,
+        signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_1].method_value)
+    self.assertEqual(stateful_dofn.on_expiry_2,
+        signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_2].method_value)
+    self.assertEqual(stateful_dofn.on_expiry_3,
+        signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_3].method_value)
 
   def test_bad_signatures(self):
     # (1) The same state parameter is duplicated on the process method.
@@ -222,7 +260,7 @@ class InterfaceTest(unittest.TestCase):
       def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):
         yield 'expired1'
 
-      # Note that we mistakenly reuse the "on_expiry_2" name; this is valid
+      # Note that we mistakenly reuse the "on_expiry_1" name; this is valid
       # syntactically in Python.
       @on_timer(EXPIRY_TIMER_2)
       def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):
@@ -268,6 +306,81 @@ class InterfaceTest(unittest.TestCase):
         (r'DoFn StatefulDoFnWithTimerWithTypo3 has a TimerSpec without an '
          r'associated on_timer callback: TimerSpec\(expiry2\).')):
       UserStateUtils.validate_stateful_dofn(dofn)
+
+
+class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
+  all_records = None
+
+  def setUp(self):
+    # Use state on the TestCase class, since other references would be pickled
+    # into a closure and not have the desired side effects.
+    StatefulDoFnOnDirectRunnerTest.all_records = []
+
+  def record_dofn(self):
+    class RecordDoFn(DoFn):
+      def process(self, element):
+        StatefulDoFnOnDirectRunnerTest.all_records.append(element)
+
+    return RecordDoFn()
+
+  def test_simple_stateful_dofn(self):
+    class SimpleTestStatefulDoFn(DoFn):
+      BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
+      EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
+
+      def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
+                  timer1=DoFn.TimerParam(EXPIRY_TIMER)):
+        buffer.add('A' + str(element))
+        timer1.set(20)
+
+      @on_timer(EXPIRY_TIMER)
+      def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE),
+                          timer=DoFn.TimerParam(EXPIRY_TIMER)):
+        yield ''.join(sorted(buffer.read()))
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1, 2])
+                     .add_elements([3])
+                     .advance_watermark_to(25)
+                     .add_elements([4]))
+      pcoll = p | test_stream
+      records = pcoll | beam.ParDo(SimpleTestStatefulDoFn())
+      records | beam.ParDo(self.record_dofn())
+
+    self.assertEqual(['A1A2A3', 'A1A2A3A4'],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
+  # def test_simple_stateful_dofn_combining(self):
+  #   class SimpleTestStatefulDoFn(DoFn):
+  #     BUFFER_STATE = CombiningValueStateSpec('buffer', IterableCoder(VarIntCoder()), ToListCombineFn())
+  #     EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
+
+  #     def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
+  #                 timer1=DoFn.TimerParam(EXPIRY_TIMER)):
+  #       buffer.add(element)
+  #       timer1.set(20)
+
+  #     @on_timer(EXPIRY_TIMER)
+  #     def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE),
+  #                         timer=DoFn.TimerParam(EXPIRY_TIMER)):
+  #       print 'YO', buffer.read()
+  #       yield ''.join(str(x) for x in sorted(buffer.read()))
+
+  #   with TestPipeline() as p:
+  #     test_stream = (TestStream()
+  #                    .advance_watermark_to(10)
+  #                    .add_elements([1, 2])
+  #                    .add_elements([3])
+  #                    .advance_watermark_to(25)
+  #                    .add_elements([4]))
+  #     pcoll = p | test_stream
+  #     records = pcoll | beam.ParDo(SimpleTestStatefulDoFn())
+  #     records | beam.ParDo(self.record_dofn())
+
+  #   self.assertEqual(['123', '1234'],
+  #       StatefulDoFnOnDirectRunnerTest.all_records)
 
 
 if __name__ == '__main__':

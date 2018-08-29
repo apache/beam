@@ -1200,6 +1200,7 @@ class InMemoryUnmergedState(UnmergedState):
   def get_window(self, window_id):
     return window_id
 
+  # hmm we have no notion of state coders
   def add_state(self, window, tag, value):
     if self.defensive_copy:
       value = copy.deepcopy(value)
