@@ -36,7 +36,6 @@ import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -377,10 +376,7 @@ public class GroupTest implements Serializable {
                 Group.<AggregatePojos>byFieldNames("field2")
                     .aggregateField("field1", Sum.ofLongs(), "field1_sum")
                     .aggregateField("field3", Sum.ofIntegers(), "field3_sum")
-                    .aggregateField(
-                        "field1",
-                        Top.<Long>largestFn(1),
-                        Field.of("field1_top", FieldType.array(FieldType.INT64))));
+                    .aggregateField("field1", Top.largestLongsFn(1), "field1_top"));
 
     Schema keySchema = Schema.builder().addInt64Field("field2").build();
     Schema valueSchema =
@@ -420,10 +416,7 @@ public class GroupTest implements Serializable {
                 Group.<AggregatePojos>globally()
                     .aggregateField("field1", Sum.ofLongs(), "field1_sum")
                     .aggregateField("field3", Sum.ofIntegers(), "field3_sum")
-                    .aggregateField(
-                        "field1",
-                        Top.<Long>largestFn(1),
-                        Field.of("field1_top", FieldType.array(FieldType.INT64))));
+                    .aggregateField("field1", Top.largestLongsFn(1), "field1_top"));
 
     Schema aggregateSchema =
         Schema.builder()
@@ -555,10 +548,7 @@ public class GroupTest implements Serializable {
                 Group.<OuterAggregate>byFieldAccessDescriptor(field2Selector)
                     .aggregateFields(field1Selector, Sum.ofLongs(), "field1_sum")
                     .aggregateFields(field3Selector, Sum.ofIntegers(), "field3_sum")
-                    .aggregateFields(
-                        field1Selector,
-                        Top.<Long>largestFn(1),
-                        Field.of("field1_top", FieldType.array(FieldType.INT64))));
+                    .aggregateFields(field1Selector, Top.largestLongsFn(1), "field1_top"));
 
     Schema innerKeySchema = Schema.builder().addInt64Field("field2").build();
     Schema keySchema = Schema.builder().addRowField("inner", innerKeySchema).build();
@@ -610,10 +600,7 @@ public class GroupTest implements Serializable {
                 Group.<OuterAggregate>globally()
                     .aggregateFields(field1Selector, Sum.ofLongs(), "field1_sum")
                     .aggregateFields(field3Selector, Sum.ofIntegers(), "field3_sum")
-                    .aggregateFields(
-                        field1Selector,
-                        Top.<Long>largestFn(1),
-                        Field.of("field1_top", FieldType.array(FieldType.INT64))));
+                    .aggregateFields(field1Selector, Top.largestLongsFn(1), "field1_top"));
     Schema aggregateSchema =
         Schema.builder()
             .addInt64Field("field1_sum")
