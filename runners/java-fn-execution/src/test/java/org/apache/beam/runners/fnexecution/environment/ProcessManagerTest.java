@@ -34,7 +34,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testRunSimpleCommand() throws IOException {
-    ProcessManager processManager = ProcessManager.getDefault();
+    ProcessManager processManager = ProcessManager.getInstance();
     processManager.runCommand("1", "ls", Collections.emptyList());
     processManager.stopProcess("1");
     processManager.runCommand("2", "ls", Collections.singletonList("-l"));
@@ -45,7 +45,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testRunInvalidExecutable() throws IOException {
-    ProcessManager processManager = ProcessManager.getDefault();
+    ProcessManager processManager = ProcessManager.getInstance();
     try {
       processManager.runCommand("1", "asfasfls", Collections.emptyList());
       fail();
@@ -56,7 +56,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testDuplicateId() throws IOException {
-    ProcessManager processManager = ProcessManager.getDefault();
+    ProcessManager processManager = ProcessManager.getInstance();
     processManager.runCommand("1", "ls", Collections.emptyList());
     try {
       processManager.runCommand("1", "ls", Collections.emptyList());

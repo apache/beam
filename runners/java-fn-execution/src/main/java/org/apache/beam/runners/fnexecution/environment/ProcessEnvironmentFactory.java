@@ -49,7 +49,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
     return create(
-        ProcessManager.getDefault(),
+        ProcessManager.getInstance(),
         controlServiceServer,
         loggingServiceServer,
         retrievalServiceServer,
@@ -121,7 +121,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
             String.format("--provision_endpoint=%s", provisionEndpoint),
             String.format("--control_endpoint=%s", controlEndpoint));
 
-    LOG.debug("Creating Process with ID {}", workerId);
+    LOG.debug("Creating Process for worker ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     InstructionRequestHandler instructionHandler = null;
     try {

@@ -39,7 +39,7 @@ class ProcessManager {
 
   private final Map<String, Process> processes;
 
-  public static ProcessManager getDefault() {
+  public static ProcessManager getInstance() {
     return INSTANCE;
   }
 
