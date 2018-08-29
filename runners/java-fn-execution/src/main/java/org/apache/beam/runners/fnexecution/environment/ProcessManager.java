@@ -21,6 +21,7 @@ package org.apache.beam.runners.fnexecution.environment;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -80,12 +81,21 @@ class ProcessManager {
 
     LOG.debug("Attempting to start SDK harness with command: " + pb.command());
     Process newProcess = pb.start();
+    // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
+    pb.redirectErrorStream(true);
+    if (System.getProperty("os.name", "").startsWith("Windows")) {
+      pb.redirectOutput(new File("nul"));
+    } else {
+      pb.redirectOutput(new File("/dev/null"));
+    }
+
     Process oldProcess = processes.put(id, newProcess);
     if (oldProcess != null) {
       oldProcess.destroy();
       newProcess.destroy();
       throw new IllegalStateException("There was already a process running with id " + id);
     }
+
     return new RunningProcess(newProcess);
   }
 
