@@ -127,7 +127,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     InstructionRequestHandler instructionHandler = null;
     try {
       ProcessManager.RunningProcess process =
-          processManager.runCommand(workerId, executable, args, Collections.emptyMap());
+          processManager.startProcess(workerId, executable, args, Collections.emptyMap());
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {

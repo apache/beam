@@ -88,7 +88,7 @@ public class ProcessEnvironmentFactoryTest {
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     assertThat(handle.getInstructionRequestHandler(), is(client));
     assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
-    Mockito.verify(processManager).runCommand(eq(ID_GENERATOR.currentId), anyString(), anyList());
+    Mockito.verify(processManager).startProcess(eq(ID_GENERATOR.currentId), anyString(), anyList());
   }
 
   @Test

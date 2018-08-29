@@ -71,8 +71,8 @@ class ProcessManager {
    * @param args arguments to provide to the executable
    * @return A RunningProcess which can be checked for liveness
    */
-  RunningProcess runCommand(String id, String command, List<String> args) throws IOException {
-    return runCommand(id, command, args, Collections.emptyMap());
+  RunningProcess startProcess(String id, String command, List<String> args) throws IOException {
+    return startProcess(id, command, args, Collections.emptyMap());
   }
 
   /**
@@ -84,7 +84,7 @@ class ProcessManager {
    * @param env Additional environment variables for the process to be forked
    * @return A RunningProcess which can be checked for liveness
    */
-  RunningProcess runCommand(String id, String command, List<String> args, Map<String, String> env)
+  RunningProcess startProcess(String id, String command, List<String> args, Map<String, String> env)
       throws IOException {
     checkNotNull(id, "Process id must not be null");
     checkNotNull(command, "Command must not be null");

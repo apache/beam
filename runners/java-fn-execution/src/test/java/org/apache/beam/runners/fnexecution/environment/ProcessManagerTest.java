@@ -35,11 +35,11 @@ public class ProcessManagerTest {
   @Test
   public void testRunSimpleCommand() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
-    processManager.runCommand("1", "ls", Collections.emptyList());
+    processManager.startProcess("1", "ls", Collections.emptyList());
     processManager.stopProcess("1");
-    processManager.runCommand("2", "ls", Collections.singletonList("-l"));
+    processManager.startProcess("2", "ls", Collections.singletonList("-l"));
     processManager.stopProcess("2");
-    processManager.runCommand("1", "ls", Arrays.asList("-l", "-a"));
+    processManager.startProcess("1", "ls", Arrays.asList("-l", "-a"));
     processManager.stopProcess("1");
   }
 
@@ -47,7 +47,7 @@ public class ProcessManagerTest {
   public void testRunInvalidExecutable() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
     try {
-      processManager.runCommand("1", "asfasfls", Collections.emptyList());
+      processManager.startProcess("1", "asfasfls", Collections.emptyList());
       fail();
     } catch (IOException e) {
       assertThat(e.getMessage(), containsString("Cannot run program \"asfasfls\""));
@@ -57,9 +57,9 @@ public class ProcessManagerTest {
   @Test
   public void testDuplicateId() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
-    processManager.runCommand("1", "ls", Collections.emptyList());
+    processManager.startProcess("1", "ls", Collections.emptyList());
     try {
-      processManager.runCommand("1", "ls", Collections.emptyList());
+      processManager.startProcess("1", "ls", Collections.emptyList());
       fail();
     } catch (IllegalStateException e) {
       // this is what we want
@@ -72,7 +72,7 @@ public class ProcessManagerTest {
   public void testLivenessCheck() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
     ProcessManager.RunningProcess process =
-        processManager.runCommand("1", "sleep", Collections.singletonList("1000"));
+        processManager.startProcess("1", "sleep", Collections.singletonList("1000"));
     process.isAliveOrThrow();
     processManager.stopProcess("1");
     try {
@@ -87,7 +87,9 @@ public class ProcessManagerTest {
   public void testEnvironmentVariables() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
     ProcessManager.RunningProcess process =
-        processManager.runCommand("1", "/bin/bash",
+        processManager.startProcess(
+            "1",
+            "/bin/bash",
             Arrays.asList("-c", "'echo $WAIT_FOR > /tmp/bla'"),
             Collections.singletonMap("WAIT_FOR", "1000"));
     process.isAliveOrThrow();
