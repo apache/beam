@@ -41,7 +41,6 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrie
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -60,9 +59,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link JobBundleFactory} that uses a {@link DockerEnvironmentFactory} for environment
- * management. Note that returned {@link StageBundleFactory stage bundle factories} are not
- * thread-safe. Instead, a new stage factory should be created for each client.
+ * A base for a {@link JobBundleFactory} for which the implementation can specify a custom {@link
+ * EnvironmentFactory} for environment management. Note that returned {@link StageBundleFactory
+ * stage bundle factories} are not thread-safe. Instead, a new stage factory should be created for
+ * each client.
  */
 @ThreadSafe
 public abstract class JobBundleFactoryBase implements JobBundleFactory {
