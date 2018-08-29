@@ -56,6 +56,12 @@ spec:
           value: Beam
         - name: GF_INSTALL_PLUGINS
           value: vonage-status-panel
+        - name: GF_SERVER_PROTOCOL
+          value: https
+        - name: GF_SERVER_CERT_FILE
+          value: /etc/grafana/certificate.pem
+        - name: GF_SERVER_CERT_KEY
+          value: /etc/grafana/key.pem
         - name: GF_SECURITY_ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
