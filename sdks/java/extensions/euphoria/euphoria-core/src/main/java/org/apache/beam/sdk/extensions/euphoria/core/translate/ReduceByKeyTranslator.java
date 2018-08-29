@@ -78,10 +78,14 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
     WindowingUtils.checkGropupByKeyApplicalble(operator, extracted);
 
+    Coder<KV<K, OutputT>> outputCoder = context.getOutputCoder(operator);
+
     if (operator.isCombinable()) {
-      final PCollection<KV<K, V>> combined =
+      final PCollection combined =
           extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
-      return (PCollection) combined;
+      combined.setCoder(outputCoder);
+
+      return combined;
 
     } else {
       // reduce
@@ -93,9 +97,13 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
               .apply(operator.getName() + "::group", GroupByKey.create())
               .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
 
-      return grouped.apply(
-          operator.getName() + "::reduce",
-          ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName())));
+      PCollection<KV<K, OutputT>> reduced =
+          grouped.apply(
+              operator.getName() + "::reduce",
+              ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName())));
+      reduced.setCoder(outputCoder);
+
+      return reduced;
     }
   }
 

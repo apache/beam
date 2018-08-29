@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
@@ -39,7 +40,12 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
             operator.getFunctor(),
             accumulators,
             operator.getEventTimeExtractor());
-    return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
+
+    Coder<OutputT> outputCoder = context.getOutputCoder(operator);
+    return context
+        .getInput(operator)
+        .apply(operator.getName(), ParDo.of(mapper))
+        .setCoder(outputCoder);
   }
 
   @Override

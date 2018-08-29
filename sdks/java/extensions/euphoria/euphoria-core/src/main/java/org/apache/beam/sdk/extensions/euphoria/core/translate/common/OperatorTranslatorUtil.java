@@ -46,12 +46,8 @@ public class OperatorTranslatorUtil {
       Coder<ValueT> valueCoder,
       String transformName) {
 
-    @SuppressWarnings("unchecked")
-    PCollection<ValueT> typedInput = inputPCollection;
-    typedInput.setCoder(valueCoder);
-
     PCollection<KV<K, ValueT>> kvInput =
-        typedInput.apply(transformName, ParDo.of(new InputToKvDoFn<>(keyExtractor)));
+        inputPCollection.apply(transformName, ParDo.of(new InputToKvDoFn<>(keyExtractor)));
     kvInput.setCoder(KvCoder.of(keyCoder, valueCoder));
 
     return kvInput;
