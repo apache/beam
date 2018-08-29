@@ -78,20 +78,26 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
         getKVInputCollection(
             right, operator.getRightKeyExtractor(), keyCoder, rightCoder, ":extract-keys-right");
 
+    Coder<KV<K, OutputT>> outputCoder = context.getOutputCoder(operator);
+
     switch (operator.getType()) {
       case LEFT:
         final PCollectionView<Map<K, Iterable<RightT>>> broadcastRight =
             rightKvInput.apply(View.asMultimap());
-        return leftKvInput.apply(
-            ParDo.of(new BroadcastHashLeftJoinFn<>(broadcastRight, operator.getJoiner()))
-                .withSideInputs(broadcastRight));
+        return leftKvInput
+            .apply(
+                ParDo.of(new BroadcastHashLeftJoinFn<>(broadcastRight, operator.getJoiner()))
+                    .withSideInputs(broadcastRight))
+            .setCoder(outputCoder);
 
       case RIGHT:
         final PCollectionView<Map<K, Iterable<LeftT>>> broadcastLeft =
             leftKvInput.apply(View.asMultimap());
-        return rightKvInput.apply(
-            ParDo.of(new BroadcastHashRightJoinFn<>(broadcastLeft, operator.getJoiner()))
-                .withSideInputs(broadcastLeft));
+        return rightKvInput
+            .apply(
+                ParDo.of(new BroadcastHashRightJoinFn<>(broadcastLeft, operator.getJoiner()))
+                    .withSideInputs(broadcastLeft))
+            .setCoder(outputCoder);
 
       default:
         throw new UnsupportedOperationException(

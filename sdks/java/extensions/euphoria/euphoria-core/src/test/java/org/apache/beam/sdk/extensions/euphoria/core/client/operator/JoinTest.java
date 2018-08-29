@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.WindowingRequiredException;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.window.WindowingRequiredException;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;

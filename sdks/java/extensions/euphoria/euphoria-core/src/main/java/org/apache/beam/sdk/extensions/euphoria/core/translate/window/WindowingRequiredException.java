@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.executor;
+package org.apache.beam.sdk.extensions.euphoria.core.translate.window;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
- * Thrown by executors at flow submission time when an invalid flow set up is detected, requiring
+ * Thrown by translators when an invalid flow set up is detected, requiring
  * the user to explicitly provide a windowing strategy to a certain operator.
  */
 @Audience(Audience.Type.EXECUTOR)

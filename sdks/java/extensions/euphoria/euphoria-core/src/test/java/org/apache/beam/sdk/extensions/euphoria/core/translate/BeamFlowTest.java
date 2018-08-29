@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
@@ -36,24 +35,18 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -192,12 +185,11 @@ public class BeamFlowTest implements Serializable {
   }
 
   @Test
-  @Ignore("This shout be resolved in BEAM-5248")
   public void testMultipleDatasetTransform() {
-    final Flow flow = Flow.create(); //TODO try to use BeamFlow -> test passes
+    final Flow flow = Flow.create();
 
     final ListDataSource<Integer> input =
-        ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
+        ListDataSource.bounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
 
     final ListDataSink<Integer> output1 = ListDataSink.get();
     Dataset<Integer> inputUsedTwice = flow.createInput(input);
@@ -218,47 +210,41 @@ public class BeamFlowTest implements Serializable {
   }
 
   @Test
-  public void testDatasetAsInputToMultipleTransforms() {
-    final Flow flow = Flow.create();
-    //final BeamFlow flow = BeamFlow.of(pipeline);
+  public void testDatasetAsInputToMultipleOperators() {
+    final BeamFlow flow = BeamFlow.of(pipeline);
 
-    final ListDataSource<Integer> input =
-        ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
+    final ListDataSource<Integer> input = ListDataSource.unbounded(Arrays.asList(1, 2, 3));
 
-    final ListDataSink<Integer> output1 = ListDataSink.get();
     Dataset<Integer> inputUsedTwice = flow.createInput(input);
 
-    MapElements.of(inputUsedTwice).using(i -> i + 1).output().persist(output1);
-
-    Dataset<KV<Integer, String>> output =
+    Dataset<KV<Integer, String>> firstMap =
         MapElements.named("firstMap")
             .of(inputUsedTwice)
             .using(e -> KV.of(0, e.toString()))
             .output();
 
-    Dataset<Integer> secondMapping =
+    Dataset<Integer> secondMap =
         MapElements.named("secondMap").of(inputUsedTwice).using(i -> i).output();
 
     BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
     executor.executeSync(flow);
 
-    //    PAssert.that(flow.unwrapped(output))
-    //        .containsInAnyOrder()
+    PAssert.that(flow.unwrapped(firstMap))
+        .containsInAnyOrder(KV.of(0, "1"), KV.of(0, "2"), KV.of(0, "3"));
 
+    PAssert.that(flow.unwrapped(secondMap)).containsInAnyOrder(1, 2, 3);
+
+    pipeline.run();
   }
 
   @Test
-  public void testDatasetAsInputToMultipleCoderSettingTransforms() {
-    final Flow flow = Flow.create();
-    //final BeamFlow   flow = BeamFlow.of(pipeline);
+  public void testDatasetAsInputToMultipleRBK() {
+    final BeamFlow flow = BeamFlow.of(pipeline);
 
-    final ListDataSource<Integer> input =
-        ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
+    final ListDataSource<Integer> input = ListDataSource.unbounded(Arrays.asList(1, 2, 3, 4));
 
-    final ListDataSink<Integer> output1 = ListDataSink.get();
-    Dataset<Integer> inputUsedTwice = flow.createInput(input);
-
-    MapElements.of(inputUsedTwice).using(i -> i + 1).output().persist(output1);
+    Dataset<Integer> inputUsedTwice =
+        AssignEventTime.of(flow.createInput(input)).using(e -> 500L).output();
 
     Dataset<KV<Integer, Integer>> firstOutput =
         ReduceByKey.named("FirstRBK")
@@ -272,150 +258,49 @@ public class BeamFlowTest implements Serializable {
 
     Dataset<KV<Integer, Integer>> secondOutput =
         ReduceByKey.named("SecondRBK")
-            .of(firstOutput)
-            .keyBy(KV::getKey)
-            .valueBy(KV::getValue)
+            .of(inputUsedTwice)
+            .keyBy(i -> i % 2)
             .reduceBy(Sums.ofInts())
+            .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output();
 
-    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
-    executor.executeSync(flow);
-
-    //    PAssert.that(flow.unwrapped(output))
-    //        .containsInAnyOrder()
-
-  }
-
-  @Test
-  @Ignore("This shout be deleted in BEAM-5248")
-  public void windowingOnceSetTwiceUsed() {
-
-    pipeline
-        .getCoderRegistry()
-        .registerCoderForType(
-            TypeDescriptor.of(TestObject.class), KryoCoder.withoutClassRegistration());
-
-    PCollection<KV<String, TestObject>> inputAC =
-        pipeline
-            .apply(
-                Create.of(
-                        // first window
-                        KV.of("a", new TestObject(1, "Achird")),
-                        KV.of("a", new TestObject(1, "Aldebaran")),
-                        KV.of("c", new TestObject(1, "Caph")),
-                        //second window
-                        KV.of("a", new TestObject(8, "Achird")),
-                        KV.of("a", new TestObject(8, "Aldebaran")),
-                        KV.of("c", new TestObject(8, "Caph")))
-                    .withCoder(KryoCoder.withoutClassRegistration()))
-            .setTypeDescriptor(
-                TypeDescriptors.kvs(
-                    TypeDescriptors.strings(), TypeDescriptor.of(TestObject.class)));
-
-    PCollection<KV<String, TestObject>> timestampedOutput =
-        inputAC.apply(
-            "with-timespamp",
-            ParDo.of(
-                new DoFn<KV<String, TestObject>, KV<String, TestObject>>() {
-                  @ProcessElement
-                  @SuppressWarnings("unused")
-                  public void processElement(ProcessContext ctx) {
-                    KV<String, TestObject> element = ctx.element();
-                    ctx.outputWithTimestamp(
-                        element, new Instant(element.getValue().getTimestamp()));
-                  }
-                }));
-
-    PCollection<KV<String, TestObject>> windowingApplied =
-        timestampedOutput.apply(
-            Window.<KV<String, TestObject>>into(FixedWindows.of(Duration.millis(5)))
-                .triggering(DefaultTrigger.of())
-                .discardingFiredPanes());
-
-    PCollection<KV<String, Iterable<TestObject>>> groupped =
-        windowingApplied.apply(GroupByKey.create());
-
-    DoFn<KV<String, Iterable<TestObject>>, KV<String, TestObject>> grouppingFn =
-        new DoFn<KV<String, Iterable<TestObject>>, KV<String, TestObject>>() {
-
-          @ProcessElement
-          @SuppressWarnings("unused")
-          public void processElement(ProcessContext ctx) {
-            KV<String, Iterable<TestObject>> element = ctx.element();
-
-            String value = "";
-            long lastTime = 0;
-            for (TestObject to : element.getValue()) {
-              lastTime = to.getTimestamp();
-              value = value + "+" + to.getValue();
-            }
-
-            ctx.output(KV.of("the-same-key", new TestObject(lastTime, value)));
-          }
-        };
-
-    PCollection<KV<String, TestObject>> firstGrouping =
-        groupped.apply("first-condense", ParDo.of(grouppingFn));
-
-    PAssert.that(firstGrouping)
-        .containsInAnyOrder(
-            KV.of("the-same-key", new TestObject(1, "+Achird+Aldebaran")),
-            KV.of("the-same-key", new TestObject(8, "+Achird+Aldebaran")),
-            KV.of("the-same-key", new TestObject(1, "+Caph")),
-            KV.of("the-same-key", new TestObject(8, "+Caph")));
-
-    PCollection<KV<String, Iterable<TestObject>>> pregrouppedSecondTime =
-        firstGrouping.apply("second-condense", GroupByKey.create());
-
-    PCollection<KV<String, TestObject>> secondGrouping =
-        pregrouppedSecondTime.apply(ParDo.of(grouppingFn));
-
-    PAssert.that(secondGrouping)
-        .containsInAnyOrder(
-            KV.of("the-same-key", new TestObject(1, "++Achird+Aldebaran++Caph")),
-            KV.of("the-same-key", new TestObject(8, "++Achird+Aldebaran++Caph")));
-    ;
+    PAssert.that(flow.unwrapped(firstOutput)).containsInAnyOrder(KV.of(0, 6), KV.of(1, 4));
+    PAssert.that(flow.unwrapped(secondOutput)).containsInAnyOrder(KV.of(0, 6), KV.of(1, 4));
 
     pipeline.run();
   }
 
-  private static class TestObject {
-    private long timestamp;
-    private String value;
+  @Test
+  public void testWindowingPropagation() {
+    final BeamFlow flow = BeamFlow.of(pipeline);
 
-    public TestObject(long timestamp, String value) {
-      this.timestamp = timestamp;
-      this.value = value;
-    }
+    final ListDataSource<Integer> source = ListDataSource.unbounded(Arrays.asList(1, 2, 3, 4));
 
-    public long getTimestamp() {
-      return timestamp;
-    }
+    Dataset<Integer> input = AssignEventTime.of(flow.createInput(source)).using(e -> 500).output();
 
-    public String getValue() {
-      return value;
-    }
+    Dataset<KV<Integer, Integer>> firstOutput =
+        ReduceByKey.named("FirstRBK")
+            .of(input)
+            .keyBy(i -> i % 2)
+            .reduceBy(Sums.ofInts())
+            .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
+            .output();
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      TestObject that = (TestObject) o;
-      return timestamp == that.timestamp && Objects.equals(value, that.value);
-    }
+    Dataset<KV<Integer, Integer>> secondOutput =
+        ReduceByKey.named("SecondRBK")
+            .of(firstOutput)
+            .keyBy(e -> 0)
+            .valueBy(KV::getValue)
+            .reduceBy(Sums.ofInts())
+            .output();
 
-    @Override
-    public int hashCode() {
-      return Objects.hash(timestamp, value);
-    }
+    PAssert.that(flow.unwrapped(firstOutput)).containsInAnyOrder(KV.of(0, 6), KV.of(1, 4));
+    PAssert.that(flow.unwrapped(secondOutput)).containsInAnyOrder(KV.of(0, 10));
 
-    @Override
-    public String toString() {
-      return timestamp + ":" + value;
-    }
+    pipeline.run();
   }
 }
