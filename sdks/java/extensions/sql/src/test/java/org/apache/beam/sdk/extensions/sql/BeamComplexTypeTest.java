@@ -128,7 +128,7 @@ public class BeamComplexTypeTest {
     PCollection<Row> stream =
         BeamSqlRelUtils.toPCollection(
             pipeline,
-            sqlEnv.parseQuery("SELECT arrayWithRowTestTable.col[0] FROM arrayWithRowTestTable"));
+            sqlEnv.parseQuery("SELECT arrayWithRowTestTable.col[1] FROM arrayWithRowTestTable"));
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(innerRowSchema).addValues("str", 1L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
@@ -141,7 +141,7 @@ public class BeamComplexTypeTest {
         BeamSqlRelUtils.toPCollection(
             pipeline,
             sqlEnv.parseQuery(
-                "SELECT nestedArrayTestTable.col[0][2], nestedArrayTestTable.col[1][0] FROM nestedArrayTestTable"));
+                "SELECT nestedArrayTestTable.col[1][3], nestedArrayTestTable.col[2][1] FROM nestedArrayTestTable"));
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("field1").addInt64Field("field2").build())
@@ -168,7 +168,7 @@ public class BeamComplexTypeTest {
         BeamSqlRelUtils.toPCollection(
             pipeline,
             sqlEnv.parseQuery(
-                "SELECT rowWithArrayTestTable.col.field3[1] FROM rowWithArrayTestTable"));
+                "SELECT rowWithArrayTestTable.col.field3[2] FROM rowWithArrayTestTable"));
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("int64").build()).addValue(6L).build());

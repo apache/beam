@@ -44,6 +44,7 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
     List<Object> array = (List) opValueEvaluated(0, inputRow, window, env);
     Integer index = (Integer) opValueEvaluated(1, inputRow, window, env);
 
-    return BeamSqlPrimitive.of(outputType, array.get(index));
+    // SQL array indexing is 1 based
+    return BeamSqlPrimitive.of(outputType, array.get(index - 1));
   }
 }
