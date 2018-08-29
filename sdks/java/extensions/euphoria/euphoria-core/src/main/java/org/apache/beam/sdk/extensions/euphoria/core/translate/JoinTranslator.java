@@ -92,7 +92,10 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     // Join
     JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);
 
-    return coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
+    PCollection<KV<K, OutputT>> output = coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
+    output.setCoder(context.getOutputCoder(operator));
+
+    return output;
   }
 
   private <K, LeftT, RightT, OutputT, W extends BoundedWindow>
