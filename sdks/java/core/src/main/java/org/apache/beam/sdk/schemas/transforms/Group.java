@@ -74,8 +74,7 @@ import org.apache.beam.sdk.values.Row;
  * {@literal PCollection<KV<Row, Row>>} aggregated = purchases
  *      .apply(Group.byFieldNames("userId', "country")
  *          .aggregateField("cost", Sum.ofLongs(), "total_cost")
- *          .aggregateField("cost", Top.<Long>largestFn(10),
- *            Field.of("top_purchases", FieldType.array(FieldType.INT64))
+ *          .aggregateField("cost", Top.<Long>largestLongsFn(10), "top_purchases")
  *          .aggregateField("cost", ApproximateQuantilesCombineFn.create(21),
  *            Field.of("transactionDurations", FieldType.array(FieldType.INT64)));
  * }</pre>
@@ -86,7 +85,7 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>Note that usually the field type can be automatically inferred from the {@link CombineFn}
  * passed in. However sometimes it cannot be inferred, due to Java type erasure, in which case a
- * {@link Field} object containing the field type must be passed in. This is the case for Top and
+ * {@link Field} object containing the field type must be passed in. This is currently the case for
  * ApproximateQuantilesCombineFn in the above example.
  */
 @Experimental(Kind.SCHEMAS)
