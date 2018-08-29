@@ -196,7 +196,7 @@ public class FlinkStreamingPortablePipelineTranslator
       FlinkStreamingPortablePipelineTranslator.TranslationContext context) {
     throw new IllegalArgumentException(
         String.format(
-            "Unknown type of URN %s for PTrasnform with id %s.",
+            "Unknown type of URN %s for PTransform with id %s.",
             pipeline.getComponents().getTransformsOrThrow(id).getSpec().getUrn(), id));
   }
 
