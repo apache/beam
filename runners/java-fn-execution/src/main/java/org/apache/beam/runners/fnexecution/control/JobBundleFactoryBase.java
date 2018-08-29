@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  */
 @ThreadSafe
 public abstract class JobBundleFactoryBase implements JobBundleFactory {
-  protected final Logger logger = LoggerFactory.getLogger(getClass());
+  private static final Logger LOG = LoggerFactory.getLogger(JobBundleFactoryBase.class);
 
   final IdGenerator stageIdGenerator;
   final GrpcFnServer<FnApiControlClientPoolService> controlServer;
@@ -142,11 +142,11 @@ public abstract class JobBundleFactoryBase implements JobBundleFactory {
     return CacheBuilder.newBuilder()
         .removalListener(
             ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
-              logger.debug("Cleaning up for environment {}", notification.getKey().getUrl());
+              LOG.debug("Cleaning up for environment {}", notification.getKey().getUrl());
               try {
                 notification.getValue().close();
               } catch (Exception e) {
-                logger.warn(
+                LOG.warn(
                     String.format("Error cleaning up environment %s", notification.getKey()), e);
               }
             }))

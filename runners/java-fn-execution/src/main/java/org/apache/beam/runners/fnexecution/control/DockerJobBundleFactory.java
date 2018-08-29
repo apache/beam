@@ -31,6 +31,8 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link JobBundleFactory} that uses a {@link DockerEnvironmentFactory} for environment
@@ -39,6 +41,8 @@ import org.apache.beam.sdk.fn.IdGenerator;
  */
 @ThreadSafe
 public class DockerJobBundleFactory extends JobBundleFactoryBase {
+  private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
+
   // Port offset for MacOS since we don't have host networking and need to use published ports
   private static final int MAC_PORT_START = 8100;
   private static final int MAC_PORT_END = 8200;
@@ -125,7 +129,7 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
             // We only use the published Docker ports 8100-8200 in a round-robin fashion
             () -> MAC_PORT.getAndUpdate(val -> val == MAC_PORT_END ? MAC_PORT_START : val + 1));
       default:
-        logger.warn("Unknown Docker platform. Falling back to default server factory");
+        LOG.warn("Unknown Docker platform. Falling back to default server factory");
         return ServerFactory.createDefault();
     }
   }

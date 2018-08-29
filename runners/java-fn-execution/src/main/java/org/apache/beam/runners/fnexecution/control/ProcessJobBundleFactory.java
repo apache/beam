@@ -28,12 +28,15 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link JobBundleFactoryBase} which uses a {@link ProcessEnvironmentFactory} to run the SDK
  * harness in an external process.
  */
 public class ProcessJobBundleFactory extends JobBundleFactoryBase {
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessJobBundleFactory.class);
 
   public static ProcessJobBundleFactory create(JobInfo jobInfo) throws Exception {
     return new ProcessJobBundleFactory(jobInfo);
