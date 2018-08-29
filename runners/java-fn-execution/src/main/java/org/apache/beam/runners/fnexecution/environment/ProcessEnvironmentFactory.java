@@ -125,10 +125,12 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     InstructionRequestHandler instructionHandler = null;
     try {
-      processManager.runCommand(workerId, executable, args);
+      ProcessManager.RunningProcess process = processManager.runCommand(workerId, executable, args);
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
+          // If the process is not alive anymore, we abort.
+          process.isAliveOrThrow();
           instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
         } catch (TimeoutException timeoutEx) {
           LOG.info(

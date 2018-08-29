@@ -67,4 +67,19 @@ public class ProcessManagerTest {
       processManager.stopProcess("1");
     }
   }
+
+  @Test
+  public void testLivenessCheck() throws IOException {
+    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager.RunningProcess process =
+        processManager.runCommand("1", "sleep", Arrays.asList("1000"));
+    process.isAliveOrThrow();
+    processManager.stopProcess("1");
+    try {
+      process.isAliveOrThrow();
+      fail();
+    } catch (IllegalStateException e) {
+      // this is what we want
+    }
+  }
 }

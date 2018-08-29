@@ -47,14 +47,30 @@ class ProcessManager {
     this.processes = Collections.synchronizedMap(new HashMap<>());
   }
 
+  static class RunningProcess {
+    private Process process;
+
+    RunningProcess(Process process) {
+      this.process = process;
+    }
+
+    /** Checks if the underlying process is still running. */
+    void isAliveOrThrow() throws IllegalStateException {
+      if (!process.isAlive()) {
+        throw new IllegalStateException("Process died with exit code " + process.exitValue());
+      }
+    }
+  }
+
   /**
    * Forks a process with the given command and arguments.
    *
    * @param id A unique id for the process
    * @param command the name of the executable to run
    * @param args arguments to provide to the executable
+   * @return A RunningProcess which can be checked for liveness
    */
-  void runCommand(String id, String command, List<String> args) throws IOException {
+  RunningProcess runCommand(String id, String command, List<String> args) throws IOException {
     checkNotNull(id, "Process id must not be null");
     checkNotNull(command, "Command must not be null");
     checkNotNull(args, "Process args must not be null");
@@ -70,14 +86,40 @@ class ProcessManager {
       newProcess.destroy();
       throw new IllegalStateException("There was already a process running with id " + id);
     }
+    return new RunningProcess(newProcess);
   }
 
   /** Stops a previously started process identified by its unique id. */
   void stopProcess(String id) {
     checkNotNull(id, "Process id must not be null");
     Process process = checkNotNull(processes.remove(id), "Process for id does not exist: " + id);
+    LOG.debug("Attempting to stop process with id {}", id);
     if (process.isAlive()) {
+      // first try to kill gracefully
       process.destroy();
+      long maxTimeToWait = 2000;
+      if (waitForProcessToDie(process, maxTimeToWait)) {
+        LOG.info("Process for worker {} still running. Killing.", id);
+        process.destroyForcibly();
+      }
+      if (waitForProcessToDie(process, maxTimeToWait)) {
+        LOG.warn("Process for worker {} could not be killed.", id);
+      }
     }
+  }
+
+  private static boolean waitForProcessToDie(Process process, long maxWaitTimeMillis) {
+    final long startTime = System.currentTimeMillis();
+    boolean processIsAlive;
+    do {
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Interrupted while waiting on process", e);
+      }
+      processIsAlive = process.isAlive();
+    } while (processIsAlive && System.currentTimeMillis() - startTime < maxWaitTimeMillis);
+    return processIsAlive;
   }
 }
