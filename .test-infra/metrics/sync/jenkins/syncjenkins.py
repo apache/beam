@@ -10,15 +10,16 @@
 #
 
 # Queries Jenkins to collect metrics and pu them in bigquery.
-import time
-import requests
-import psycopg2
 import os
+import psycopg2
 import re
-from datetime import datetime, timedelta
+import requests
+import socket
 import sys
-from xml.etree import ElementTree
+import time
 
+from datetime import datetime, timedelta
+from xml.etree import ElementTree
 
 # Keeping this as reference for localhost debug
 # Fetching docker host machine ip for testing purposes.
@@ -170,6 +171,13 @@ def fetchNewData():
   connection.commit()
   connection.close()
 
+
+def probeJenkinsIsUp():
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  result = sock.connect_ex(('builds.apache.org', 443))
+  return True if result == 0 else False
+
+
 ################################################################################
 print("Started.")
 
@@ -181,8 +189,12 @@ print("Start jobs fetching loop.")
 sys.stdout.flush()
 
 while True:
-  fetchNewData()
-  print("Fetched data. Sleeping for 5 min.")
+  if not probeJenkinsIsUp():
+    print("Jenkins is unavailabel, skipping sync")
+    continue
+  else:
+    fetchNewData()
+    print("Fetched data. Sleeping for 5 min.")
   sys.stdout.flush()
   time.sleep(5 * 60)
 

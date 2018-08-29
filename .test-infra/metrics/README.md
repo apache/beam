@@ -63,7 +63,7 @@ kubectl create -f beam-grafana-logdata-persistentvolumeclaim.yaml
 ```sh
 cd sync/jenkins
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1 .
-docker push -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1
+docker push gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1
 ```
 6. Create deployment `kubectl create -f beamgrafana-deploy.yaml`
 
