@@ -24,6 +24,7 @@ from collections import namedtuple
 
 from apache_beam.runners import common
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -49,7 +50,6 @@ def get_current_tracker():
 
 
 def for_test():
-  from apache_beam.utils.counters import CounterFactory
   set_current_tracker(StateSampler('test', CounterFactory()))
   return get_current_tracker()
 
