@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
@@ -60,6 +61,11 @@ class ProcessManager {
       if (!process.isAlive()) {
         throw new IllegalStateException("Process died with exit code " + process.exitValue());
       }
+    }
+
+    @VisibleForTesting
+    Process getUnderlyingProcess() {
+      return process;
     }
   }
 

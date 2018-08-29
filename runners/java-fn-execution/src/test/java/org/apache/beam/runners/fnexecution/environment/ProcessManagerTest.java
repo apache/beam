@@ -19,6 +19,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -35,11 +36,11 @@ public class ProcessManagerTest {
   @Test
   public void testRunSimpleCommand() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
-    processManager.startProcess("1", "ls", Collections.emptyList());
+    processManager.startProcess("1", "bash", Collections.emptyList());
     processManager.stopProcess("1");
-    processManager.startProcess("2", "ls", Collections.singletonList("-l"));
+    processManager.startProcess("2", "bash", Arrays.asList("-c", "ls"));
     processManager.stopProcess("2");
-    processManager.startProcess("1", "ls", Arrays.asList("-l", "-a"));
+    processManager.startProcess("1", "bash", Arrays.asList("-c", "ls", "-l", "-a"));
     processManager.stopProcess("1");
   }
 
@@ -57,9 +58,9 @@ public class ProcessManagerTest {
   @Test
   public void testDuplicateId() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
-    processManager.startProcess("1", "ls", Collections.emptyList());
+    processManager.startProcess("1", "bash", Arrays.asList("-c", "ls"));
     try {
-      processManager.startProcess("1", "ls", Collections.emptyList());
+      processManager.startProcess("1", "bash", Arrays.asList("-c", "ls"));
       fail();
     } catch (IllegalStateException e) {
       // this is what we want
@@ -72,7 +73,7 @@ public class ProcessManagerTest {
   public void testLivenessCheck() throws IOException {
     ProcessManager processManager = ProcessManager.getInstance();
     ProcessManager.RunningProcess process =
-        processManager.startProcess("1", "sleep", Collections.singletonList("1000"));
+        processManager.startProcess("1", "bash", Arrays.asList("-c", "sleep", "1000"));
     process.isAliveOrThrow();
     processManager.stopProcess("1");
     try {
@@ -84,15 +85,18 @@ public class ProcessManagerTest {
   }
 
   @Test
-  public void testEnvironmentVariables() throws IOException {
+  public void testEnvironmentVariables() throws IOException, InterruptedException {
     ProcessManager processManager = ProcessManager.getInstance();
     ProcessManager.RunningProcess process =
         processManager.startProcess(
             "1",
-            "/bin/bash",
-            Arrays.asList("-c", "'echo $WAIT_FOR > /tmp/bla'"),
-            Collections.singletonMap("WAIT_FOR", "1000"));
-    process.isAliveOrThrow();
+            "bash",
+            Arrays.asList("-c", "sleep $PARAM"),
+            Collections.singletonMap("PARAM", "-h"));
+    for (int i = 0; i < 10 && process.getUnderlyingProcess().isAlive(); i++) {
+      Thread.sleep(100);
+    }
+    assertThat(process.getUnderlyingProcess().exitValue(), is(1));
     processManager.stopProcess("1");
   }
 }
