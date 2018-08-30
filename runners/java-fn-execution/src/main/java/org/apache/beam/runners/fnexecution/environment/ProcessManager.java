@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -37,10 +38,28 @@ import org.slf4j.LoggerFactory;
 class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
+  /** A list of all managers to ensure all processes shutdown on JVM exit */
+  private static final List<ProcessManager> ALL_PROCESS_MANAGERS = new ArrayList<>();
+
+  static {
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  synchronized (ALL_PROCESS_MANAGERS) {
+                    ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
+                  }
+                }));
+  }
+
   private final Map<String, Process> processes;
 
   public static ProcessManager create() {
-    return new ProcessManager();
+    synchronized (ALL_PROCESS_MANAGERS) {
+      ProcessManager processManager = new ProcessManager();
+      ALL_PROCESS_MANAGERS.add(processManager);
+      return processManager;
+    }
   }
 
   private ProcessManager() {
@@ -158,5 +177,10 @@ class ProcessManager {
       }
     }
     return !process.isAlive();
+  }
+
+  /** Kill all remaining processes forcibly, i.e. upon JVM shutdown */
+  private void killAllProcesses() {
+    processes.forEach((id, process) -> process.destroyForcibly());
   }
 }
