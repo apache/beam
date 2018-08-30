@@ -50,7 +50,7 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
 
   /** Factory that creates {@link JobBundleFactory} for the given {@link JobInfo}. */
   public interface JobBundleFactoryFactory {
-    DockerJobBundleFactory create(JobInfo jobInfo) throws Exception;
+    JobBundleFactory create(JobInfo jobInfo) throws Exception;
   }
   // TODO (BEAM-4819): a hacky way to override the factory for testing.
   // Should be replaced with mechanism that let's users configure their own factory
@@ -58,7 +58,7 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
       new AtomicReference(
           new JobBundleFactoryFactory() {
             @Override
-            public DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
+            public JobBundleFactory create(JobInfo jobInfo) throws Exception {
               return new DockerJobBundleFactory(jobInfo);
             }
           });
@@ -67,7 +67,7 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
   // or attempt to document the supported Docker version(s)?
   private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
 
-  public static DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
+  public static JobBundleFactory create(JobInfo jobInfo) throws Exception {
     return FACTORY.get().create(jobInfo);
   }
 

@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 /** A simple process manager which forks processes and kills them if necessary. */
 @ThreadSafe
-class ProcessManager {
+public class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
   /** For debugging purposes, we inherit I/O of processes */
@@ -110,8 +110,8 @@ class ProcessManager {
    * @param env Additional environment variables for the process to be forked
    * @return A RunningProcess which can be checked for liveness
    */
-  RunningProcess startProcess(String id, String command, List<String> args, Map<String, String> env)
-      throws IOException {
+  public RunningProcess startProcess(
+      String id, String command, List<String> args, Map<String, String> env) throws IOException {
     checkNotNull(id, "Process id must not be null");
     checkNotNull(command, "Command must not be null");
     checkNotNull(args, "Process args must not be null");
@@ -148,7 +148,7 @@ class ProcessManager {
   }
 
   /** Stops a previously started process identified by its unique id. */
-  void stopProcess(String id) {
+  public void stopProcess(String id) {
     checkNotNull(id, "Process id must not be null");
     Process process = checkNotNull(processes.remove(id), "Process for id does not exist: " + id);
     stopProcess(id, process);
