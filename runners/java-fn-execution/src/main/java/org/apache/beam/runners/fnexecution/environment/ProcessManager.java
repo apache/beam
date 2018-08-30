@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
 class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
+  /** For debugging purposes, we inherit I/O of processes */
+  private static final boolean INHERIT_IO = LOG.isDebugEnabled();
+
   /** A list of all managers to ensure all processes shutdown on JVM exit */
   private static final List<ProcessManager> ALL_PROCESS_MANAGERS = new ArrayList<>();
 
@@ -119,12 +122,16 @@ class ProcessManager {
     pb.environment().putAll(env);
 
     LOG.debug("Attempting to start process with command: {}", pb.command());
-    // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
-    pb.redirectErrorStream(true);
-    if (System.getProperty("os.name", "").startsWith("Windows")) {
-      pb.redirectOutput(new File("nul"));
+    if (INHERIT_IO) {
+      pb.inheritIO();
     } else {
-      pb.redirectOutput(new File("/dev/null"));
+      pb.redirectErrorStream(true);
+      // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
+      if (System.getProperty("os.name", "").startsWith("Windows")) {
+        pb.redirectOutput(new File("nul"));
+      } else {
+        pb.redirectOutput(new File("/dev/null"));
+      }
     }
 
     Process newProcess = pb.start();
