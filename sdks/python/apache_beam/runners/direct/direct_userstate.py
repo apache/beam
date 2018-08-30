@@ -18,13 +18,13 @@
 """Support for user state in the BundleBasedDirectRunner."""
 from __future__ import absolute_import
 
+from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import RuntimeState
 from apache_beam.transforms.userstate import RuntimeTimer
 from apache_beam.transforms.userstate import UserStateContext
 from apache_beam.transforms.userstate import UserStateUtils
-from apache_beam.transforms.trigger import _ListStateTag
 
 
 class DirectUserStateContext(UserStateContext):
