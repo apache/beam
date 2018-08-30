@@ -510,6 +510,12 @@ class WorkerOptions(PipelineOptions):
         default=None,
         action='store_false',
         help='Whether to assign only private IP addresses to the worker VMs.')
+    parser.add_argument(
+        '--min_cpu_platform',
+        dest='min_cpu_platform',
+        type=str,
+        help='GCE minimum CPU platform. Default is determined by GCP.'
+    )
 
   def validate(self, validator):
     errors = []
