@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -37,14 +38,20 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT>
   protected final BinaryFunctor<LeftT, RightT, OutputT> joiner;
   protected final TupleTag<LeftT> leftTag;
   protected final TupleTag<RightT> rightTag;
+  protected final String operatorName;
+  protected final AccumulatorProvider accumulatorProvider;
 
   protected JoinFn(
       BinaryFunctor<LeftT, RightT, OutputT> joiner,
       TupleTag<LeftT> leftTag,
-      TupleTag<RightT> rightTag) {
+      TupleTag<RightT> rightTag,
+      String operatorName,
+      AccumulatorProvider accumulatorProvider) {
     this.joiner = joiner;
     this.leftTag = leftTag;
     this.rightTag = rightTag;
+    this.operatorName = operatorName;
+    this.accumulatorProvider = accumulatorProvider;
   }
 
   @ProcessElement

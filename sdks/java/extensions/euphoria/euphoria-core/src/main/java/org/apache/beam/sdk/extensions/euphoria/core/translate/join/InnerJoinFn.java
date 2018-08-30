@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollector;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -27,10 +28,12 @@ import org.apache.beam.sdk.values.TupleTag;
 public class InnerJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
 
   public InnerJoinFn(
-      BinaryFunctor<LeftT, RightT, OutputT> functor,
+      BinaryFunctor<LeftT, RightT, OutputT> joiner,
       TupleTag<LeftT> leftTag,
-      TupleTag<RightT> rightTag) {
-    super(functor, leftTag, rightTag);
+      TupleTag<RightT> rightTag,
+      String operatorName,
+      AccumulatorProvider accumulatorProvider) {
+    super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
   }
 
   @Override
@@ -41,7 +44,8 @@ public class InnerJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT
       Iterable<LeftT> leftSideIter,
       Iterable<RightT> rightSideIter) {
 
-    SingleValueCollector<OutputT> outCollector = new SingleValueCollector<>();
+    SingleValueCollector<OutputT> outCollector =
+        new SingleValueCollector<>(accumulatorProvider, operatorName);
 
     for (LeftT leftItem : leftSideIter) {
       for (RightT rightItem : rightSideIter) {

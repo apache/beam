@@ -140,7 +140,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
     }
   }
 
-  /** Implementation of Histrogram via {@link org.apache.beam.sdk.metrics.Distribution}. */
+  /** Implementation of Histogram via {@link org.apache.beam.sdk.metrics.Distribution}. */
   public static class BeamMetricsHistogram extends BeamMetrics implements Histogram {
 
     public BeamMetricsHistogram(String namespace, String name) {

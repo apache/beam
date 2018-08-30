@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.common.OperatorTranslatorUtil;
@@ -89,8 +90,12 @@ public class JoinTranslator implements OperatorTranslator<Join> {
             .and(rightTag, rightKvInput)
             .apply("::co-group-by-key", CoGroupByKey.create());
 
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
+
     // Join
-    JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);
+    JoinFn<LeftT, RightT, K, OutputT> joinFn =
+        chooseJoinFn(operator, leftTag, rightTag, accumulators);
 
     PCollection<KV<K, OutputT>> output = coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
     output.setCoder(context.getOutputCoder(operator));
@@ -102,23 +107,25 @@ public class JoinTranslator implements OperatorTranslator<Join> {
       JoinFn<LeftT, RightT, K, OutputT> chooseJoinFn(
           Join<LeftT, RightT, K, OutputT, W> operator,
           TupleTag<LeftT> leftTag,
-          TupleTag<RightT> rightTag) {
+          TupleTag<RightT> rightTag,
+          AccumulatorProvider accProvider) {
 
     JoinFn<LeftT, RightT, K, OutputT> joinFn;
     BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
+    String opName = operator.getName();
 
     switch (operator.getType()) {
       case INNER:
-        joinFn = new InnerJoinFn<>(joiner, leftTag, rightTag);
+        joinFn = new InnerJoinFn<>(joiner, leftTag, rightTag, opName, accProvider);
         break;
       case LEFT:
-        joinFn = new LeftOuterJoinFn<>(joiner, leftTag, rightTag);
+        joinFn = new LeftOuterJoinFn<>(joiner, leftTag, rightTag, opName, accProvider);
         break;
       case RIGHT:
-        joinFn = new RightOuterJoinFn<>(joiner, leftTag, rightTag);
+        joinFn = new RightOuterJoinFn<>(joiner, leftTag, rightTag, opName, accProvider);
         break;
       case FULL:
-        joinFn = new FullJoinFn<>(joiner, leftTag, rightTag);
+        joinFn = new FullJoinFn<>(joiner, leftTag, rightTag, opName, accProvider);
         break;
 
       default:
