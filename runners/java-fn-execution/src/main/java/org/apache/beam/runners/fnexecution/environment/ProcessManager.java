@@ -99,7 +99,7 @@ class ProcessManager {
         new ProcessBuilder(ImmutableList.<String>builder().add(command).addAll(args).build());
     pb.environment().putAll(env);
 
-    LOG.debug("Attempting to start process with command: " + pb.command());
+    LOG.debug("Attempting to start process with command: {}", pb.command());
     // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
     pb.redirectErrorStream(true);
     if (System.getProperty("os.name", "").startsWith("Windows")) {
