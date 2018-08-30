@@ -93,11 +93,14 @@ disable =
   global-statement,
   import-error,
   import-self,
+  inconsistent-return-statements,
   invalid-name,
   invalid-unary-operand-type,
+  keyword-arg-before-vararg,
   len-as-condition,
   locally-disabled,
   locally-enabled,
+  logging-not-lazy,
   misplaced-bare-raise,
   missing-docstring,
   multiple-statements,
@@ -107,10 +110,9 @@ disable =
   no-self-use,
   no-value-for-parameter,
   not-callable,
-  # Re-enable the context manager check once https://github.com/PyCQA/pylint/issues/782 is fixed
-  not-context-manager,
   pointless-statement,
   protected-access,
+  raising-format-tuple,
   raising-non-exception,
   redefined-builtin,
   redefined-outer-name,
@@ -129,6 +131,7 @@ disable =
   unused-argument,
   unused-wildcard-import,
   wildcard-import,
+  wrong-import-order,
 
 [REPORTS]
 # Tells whether to display a full report or only the messages
