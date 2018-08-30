@@ -159,6 +159,28 @@ class MethodWrapper(object):
     self.args = args
     self.defaults = defaults
 
+    self.has_userstate_arguments = False
+    self.state_args_to_replace = {}
+    self.timer_args_to_replace = {}
+    for kw, v in zip(args[-len(defaults):], defaults):
+      if v.__class__ == core.DoFn.StateParam:
+        self.state_args_to_replace[kw] = v.state_spec
+        self.has_userstate_arguments = True
+      elif v.__class__ == core.DoFn.TimerParam:
+        self.timer_args_to_replace[kw] = v.timer_spec
+        self.has_userstate_arguments = True
+
+  def invoke_with_userstate(self, user_state_context, key, window):
+    if self.has_userstate_arguments:
+      kwargs = {}
+      for kw, state_spec in self.state_args_to_replace.items():
+        kwargs[kw] = user_state_context.get_state(state_spec, key, window)
+      for kw, timer_spec in self.timer_args_to_replace.items():
+        kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
+      return self.method_value(**kwargs)
+    else:
+      return self.method_value()
+
 
 class DoFnSignature(object):
   """Represents the signature of a given ``DoFn`` object.
@@ -198,6 +220,16 @@ class DoFnSignature(object):
 
     self._validate()
 
+    # Handle stateful DoFns.
+    self._is_stateful_dofn = UserStateUtils.is_stateful_dofn(do_fn)
+    self.timer_methods = {}
+    if self._is_stateful_dofn:
+      # Populate timer firing methods, keyed by TimerSpec.
+      _, all_timer_specs = UserStateUtils.get_dofn_specs(do_fn)
+      for timer_spec in all_timer_specs:
+        method = timer_spec._attached_callback
+        self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
+
   def _get_restriction_provider(self, do_fn):
     result = _find_param_with_default(self.process_method,
                                       default_as_type=RestrictionProvider)
@@ -235,6 +267,9 @@ class DoFnSignature(object):
     return any([isinstance(default, RestrictionProvider) for default in
                 self.process_method.defaults])
 
+  def is_stateful_dofn(self):
+    return self._is_stateful_dofn
+
 
 class DoFnInvoker(object):
   """An abstraction that can be used to execute DoFn methods.
@@ -245,13 +280,15 @@ class DoFnInvoker(object):
   def __init__(self, output_processor, signature):
     self.output_processor = output_processor
     self.signature = signature
+    self.user_state_context = None
 
   @staticmethod
   def create_invoker(
       signature,
       output_processor=None,
       context=None, side_inputs=None, input_args=None, input_kwargs=None,
-      process_invocation=True):
+      process_invocation=True,
+      user_state_context=None):
     """ Creates a new DoFnInvoker based on given arguments.
 
     Args:
@@ -271,18 +308,21 @@ class DoFnInvoker(object):
         process_invocation: If True, this function may return an invoker that
                             performs extra optimizations for invoking process()
                             method efficiently.
+        user_state_context: The UserStateContext instance for the current
+                            Stateful DoFn.
     """
     side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
     use_simple_invoker = not process_invocation or (
         not side_inputs and not input_args and not input_kwargs and
-        not default_arg_values)
+        not default_arg_values and not signature.is_stateful_dofn())
     if use_simple_invoker:
       return SimpleInvoker(output_processor, signature)
     else:
       return PerWindowInvoker(
           output_processor,
-          signature, context, side_inputs, input_args, input_kwargs)
+          signature, context, side_inputs, input_args, input_kwargs,
+          user_state_context)
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
                      output_processor=None,
@@ -312,6 +352,12 @@ class DoFnInvoker(object):
     """
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
+
+  def invoke_user_timer(self, timer_spec, key, window, timestamp):
+    self.output_processor.process_outputs(
+        WindowedValue(None, timestamp, (window,)),
+        self.signature.timer_methods[timer_spec].invoke_with_userstate(
+            self.user_state_context, key, window))
 
   def invoke_split(self, element, restriction):
     return self.signature.split_method.method_value(element, restriction)
@@ -368,7 +414,7 @@ class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
   def __init__(self, output_processor, signature, context,
-               side_inputs, input_args, input_kwargs):
+               side_inputs, input_args, input_kwargs, user_state_context):
     super(PerWindowInvoker, self).__init__(output_processor, signature)
     self.side_inputs = side_inputs
     self.context = context
@@ -377,6 +423,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or
         (core.DoFn.WindowParam in default_arg_values))
+    self.user_state_context = user_state_context
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -423,6 +470,10 @@ class PerWindowInvoker(DoFnInvoker):
         except StopIteration:
           if a not in input_kwargs:
             raise ValueError("Value for sideinput %s not provided" % a)
+      elif d.__class__ == core.DoFn.StateParam:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif d.__class__ == core.DoFn.TimerParam:
+        args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
         try:
@@ -498,6 +549,17 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
+
+    # Extract key in the case of a stateful DoFn.
+    if self.user_state_context:
+      try:
+        key = windowed_value.value[0]
+      except TypeError:
+        raise ValueError(
+            ('Input value to a stateful DoFn must be a KV tuple; instead, '
+             'got %s.') % (windowed_value.value,))
+      window, = windowed_value.windows
+
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
@@ -506,6 +568,12 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = window
       elif p == core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
+      elif p.__class__ == core.DoFn.StateParam:
+        args_for_process[i] = (
+            self.user_state_context.get_state(p.state_spec, key, window))
+      elif p.__class__ == core.DoFn.TimerParam:
+        args_for_process[i] = (
+            self.user_state_context.get_timer(p.timer_spec, key, window))
 
     if additional_kwargs:
       if kwargs_for_process is None:
@@ -540,7 +608,8 @@ class DoFnRunner(Receiver):
                logging_context=None,
                state=None,
                scoped_metrics_container=None,
-               operation_name=None):
+               operation_name=None,
+               user_state_context=None):
     """Initializes a DoFnRunner.
 
     Args:
@@ -555,6 +624,8 @@ class DoFnRunner(Receiver):
       state: handle for accessing DoFn state
       scoped_metrics_container: DEPRECATED
       operation_name: The system name assigned by the runner for this operation.
+      user_state_context: The UserStateContext instance for the current
+                          Stateful DoFn.
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
@@ -581,9 +652,15 @@ class DoFnRunner(Receiver):
         windowing.windowfn, main_receivers, tagged_receivers,
         per_element_output_counter)
 
+    if do_fn_signature.is_stateful_dofn() and not user_state_context:
+      raise Exception(
+          'Requested execution of a stateful DoFn, but no user state context '
+          'is available. This likely means that the current runner does not '
+          'support the execution of stateful DoFns.')
+
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
-        kwargs)
+        kwargs, user_state_context=user_state_context)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -591,6 +668,12 @@ class DoFnRunner(Receiver):
   def process(self, windowed_value):
     try:
       self.do_fn_invoker.invoke_process(windowed_value)
+    except BaseException as exn:
+      self._reraise_augmented(exn)
+
+  def process_user_timer(self, timer_spec, key, window, timestamp):
+    try:
+      self.do_fn_invoker.invoke_user_timer(timer_spec, key, window, timestamp)
     except BaseException as exn:
       self._reraise_augmented(exn)
 

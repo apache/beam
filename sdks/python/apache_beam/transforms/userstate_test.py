@@ -80,7 +80,7 @@ class InterfaceTest(unittest.TestCase):
     # Construction of DoFnSignature performs validation of the given DoFn.
     # In particular, it ends up calling userstate._validate_stateful_dofn.
     # That behavior is explicitly tested below in test_validate_dofn()
-    DoFnSignature(dofn)
+    return DoFnSignature(dofn)
 
   @mock.patch(
       'apache_beam.transforms.userstate.UserStateUtils.validate_stateful_dofn')
@@ -116,6 +116,10 @@ class InterfaceTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DoFn.TimerParam(BagStateSpec('elements', BytesCoder()))
 
+  def test_stateful_dofn_detection(self):
+    self.assertFalse(UserStateUtils.is_stateful_dofn(DoFn()))
+    self.assertTrue(UserStateUtils.is_stateful_dofn(TestStatefulDoFn()))
+
   def test_good_signatures(self):
     class BasicStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
@@ -129,8 +133,36 @@ class InterfaceTest(unittest.TestCase):
       def expiry_callback(self, element, timer=DoFn.TimerParam(EXPIRY_TIMER)):
         yield element
 
-    self._validate_dofn(BasicStatefulDoFn())
-    self._validate_dofn(TestStatefulDoFn())
+    # Validate UserStateUtils.get_dofn_specs() and timer callbacks in
+    # DoFnSignature.
+    stateful_dofn = BasicStatefulDoFn()
+    signature = self._validate_dofn(stateful_dofn)
+    expected_specs = (set([BasicStatefulDoFn.BUFFER_STATE]),
+                      set([BasicStatefulDoFn.EXPIRY_TIMER]))
+    self.assertEqual(expected_specs,
+                     UserStateUtils.get_dofn_specs(stateful_dofn))
+    self.assertEqual(
+        stateful_dofn.expiry_callback,
+        signature.timer_methods[BasicStatefulDoFn.EXPIRY_TIMER].method_value)
+
+    stateful_dofn = TestStatefulDoFn()
+    signature = self._validate_dofn(stateful_dofn)
+    expected_specs = (set([TestStatefulDoFn.BUFFER_STATE_1,
+                           TestStatefulDoFn.BUFFER_STATE_2]),
+                      set([TestStatefulDoFn.EXPIRY_TIMER_1,
+                           TestStatefulDoFn.EXPIRY_TIMER_2,
+                           TestStatefulDoFn.EXPIRY_TIMER_3]))
+    self.assertEqual(expected_specs,
+                     UserStateUtils.get_dofn_specs(stateful_dofn))
+    self.assertEqual(
+        stateful_dofn.on_expiry_1,
+        signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_1].method_value)
+    self.assertEqual(
+        stateful_dofn.on_expiry_2,
+        signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_2].method_value)
+    self.assertEqual(
+        stateful_dofn.on_expiry_3,
+        signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_3].method_value)
 
   def test_bad_signatures(self):
     # (1) The same state parameter is duplicated on the process method.
@@ -222,7 +254,7 @@ class InterfaceTest(unittest.TestCase):
       def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):
         yield 'expired1'
 
-      # Note that we mistakenly reuse the "on_expiry_2" name; this is valid
+      # Note that we mistakenly reuse the "on_expiry_1" name; this is valid
       # syntactically in Python.
       @on_timer(EXPIRY_TIMER_2)
       def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):
