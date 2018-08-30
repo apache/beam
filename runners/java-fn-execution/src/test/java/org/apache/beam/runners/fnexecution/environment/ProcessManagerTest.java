@@ -35,7 +35,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testRunSimpleCommand() throws IOException {
-    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager processManager = ProcessManager.create();
     processManager.startProcess("1", "bash", Collections.emptyList());
     processManager.stopProcess("1");
     processManager.startProcess("2", "bash", Arrays.asList("-c", "ls"));
@@ -46,7 +46,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testRunInvalidExecutable() throws IOException {
-    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager processManager = ProcessManager.create();
     try {
       processManager.startProcess("1", "asfasfls", Collections.emptyList());
       fail();
@@ -57,7 +57,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testDuplicateId() throws IOException {
-    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager processManager = ProcessManager.create();
     processManager.startProcess("1", "bash", Arrays.asList("-c", "ls"));
     try {
       processManager.startProcess("1", "bash", Arrays.asList("-c", "ls"));
@@ -71,7 +71,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testLivenessCheck() throws IOException {
-    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager processManager = ProcessManager.create();
     ProcessManager.RunningProcess process =
         processManager.startProcess("1", "bash", Arrays.asList("-c", "sleep", "1000"));
     process.isAliveOrThrow();
@@ -86,7 +86,7 @@ public class ProcessManagerTest {
 
   @Test
   public void testEnvironmentVariables() throws IOException, InterruptedException {
-    ProcessManager processManager = ProcessManager.getInstance();
+    ProcessManager processManager = ProcessManager.create();
     ProcessManager.RunningProcess process =
         processManager.startProcess(
             "1",

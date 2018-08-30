@@ -50,7 +50,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
     return create(
-        ProcessManager.getInstance(),
+        ProcessManager.create(),
         controlServiceServer,
         loggingServiceServer,
         retrievalServiceServer,

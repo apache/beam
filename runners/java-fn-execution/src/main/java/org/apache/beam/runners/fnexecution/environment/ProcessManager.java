@@ -37,12 +37,10 @@ import org.slf4j.LoggerFactory;
 class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
-  private static final ProcessManager INSTANCE = new ProcessManager();
-
   private final Map<String, Process> processes;
 
-  public static ProcessManager getInstance() {
-    return INSTANCE;
+  public static ProcessManager create() {
+    return new ProcessManager();
   }
 
   private ProcessManager() {
