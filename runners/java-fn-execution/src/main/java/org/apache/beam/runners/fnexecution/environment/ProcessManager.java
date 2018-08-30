@@ -111,8 +111,8 @@ class ProcessManager {
     Process newProcess = pb.start();
     Process oldProcess = processes.put(id, newProcess);
     if (oldProcess != null) {
-      oldProcess.destroy();
-      newProcess.destroy();
+      stopProcess(id, oldProcess);
+      stopProcess(id, newProcess);
       throw new IllegalStateException("There was already a process running with id " + id);
     }
 
@@ -123,33 +123,40 @@ class ProcessManager {
   void stopProcess(String id) {
     checkNotNull(id, "Process id must not be null");
     Process process = checkNotNull(processes.remove(id), "Process for id does not exist: " + id);
-    LOG.debug("Attempting to stop process with id {}", id);
+    stopProcess(id, process);
+  }
+
+  private void stopProcess(String id, Process process) {
     if (process.isAlive()) {
+      LOG.debug("Attempting to stop process with id {}", id);
       // first try to kill gracefully
       process.destroy();
       long maxTimeToWait = 2000;
       if (waitForProcessToDie(process, maxTimeToWait)) {
+        LOG.debug("Process for worker {} shut down gracefully.", id);
+      } else {
         LOG.info("Process for worker {} still running. Killing.", id);
         process.destroyForcibly();
-      }
-      if (waitForProcessToDie(process, maxTimeToWait)) {
-        LOG.warn("Process for worker {} could not be killed.", id);
+        if (waitForProcessToDie(process, maxTimeToWait)) {
+          LOG.debug("Process for worker {} killed.", id);
+        } else {
+          LOG.warn("Process for worker {} could not be killed.", id);
+        }
       }
     }
   }
 
+  /** Returns true if the process exists within maxWaitTimeMillis. */
   private static boolean waitForProcessToDie(Process process, long maxWaitTimeMillis) {
     final long startTime = System.currentTimeMillis();
-    boolean processIsAlive;
-    do {
+    while (process.isAlive() && System.currentTimeMillis() - startTime < maxWaitTimeMillis) {
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException("Interrupted while waiting on process", e);
       }
-      processIsAlive = process.isAlive();
-    } while (processIsAlive && System.currentTimeMillis() - startTime < maxWaitTimeMillis);
-    return processIsAlive;
+    }
+    return !process.isAlive();
   }
 }
