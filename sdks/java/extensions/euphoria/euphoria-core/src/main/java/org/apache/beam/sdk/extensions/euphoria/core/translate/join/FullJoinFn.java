@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollector;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -29,8 +30,10 @@ public class FullJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT,
   public FullJoinFn(
       BinaryFunctor<LeftT, RightT, OutputT> joiner,
       TupleTag<LeftT> leftTag,
-      TupleTag<RightT> rightTag) {
-    super(joiner, leftTag, rightTag);
+      TupleTag<RightT> rightTag,
+      String operatorName,
+      AccumulatorProvider accumulatorProvider) {
+    super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
   }
 
   @Override
@@ -44,7 +47,8 @@ public class FullJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT,
     boolean leftHasValues = leftSideIter.iterator().hasNext();
     boolean rightHasValues = rightSideIter.iterator().hasNext();
 
-    SingleValueCollector<OutputT> outCollector = new SingleValueCollector<>();
+    SingleValueCollector<OutputT> outCollector =
+        new SingleValueCollector<>(accumulatorProvider, operatorName);
 
     if (leftHasValues && rightHasValues) {
       for (RightT rightValue : rightSideIter) {
