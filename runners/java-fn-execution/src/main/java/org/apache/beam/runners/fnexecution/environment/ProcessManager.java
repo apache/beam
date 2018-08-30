@@ -121,8 +121,9 @@ class ProcessManager {
         new ProcessBuilder(ImmutableList.<String>builder().add(command).addAll(args).build());
     pb.environment().putAll(env);
 
-    LOG.debug("Attempting to start process with command: {}", pb.command());
     if (INHERIT_IO) {
+      LOG.debug(
+          "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");
       pb.inheritIO();
     } else {
       pb.redirectErrorStream(true);
@@ -134,6 +135,7 @@ class ProcessManager {
       }
     }
 
+    LOG.debug("Attempting to start process with command: {}", pb.command());
     Process newProcess = pb.start();
     Process oldProcess = processes.put(id, newProcess);
     if (oldProcess != null) {
