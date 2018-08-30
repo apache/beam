@@ -28,6 +28,7 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -35,6 +36,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
@@ -124,6 +126,12 @@ public class HadoopFileSystemTest {
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("copyTestFileA", 0));
     assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("copyTestFileB", 0));
+  }
+
+  @Test(expected = FileNotFoundException.class)
+  public void testCopySourceMissing() throws Exception {
+    fileSystem.copy(
+        ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("copyTestFile")));
   }
 
   @Test
@@ -285,6 +293,35 @@ public class HadoopFileSystemTest {
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("pathB/testFileA", 0));
     assertArrayEquals(
         "testDataB".getBytes(StandardCharsets.UTF_8), read("pathB/pathC/pathD/testFileB", 0));
+  }
+
+  @Test(expected = FileNotFoundException.class)
+  public void testRenameMissingSource() throws Exception {
+    fileSystem.rename(
+        ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("testFileA")));
+  }
+
+  @Test(expected = FileAlreadyExistsException.class)
+  public void testRenameExistingDestination() throws Exception {
+    create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
+    create("testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
+
+    // ensure files exist
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
+
+    fileSystem.rename(
+        ImmutableList.of(testPath("testFileA")), ImmutableList.of(testPath("testFileB")));
+  }
+
+  /** Test that rename throws predictably when source doesn't exist and destination does. */
+  @Test(expected = FileNotFoundException.class)
+  public void testRenameRetryScenario() throws Exception {
+    testRename();
+    // retry the knowing that sources are already moved to destination
+    fileSystem.rename(
+        ImmutableList.of(testPath("testFileA"), testPath("testFileB")),
+        ImmutableList.of(testPath("renameFileA"), testPath("renameFileB")));
   }
 
   @Test
