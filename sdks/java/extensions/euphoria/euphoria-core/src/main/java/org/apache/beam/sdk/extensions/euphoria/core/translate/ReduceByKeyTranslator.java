@@ -76,21 +76,24 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
             .apply(operator.getName() + "::extract-keys", extractor)
             .setCoder(KvCoder.of(keyCoder, valueCoder));
 
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
+
     WindowingUtils.checkGropupByKeyApplicalble(operator, extracted);
 
     Coder<KV<K, OutputT>> outputCoder = context.getOutputCoder(operator);
 
     if (operator.isCombinable()) {
       final PCollection combined =
-          extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
+          extracted.apply(
+              operator.getName() + "::combine",
+              Combine.perKey(asCombiner(reducer, accumulators, operator.getName())));
       combined.setCoder(outputCoder);
 
       return combined;
 
     } else {
       // reduce
-      final AccumulatorProvider accumulators =
-          new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
 
       final PCollection<KV<K, Iterable<V>>> grouped =
           extracted
@@ -114,13 +117,16 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   }
 
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
-      ReduceFunctor<InputT, OutputT> reducer) {
+      ReduceFunctor<InputT, OutputT> reducer,
+      AccumulatorProvider accumulatorProvider,
+      String operatorName) {
 
     @SuppressWarnings("unchecked")
     final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
 
     return (Iterable<InputT> input) -> {
-      SingleValueCollector<InputT> collector = new SingleValueCollector<>();
+      SingleValueCollector<InputT> collector =
+          new SingleValueCollector<>(accumulatorProvider, operatorName);
       combiner.apply(StreamSupport.stream(input.spliterator(), false), collector);
       return collector.get();
     };
