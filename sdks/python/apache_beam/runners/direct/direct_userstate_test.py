@@ -62,11 +62,12 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   def test_simple_stateful_dofn(self):
     class SimpleTestStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
-      EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
+      EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
 
       def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
                   timer1=DoFn.TimerParam(EXPIRY_TIMER)):
-        buffer.add('A' + str(element))
+        key, value = element
+        buffer.add('A' + str(value))
         timer1.set(20)
 
       @on_timer(EXPIRY_TIMER)
@@ -81,44 +82,172 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      .add_elements([3])
                      .advance_watermark_to(25)
                      .add_elements([4]))
-      pcoll = p | test_stream
-      records = pcoll | beam.ParDo(SimpleTestStatefulDoFn())
-      records | beam.ParDo(self.record_dofn())
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(SimpleTestStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
 
-    # Two firings should occur: once after element 3, and another time after
-    # element 4.
+    # Two firings should occur: once after element 3 since the timer should
+    # fire after the watermark passes time 20, and another time after element
+    # 4, since the timer issued at that point should fire immediately.
     self.assertEqual(['A1A2A3', 'A1A2A3A4'],
         StatefulDoFnOnDirectRunnerTest.all_records)
 
-  # def test_simple_stateful_dofn_combining(self):
-  #   class SimpleTestStatefulDoFn(DoFn):
-  #     BUFFER_STATE = CombiningValueStateSpec('buffer', IterableCoder(VarIntCoder()), ToListCombineFn())
-  #     EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
+  def test_simple_stateful_dofn_combining(self):
+    class SimpleTestStatefulDoFn(DoFn):
+      BUFFER_STATE = CombiningValueStateSpec('buffer', IterableCoder(VarIntCoder()), ToListCombineFn())
+      EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
 
-  #     def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
-  #                 timer1=DoFn.TimerParam(EXPIRY_TIMER)):
-  #       buffer.add(element)
-  #       timer1.set(20)
+      def process(self, element, buffer=DoFn.StateParam(BUFFER_STATE),
+                  timer1=DoFn.TimerParam(EXPIRY_TIMER)):
+        key, value = element
+        buffer.add(value)
+        timer1.set(20)
 
-  #     @on_timer(EXPIRY_TIMER)
-  #     def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE),
-  #                         timer=DoFn.TimerParam(EXPIRY_TIMER)):
-  #       print 'YO', buffer.read()
-  #       yield ''.join(str(x) for x in sorted(buffer.read()))
+      @on_timer(EXPIRY_TIMER)
+      def expiry_callback(self, buffer=DoFn.StateParam(BUFFER_STATE),
+                          timer=DoFn.TimerParam(EXPIRY_TIMER)):
+        print 'YO', buffer.read()
+        yield ''.join(str(x) for x in sorted(buffer.read()))
 
-  #   with TestPipeline() as p:
-  #     test_stream = (TestStream()
-  #                    .advance_watermark_to(10)
-  #                    .add_elements([1, 2])
-  #                    .add_elements([3])
-  #                    .advance_watermark_to(25)
-  #                    .add_elements([4]))
-  #     pcoll = p | test_stream
-  #     records = pcoll | beam.ParDo(SimpleTestStatefulDoFn())
-  #     records | beam.ParDo(self.record_dofn())
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1, 2])
+                     .add_elements([3])
+                     .advance_watermark_to(25)
+                     .add_elements([4]))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(SimpleTestStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
 
-  #   self.assertEqual(['123', '1234'],
-  #       StatefulDoFnOnDirectRunnerTest.all_records)
+    self.assertEqual(['123', '1234'],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_timer_output_timestamp(self):
+    class TimerEmittingStatefulDoFn(DoFn):
+      EMIT_TIMER_1 = TimerSpec('emit1', TimeDomain.WATERMARK)
+      EMIT_TIMER_2 = TimerSpec('emit2', TimeDomain.WATERMARK)
+      EMIT_TIMER_3 = TimerSpec('emit3', TimeDomain.WATERMARK)
+
+      def process(self, element,
+                  timer1=DoFn.TimerParam(EMIT_TIMER_1),
+                  timer2=DoFn.TimerParam(EMIT_TIMER_2),
+                  timer3=DoFn.TimerParam(EMIT_TIMER_3)):
+        timer1.set(20)
+        timer2.set(40)
+        timer3.set(60)
+
+      @on_timer(EMIT_TIMER_1)
+      def emit_callback_1(self):
+        yield 'timer1'
+
+      @on_timer(EMIT_TIMER_2)
+      def emit_callback_2(self):
+        yield 'timer2'
+
+      @on_timer(EMIT_TIMER_3)
+      def emit_callback_3(self):
+        yield 'timer3'
+
+    class TimestampReifyingDoFn(DoFn):
+      def process(self, element, ts=DoFn.TimestampParam):
+        yield (element, int(ts))
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([1]))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(TimerEmittingStatefulDoFn())
+       | beam.ParDo(TimestampReifyingDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('timer1', 20), ('timer2', 40), ('timer3', 60)],
+        sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+
+  def test_index_assignment(self):
+    class IndexAssigningStatefulDoFn(DoFn):
+      INDEX_STATE = BagStateSpec('index', VarIntCoder())
+
+      def process(self, element, state=DoFn.StateParam(INDEX_STATE)):
+        key, value = element
+        next_index, = list(state.read()) or [0]
+        yield (value, next_index)
+        state.clear()
+        state.add(next_index + 1)
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['A', 'B'])
+                     .add_elements(['C'])
+                     .advance_watermark_to(25)
+                     .add_elements(['D']))
+      (p
+       | test_stream
+       | beam.Map(lambda x: ('mykey', x))
+       | beam.ParDo(IndexAssigningStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('A', 0), ('B', 1), ('C', 2), ('D', 3)],
+        StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_hash_join(self):
+    class HashJoinStatefulDoFn(DoFn):
+      BUFFER_STATE = BagStateSpec('buffer', VarIntCoder())
+      UNMATCHED_TIMER = TimerSpec('unmatched', TimeDomain.WATERMARK)
+
+      def process(self, element, state=DoFn.StateParam(BUFFER_STATE),
+                  timer=DoFn.TimerParam(UNMATCHED_TIMER)):
+        key, value = element
+        existing_values = list(state.read())
+        if not existing_values:
+          state.add(value)
+          timer.set(100)
+        else:
+          print '********YOOO', sorted([value, existing_values[0]])
+          yield 'Record<%s,%s,%s>' % (key, existing_values[0], value)
+          state.clear()
+          timer.clear()
+
+      @on_timer(UNMATCHED_TIMER)
+      def expiry_callback(self, state=DoFn.StateParam(BUFFER_STATE)):
+        buffered = list(state.read())
+        assert len(buffered) == 1, buffered
+        state.clear()
+        yield 'Unmatched<%s>' % (buffered[0],)
+
+    with TestPipeline() as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements([('k1', 1), ('k2', 2)])
+                     .add_elements([('k1', 3), ('k3', 4)])
+                     .advance_watermark_to(25)
+                     .add_elements([('k1', 5), ('k2', 6)])
+                     .add_elements([('k4', 7), ('k4', 8), ('k4', 9),
+                                    ('k4', 10)])
+                     .advance_watermark_to(125)
+                     .add_elements([('k3', 11)]))
+      (p
+       | test_stream
+       | beam.ParDo(HashJoinStatefulDoFn())
+       | beam.ParDo(self.record_dofn()))
+
+    # Two firings should occur: once after element 3 since the timer should
+    # fire after the watermark passes time 20, and another time after element
+    # 4, since the timer issued at that point should fire immediately.
+    self.assertEqual(
+        ['Record<k1,1,3>', 'Record<k2,2,6>', 'Record<k4,7,8>',
+         'Record<k4,9,10>', 'Unmatched<5>', 'Unmatched<4>',
+         'Unmatched<11>'],
+        StatefulDoFnOnDirectRunnerTest.all_records)
 
 
 if __name__ == '__main__':

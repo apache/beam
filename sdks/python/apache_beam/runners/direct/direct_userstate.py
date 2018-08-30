@@ -54,7 +54,7 @@ class DirectUserStateContext(UserStateContext):
       if isinstance(state_spec, BagStateSpec):
         state_tag = _ListStateTag(state_key)
       elif isinstance(state_spec, CombiningValueStateSpec):
-        state_tag = _CombiningValueStateTag(state_key, state_spec.combine_fn)
+        state_tag = _ListStateTag(state_key)
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
       self.state_tags[state_spec] = state_tag
@@ -77,6 +77,7 @@ class DirectUserStateContext(UserStateContext):
     if cache_key not in self.cached_states:
       state_tag = self.state_tags[state_spec]
       value_accessor = lambda: self._get_underlying_state(state_spec, key, window)
+      print 'NEW STATE', repr(encoded_key), state_spec
       self.cached_states[cache_key] = (
           RuntimeState.for_spec(state_spec, state_tag, value_accessor))
     return self.cached_states[cache_key]
@@ -88,19 +89,22 @@ class DirectUserStateContext(UserStateContext):
 
   def commit(self):
     # Commit state modifications.
+    print 'START COMMIT'
     for (encoded_key, window, state_spec), runtime_state in self.cached_states.items():
       state = self.step_context.get_keyed_state(encoded_key)
       state_tag = self.state_tags[state_spec]
       if isinstance(state_spec, BagStateSpec):
         if runtime_state._cleared:
+          print '$$ CLEAR'
           state.clear_state(window, state_tag)
         for new_value in runtime_state._new_values:
+          print '$$ ADD', repr(new_value)
           state.add_state(window, state_tag, new_value)
       elif isinstance(state_spec, CombiningValueStateSpec):
         if runtime_state._modified:
           state.clear_state(window, state_tag)
           state.add_state(window, state_tag,
-                          runtime_state._current_accumulator)
+                          state_spec.coder.encode(runtime_state._current_accumulator))
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -115,3 +119,4 @@ class DirectUserStateContext(UserStateContext):
         # allows for keyed watermark holds.
         state.set_timer(window, timer_name, timer_spec.time_domain,
                         runtime_timer._new_timestamp)
+    print 'FINISH COMMIT'

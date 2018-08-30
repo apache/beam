@@ -218,6 +218,10 @@ class RuntimeState(object):
   def _decode(self, value):
     return self._state_spec.coder.decode(value)
 
+  def prefetch(self):
+    # The default implementation here does nothing.
+    pass
+
 
 # Sentinel designating an unread value.
 UNREAD_VALUE = object()
@@ -245,7 +249,7 @@ class BagRuntimeState(RuntimeState):
   def add(self, value):
     self._new_values.append(self._encode(value))
 
-  def clear(self, value):
+  def clear(self):
     self._cleared = True
     self._new_values = []
 
@@ -258,27 +262,32 @@ class CombiningValueRuntimeState(RuntimeState):
         state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
-    self._combine_fn = state_tag.combine_fn
+    self._combine_fn = state_spec.combine_fn
 
   def _read_initial_value(self):
     if self._current_accumulator is UNREAD_VALUE:
-      self._current_accumulator = self._encode(self._current_value_accessor())
-    if self._current_accumulator is None:
-      self._current_accumulator = self._encode(self._combine_fn.create_accumulator())
+      existing_accumulators = list(
+          self._decode(a) for a in self._current_value_accessor())
+      if existing_accumulators:
+        self._current_accumulator = self._combine_fn.merge_accumulators(
+            existing_accumulators)
+      else:
+        self._current_accumulator = self._combine_fn.create_accumulator()
 
   def read(self):
     self._read_initial_value()
-    return self._combine_fn.extract_output(
-        self._decode(self._current_accumulator))
+    return self._combine_fn.extract_output(self._current_accumulator)
 
   def add(self, value):
     self._read_initial_value()
-    print 'CURRENT', self._current_accumulator
-    accum = self._combine_fn.add_input(
-        self._decode(self._current_accumulator), value)
-    self._current_accumulator = self._encode(accum)
     self._modified = True
-    return self._combine_fn.extract_output(accum)
+    print 'CURRENT', self._current_accumulator
+    self._current_accumulator = self._combine_fn.add_input(
+        self._current_accumulator, value)
+
+  def clear(self):
+    self._modified = True
+    self._current_accumulator = self._combine_fn.create_accumulator()
 
 
 class UserStateContext(object):

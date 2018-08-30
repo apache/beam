@@ -355,10 +355,10 @@ class DoFnInvoker(object):
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
-  def invoke_user_timer(self, timer_spec, key, window):
+  def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
         # TODO(ccy): populate a proper timestamp here.
-        WindowedValue(None, 0, (window,)),
+        WindowedValue(None, timestamp, (window,)),
         self.signature.timer_methods[timer_spec].invoke_with_userstate(
             self.user_state_context, key, window))
 
@@ -671,9 +671,9 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  def process_user_timer(self, timer_spec, key, window):
+  def process_user_timer(self, timer_spec, key, window, timestamp):
     try:
-      self.do_fn_invoker.invoke_user_timer(timer_spec, key, window)
+      self.do_fn_invoker.invoke_user_timer(timer_spec, key, window, timestamp)
     except BaseException as exn:
       self._reraise_augmented(exn)
 

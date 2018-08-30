@@ -583,14 +583,14 @@ class _ParDoEvaluator(_TransformEvaluator):
       else:
         key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
                          else typehints.Any)
-      key_coder = coders.registry.get_coder(key_type_hint)
-      if not key_coder.is_deterministic():
+      self.key_coder = coders.registry.get_coder(key_type_hint)
+      if not self.key_coder.is_deterministic():
         logging.warning(
             'Key coder %s for transform %s with stateful DoFn may not '
             'be deterministic. This may cause incorrect behavior for complex '
             'key types. Consider adding an input type hint for this transform.')
 
-      self.user_state_context = DirectUserStateContext(self._step_context, dofn, key_coder)
+      self.user_state_context = DirectUserStateContext(self._step_context, dofn, self.key_coder)
       _, all_timer_specs = UserStateUtils.get_dofn_specs(dofn)
       for timer_spec in all_timer_specs:
         self.user_timer_map['user/%s' % timer_spec.name] = timer_spec
@@ -614,7 +614,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     timer_spec = self.user_timer_map[timer_firing.name]
     print 'SPEC', timer_spec
     self.runner.process_user_timer(
-        timer_spec, timer_firing.encoded_key, timer_firing.window)
+        timer_spec, self.key_coder.decode(timer_firing.encoded_key), timer_firing.window, timer_firing.timestamp)
     print 'PROCESSED', timer_spec
 
 
