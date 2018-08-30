@@ -42,7 +42,7 @@ public class ProcessJobBundleFactory extends JobBundleFactoryBase {
     return new ProcessJobBundleFactory(jobInfo);
   }
 
-  private ProcessJobBundleFactory(JobInfo jobInfo) throws Exception {
+  protected ProcessJobBundleFactory(JobInfo jobInfo) throws Exception {
     super(jobInfo);
   }
 
@@ -66,7 +66,7 @@ public class ProcessJobBundleFactory extends JobBundleFactoryBase {
   }
 
   @Override
-  EnvironmentFactory getEnvironmentFactory(
+  protected EnvironmentFactory getEnvironmentFactory(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,

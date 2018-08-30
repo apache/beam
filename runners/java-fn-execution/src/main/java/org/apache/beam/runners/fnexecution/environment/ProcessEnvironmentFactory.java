@@ -59,7 +59,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         idGenerator);
   }
 
-  static ProcessEnvironmentFactory create(
+  public static ProcessEnvironmentFactory create(
       ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
