@@ -30,6 +30,7 @@ import org.gradle.api.plugins.quality.FindBugs
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
@@ -644,7 +645,8 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.checkstyle { toolVersion = "8.7" }
 
-      // Ensure check runs javadoc
+      // Configures javadoc plugin and ensure check runs javadoc.
+      project.tasks.withType(Javadoc) { options.encoding = 'UTF-8' }
       project.check.dependsOn project.javadoc
 
       // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
