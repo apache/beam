@@ -25,6 +25,7 @@ public interface ExecutionDriver {
   /** The state of the driver. If the state is terminal, the driver can no longer make progress. */
   enum DriverState {
     CONTINUE(false),
+    CONTINUE_THROTTLE(false),
     FAILED(true),
     SHUTDOWN(true);
 

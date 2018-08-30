@@ -164,7 +164,7 @@ final class ExecutorServiceParallelExecutor
         QuiescenceDriver.create(
             evaluationContext, graph, this, visibleUpdates, pendingRootBundles.build());
     executorService.submit(
-        new Runnable() {
+        new Throttleable() {
           @Override
           public void run() {
             DriverState drive = executionDriver.drive();
@@ -178,18 +178,47 @@ final class ExecutorServiceParallelExecutor
                   newPipelineState = State.DONE;
                   break;
                 case CONTINUE:
+                case CONTINUE_THROTTLE:
                   throw new IllegalStateException(
-                      String.format("%s should not be a terminal state", DriverState.CONTINUE));
+                      String.format("%s should not be a terminal state", drive));
                 default:
                   throw new IllegalArgumentException(
                       String.format("Unknown %s %s", DriverState.class.getSimpleName(), drive));
               }
               shutdownIfNecessary(newPipelineState);
             } else {
+              throttle(drive);
               executorService.submit(this);
             }
           }
         });
+  }
+
+  abstract static class Throttleable implements Runnable {
+    static final long DELAY_FIRST = 10;
+    static final long DELAY_MAX = 100;
+    long delay;
+
+    Throttleable() {
+      delay = DELAY_FIRST;
+    }
+
+    void sleep() throws InterruptedException {
+      Thread.sleep(delay);
+    }
+
+    void throttle(DriverState state) {
+      if (DriverState.CONTINUE_THROTTLE.equals(state)) {
+        try {
+          sleep();
+          delay = Math.min(delay * 2, DELAY_MAX);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      } else {
+        delay = DELAY_FIRST;
+      }
+    }
   }
 
   @SuppressWarnings("unchecked")
