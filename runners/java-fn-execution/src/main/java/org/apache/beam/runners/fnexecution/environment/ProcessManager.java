@@ -45,14 +45,8 @@ public class ProcessManager {
   private static final List<ProcessManager> ALL_PROCESS_MANAGERS = new ArrayList<>();
 
   static {
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  synchronized (ALL_PROCESS_MANAGERS) {
-                    ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
-                  }
-                }));
+    // Install a shutdown hook to ensure processes are stopped/killed.
+    Runtime.getRuntime().addShutdownHook(ShutdownHook.create());
   }
 
   private final Map<String, Process> processes;
@@ -188,7 +182,44 @@ public class ProcessManager {
     return !process.isAlive();
   }
 
-  /** Kill all remaining processes forcibly, i.e. upon JVM shutdown */
+  private static class ShutdownHook extends Thread {
+
+    private static ShutdownHook create() {
+      return new ShutdownHook();
+    }
+
+    private ShutdownHook() {}
+
+    public void run() {
+      synchronized (ALL_PROCESS_MANAGERS) {
+        ALL_PROCESS_MANAGERS.forEach(ProcessManager::stopAllProcesses);
+        for (ProcessManager pm : ALL_PROCESS_MANAGERS) {
+          if (pm.processes.values().stream().anyMatch(Process::isAlive)) {
+            try {
+              // Graceful shutdown period
+              Thread.sleep(200);
+              break;
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(e);
+            }
+          }
+        }
+        ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
+      }
+    }
+  }
+
+  /**
+   * Stop all remaining processes gracefully, i.e. upon JVM shutdown
+   */
+  private void stopAllProcesses() {
+    processes.forEach((id, process) -> process.destroy());
+  }
+
+  /**
+   * Kill all remaining processes forcibly, i.e. upon JVM shutdown
+   */
   private void killAllProcesses() {
     processes.forEach((id, process) -> process.destroyForcibly());
   }
