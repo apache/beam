@@ -38,6 +38,7 @@ from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
+from apache_beam.runners.direct.direct_userstate import DirectUserStateContext
 from apache_beam.runners.direct.sdf_direct_runner import ProcessElements
 from apache_beam.runners.direct.sdf_direct_runner import ProcessFn
 from apache_beam.runners.direct.sdf_direct_runner import SDFProcessElementInvoker
@@ -54,7 +55,6 @@ from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.userstate import UserStateUtils
-from apache_beam.transforms.userstate import DirectUserStateContext
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import TypeCheckError
