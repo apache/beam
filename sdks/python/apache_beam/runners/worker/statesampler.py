@@ -24,6 +24,7 @@ from collections import namedtuple
 
 from apache_beam.runners import common
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -46,6 +47,11 @@ def get_current_tracker():
     return _STATE_SAMPLERS.tracker
   except AttributeError:
     return None
+
+
+def for_test():
+  set_current_tracker(StateSampler('test', CounterFactory()))
+  return get_current_tracker()
 
 
 StateSamplerInfo = namedtuple(
