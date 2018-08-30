@@ -191,9 +191,7 @@ public class TopWikipediaSessions {
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
+  public static void run(Options options) {
     Pipeline p = Pipeline.create(options);
 
     double samplingThreshold = 0.1;
@@ -204,5 +202,10 @@ public class TopWikipediaSessions {
         .apply("Write", TextIO.write().withoutSharding().to(options.getOutput()));
 
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    run(options);
   }
 }
