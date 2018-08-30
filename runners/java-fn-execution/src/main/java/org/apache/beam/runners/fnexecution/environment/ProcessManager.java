@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,10 +39,10 @@ import org.slf4j.LoggerFactory;
 public class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
-  /** For debugging purposes, we inherit I/O of processes */
+  /** For debugging purposes, we inherit I/O of processes. */
   private static final boolean INHERIT_IO = LOG.isDebugEnabled();
 
-  /** A list of all managers to ensure all processes shutdown on JVM exit */
+  /** A list of all managers to ensure all processes shutdown on JVM exit . */
   private static final List<ProcessManager> ALL_PROCESS_MANAGERS = new ArrayList<>();
 
   static {
@@ -191,6 +192,7 @@ public class ProcessManager {
     private ShutdownHook() {}
 
     @Override
+    @SuppressFBWarnings("SWL_SLEEP_WITH_LOCK_HELD")
     public void run() {
       synchronized (ALL_PROCESS_MANAGERS) {
         ALL_PROCESS_MANAGERS.forEach(ProcessManager::stopAllProcesses);

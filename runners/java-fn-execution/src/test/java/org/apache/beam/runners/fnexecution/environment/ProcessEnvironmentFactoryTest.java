@@ -26,6 +26,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -44,6 +45,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+/** Tests for {@link ProcessEnvironmentFactory}. */
 @RunWith(JUnit4.class)
 public class ProcessEnvironmentFactoryTest {
 
@@ -65,9 +67,11 @@ public class ProcessEnvironmentFactoryTest {
   private ProcessEnvironmentFactory factory;
 
   @Before
-  public void initMocks() {
+  public void initMocks() throws IOException {
     MockitoAnnotations.initMocks(this);
 
+    when(processManager.startProcess(anyString(), anyString(), anyList()))
+        .thenReturn(Mockito.mock(ProcessManager.RunningProcess.class));
     when(controlServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(retrievalServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);

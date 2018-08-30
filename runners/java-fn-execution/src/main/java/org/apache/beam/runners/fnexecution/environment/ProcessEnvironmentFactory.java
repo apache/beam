@@ -19,7 +19,6 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -127,7 +126,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     InstructionRequestHandler instructionHandler = null;
     try {
       ProcessManager.RunningProcess process =
-          processManager.startProcess(workerId, executable, args, Collections.emptyMap());
+          processManager.startProcess(workerId, executable, args);
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
