@@ -171,14 +171,12 @@ class MethodWrapper(object):
         self.has_userstate_arguments = True
 
   def invoke_with_userstate(self, user_state_context, key, window):
-    print 'INVOKE', window, user_state_context
     if self.has_userstate_arguments:
       kwargs = {}
       for kw, state_spec in self.state_args_to_replace.items():
         kwargs[kw] = user_state_context.get_state(state_spec, key, window)
       for kw, timer_spec in self.timer_args_to_replace.items():
         kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
-      print self.method_value, kwargs
       return self.method_value(**kwargs)
     else:
       return self.method_value()
@@ -357,7 +355,6 @@ class DoFnInvoker(object):
 
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
-        # TODO(ccy): populate a proper timestamp here.
         WindowedValue(None, timestamp, (window,)),
         self.signature.timer_methods[timer_spec].invoke_with_userstate(
             self.user_state_context, key, window))
@@ -529,8 +526,8 @@ class PerWindowInvoker(DoFnInvoker):
   def _invoke_per_window(
       self, windowed_value, additional_args,
       additional_kwargs, output_processor):
-    window, = windowed_value.windows
     if self.has_windowed_inputs:
+      window, = windowed_value.windows
       side_inputs = [si[window] for si in self.side_inputs]
       side_inputs.extend(additional_args)
       args_for_process, kwargs_for_process = util.insert_values_in_args(
@@ -561,6 +558,7 @@ class PerWindowInvoker(DoFnInvoker):
         raise ValueError(
             ('Input value to a stateful DoFn must be a KV tuple; instead, '
              'got %s.') % (windowed_value.value,))
+      window, = windowed_value.windows
 
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
@@ -571,9 +569,11 @@ class PerWindowInvoker(DoFnInvoker):
       elif p == core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
       elif p.__class__ == core.DoFn.StateParam:
-        args_for_process[i] = self.user_state_context.get_state(p.state_spec, key, window)
+        args_for_process[i] = (
+            self.user_state_context.get_state(p.state_spec, key, window))
       elif p.__class__ == core.DoFn.TimerParam:
-        args_for_process[i] = self.user_state_context.get_timer(p.timer_spec, key, window)
+        args_for_process[i] = (
+            self.user_state_context.get_timer(p.timer_spec, key, window))
 
     if additional_kwargs:
       if kwargs_for_process is None:

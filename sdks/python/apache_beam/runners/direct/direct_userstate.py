@@ -18,19 +18,12 @@
 """Support for user state in the BundleBasedDirectRunner."""
 from __future__ import absolute_import
 
-import unittest
-
-import mock
-
-import apache_beam as beam
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import RuntimeState
 from apache_beam.transforms.userstate import RuntimeTimer
-from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import UserStateContext
 from apache_beam.transforms.userstate import UserStateUtils
-from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
 
 
@@ -76,8 +69,8 @@ class DirectUserStateContext(UserStateContext):
     cache_key = (encoded_key, window, state_spec)
     if cache_key not in self.cached_states:
       state_tag = self.state_tags[state_spec]
-      value_accessor = lambda: self._get_underlying_state(state_spec, key, window)
-      print 'NEW STATE', repr(encoded_key), state_spec
+      value_accessor = (
+          lambda: self._get_underlying_state(state_spec, key, window))
       self.cached_states[cache_key] = (
           RuntimeState.for_spec(state_spec, state_tag, value_accessor))
     return self.cached_states[cache_key]
@@ -85,31 +78,32 @@ class DirectUserStateContext(UserStateContext):
   def _get_underlying_state(self, state_spec, key, window):
     state_tag = self.state_tags[state_spec]
     encoded_key = self.key_coder.encode(key)
-    return self.step_context.get_keyed_state(encoded_key).get_state(window, state_tag)
+    return (self.step_context.get_keyed_state(encoded_key)
+            .get_state(window, state_tag))
 
   def commit(self):
     # Commit state modifications.
-    print 'START COMMIT'
-    for (encoded_key, window, state_spec), runtime_state in self.cached_states.items():
+    for cache_key, runtime_state in self.cached_states.items():
+      encoded_key, window, state_spec = cache_key
       state = self.step_context.get_keyed_state(encoded_key)
       state_tag = self.state_tags[state_spec]
       if isinstance(state_spec, BagStateSpec):
         if runtime_state._cleared:
-          print '$$ CLEAR'
           state.clear_state(window, state_tag)
         for new_value in runtime_state._new_values:
-          print '$$ ADD', repr(new_value)
           state.add_state(window, state_tag, new_value)
       elif isinstance(state_spec, CombiningValueStateSpec):
         if runtime_state._modified:
           state.clear_state(window, state_tag)
-          state.add_state(window, state_tag,
-                          state_spec.coder.encode(runtime_state._current_accumulator))
+          state.add_state(
+              window, state_tag,
+              state_spec.coder.encode(runtime_state._current_accumulator))
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 
     # Commit new timers.
-    for (encoded_key, window, timer_spec), runtime_timer in self.cached_timers.items():
+    for cache_key, runtime_timer in self.cached_timers.items():
+      encoded_key, window, timer_spec = cache_key
       state = self.step_context.get_keyed_state(encoded_key)
       timer_name = 'user/%s' % timer_spec.name
       if runtime_timer._cleared:
@@ -119,4 +113,3 @@ class DirectUserStateContext(UserStateContext):
         # allows for keyed watermark holds.
         state.set_timer(window, timer_name, timer_spec.time_domain,
                         runtime_timer._new_timestamp)
-    print 'FINISH COMMIT'

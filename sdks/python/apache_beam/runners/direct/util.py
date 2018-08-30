@@ -51,7 +51,6 @@ class TransformResult(object):
 
     step_context = transform_evaluator._execution_context.get_step_context()
     self.partial_keyed_state = step_context.partial_keyed_state
-    print 'partial_keyed_state', self.partial_keyed_state
 
 
 class TimerFiring(object):

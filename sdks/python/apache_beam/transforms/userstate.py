@@ -28,7 +28,6 @@ from builtins import object
 
 from apache_beam.coders import Coder
 from apache_beam.transforms.timeutil import TimeDomain
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
 
 
 class StateSpec(object):
@@ -59,7 +58,6 @@ class CombiningValueStateSpec(StateSpec):
     from apache_beam.transforms.core import CombineFn
 
     assert isinstance(name, str)
-    # The coder here is 
     assert isinstance(coder, Coder)
     assert isinstance(combine_fn, CombineFn)
     self.name = name
@@ -113,7 +111,7 @@ def on_timer(timer_spec):
 
 class UserStateUtils(object):
 
-  @staticmethod 
+  @staticmethod
   def get_dofn_specs(dofn):
     # Avoid circular import.
     from apache_beam.runners.common import MethodWrapper
@@ -208,7 +206,8 @@ class RuntimeState(object):
     if isinstance(state_spec, BagStateSpec):
       return BagRuntimeState(state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, CombiningValueStateSpec):
-      return CombiningValueRuntimeState(state_spec, state_tag, current_value_accessor)
+      return CombiningValueRuntimeState(state_spec, state_tag,
+                                        current_value_accessor)
     else:
       raise ValueError('Invalid state spec: %s' % state_spec)
 
@@ -281,7 +280,6 @@ class CombiningValueRuntimeState(RuntimeState):
   def add(self, value):
     self._read_initial_value()
     self._modified = True
-    print 'CURRENT', self._current_accumulator
     self._current_accumulator = self._combine_fn.add_input(
         self._current_accumulator, value)
 

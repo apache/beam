@@ -588,9 +588,11 @@ class _ParDoEvaluator(_TransformEvaluator):
         logging.warning(
             'Key coder %s for transform %s with stateful DoFn may not '
             'be deterministic. This may cause incorrect behavior for complex '
-            'key types. Consider adding an input type hint for this transform.')
+            'key types. Consider adding an input type hint for this transform.',
+            self.key_coder, transform)
 
-      self.user_state_context = DirectUserStateContext(self._step_context, dofn, self.key_coder)
+      self.user_state_context = DirectUserStateContext(
+          self._step_context, dofn, self.key_coder)
       _, all_timer_specs = UserStateUtils.get_dofn_specs(dofn)
       for timer_spec in all_timer_specs:
         self.user_timer_map['user/%s' % timer_spec.name] = timer_spec
@@ -606,20 +608,15 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.runner.start()
 
   def process_timer(self, timer_firing):
-    print 'YO, I FIRED', timer_firing
     if timer_firing.name not in self.user_timer_map:
-      logging.warning('Unknown timer fired: %s' % timer_firing)
-      raise 'wtf'
-      return
+      logging.warning('Unknown timer fired: %s', timer_firing)
     timer_spec = self.user_timer_map[timer_firing.name]
-    print 'SPEC', timer_spec
     self.runner.process_user_timer(
-        timer_spec, self.key_coder.decode(timer_firing.encoded_key), timer_firing.window, timer_firing.timestamp)
-    print 'PROCESSED', timer_spec
+        timer_spec, self.key_coder.decode(timer_firing.encoded_key),
+        timer_firing.window, timer_firing.timestamp)
 
 
   def process_element(self, element):
-    print 'PROCESS', element, self._applied_ptransform.transform
     self.runner.process(element)
 
   def finish_bundle(self):

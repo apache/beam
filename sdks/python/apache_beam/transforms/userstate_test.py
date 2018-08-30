@@ -22,19 +22,9 @@ import unittest
 
 import mock
 
-import apache_beam as beam
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import IterableCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.common import DoFnSignature
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_stream import ElementEvent
-from apache_beam.testing.test_stream import ProcessingTimeEvent
-from apache_beam.testing.test_stream import TestStream
-from apache_beam.testing.test_stream import WatermarkEvent
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-from apache_beam.transforms.combiners import ToListCombineFn
 from apache_beam.transforms.combiners import TopCombineFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
@@ -150,8 +140,9 @@ class InterfaceTest(unittest.TestCase):
     expected_specs = (set([BasicStatefulDoFn.BUFFER_STATE]),
                       set([BasicStatefulDoFn.EXPIRY_TIMER]))
     self.assertEqual(expected_specs,
-                      UserStateUtils.get_dofn_specs(stateful_dofn))
-    self.assertEqual(stateful_dofn.expiry_callback,
+                     UserStateUtils.get_dofn_specs(stateful_dofn))
+    self.assertEqual(
+        stateful_dofn.expiry_callback,
         signature.timer_methods[BasicStatefulDoFn.EXPIRY_TIMER].method_value)
 
     stateful_dofn = TestStatefulDoFn()
@@ -162,12 +153,15 @@ class InterfaceTest(unittest.TestCase):
                            TestStatefulDoFn.EXPIRY_TIMER_2,
                            TestStatefulDoFn.EXPIRY_TIMER_3]))
     self.assertEqual(expected_specs,
-                      UserStateUtils.get_dofn_specs(stateful_dofn))
-    self.assertEqual(stateful_dofn.on_expiry_1,
+                     UserStateUtils.get_dofn_specs(stateful_dofn))
+    self.assertEqual(
+        stateful_dofn.on_expiry_1,
         signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_1].method_value)
-    self.assertEqual(stateful_dofn.on_expiry_2,
+    self.assertEqual(
+        stateful_dofn.on_expiry_2,
         signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_2].method_value)
-    self.assertEqual(stateful_dofn.on_expiry_3,
+    self.assertEqual(
+        stateful_dofn.on_expiry_3,
         signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_3].method_value)
 
   def test_bad_signatures(self):
