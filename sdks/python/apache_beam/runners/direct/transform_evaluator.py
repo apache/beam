@@ -615,7 +615,6 @@ class _ParDoEvaluator(_TransformEvaluator):
         timer_spec, self.key_coder.decode(timer_firing.encoded_key),
         timer_firing.window, timer_firing.timestamp)
 
-
   def process_element(self, element):
     self.runner.process(element)
 

@@ -167,7 +167,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         [('timer1', 20), ('timer2', 40), ('timer3', 60)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
-
   def test_index_assignment(self):
     class IndexAssigningStatefulDoFn(DoFn):
       INDEX_STATE = BagStateSpec('index', VarIntCoder())
