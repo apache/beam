@@ -190,6 +190,7 @@ public class ProcessManager {
 
     private ShutdownHook() {}
 
+    @Override
     public void run() {
       synchronized (ALL_PROCESS_MANAGERS) {
         ALL_PROCESS_MANAGERS.forEach(ProcessManager::stopAllProcesses);
@@ -210,16 +211,12 @@ public class ProcessManager {
     }
   }
 
-  /**
-   * Stop all remaining processes gracefully, i.e. upon JVM shutdown
-   */
+  /** Stop all remaining processes gracefully, i.e. upon JVM shutdown */
   private void stopAllProcesses() {
     processes.forEach((id, process) -> process.destroy());
   }
 
-  /**
-   * Kill all remaining processes forcibly, i.e. upon JVM shutdown
-   */
+  /** Kill all remaining processes forcibly, i.e. upon JVM shutdown */
   private void killAllProcesses() {
     processes.forEach((id, process) -> process.destroyForcibly());
   }
