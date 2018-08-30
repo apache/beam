@@ -1009,6 +1009,11 @@ deps:
     artifact: postgresql
     owners: timrobertson100
 
+  org.powermock:powermock-mockito-release-full:
+    group: org.powermock
+    artifact: powermock-mockito-release-full
+    owners: boyuanzz
+
   org.scala-lang:scala-library:
     group: org.scala-lang
     artifact: scala-library
