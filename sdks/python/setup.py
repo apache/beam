@@ -101,15 +101,15 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
-REQUIRED_PACKAGES_PY2 = [
+REQUIRED_PACKAGES_PY2_ONLY = [
     'avro>=1.8.1,<2.0.0'
 ]
 
-REQUIRED_PACKAGES_PY3 = [
+REQUIRED_PACKAGES_PY3_ONLY = [
     'avro-python3>=1.8.1,<2.0.0'
 ]
 
-REQUIRED_PACKAGES_PY23 = [
+REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
     'dill>=0.2.6,<=0.2.8.2',
     'fastavro==0.21.4',
@@ -147,9 +147,9 @@ GCP_REQUIREMENTS = [
 ]
 
 if sys.version_info[0] == 2:
-  REQUIRED_PACKAGES = REQUIRED_PACKAGES_PY2 + REQUIRED_PACKAGES_PY23
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY2_ONLY
 elif sys.version_info[0] >= 3:
-  REQUIRED_PACKAGES = REQUIRED_PACKAGES_PY3 + REQUIRED_PACKAGES_PY23
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY3_ONLY
 
 
 # We must generate protos after setup_requires are installed.
