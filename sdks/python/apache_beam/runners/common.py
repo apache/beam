@@ -170,14 +170,14 @@ class MethodWrapper(object):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
 
-  def invoke_with_userstate(self, user_state_context, window):
+  def invoke_with_userstate(self, user_state_context, key, window):
     print 'INVOKE', window, user_state_context
     if self.has_userstate_arguments:
       kwargs = {}
       for kw, state_spec in self.state_args_to_replace.items():
-        kwargs[kw] = user_state_context.get_state(state_spec, window)
+        kwargs[kw] = user_state_context.get_state(state_spec, key, window)
       for kw, timer_spec in self.timer_args_to_replace.items():
-        kwargs[kw] = user_state_context.get_timer(timer_spec, window)
+        kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
       print self.method_value, kwargs
       return self.method_value(**kwargs)
     else:
@@ -355,12 +355,12 @@ class DoFnInvoker(object):
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
-  def invoke_user_timer(self, timer_spec, window):
+  def invoke_user_timer(self, timer_spec, key, window):
     self.output_processor.process_outputs(
         # TODO(ccy): populate a proper timestamp here.
-        WindowedValue(None, 0, [window]),
+        WindowedValue(None, 0, (window,)),
         self.signature.timer_methods[timer_spec].invoke_with_userstate(
-            self.user_state_context, window))
+            self.user_state_context, key, window))
 
   def invoke_split(self, element, restriction):
     return self.signature.split_method.method_value(element, restriction)
@@ -552,6 +552,16 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
+
+    # Extract key in the case of a stateful DoFn.
+    if self.user_state_context:
+      try:
+        key = windowed_value.value[0]
+      except TypeError:
+        raise ValueError(
+            ('Input value to a stateful DoFn must be a KV tuple; instead, '
+             'got %s.') % (windowed_value.value,))
+
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
@@ -561,9 +571,9 @@ class PerWindowInvoker(DoFnInvoker):
       elif p == core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
       elif p.__class__ == core.DoFn.StateParam:
-        args_for_process[i] = self.user_state_context.get_state(p.state_spec, window)
+        args_for_process[i] = self.user_state_context.get_state(p.state_spec, key, window)
       elif p.__class__ == core.DoFn.TimerParam:
-        args_for_process[i] = self.user_state_context.get_timer(p.timer_spec, window)
+        args_for_process[i] = self.user_state_context.get_timer(p.timer_spec, key, window)
 
     if additional_kwargs:
       if kwargs_for_process is None:
@@ -661,9 +671,9 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  def process_user_timer(self, timer_spec, window):
+  def process_user_timer(self, timer_spec, key, window):
     try:
-      self.do_fn_invoker.invoke_user_timer(timer_spec, window)
+      self.do_fn_invoker.invoke_user_timer(timer_spec, key, window)
     except BaseException as exn:
       self._reraise_augmented(exn)
 

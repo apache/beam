@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import collections
+import logging
 import random
 import time
 from builtins import object
@@ -576,7 +577,20 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.user_state_context = None
     self.user_timer_map = {}
     if UserStateUtils.is_stateful_dofn(dofn):
-      self.user_state_context = DirectUserStateContext(self._step_context.get_keyed_state(None), dofn)
+      kv_type_hint = self._applied_ptransform.inputs[0].element_type
+      if kv_type_hint == typehints.Any:
+        key_type_hint = typehints.Any
+      else:
+        key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
+                         else typehints.Any)
+      key_coder = coders.registry.get_coder(key_type_hint)
+      if not key_coder.is_deterministic():
+        logging.warning(
+            'Key coder %s for transform %s with stateful DoFn may not '
+            'be deterministic. This may cause incorrect behavior for complex '
+            'key types. Consider adding an input type hint for this transform.')
+
+      self.user_state_context = DirectUserStateContext(self._step_context, dofn, key_coder)
       _, all_timer_specs = UserStateUtils.get_dofn_specs(dofn)
       for timer_spec in all_timer_specs:
         self.user_timer_map['user/%s' % timer_spec.name] = timer_spec
@@ -599,7 +613,8 @@ class _ParDoEvaluator(_TransformEvaluator):
       return
     timer_spec = self.user_timer_map[timer_firing.name]
     print 'SPEC', timer_spec
-    self.runner.process_user_timer(timer_spec, timer_firing.window)
+    self.runner.process_user_timer(
+        timer_spec, timer_firing.encoded_key, timer_firing.window)
     print 'PROCESSED', timer_spec
 
 

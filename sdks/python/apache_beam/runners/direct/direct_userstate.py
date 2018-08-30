@@ -41,10 +41,10 @@ class DirectUserStateContext(UserStateContext):
   TransformEvaluator after running a DoFn.
   """
 
-  def __init__(self, state, dofn):
-    # The underlying apache_beam.transforms.trigger.UnmergedState object for
-    # the given key.
-    self.state = state
+  def __init__(self, step_context, dofn, key_coder):
+    self.step_context = step_context
+    self.dofn = dofn
+    self.key_coder = key_coder
 
     self.all_state_specs, self.all_timer_specs = (
         UserStateUtils.get_dofn_specs(dofn))
@@ -62,49 +62,56 @@ class DirectUserStateContext(UserStateContext):
     self.cached_states = {}
     self.cached_timers = {}
 
-  def get_timer(self, timer_spec, window):
+  def get_timer(self, timer_spec, key, window):
     assert timer_spec in self.all_timer_specs
-    if (window, timer_spec) not in self.cached_timers:
-      self.cached_timers[(window, timer_spec)] = RuntimeTimer(timer_spec)
-    return self.cached_timers[(window, timer_spec)]
+    encoded_key = self.key_coder.encode(key)
+    cache_key = (encoded_key, window, timer_spec)
+    if cache_key not in self.cached_timers:
+      self.cached_timers[cache_key] = RuntimeTimer(timer_spec)
+    return self.cached_timers[cache_key]
 
-  def get_state(self, state_spec, window):
+  def get_state(self, state_spec, key, window):
     assert state_spec in self.all_state_specs
-    if (window, state_spec) not in self.cached_states:
+    encoded_key = self.key_coder.encode(key)
+    cache_key = (encoded_key, window, state_spec)
+    if cache_key not in self.cached_states:
       state_tag = self.state_tags[state_spec]
-      value_accessor = lambda: self._get_underlying_state(state_spec, window)
-      self.cached_states[(window, state_spec)] = (
+      value_accessor = lambda: self._get_underlying_state(state_spec, key, window)
+      self.cached_states[cache_key] = (
           RuntimeState.for_spec(state_spec, state_tag, value_accessor))
-    return self.cached_states[(window, state_spec)]
+    return self.cached_states[cache_key]
 
-  def _get_underlying_state(self, state_spec, window):
+  def _get_underlying_state(self, state_spec, key, window):
     state_tag = self.state_tags[state_spec]
-    return self.state.get_state(window, state_tag)
+    encoded_key = self.key_coder.encode(key)
+    return self.step_context.get_keyed_state(encoded_key).get_state(window, state_tag)
 
   def commit(self):
     # Commit state modifications.
-    for (window, state_spec), runtime_state in self.cached_states.items():
+    for (encoded_key, window, state_spec), runtime_state in self.cached_states.items():
+      state = self.step_context.get_keyed_state(encoded_key)
       state_tag = self.state_tags[state_spec]
       if isinstance(state_spec, BagStateSpec):
         if runtime_state._cleared:
-          self.state.clear_state(window, state_tag)
+          state.clear_state(window, state_tag)
         for new_value in runtime_state._new_values:
-          self.state.add_state(window, state_tag, new_value)
+          state.add_state(window, state_tag, new_value)
       elif isinstance(state_spec, CombiningValueStateSpec):
         if runtime_state._modified:
-          self.state.clear_state(window, state_tag)
-          self.state.add_state(window, state_tag,
-                               runtime_state._current_accumulator)
+          state.clear_state(window, state_tag)
+          state.add_state(window, state_tag,
+                          runtime_state._current_accumulator)
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 
     # Commit new timers.
-    for (window, timer_spec), runtime_timer in self.cached_timers.items():
+    for (encoded_key, window, timer_spec), runtime_timer in self.cached_timers.items():
+      state = self.step_context.get_keyed_state(encoded_key)
       timer_name = 'user/%s' % timer_spec.name
       if runtime_timer._cleared:
-        self.state.clear_timer(window, timer_name, timer_spec.time_domain)
+        state.clear_timer(window, timer_name, timer_spec.time_domain)
       if runtime_timer._new_timestamp is not None:
         # TODO(ccy): add corresponding watermark holds after the DirectRunner
         # allows for keyed watermark holds.
-        self.state.set_timer(window, timer_name, timer_spec.time_domain,
-                             runtime_timer._new_timestamp)
+        state.set_timer(window, timer_name, timer_spec.time_domain,
+                        runtime_timer._new_timestamp)
