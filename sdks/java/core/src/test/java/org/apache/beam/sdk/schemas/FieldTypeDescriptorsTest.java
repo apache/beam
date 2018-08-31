@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.schemas.transforms;
+
 import static org.junit.Assert.assertEquals;
+
 import java.util.ArrayList;
 import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
@@ -57,6 +59,7 @@ public class FieldTypeDescriptorsTest {
         TypeDescriptor.of(byte[].class),
         FieldTypeDescriptors.javaTypeForFieldType(FieldType.BYTES));
   }
+
   @Test
   public void testRowTypeToJavaType() {
     assertEquals(
@@ -64,6 +67,7 @@ public class FieldTypeDescriptorsTest {
         FieldTypeDescriptors.javaTypeForFieldType(
             FieldType.array(FieldType.row(Schema.builder().build()))));
   }
+
   @Test
   public void testArrayTypeToJavaType() {
     assertEquals(
@@ -74,6 +78,7 @@ public class FieldTypeDescriptorsTest {
         FieldTypeDescriptors.javaTypeForFieldType(
             FieldType.array(FieldType.array(FieldType.INT64))));
   }
+
   @Test
   public void testMapTypeToJavaType() {
     assertEquals(
@@ -86,6 +91,7 @@ public class FieldTypeDescriptorsTest {
         FieldTypeDescriptors.javaTypeForFieldType(
             FieldType.map(FieldType.STRING, FieldType.array(FieldType.INT64))));
   }
+
   @Test
   public void testPrimitiveTypeToFieldType() {
     assertEquals(
@@ -114,12 +120,15 @@ public class FieldTypeDescriptorsTest {
         FieldType.BYTES,
         FieldTypeDescriptors.fieldTypeForJavaType(TypeDescriptor.of(byte[].class)));
   }
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testRowTypeToFieldType() {
     thrown.expect(IllegalArgumentException.class);
     FieldTypeDescriptors.fieldTypeForJavaType(TypeDescriptors.rows());
   }
+
   @Test
   public void testArrayTypeToFieldType() {
     assertEquals(
@@ -135,6 +144,7 @@ public class FieldTypeDescriptorsTest {
         FieldTypeDescriptors.fieldTypeForJavaType(
             TypeDescriptor.of(new ArrayList<String>() {}.getClass())));
   }
+
   @Test
   public void testMapTypeToFieldType() {
     assertEquals(

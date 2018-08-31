@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.schemas;
+
 import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import java.lang.reflect.ParameterizedType;
@@ -82,6 +84,7 @@ public class FieldTypeDescriptors {
       return fieldType;
     }
   }
+
   private static FieldType getArrayFieldType(TypeDescriptor typeDescriptor) {
     if (typeDescriptor.isArray()) {
       if (typeDescriptor.getComponentType().getType().equals(byte.class)) {
@@ -101,6 +104,7 @@ public class FieldTypeDescriptors {
     }
     throw new RuntimeException("Coupld not determine array parameter type for field.");
   }
+
   private static FieldType getMapFieldType(TypeDescriptor typeDescriptor) {
     TypeDescriptor<Collection<?>> map = typeDescriptor.getSupertype(Map.class);
     if (map.getType() instanceof ParameterizedType) {
