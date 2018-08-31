@@ -49,7 +49,6 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-hadoop-input-format", configuration: "shadowTest")
   testCompile library.java.postgres
