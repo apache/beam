@@ -25,15 +25,13 @@ apply plugin: "base"
 task test {}
 check.dependsOn test
 
-def homePath = System.properties['user.home']
-def envdir = "/tmp/beam-${version}/gradleenv"
+def envdir = "${project.buildDir}/gradleenv"
 def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
   doLast {
-    file("${envdir}").mkdirs()
     exec {
-      commandLine 'virtualenv', "-p /export/apps/python/2.7/bin/python ${envdir}"
+      commandLine 'virtualenv', "${envdir}"
     }
     exec {
       executable 'sh'
@@ -54,15 +52,11 @@ task sdist(dependsOn: 'setupVirtualenv') {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
     }
-    def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam*.tgz'}
-    println "sdist archive name: ${collection.singleFile}"
-    // we need a fixed name for the artifact
-    copy { from collection.singleFile; into "${project.buildDir}"; rename { "apache-beam-${version}.tgz" } }
   }
 }
 
 artifacts {
-  distConfig file: file("${project.buildDir}/apache-beam-${version}.tgz"), builtBy: sdist
+  distConfig file: file("${project.buildDir}/apache-beam-${version}.tar.gz"), name: "apache-beam-${version}", type: 'tgz', extension: 'tar.gz', builtBy: sdist
 }
 
 task cleanPython(dependsOn: 'setupVirtualenv') {
@@ -268,12 +262,12 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
   }
 }
 
-uploadArchives {}
+uploadArchives { }
 
 task createPackage {
   dependsOn uploadArchives
   doLast {
-    def outputDir = file("$rootDir/../build/$project.name/distributions")
+    def outputDir = file("$rootDir/../python-sdist/$project.name/distributions")
     outputDir.mkdirs()
 
     copy {
@@ -283,7 +277,7 @@ task createPackage {
     }
 
     copy {
-      from "${project.buildDir}/apache-beam-${version}.tgz"
+      from "${project.buildDir}/apache-beam-${version}.tar.gz"
       into outputDir
     }
   }
