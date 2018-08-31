@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.schemas.transforms;
+
 import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -54,6 +56,7 @@ public class UnnestTest implements Serializable {
       Schema.builder().addRowField("nested", SIMPLE_SCHEMA).build();
   static final Schema DOUBLE_NESTED_SCHEMA =
       Schema.builder().addRowField("nested", NESTED_SCHEMA).build();
+
   @Test
   @Category(NeedsRunner.class)
   public void testFlatSchema() {
@@ -66,6 +69,7 @@ public class UnnestTest implements Serializable {
     PAssert.that(unnested).containsInAnyOrder(rows);
     pipeline.run();
   }
+
   @Test
   @Category(NeedsRunner.class)
   public void testSimpleUnnesting() {
@@ -94,11 +98,13 @@ public class UnnestTest implements Serializable {
     PAssert.that(unnested).containsInAnyOrder(expected);
     pipeline.run();
   }
+
   static final Schema ONE_LEVEL_UNNESTED_SCHEMA =
       Schema.builder()
           .addRowField("nested.nested1", SIMPLE_SCHEMA)
           .addRowField("nested.nested2", SIMPLE_SCHEMA)
           .build();
+
   @Test
   @Category(NeedsRunner.class)
   public void testMaxLevel() {
@@ -126,8 +132,10 @@ public class UnnestTest implements Serializable {
     PAssert.that(unnested).containsInAnyOrder(expected);
     pipeline.run();
   }
+
   static final Schema UNNESTED2_SCHEMA_ALTERNATE =
       Schema.builder().addInt32Field("field1").addStringField("field2").build();
+
   @Test
   @Category(NeedsRunner.class)
   public void testAlternateNamePolicy() {
@@ -158,6 +166,7 @@ public class UnnestTest implements Serializable {
     PAssert.that(unnested).containsInAnyOrder(expected);
     pipeline.run();
   }
+
   @Test
   @Category(NeedsRunner.class)
   public void testClashingNamePolicy() {

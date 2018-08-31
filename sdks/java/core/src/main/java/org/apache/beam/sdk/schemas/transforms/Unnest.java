@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.schemas.transforms;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -83,6 +84,7 @@ public class Unnest {
     List<String> nameComponents = Lists.newArrayList();
     return getUnnestedSchema(schema, nameComponents, fn, maxLevels, 0);
   }
+
   private static Schema getUnnestedSchema(
       Schema schema,
       List<String> nameComponents,
@@ -114,6 +116,7 @@ public class Unnest {
     unnestRow(input, builder, maxLevel, 0);
     return builder.build();
   }
+
   private static void unnestRow(Row input, Row.Builder output, int maxLevel, int currentLevel) {
     for (int i = 0; i < input.getSchema().getFieldCount(); ++i) {
       Field field = input.getSchema().getField(i);
@@ -128,13 +131,18 @@ public class Unnest {
   @AutoValue
   public abstract static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     abstract Builder<T> toBuilder();
+
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setMaxLevels(int maxLevels);
+
       abstract Builder<T> setFieldNameFunction(SerializableFunction<List<String>, String> fn);
+
       abstract Inner<T> build();
     };
+
     abstract int getMaxLevels();
+
     abstract SerializableFunction<List<String>, String> getFieldNameFunction();
     /**
      * Any rows nested deeper than this will not be unnested.
@@ -154,6 +162,7 @@ public class Unnest {
     public Inner<T> withFieldNameFunction(SerializableFunction<List<String>, String> fn) {
       return toBuilder().setFieldNameFunction(fn).build();
     }
+
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
