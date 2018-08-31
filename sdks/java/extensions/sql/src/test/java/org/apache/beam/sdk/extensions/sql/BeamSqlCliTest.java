@@ -158,16 +158,16 @@ public class BeamSqlCliTest {
                         "address",
                         Schema.FieldType.row(
                             Schema.builder()
-                                .addNullableField("street", Schema.FieldType.STRING)
-                                .addNullableField("country", Schema.FieldType.STRING)
+                                .addNullableField("street", VARCHAR)
+                                .addNullableField("country", VARCHAR)
                                 .build()))
                     .withNullable(true),
                 Field.of(
                         "addressAngular",
                         Schema.FieldType.row(
                             Schema.builder()
-                                .addNullableField("street", Schema.FieldType.STRING)
-                                .addNullableField("country", Schema.FieldType.STRING)
+                                .addNullableField("street", VARCHAR)
+                                .addNullableField("country", VARCHAR)
                                 .build()))
                     .withNullable(true),
                 Field.of("isRobot", BOOLEAN).withNullable(true))
