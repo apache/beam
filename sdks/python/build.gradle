@@ -33,7 +33,7 @@ task setupVirtualenv {
   doLast {
     file("${envdir}").mkdirs()
     exec {
-      commandLine 'virtualenv', "${envdir}"
+      commandLine 'virtualenv', "-p /export/apps/python/2.7/bin/python ${envdir}"
     }
     exec {
       executable 'sh'
