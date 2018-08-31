@@ -34,8 +34,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Integration test for BigQueryIORead. It reads from a specified table and then asserts that
- * the number of records read equals the given expected number of records. */
+/**
+ * Integration test for BigQueryIORead. It reads from a specified table and then asserts that the
+ * number of records read equals the given expected number of records.
+ */
 @RunWith(JUnit4.class)
 public class BigQueryIOReadIT {
 
@@ -43,18 +45,20 @@ public class BigQueryIOReadIT {
   private String project;
   private static final String datasetId = "big_query_import_export";
   private static final String tablePrefix = "export_";
-  private static final Map<String, Integer> numOfRecords = ImmutableMap.of("empty", 0,
-    "1K", 1000);
+  private static final Map<String, Integer> numOfRecords = ImmutableMap.of("empty", 0, "1K", 1000);
 
+  /** Customized PipelineOption for BigQueryIORead Pipeline. */
   public interface BigQueryIOReadOptions extends TestPipelineOptions {
     @Description("The table to be read")
     @Validation.Required
     String getInputTable();
+
     void setInputTable(String filename);
 
     @Description("The expected number of records")
     @Validation.Required
     long getNumRecords();
+
     void setNumRecords(long numRecords);
   }
 
@@ -70,13 +74,12 @@ public class BigQueryIOReadIT {
   private void runBigQueryIOReadPipeline() {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count =
-      p.apply("Read", BigQueryIO.read().from(options.getInputTable()))
-        .apply("Count", Count.globally());
+        p.apply("Read", BigQueryIO.read().from(options.getInputTable()))
+            .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
 
     p.run().waitUntilFinish();
   }
-
 
   @Test
   public void testBigQueryReadEmpty() throws Exception {
@@ -89,5 +92,4 @@ public class BigQueryIOReadIT {
     setupTestEnvironment("1K");
     runBigQueryIOReadPipeline();
   }
-
 }
