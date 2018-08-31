@@ -1034,7 +1034,8 @@ class _WriteBundleDoFn(core.DoFn):
 
   def finish_bundle(self):
     if self.writer is not None:
-      yield WindowedValue(self.writer.close(), window.MAX_TIMESTAMP,
+      yield WindowedValue(self.writer.close(),
+                          window.GlobalWindow().max_timestamp(),
                           [window.GlobalWindow()])
 
 
