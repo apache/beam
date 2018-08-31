@@ -40,9 +40,11 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.internal import names
@@ -340,6 +342,15 @@ class DataflowRunner(PipelineRunner):
     if setup_options.beam_plugins is not None:
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
+
+    # Elevate "min_cpu_platform" to pipeline option, but using the existing experiment
+    debug_options = pipeline._options.view_as(DebugOptions)
+    worker_options = pipeline._options.view_as(WorkerOptions)
+    if worker_options.min_cpu_platform:
+      experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
 
     self.job = apiclient.Job(pipeline._options, self.proto_pipeline)
 
