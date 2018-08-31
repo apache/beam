@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.Supplier;
 
 /**
  * A {@code DataSource} that is backed up by simple list.
@@ -38,7 +39,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 @Audience({Audience.Type.CLIENT, Audience.Type.TESTS})
 public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSource<T, Integer> {
 
-  private final List<List<?>> storage;
+  private List<List<?>> storage;
+  private final Supplier<List<List<T>>> partitionsSupplier;
   private final boolean bounded;
   private final int id = System.identityHashCode(this);
   private final int partition;
@@ -51,35 +53,109 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
     this.bounded = bounded;
     this.parent = null;
     this.partition = -1;
+    this.partitionsSupplier = null;
     Objects.requireNonNull(partitions);
 
     storage = (List) partitions;
+  }
+
+  private ListDataSource(boolean bounded, Supplier<List<List<T>>> partitionsSupplier) {
+    this.bounded = bounded;
+    this.parent = null;
+    this.partition = -1;
+    this.storage = null;
+    this.partitionsSupplier = Objects.requireNonNull(partitionsSupplier);
   }
 
   private ListDataSource(ListDataSource<T> parent, int partition) {
     this.bounded = parent.bounded;
     this.parent = parent;
     this.partition = partition;
+    this.partitionsSupplier = null;
     storage = null;
   }
 
+  /**
+   * This type of {@link ListDataSource} construction requires data items to be serializable. Use
+   * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
+   * serialization.
+   *
+   * @param partitions
+   * @param <T>
+   * @return
+   */
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
     return of(true, partitions);
   }
 
+  public static <T> ListDataSource<T> bounded(Supplier<List<List<T>>> partitionsSupplier) {
+    return of(true, partitionsSupplier);
+  }
+
+  public static <T> ListDataSource<T> boundedOnePartiton(Supplier<List<T>> partitionsSupplier) {
+    return ofOnePartition(true, partitionsSupplier);
+  }
+
+  /**
+   * This type of {@link ListDataSource} construction requires data items to be serializable. Use
+   * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
+   * serialization.
+   *
+   * @param partitions
+   * @param <T>
+   * @return
+   */
   @SafeVarargs
   public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
     return of(false, partitions);
   }
 
+  public static <T> ListDataSource<T> unbounded(Supplier<List<List<T>>> partitionsSupplier) {
+    return of(true, partitionsSupplier);
+  }
+
+  public static <T> ListDataSource<T> unboundedOnePartition(Supplier<List<T>> partitionsSupplier) {
+    return ofOnePartition(true, partitionsSupplier);
+  }
+
+  /**
+   * This type of {@link ListDataSource} construction requires data items to be serializable. Use
+   * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
+   * serialization.
+   *
+   * @param bounded
+   * @param partitions
+   * @param <T>
+   * @return
+   */
   @SafeVarargs
   public static <T> ListDataSource<T> of(boolean bounded, List<T>... partitions) {
     return of(bounded, Lists.newArrayList(partitions));
   }
 
+  /**
+   * This type of {@link ListDataSource} construction requires data items to be serializable. Use
+   * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
+   * serialization.
+   *
+   * @param bounded
+   * @param partitions
+   * @param <T>
+   * @return
+   */
   public static <T> ListDataSource<T> of(boolean bounded, List<List<T>> partitions) {
     return new ListDataSource<>(bounded, partitions);
+  }
+
+  public static <T> ListDataSource<T> of(
+      boolean bounded, Supplier<List<List<T>>> partitionsSupplier) {
+    return new ListDataSource<>(bounded, partitionsSupplier);
+  }
+
+  public static <T> ListDataSource<T> ofOnePartition(
+      boolean bounded, Supplier<List<T>> partitionsSupplier) {
+    return new ListDataSource<>(bounded, () -> Collections.singletonList(partitionsSupplier.get()));
   }
 
   @Override
@@ -96,9 +172,25 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
     return id;
   }
 
+  /**
+   * Lazy fetch of partitions data. It is lazy to allow serialization of {@link ListDataSource}
+   * before actual use when partition data {@link Supplier} is given. It is synchronized to prevent
+   * concurrent initializations and repeated calls to {@link ListDataSource#partitionsSupplier}.
+   */
+  private synchronized void fetchPartitions() {
+    if (storage != null || partitionsSupplier == null) {
+      return;
+    }
+
+    @SuppressWarnings("unchecked")
+    List<List<?>> storage = (List) partitionsSupplier.get();
+    this.storage = storage;
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public List<UnboundedPartition<T, Integer>> getPartitions() {
+    fetchPartitions();
     final int n = storage.size();
     List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
     for (int i = 0; i < n; i++) {
@@ -111,6 +203,7 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
   @Override
   @SuppressWarnings("unchecked")
   public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
+    fetchPartitions();
     int partition = 0;
     List<BoundedDataSource<T>> ret = new ArrayList<>();
     for (List l : storage) {
@@ -127,6 +220,7 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
   @Override
   @SuppressWarnings("unchecked")
   public BoundedReader<T> openReader() throws IOException {
+    fetchPartitions();
     final List<Integer> partitions;
     final List<List<?>> storedData;
 
