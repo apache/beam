@@ -104,7 +104,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill>=0.2.6,<=0.2.8.2',
-    'fastavro==0.19.7',
+    'fastavro==0.21.4',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
