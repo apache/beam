@@ -1512,21 +1512,9 @@ public class PipelineOptionsFactory {
                   Sets.filter(
                       propertyNamesToGetters.keySet(),
                       input -> StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2));
-          switch (closestMatches.size()) {
-            case 0:
-              throw new IllegalArgumentException(
-                  String.format("Class %s missing a property named '%s'.", klass, entry.getKey()));
-            case 1:
-              throw new IllegalArgumentException(
-                  String.format(
-                      "Class %s missing a property named '%s'. Did you mean '%s'?",
-                      klass, entry.getKey(), Iterables.getOnlyElement(closestMatches)));
-            default:
-              throw new IllegalArgumentException(
-                  String.format(
-                      "Class %s missing a property named '%s'. Did you mean one of %s?",
-                      klass, entry.getKey(), closestMatches));
-          }
+
+          throw PipelineOptionUnexpectedPropertyException.create(
+              klass, entry.getKey(), closestMatches);
         }
         Method method = propertyNamesToGetters.get(entry.getKey());
         // Only allow empty argument values for String, String Array, and Collection<String>.
