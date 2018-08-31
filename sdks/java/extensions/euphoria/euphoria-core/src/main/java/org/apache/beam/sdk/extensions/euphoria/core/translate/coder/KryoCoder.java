@@ -78,8 +78,8 @@ public class KryoCoder<T> extends CustomCoder<T> {
       throw new CoderException(
           String.format(
               "Cannot encode given object of type '%s'. "
-                  + "Forgotten kryo registration is possible explanation.",
-              (value == null) ? null : value.getClass().getSimpleName()),
+                  + "Forgotten kryo registration is possible explanation. Kryo registrations where done by '%s'.",
+              (value == null) ? null : value.getClass().getSimpleName(), registrarWithId),
           e);
     }
   }
@@ -100,7 +100,10 @@ public class KryoCoder<T> extends CustomCoder<T> {
 
     } catch (KryoException e) {
       throw new CoderException(
-          "Cannot decode object from input stream. Forgotten kryo registration is possible explanation.",
+          String.format(
+              "Cannot decode object from input stream."
+                  + " Forgotten kryo registration is possible explanation. Kryo registrations where done by '%s'.",
+              registrarWithId),
           e);
     }
   }
