@@ -25,11 +25,13 @@ apply plugin: "base"
 task test {}
 check.dependsOn test
 
-def envdir = "${project.buildDir}/gradleenv"
+def homePath = System.properties['user.home']
+def envdir = "$homePath/beam-${version}/gradleenv"
 def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
   doLast {
+    file("${envdir}").mkdirs()
     exec {
       commandLine 'virtualenv', "${envdir}"
     }
