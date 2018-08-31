@@ -52,15 +52,15 @@ task sdist(dependsOn: 'setupVirtualenv') {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
     }
-    def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
+    def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam*.tgz'}
     println "sdist archive name: ${collection.singleFile}"
     // we need a fixed name for the artifact
-    copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
+    copy { from collection.singleFile; into "${project.buildDir}"; rename { "apache-beam-${version}.tgz" } }
   }
 }
 
 artifacts {
-  distConfig file: file("${project.buildDir}/apache-beam.tar.gz"), builtBy: sdist
+  distConfig file: file("${project.buildDir}/apache-beam-${version}.tgz"), builtBy: sdist
 }
 
 task cleanPython(dependsOn: 'setupVirtualenv') {
@@ -262,6 +262,27 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
     exec {
       executable 'sh'
       args '-c', "./scripts/run_dependency_check.sh"
+    }
+  }
+}
+
+uploadArchives {}
+
+task createPackage {
+  dependsOn uploadArchives
+  doLast {
+    def outputDir = file("$rootDir/../build/$project.name/distributions")
+    outputDir.mkdirs()
+
+    copy {
+      from "$buildDir/ivy.xml"
+      into outputDir.getParent()
+      rename "ivy.xml", "${project.name}-${version}.ivy"
+    }
+
+    copy {
+      from "${project.buildDir}/apache-beam-${version}.tgz"
+      into outputDir
     }
   }
 }
