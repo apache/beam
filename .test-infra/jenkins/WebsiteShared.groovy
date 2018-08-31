@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+// TODO(BEAM-4505): Remove this file once apache/beam-site jobs stop using it.
 
 @groovy.transform.Field static final String install_ruby_and_gems_bash = '''
         maxKeyFetchAttempts=5

@@ -16,30 +16,13 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
-import WebsiteShared as websiteShared
+import PrecommitJobBuilder
 
-// TODO(BEAM-4505): This job is for the apache/beam-site repository and
-// should be removed once website sources are migrated to apache/beam.
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Website',
+    gradleTask: ':websitePreCommit',
+    triggerPathPatterns: ['^website/.*$']
+)
+builder.build()
 
-// Defines a job.
-job('beam_PreCommit_Website_Merge') {
-  description('Runs website tests for mergebot.')
-
-  // Set common parameters.
-  commonJobProperties.setTopLevelWebsiteJobProperties(delegate, 'mergebot')
-
-  triggers {
-    githubPush()
-  }
-
-  steps {
-    // Run the following shell script as a build step.
-    shell """
-        ${websiteShared.install_ruby_and_gems_bash}
-        # Build the new site and test it.
-        rm -fr ./content/
-        bundle exec rake test
-    """.stripIndent().trim()
-  }
-}
