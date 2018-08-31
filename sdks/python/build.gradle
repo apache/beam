@@ -26,7 +26,7 @@ task test {}
 check.dependsOn test
 
 def homePath = System.properties['user.home']
-def envdir = "$homePath/beam-${version}/gradleenv"
+def envdir = "/tmp/beam-${version}/gradleenv"
 def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
