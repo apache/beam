@@ -132,7 +132,10 @@ public class RowCoder extends CustomCoder<Row> {
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
     switch (fieldType.getTypeName()) {
       case MAP:
-        throw new NonDeterministicException(this, "Map-valued fields cannot be used in keys");
+        throw new NonDeterministicException(
+            this,
+            "Map-valued fields cannot be used in keys as Beam requires deterministic encoding for"
+                + " keys.");
       case ROW:
         verifyDeterministic(fieldType.getRowSchema());
         break;

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 
+/** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
 class SchemaAggregateFn {
   static <T> Inner<T> create() {
@@ -97,7 +98,7 @@ class SchemaAggregateFn {
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
           this.inputSubSchema = Select.getOutputSchema(inputSchema, this.fieldsToAggregate);
-          this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema, Integer.MAX_VALUE);
+          this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema);
           this.needsUnnesting = !inputSchema.equals(unnestedInputSubSchema);
         } else {
           this.fieldsToAggregate = fieldsToAggregate;
@@ -247,9 +248,7 @@ class SchemaAggregateFn {
                 row.getSchema(),
                 fieldAggregation.inputSubSchema);
         if (fieldAggregation.needsUnnesting) {
-          selected =
-              Unnest.unnestRow(
-                  selected, fieldAggregation.unnestedInputSubSchema, Integer.MAX_VALUE);
+          selected = Unnest.unnestRow(selected, fieldAggregation.unnestedInputSubSchema);
         }
         return selected.getValue(0);
       }

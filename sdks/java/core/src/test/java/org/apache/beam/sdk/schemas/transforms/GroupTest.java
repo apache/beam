@@ -56,7 +56,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-/** Test for {@link org.apache.beam.sdk.schemas.transforms.Group}. */
+/** Test for {@link Group}. */
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
