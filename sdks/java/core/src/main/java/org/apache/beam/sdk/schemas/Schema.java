@@ -529,16 +529,16 @@ public class Schema implements Serializable {
     public abstract Builder toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setName(String name);
+    public abstract static class Builder {
+      public abstract Builder setName(String name);
 
-      abstract Builder setDescription(String description);
+      public abstract Builder setDescription(String description);
 
-      abstract Builder setType(FieldType fieldType);
+      public abstract Builder setType(FieldType fieldType);
 
-      abstract Builder setNullable(Boolean nullable);
+      public abstract Builder setNullable(Boolean nullable);
 
-      abstract Field build();
+      public abstract Field build();
     }
 
     /** Return's a field with the give name and type. */
