@@ -34,7 +34,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class TopWikipediaSessionsIT {
 
-  private static final String DEFAULT_OUTPUT_CHECKSUM = "ebf895e7324e8a3edc72e7bcc96fa2ba7f690def";
+  private static final String DEFAULT_INPUT_10_FILES =
+      "gs://apache-beam-samples/wikipedia_edits/wiki_data-00000000000*.json";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "a7f0c50b895d0a2e37b78c3f94eadcfb11a647a6";
 
   /** PipelineOptions for the TopWikipediaSessions integration test. */
   public interface TopWikipediaSessionsITOptions
@@ -50,6 +52,7 @@ public class TopWikipediaSessionsIT {
     TopWikipediaSessionsITOptions options =
         TestPipeline.testingPipelineOptions().as(TopWikipediaSessionsITOptions.class);
 
+    options.setInput(DEFAULT_INPUT_10_FILES);
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
