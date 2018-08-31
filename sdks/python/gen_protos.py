@@ -113,10 +113,14 @@ def generate_proto_files(force=False):
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
 
+    ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
+    if ret_code:
+      raise RuntimeError(
+          'Error installing future during proto generation')
+
     ret_code = subprocess.call(
         ["futurize", "--both-stages", "--write", "--verbose", "--no-diff",
          out_dir])
-
     if ret_code:
       raise RuntimeError(
           'Error applying futurize to generated protobuf python files.')
