@@ -202,7 +202,7 @@ public class Top {
   /** Returns a {@link TopCombineFn} that aggregates the smallest count double values. */
   public static TopCombineFn<Double, Reversed<Double>> smallestDoublesFn(int count) {
     return new TopCombineFn<Double, Reversed<Double>>(count, new Reversed<>()) {};
-  }	  }
+  }
 
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<KV<K, V>>} and returns a
