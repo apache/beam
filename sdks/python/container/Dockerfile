@@ -55,7 +55,6 @@ RUN \
     pip install "pytz == 2018.4" && \
     pip install "pyyaml == 3.12" && \
     pip install "pyvcf == 0.6.8" && \
-    pip install "six == 1.10.0" && \
     pip install "typing == 3.6.1" && \
     pip install "futures == 3.1.1" && \
     pip install "future == 0.16.0" && \
