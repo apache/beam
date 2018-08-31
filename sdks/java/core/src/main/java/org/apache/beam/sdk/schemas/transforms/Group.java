@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.Row;
  * type:
  *
  * <pre>{@code
- * {@literal @DefaultSchema(JavaFieldSchema.class)}
+ * @DefaultSchema(JavaFieldSchema.class)
  * public class UserPurchase {
  *   public String userId;
  *   public String country;
@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>You can group all purchases by user and country as follows:
  *
  * <pre>{@code
- * {@literal @DefaultSchema(JavaFieldSchema.class)}
+ * @DefaultSchema(JavaFieldSchema.class)
  * {@literal PCollection<KV<Row, Iterable<UserPurchase>>} byUser =
  *   purchases.apply(Group.byFieldNames("userId', "country"));
  * }</pre>
@@ -71,7 +71,7 @@ import org.apache.beam.sdk.values.Row;
  * schema, and generating an output schema based on these aggregations. For example:
  *
  * <pre>{@code
- * {@literal PCollection<KV<Row, Row>>} aggregated = purchases
+ * PCollection<KV<Row, Row>> aggregated = purchases
  *      .apply(Group.byFieldNames("userId', "country")
  *          .aggregateField("cost", Sum.ofLongs(), "total_cost")
  *          .aggregateField("cost", Top.<Long>largestLongsFn(10), "top_purchases")

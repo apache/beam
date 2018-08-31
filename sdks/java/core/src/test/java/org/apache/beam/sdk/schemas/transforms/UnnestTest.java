@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
 import static org.junit.Assert.assertEquals;
@@ -41,7 +40,6 @@ public class UnnestTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   static final Schema SIMPLE_SCHEMA =
       Schema.builder().addInt32Field("field1").addStringField("field2").build();
-
   static final Schema NESTED_SCHEMA =
       Schema.builder()
           .addRowField("nested1", SIMPLE_SCHEMA)
@@ -56,7 +54,6 @@ public class UnnestTest implements Serializable {
           .build();
   static final Schema NESTED_SCHEMA2 =
       Schema.builder().addRowField("nested", SIMPLE_SCHEMA).build();
-
   static final Schema DOUBLE_NESTED_SCHEMA =
       Schema.builder().addRowField("nested", NESTED_SCHEMA).build();
 
@@ -67,7 +64,6 @@ public class UnnestTest implements Serializable {
         IntStream.rangeClosed(0, 2)
             .mapToObj(i -> Row.withSchema(SIMPLE_SCHEMA).addValues(i, Integer.toString(i)).build())
             .collect(Collectors.toList());
-
     PCollection<Row> unnested =
         pipeline.apply(Create.of(rows).withRowSchema(SIMPLE_SCHEMA)).apply(Unnest.create());
     PAssert.that(unnested).containsInAnyOrder(rows);
@@ -89,7 +85,6 @@ public class UnnestTest implements Serializable {
     PCollection<Row> unnested =
         pipeline.apply(Create.of(rows).withRowSchema(NESTED_SCHEMA)).apply(Unnest.create());
     assertEquals(UNNESTED_SCHEMA, unnested.getSchema());
-
     List<Row> expected =
         bottomRow
             .stream()
@@ -120,7 +115,6 @@ public class UnnestTest implements Serializable {
         IntStream.rangeClosed(0, 2)
             .mapToObj(i -> Row.withSchema(SIMPLE_SCHEMA).addValues(i, Integer.toString(i)).build())
             .collect(Collectors.toList());
-
     List<Row> rows =
         bottomRow
             .stream()
@@ -131,7 +125,6 @@ public class UnnestTest implements Serializable {
             .apply(Create.of(rows).withRowSchema(NESTED_SCHEMA2))
             .apply(Unnest.<Row>create().withFieldNameFunction(Unnest.KEEP_NESTED_NAME));
     assertEquals(UNNESTED2_SCHEMA_ALTERNATE, unnested.getSchema());
-
     List<Row> expected =
         bottomRow
             .stream()

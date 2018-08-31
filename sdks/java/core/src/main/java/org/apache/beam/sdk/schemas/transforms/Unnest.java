@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
@@ -63,7 +62,6 @@ public class Unnest {
       l -> {
         return String.join("_", l);
       };
-
   /**
    * This policy keeps the raw nested field name. If two differently-nested fields have the same
    * name, unnesting will fail with this policy.
@@ -119,7 +117,6 @@ public class Unnest {
       }
     }
   }
-
   /** A {@link PTransform} that unnests nested row. */
   @AutoValue
   public abstract static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
@@ -133,7 +130,6 @@ public class Unnest {
     };
 
     abstract SerializableFunction<List<String>, String> getFieldNameFunction();
-
     /**
      * Sets a policy for naming deeply-nested fields.
      *
