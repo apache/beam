@@ -3,9 +3,7 @@ require 'html-proofer'
 require 'etc'
 
 task :test do
-  FileUtils.rm_rf('./.testcontent')
-  sh "bundle exec jekyll build --config _config.yml,_config_test.yml"
-  HTMLProofer.check_directory("./.testcontent", {
+  HTMLProofer.check_directory("./content", {
     :typhoeus => {
       :timeout => 60,
       :connecttimeout => 40 },
@@ -13,6 +11,10 @@ task :test do
     :check_html => true,
     :file_ignore => [/javadoc/, /v2/, /pydoc/],
     :url_ignore => [
+        # Javadocs and Pydocs are only available on asf-site branch
+        /documentation\/sdks\/javadoc/,
+        /documentation\/sdks\/pydoc/,
+
         /jstorm.io/,
         /datatorrent.com/,
         /ai.google/ # https://issues.apache.org/jira/browse/INFRA-16527

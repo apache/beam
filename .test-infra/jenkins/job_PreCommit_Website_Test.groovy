@@ -19,6 +19,9 @@
 import CommonJobProperties as commonJobProperties
 import WebsiteShared as websiteShared
 
+// TODO(BEAM-4505): This job is for the apache/beam-site repository and
+// should be removed once website sources are migrated to apache/beam.
+
 // Defines a job.
 job('beam_PreCommit_Website_Test') {
   description('Runs tests on the pull requests proposed for the Apache Beam ' +

@@ -141,8 +141,6 @@ rat {
     // Ruby build files
     "**/Gemfile.lock",
     "**/Rakefile",
-    "**/_config.yml",
-    "**/_config_test.yml",
     "**/.htaccess",
     "website/src/_sass/_bootstrap.scss",
     "website/src/_sass/bootstrap/**/*",
@@ -238,6 +236,12 @@ task pythonPreCommit() {
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
+
+task websitePreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-website:preCommit"
+}
+
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
