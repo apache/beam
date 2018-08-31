@@ -343,7 +343,8 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    # Elevate "min_cpu_platform" to pipeline option, but using the existing experiment
+    # Elevate "min_cpu_platform" to pipeline option, but using the existing
+    # experiment
     debug_options = pipeline._options.view_as(DebugOptions)
     worker_options = pipeline._options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
