@@ -25,7 +25,7 @@ from builtins import object
 from builtins import range
 from functools import partial
 
-from six import integer_types
+from past.builtins import long
 
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
@@ -76,7 +76,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     @position.setter
     def position(self, value):
-      assert isinstance(value, integer_types)
+      assert isinstance(value, (int, long))
       if value > len(self._data):
         raise ValueError('Cannot set position to %d since it\'s larger than '
                          'size of data %d.' % (value, len(self._data)))
