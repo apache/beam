@@ -54,6 +54,7 @@ var (
 	network         = flag.String("network", "", "GCP network (optional)")
 	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
 	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	minCPUPlatform  = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -110,9 +111,14 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	hooks.SerializeHooksToOptions()
 
+	experiments := jobopts.GetExperiments()
+	if *minCPUPlatform != "" {
+		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
+	}
+
 	opts := &dataflowlib.JobOptions{
 		Name:           jobopts.GetJobName(),
-		Experiments:    jobopts.GetExperiments(),
+		Experiments:    experiments,
 		Options:        beam.PipelineOptions.Export(),
 		Project:        project,
 		Region:         *region,
