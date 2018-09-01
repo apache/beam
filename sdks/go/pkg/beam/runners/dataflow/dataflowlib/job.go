@@ -89,7 +89,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*d
 		Environment: &df.Environment{
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
-				Version: "0.3.0",
+				Version: "0.5.0",
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,
