@@ -20,13 +20,7 @@ limitations under the License.
 
 # Eclipse Tips
 
-> These are best-effort community-contributed tips, and are not...
->
-> - ... guaranteed to work with any particular Eclipse setup.
-> - ... the only or best way to work.
-> - ... an endorsement of Eclipse over alternatives.
->
-> Mastering Eclipse is, ultimately, your responsibility.
+> These are best-effort community-contributed tips, and are not guaranteed to work with any particular Eclipse setup.
 
 ## Eclipse version
 
