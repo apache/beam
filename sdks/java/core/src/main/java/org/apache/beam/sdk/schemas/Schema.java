@@ -528,6 +528,7 @@ public class Schema implements Serializable {
 
     public abstract Builder toBuilder();
 
+    /** Builder for {@link Field}. */
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setName(String name);
