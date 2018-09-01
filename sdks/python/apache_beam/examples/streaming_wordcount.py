@@ -23,7 +23,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import six
+from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
@@ -63,11 +63,11 @@ def run(argv=None):
     messages = (p
                 | beam.io.ReadFromPubSub(
                     subscription=known_args.input_subscription)
-                .with_output_types(six.binary_type))
+                .with_output_types(bytes))
   else:
     messages = (p
                 | beam.io.ReadFromPubSub(topic=known_args.input_topic)
-                .with_output_types(six.binary_type))
+                .with_output_types(bytes))
 
   lines = messages | 'decode' >> beam.Map(lambda x: x.decode('utf-8'))
 
@@ -78,7 +78,7 @@ def run(argv=None):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | beam.WindowInto(window.FixedWindows(15, 0))
             | 'group' >> beam.GroupByKey()
@@ -92,7 +92,7 @@ def run(argv=None):
   output = (counts
             | 'format' >> beam.Map(format_result)
             | 'encode' >> beam.Map(lambda x: x.encode('utf-8'))
-            .with_output_types(six.binary_type))
+            .with_output_types(bytes))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
