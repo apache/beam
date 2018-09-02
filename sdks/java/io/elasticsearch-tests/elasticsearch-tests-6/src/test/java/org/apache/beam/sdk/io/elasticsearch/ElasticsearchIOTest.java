@@ -152,7 +152,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(getEsIndex());
-    elasticsearchIOTestCommon.testSplit();
+    elasticsearchIOTestCommon.testSplit(2_000);
   }
 
   @Test

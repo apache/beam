@@ -139,13 +139,9 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * numDocs));
   }
 
-  void testSplit() throws Exception {
-    int desiredBundleSizeBytes;
-    if (useAsITests) {
-      desiredBundleSizeBytes = 10_000;
-    } else {
+  void testSplit(final int desiredBundleSizeBytes) throws Exception {
+    if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
-      desiredBundleSizeBytes = 2_000;
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -155,9 +151,19 @@ class ElasticsearchIOTestCommon implements Serializable {
         initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
-    float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
-    int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
+
+    int expectedNumSources;
+    if (desiredBundleSizeBytes == 0) {
+      // desiredBundleSize is ignored because in ES 2.x there is no way to split shards.
+      // 5 is the number of ES shards
+      // (By default, each index in Elasticsearch is allocated 5 primary shards)
+      expectedNumSources = 5;
+    } else {
+      float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
+      expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
+    }
     assertEquals("Wrong number of splits", expectedNumSources, splits.size());
+
     int emptySplits = 0;
     for (BoundedSource<String> subSource : splits) {
       if (readFromSource(subSource, options).isEmpty()) {
