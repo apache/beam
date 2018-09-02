@@ -116,6 +116,8 @@ include "beam-sdks-java-io-elasticsearch-tests-2"
 project(":beam-sdks-java-io-elasticsearch-tests-2").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-2")
 include "beam-sdks-java-io-elasticsearch-tests-5"
 project(":beam-sdks-java-io-elasticsearch-tests-5").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-5")
+include "beam-sdks-java-io-elasticsearch-tests-6"
+project(":beam-sdks-java-io-elasticsearch-tests-6").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-6")
 include "beam-sdks-java-io-elasticsearch-tests-common"
 project(":beam-sdks-java-io-elasticsearch-tests-common").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-common")
 include "beam-sdks-java-io-file-based-io-tests"
