@@ -20,8 +20,10 @@ package org.apache.beam.sdk.io.redis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import java.util.ArrayList;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -41,7 +43,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.joda.time.Instant;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -327,14 +328,14 @@ public class RedisIO {
   }
   /** A {@link DoFn} requesting Redis server to get key/value pairs. */
   private static class ReadFn extends BaseReadFn<KV<String, String>> {
-    private int batchSize;
-    private List<String> bufferedKeys;
-    BoundedWindow window;
-    Instant lastMsg;
+    @Nullable transient Multimap<BoundedWindow, String> bundles = null;
+    @Nullable AtomicInteger batchCount = null;
+    private final int batchSize;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
-      bufferedKeys = new ArrayList<>();
+      bundles = ArrayListMultimap.create();
+      batchCount = new AtomicInteger();
     }
 
     ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
@@ -350,37 +351,41 @@ public class RedisIO {
     public void processElement(ProcessContext processContext, BoundedWindow window)
         throws Exception {
       String key = processContext.element();
-      bufferedKeys.add(key);
-      this.window = window;
-      this.lastMsg = processContext.timestamp();
-      if (bufferedKeys.size() >= getBatchSize()) {
-        List<KV<String, String>> kvs = fetchAndFlush();
-        for (KV<String, String> kv : kvs) {
-          processContext.output(kv);
+      bundles.put(window, key);
+      if (batchCount.incrementAndGet() > getBatchSize()) {
+        Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
+        for (BoundedWindow w : kvs.keySet()) {
+          for (KV<String, String> kv : kvs.get(w)) {
+            processContext.output(kv);
+          }
         }
       }
     }
 
-    private List<KV<String, String>> fetchAndFlush() {
-      String[] keys = new String[bufferedKeys.size()];
-      bufferedKeys.toArray(keys);
-      List<String> results = jedis.mget(keys);
-      assert bufferedKeys.size() == results.size();
-      List<KV<String, String>> kvs = new ArrayList<>(bufferedKeys.size());
-      for (int i = 0; i < bufferedKeys.size(); i++) {
-        if (results.get(i) != null) {
-          kvs.add(KV.of(bufferedKeys.get(i), results.get(i)));
+    private Multimap<BoundedWindow, KV<String, String>> fetchAndFlush() {
+      Multimap<BoundedWindow, KV<String, String>> kvs = ArrayListMultimap.create();
+      for (BoundedWindow w : bundles.keySet()) {
+        String[] keys = new String[bundles.get(w).size()];
+        bundles.get(w).toArray(keys);
+        List<String> results = jedis.mget(keys);
+        for (int i = 0; i < results.size(); i++) {
+          if (results.get(i) != null) {
+            kvs.put(w, KV.of(keys[i], results.get(i)));
+          }
         }
       }
-      bufferedKeys = new ArrayList<>();
+      bundles = ArrayListMultimap.create();
+      batchCount.set(0);
       return kvs;
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
-      List<KV<String, String>> kvs = fetchAndFlush();
-      for (KV<String, String> kv : kvs) {
-        context.output(kv, lastMsg, window);
+      Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
+      for (BoundedWindow w : kvs.keySet()) {
+        for (KV<String, String> kv : kvs.get(w)) {
+          context.output(kv, w.maxTimestamp(), w);
+        }
       }
     }
   }
