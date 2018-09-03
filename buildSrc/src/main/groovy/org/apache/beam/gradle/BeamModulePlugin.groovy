@@ -1103,7 +1103,7 @@ artifactId=${project.name}
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testCompile it.project.project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
+          testCompile it.project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
         }
       }
 
