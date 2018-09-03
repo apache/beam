@@ -148,12 +148,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
 
-    @Nullable Iterable<?> elements = getIterable(view, window);
-
-    if (elements == null) {
-      elements = Collections.emptyList();
-    }
-
+    Iterable<?> elements = getIterable(view, window);
     // TODO: Add support for choosing which representation is contained based upon the
     // side input materialization. We currently can assume that we always have a multimap
     // materialization as that is the only supported type within the Java SDK.
@@ -172,7 +167,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
    * @param <T>
    * @return
    */
-  @Nullable
   public <T> Iterable<?> getIterable(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
@@ -183,8 +177,9 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     ValueState<Iterable<?>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
-    // returns null when the side input is not ready
-    return state.read();
+    Iterable<?> elements = state.read();
+    // return empty collection when no side input was received for ready window
+    return (elements != null) ? elements : Collections.emptyList();
   }
 
   @Override
