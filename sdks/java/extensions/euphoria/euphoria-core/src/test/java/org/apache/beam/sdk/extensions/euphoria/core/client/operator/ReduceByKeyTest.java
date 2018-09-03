@@ -167,7 +167,7 @@ public class ReduceByKeyTest {
     assertNull(reduce.valueComparator);
   }
 
-  @Test
+  @Test(expected = UnsupportedOperationException.class)
   public void testBuild_sortedValues() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
@@ -186,7 +186,7 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueComparator);
   }
 
-  @Test
+  @Test(expected = UnsupportedOperationException.class)
   public void testBuild_sortedValuesWithNoWindowing() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
@@ -202,8 +202,8 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueComparator);
   }
 
-  @Test
-  public void testWindow_applyIf() {
+  @Test(expected = UnsupportedOperationException.class)
+  public void testWindow_applyIfSortedValues() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
@@ -230,7 +230,55 @@ public class ReduceByKeyTest {
   }
 
   @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .applyIf(
+            true,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .output();
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+  }
+
+  @Test
   public void testWindow_applyIfNot() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .applyIf(
+            false,
+            b ->
+                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .output();
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNull(windowingDesc);
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testWindow_applyIfNotSortedValues() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
