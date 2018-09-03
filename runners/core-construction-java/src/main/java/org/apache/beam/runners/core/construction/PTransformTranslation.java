@@ -67,7 +67,14 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS);
   public static final String TEST_STREAM_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.TEST_STREAM);
+  public static final String MAP_WINDOWS_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);
 
+  /**
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
+   *     part of the translation for a `ParDo` side input.
+   */
+  @Deprecated
   public static final String READ_TRANSFORM_URN =
       getUrn(StandardPTransforms.DeprecatedPrimitives.READ);
   /**

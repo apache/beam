@@ -104,6 +104,10 @@ public class GreedyStageFuserTest {
                 .putTransforms(
                     "read",
                     PTransform.newBuilder()
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.READ_TRANSFORM_URN)
+                                .build())
                         .putInputs("input", "impulse.out")
                         .putOutputs("output", "read.out")
                         .build())
@@ -839,6 +843,9 @@ public class GreedyStageFuserTest {
                 .putTransforms(
                     "side_read",
                     PTransform.newBuilder()
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.READ_TRANSFORM_URN))
                         .putInputs("input", "impulse.out")
                         .putOutputs("output", "side_read.out")
                         .build())
@@ -939,6 +946,9 @@ public class GreedyStageFuserTest {
                     "side_read",
                     PTransform.newBuilder()
                         .setUniqueName("side_read")
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.READ_TRANSFORM_URN))
                         .putInputs("input", "impulse.out")
                         .putOutputs("output", "side_read.out")
                         .build())
