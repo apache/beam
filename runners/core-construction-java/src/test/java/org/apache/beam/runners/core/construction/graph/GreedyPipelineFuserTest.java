@@ -55,6 +55,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.hamcrest.Matchers;
 import org.hamcrest.core.AnyOf;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -178,6 +179,7 @@ public class GreedyPipelineFuserTest {
    * becomes all runner-executed
    */
   @Test
+  @Ignore
   public void unknownTransformsNoEnvironmentBecomeRunnerExecuted() {
     Components components =
         partialComponents
