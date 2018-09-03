@@ -545,9 +545,12 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public WindowByBuilder<InputT, K, V, OutputT> withSortedValues(
         BinaryFunction<V, V, Integer> comparator) {
 
-      params.valuesComparator = Objects.requireNonNull(comparator);
-
-      return new WithSortedValuesBuilder<>(params);
+      throw new UnsupportedOperationException(
+          String.format(
+              "Cannot build %s named '%s' with sorted values. Sorted values are not yet supported.",
+              ReduceByKey.class.getSimpleName(), params.name));
+      //      params.valuesComparator = Objects.requireNonNull(comparator);
+      //      return new WithSortedValuesBuilder<>(params);
     }
   }
 
