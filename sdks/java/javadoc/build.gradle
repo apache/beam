@@ -54,6 +54,7 @@ def exportedJavadocProjects = [
   ':beam-sdks-java-io-elasticsearch',
   ':beam-sdks-java-io-elasticsearch-tests-2',
   ':beam-sdks-java-io-elasticsearch-tests-5',
+  ':beam-sdks-java-io-elasticsearch-tests-6',
   ':beam-sdks-java-io-elasticsearch-tests-common',
   ':beam-sdks-java-io-google-cloud-platform',
   ':beam-sdks-java-io-hadoop-common',

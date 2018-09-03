@@ -29,7 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * A test of {@link ElasticsearchIO} on an independent Elasticsearch v2.x instance.
+ * A test of {@link ElasticsearchIO} on an independent Elasticsearch v5.x instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
  * database. See {@link ElasticsearchIOITCommon} for instructions to achieve this.
@@ -38,7 +38,7 @@ import org.junit.Test;
  * correct server IP:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-2
+ *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-6
  *  -DintegrationTestPipelineOptions='[
  *  "--elasticsearchServer=1.2.3.4",
  *  "--elasticsearchHttpPort=9200"]'
@@ -86,9 +86,7 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testSplitsVolume() throws Exception {
-    // desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
-    // as many bundles as ES shards and bundle size is shard size
-    elasticsearchIOTestCommon.testSplit(0);
+    elasticsearchIOTestCommon.testSplit(10_000);
   }
 
   @Test
@@ -99,6 +97,7 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testWriteVolume() throws Exception {
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
         new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
@@ -117,7 +116,7 @@ public class ElasticsearchIOIT {
    * functions to parse the document and extract the ID is acceptable.
    */
   @Test
-  public void testWriteVolumeWithFullAddressing() throws Exception {
+  public void testWriteWithFullAddressingVolume() throws Exception {
     // cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
         new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
@@ -128,7 +127,7 @@ public class ElasticsearchIOIT {
   /**
    * This test verifies volume partial updates of Elasticsearch. The test dataset index is cloned
    * and then a new field is added to each document using a partial update. The test then asserts
-   * the updates were applied.
+   * the updates where appied.
    */
   @Test
   public void testWritePartialUpdate() throws Exception {
