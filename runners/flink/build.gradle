@@ -56,7 +56,6 @@ dependencies {
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
-  shadow library.java.slf4j_simple
   shadow library.java.joda_time
   shadow library.java.commons_compress
   shadow library.java.args4j
@@ -74,6 +73,7 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.google_api_services_bigquery
+  shadowTest library.java.slf4j_simple
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.flink:flink-core:$flink_version:tests"
