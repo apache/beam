@@ -71,6 +71,7 @@ public class SolrIOTest extends SolrCloudTestCase {
   private static final long NUM_DOCS = 400L;
   private static final int NUM_SCIENTISTS = 10;
   private static final int BATCH_SIZE = 200;
+  private static final int DEFAULT_BATCH_SIZE = 1000;
 
   private static AuthorizedSolrClient<CloudSolrClient> solrClient;
   private static SolrIO.ConnectionConfiguration connectionConfiguration;
@@ -316,5 +317,17 @@ public class SolrIOTest extends SolrCloudTestCase {
     assertFalse(
         DEFAULT_RETRY_PREDICATE.test(
             new SolrException(SolrException.ErrorCode.UNSUPPORTED_MEDIA_TYPE, "test")));
+  }
+
+  /** Tests batch size default and changed value. */
+  @Test
+  public void testBatchSize() {
+    SolrIO.Write write1 =
+        SolrIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBatchSize(BATCH_SIZE);
+    assertTrue(write1.getMaxBatchSize() == BATCH_SIZE);
+    SolrIO.Write write2 = SolrIO.write().withConnectionConfiguration(connectionConfiguration);
+    assertTrue(write2.getMaxBatchSize() == DEFAULT_BATCH_SIZE);
   }
 }
