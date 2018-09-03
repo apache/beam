@@ -72,6 +72,6 @@ runShadow {
 
 createPortableValidatesRunnerTask(
         jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-        jobServerConfig: "--clean-artifacts-per-job",
+        jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost",
         testClasspathConfiguration: configurations.validatesPortableRunner
 )
