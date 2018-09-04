@@ -64,8 +64,8 @@ job(testConfiguration.jobName) {
         shell('rm -rf PerfKitBenchmarker')
         shell('rm -rf .env')
 
-        // create new VirtualEnv, inherit already existing packages
-        shell('virtualenv .env --system-site-packages')
+        // create new VirtualEnv
+        shell('virtualenv .env')
 
         // update setuptools and pip
         shell('.env/bin/pip install --upgrade setuptools pip')
