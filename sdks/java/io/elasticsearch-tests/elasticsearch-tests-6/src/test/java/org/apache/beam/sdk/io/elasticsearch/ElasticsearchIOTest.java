@@ -42,7 +42,7 @@ Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
 Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 */
 
-/** Tests for {@link ElasticsearchIO} version 5. */
+/** Tests for {@link ElasticsearchIO} version 6. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
@@ -165,12 +165,6 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWriteWithIndexFn() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithIndexFn();
-  }
-
-  @Test
-  public void testWriteWithTypeFn() throws Exception {
-    elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testWriteWithTypeFn2x5x();
   }
 
   @Test
