@@ -42,6 +42,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   def setUp(self):
     # Use state on the TestCase class, since other references would be pickled
     # into a closure and not have the desired side effects.
+    #
+    # TODO(BEAM-5295): Use assert_that after it works for the cases here in
+    # streaming mode.
     StatefulDoFnOnDirectRunnerTest.all_records = []
 
   def record_dofn(self):
@@ -132,9 +135,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                   timer1=DoFn.TimerParam(EMIT_TIMER_1),
                   timer2=DoFn.TimerParam(EMIT_TIMER_2),
                   timer3=DoFn.TimerParam(EMIT_TIMER_3)):
-        timer1.set(20)
-        timer2.set(40)
-        timer3.set(60)
+        timer1.set(10)
+        timer2.set(20)
+        timer3.set(30)
 
       @on_timer(EMIT_TIMER_1)
       def emit_callback_1(self):
@@ -164,7 +167,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
        | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
-        [('timer1', 20), ('timer2', 40), ('timer3', 60)],
+        [('timer1', 10), ('timer2', 20), ('timer3', 30)],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_index_assignment(self):
@@ -197,7 +200,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
   def test_hash_join(self):
     class HashJoinStatefulDoFn(DoFn):
-      BUFFER_STATE = BagStateSpec('buffer', VarIntCoder())
+      BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
       UNMATCHED_TIMER = TimerSpec('unmatched', TimeDomain.WATERMARK)
 
       def process(self, element, state=DoFn.StateParam(BUFFER_STATE),
@@ -222,23 +225,23 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     with TestPipeline() as p:
       test_stream = (TestStream()
                      .advance_watermark_to(10)
-                     .add_elements([('k1', 1), ('k2', 2)])
-                     .add_elements([('k1', 3), ('k3', 4)])
+                     .add_elements([('A', 'a'), ('B', 'b')])
+                     .add_elements([('A', 'aa'), ('C', 'c')])
                      .advance_watermark_to(25)
-                     .add_elements([('k1', 5), ('k2', 6)])
-                     .add_elements([('k4', 7), ('k4', 8), ('k4', 9),
-                                    ('k4', 10)])
+                     .add_elements([('A', 'aaa'), ('B', 'bb')])
+                     .add_elements([('D', 'd'), ('D', 'dd'), ('D', 'ddd'),
+                                    ('D', 'dddd')])
                      .advance_watermark_to(125)
-                     .add_elements([('k3', 11)]))
+                     .add_elements([('C', 'cc')]))
       (p
        | test_stream
        | beam.ParDo(HashJoinStatefulDoFn())
        | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(
-        ['Record<k1,1,3>', 'Record<k2,2,6>', 'Record<k4,7,8>',
-         'Record<k4,9,10>', 'Unmatched<11>', 'Unmatched<4>',
-         'Unmatched<5>'],
+        ['Record<A,a,aa>', 'Record<B,b,bb>', 'Record<D,d,dd>',
+         'Record<D,ddd,dddd>', 'Unmatched<aaa>', 'Unmatched<c>',
+         'Unmatched<cc>'],
         sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
 

@@ -170,7 +170,8 @@ class MethodWrapper(object):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
 
-  def invoke_with_userstate(self, user_state_context, key, window):
+  def invoke_timer_callback(self, user_state_context, key, window):
+    # TODO(ccy): support WindowParam and TimestampParam.
     if self.has_userstate_arguments:
       kwargs = {}
       for kw, state_spec in self.state_args_to_replace.items():
@@ -356,7 +357,7 @@ class DoFnInvoker(object):
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window,)),
-        self.signature.timer_methods[timer_spec].invoke_with_userstate(
+        self.signature.timer_methods[timer_spec].invoke_timer_callback(
             self.user_state_context, key, window))
 
   def invoke_split(self, element, restriction):
@@ -553,8 +554,8 @@ class PerWindowInvoker(DoFnInvoker):
     # Extract key in the case of a stateful DoFn.
     if self.user_state_context:
       try:
-        key = windowed_value.value[0]
-      except TypeError:
+        key, unused_value = windowed_value.value
+      except (TypeError, ValueError):
         raise ValueError(
             ('Input value to a stateful DoFn must be a KV tuple; instead, '
              'got %s.') % (windowed_value.value,))

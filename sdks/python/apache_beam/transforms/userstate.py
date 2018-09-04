@@ -250,6 +250,7 @@ class BagRuntimeState(RuntimeState):
 
   def clear(self):
     self._cleared = True
+    self._cached_value = []
     self._new_values = []
 
 
