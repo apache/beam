@@ -71,8 +71,8 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);
 
   /**
-   * @deprecated Should move away from creating `Read` transforms and migrate to
-   *     using SplittableDoFns.
+   * @deprecated SDKs should move away from creating `Read` transforms and migrate to
+   *     using Impulse + SplittableDoFns.
    */
   @Deprecated
   public static final String READ_TRANSFORM_URN =
