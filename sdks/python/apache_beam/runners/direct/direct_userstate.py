@@ -18,20 +18,15 @@
 """Support for user state in the BundleBasedDirectRunner."""
 from __future__ import absolute_import
 
+from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.userstate import BagStateSpec
-from apache_beam.transforms.userstate import CombiningValueStateSpec
-from apache_beam.transforms.userstate import RuntimeState
-from apache_beam.transforms.userstate import RuntimeTimer
-from apache_beam.transforms.userstate import UserStateContext
-from apache_beam.transforms.userstate import UserStateUtils
 
 
-class DirectUserStateContext(UserStateContext):
-  """UserStateContext for the BundleBasedDirectRunner.
+class DirectUserStateContext(userstate.UserStateContext):
+  """userstate.UserStateContext for the BundleBasedDirectRunner.
 
-  The DirectUserStateContext buffers up updates that are to be committed by the
-  TransformEvaluator after running a DoFn.
+  The DirectUserStateContext buffers up updates that are to be committed
+  by the TransformEvaluator after running a DoFn.
   """
 
   def __init__(self, step_context, dofn, key_coder):
@@ -40,13 +35,13 @@ class DirectUserStateContext(UserStateContext):
     self.key_coder = key_coder
 
     self.all_state_specs, self.all_timer_specs = (
-        UserStateUtils.get_dofn_specs(dofn))
+        userstate.UserStateUtils.get_dofn_specs(dofn))
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
-      if isinstance(state_spec, BagStateSpec):
+      if isinstance(state_spec, userstate.BagStateSpec):
         state_tag = _ListStateTag(state_key)
-      elif isinstance(state_spec, CombiningValueStateSpec):
+      elif isinstance(state_spec, userstate.CombiningValueStateSpec):
         state_tag = _ListStateTag(state_key)
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
@@ -60,7 +55,7 @@ class DirectUserStateContext(UserStateContext):
     encoded_key = self.key_coder.encode(key)
     cache_key = (encoded_key, window, timer_spec)
     if cache_key not in self.cached_timers:
-      self.cached_timers[cache_key] = RuntimeTimer(timer_spec)
+      self.cached_timers[cache_key] = userstate.RuntimeTimer(timer_spec)
     return self.cached_timers[cache_key]
 
   def get_state(self, state_spec, key, window):
@@ -71,8 +66,8 @@ class DirectUserStateContext(UserStateContext):
       state_tag = self.state_tags[state_spec]
       value_accessor = (
           lambda: self._get_underlying_state(state_spec, key, window))
-      self.cached_states[cache_key] = (
-          RuntimeState.for_spec(state_spec, state_tag, value_accessor))
+      self.cached_states[cache_key] = userstate.RuntimeState.for_spec(
+          state_spec, state_tag, value_accessor)
     return self.cached_states[cache_key]
 
   def _get_underlying_state(self, state_spec, key, window):
@@ -87,12 +82,12 @@ class DirectUserStateContext(UserStateContext):
       encoded_key, window, state_spec = cache_key
       state = self.step_context.get_keyed_state(encoded_key)
       state_tag = self.state_tags[state_spec]
-      if isinstance(state_spec, BagStateSpec):
+      if isinstance(state_spec, userstate.BagStateSpec):
         if runtime_state._cleared:
           state.clear_state(window, state_tag)
         for new_value in runtime_state._new_values:
           state.add_state(window, state_tag, new_value)
-      elif isinstance(state_spec, CombiningValueStateSpec):
+      elif isinstance(state_spec, userstate.CombiningValueStateSpec):
         if runtime_state._modified:
           state.clear_state(window, state_tag)
           state.add_state(
