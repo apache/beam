@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -304,7 +306,10 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
                   MetricsFilter.builder()
                       .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
                       .build());
-      count = metrics.getCounters().iterator().next().getAttempted();
+      Iterator<MetricResult<Long>> iterator = metrics.getCounters().iterator();
+      if (iterator.hasNext()) {
+        count = iterator.next().getAttempted();
+      }
     }
     return Linq4j.singletonEnumerable(count);
   }
