@@ -55,13 +55,13 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.16.0"
-def avatica_version = "1.11.0"
+def calcite_version = "1.17.0"
+def avatica_version = "1.12.0"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
-  fmppTask "org.freemarker:freemarker:2.3.25-incubating"
+  fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
   compile library.java.guava
   compile "org.apache.calcite:calcite-core:$calcite_version"
@@ -74,7 +74,7 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.jackson_databind
   shadow library.java.joda_time
-  shadow "com.alibaba:fastjson:1.2.12"
+  shadow "com.alibaba:fastjson:1.2.49"
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")

@@ -22,14 +22,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 
 /**
  * A Concrete subclass of {@link Row} that delegates to a set of provided {@link FieldValueGetter}s.
@@ -122,5 +123,28 @@ public class RowWithGetters extends Row {
 
   public Object getGetterTarget() {
     return getterTarget;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null) {
+      return false;
+    }
+    if (o instanceof RowWithGetters) {
+      RowWithGetters other = (RowWithGetters) o;
+      return Objects.equals(getSchema(), other.getSchema())
+          && Objects.equals(getterTarget, other.getterTarget);
+    } else if ((o instanceof Row)) {
+      return super.equals(o);
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getSchema(), getterTarget);
   }
 }

@@ -36,10 +36,10 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
@@ -310,6 +310,9 @@ public abstract class Row implements Serializable {
 
   @Override
   public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
     if (!(o instanceof Row)) {
       return false;
     }
@@ -325,7 +328,7 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
   }
 
   /**
@@ -375,7 +378,8 @@ public abstract class Row implements Serializable {
 
     public Builder attachValues(List<Object> values) {
       this.attached = true;
-      return addValues(values);
+      this.values = values;
+      return this;
     }
 
     public Builder withFieldValueGetters(
@@ -561,7 +565,7 @@ public abstract class Row implements Serializable {
       if (!this.values.isEmpty()) {
         List<Object> storageValues = attached ? this.values : verify(schema, this.values);
         checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, verify(schema, storageValues));
+        return new RowWithStorage(schema, storageValues);
       } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
         return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);

@@ -17,9 +17,13 @@
 
 """Unit tests for the transform.util classes."""
 
+from __future__ import absolute_import
+
 import logging
 import time
 import unittest
+from builtins import object
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -231,11 +235,11 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_windows_unchanged(self):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in
-                     [((1, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
-                      ((2, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
-                      ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
-                      ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+        ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+        ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
     before_reshuffle = (pipeline
                         | 'start' >> beam.Create(data)
                         | 'add_timestamp' >> beam.Map(

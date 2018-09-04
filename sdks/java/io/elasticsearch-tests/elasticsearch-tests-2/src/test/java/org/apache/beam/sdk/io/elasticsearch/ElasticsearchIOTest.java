@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasti
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
@@ -61,6 +61,7 @@ public class ElasticsearchIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
   private static final String ES_IP = "127.0.0.1";
+  private static final int MAX_STARTUP_WAITING_TIME_MSEC = 5000;
 
   private static Node node;
   private static RestClient restClient;
@@ -97,10 +98,25 @@ public class ElasticsearchIOTest implements Serializable {
     node.start();
     connectionConfiguration =
         ConnectionConfiguration.create(
-            new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
+            new String[] {"http://" + ES_IP + ":" + esHttpPort}, getEsIndex(), ES_TYPE);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
+    int waitingTime = 0;
+    int healthCheckFrequency = 500;
+    while ((waitingTime < MAX_STARTUP_WAITING_TIME_MSEC)
+        && restClient.performRequest("HEAD", "/").getStatusLine().getStatusCode() != 200) {
+      try {
+        Thread.sleep(healthCheckFrequency);
+        waitingTime += healthCheckFrequency;
+      } catch (InterruptedException e) {
+        LOG.warn(
+            "Waiting thread was interrupted while waiting for connection to Elasticsearch to be available");
+      }
+    }
+    if (waitingTime >= MAX_STARTUP_WAITING_TIME_MSEC) {
+      throw new IOException("Max startup waiting for embedded Elasticsearch to start was exceeded");
+    }
   }
 
   @AfterClass
@@ -213,5 +229,23 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testReadWithMetadata() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithMetadata();
+  }
+
+  @Test
+  public void testDefaultRetryPredicate() throws IOException {
+    elasticsearchIOTestCommon.testDefaultRetryPredicate(restClient);
+  }
+
+  @Test
+  public void testWriteRetry() throws Throwable {
+    elasticsearchIOTestCommon.setExpectedException(expectedException);
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetry();
   }
 }

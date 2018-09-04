@@ -93,7 +93,7 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
 
       // The correlated subquery
       BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
-      Schema innerSchema = CalciteUtils.toBeamSchema(uncollect.getRowType());
+      Schema innerSchema = CalciteUtils.toSchema(uncollect.getRowType());
       checkArgument(
           innerSchema.getFieldCount() == 1, "Can only UNNEST a single column", getClass());
 
@@ -101,13 +101,13 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
           new BeamSqlFnExecutor(
               ((BeamCalcRel) BeamSqlRelUtils.getBeamRelInput(uncollect.getInput())).getProgram());
 
-      Schema joinedSchema = CalciteUtils.toBeamSchema(rowType);
+      Schema joinedSchema = CalciteUtils.toSchema(rowType);
 
       return outer
           .apply(
               ParDo.of(
                   new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
-          .setCoder(joinedSchema.getRowCoder());
+          .setRowSchema(joinedSchema);
     }
   }
 

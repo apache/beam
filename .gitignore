@@ -72,6 +72,7 @@ sdks/python/nosetests.xml
 
 # Ignore MacOSX files.
 **/.DS_Store/**/*
+**/.DS_Store
 
 # Ignore Jupyter notebook checkpoints.
 **/.ipynb_checkpoints/**/*

@@ -28,7 +28,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -148,7 +147,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final String stepName;
 
-  private final Coder<WindowedValue<InputT>> inputCoder;
+  private final Coder<WindowedValue<InputT>> windowedInputCoder;
+
+  private final Coder<InputT> inputCoder;
+
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
   private final Coder<?> keyCoder;
 
@@ -179,7 +182,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   public DoFnOperator(
       DoFn<InputT, OutputT> doFn,
       String stepName,
-      Coder<WindowedValue<InputT>> inputCoder,
+      Coder<WindowedValue<InputT>> inputWindowedCoder,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -191,7 +196,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       KeySelector<WindowedValue<InputT>, ?> keySelector) {
     this.doFn = doFn;
     this.stepName = stepName;
+    this.windowedInputCoder = inputWindowedCoder;
     this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
@@ -265,7 +272,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     super.initializeState(context);
 
     ListStateDescriptor<WindowedValue<InputT>> pushedBackStateDescriptor =
-        new ListStateDescriptor<>("pushed-back-elements", new CoderTypeSerializer<>(inputCoder));
+        new ListStateDescriptor<>(
+            "pushed-back-elements", new CoderTypeSerializer<>(windowedInputCoder));
 
     if (keySelector != null) {
       pushedBackElementsHandler =
@@ -344,9 +352,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            // TODO: fix
-            null,
-            Collections.emptyMap(),
+            inputCoder,
+            outputCoders,
             windowingStrategy);
 
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
@@ -468,6 +475,22 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     checkInvokeFinishBundleByCount();
   }
 
+  /**
+   * Add the side input value. Here we are assuming that views have already been materialized and
+   * are sent over the wire as {@link Iterable}. Subclasses may elect to perform materialization in
+   * state and receive side input incrementally instead.
+   *
+   * @param streamRecord
+   */
+  protected void addSideInputValue(StreamRecord<RawUnionValue> streamRecord) {
+    @SuppressWarnings("unchecked")
+    WindowedValue<Iterable<?>> value =
+        (WindowedValue<Iterable<?>>) streamRecord.getValue().getValue();
+
+    PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
+    sideInputHandler.addSideInputValue(sideInput, value);
+  }
+
   @Override
   public final void processElement2(StreamRecord<RawUnionValue> streamRecord) throws Exception {
     // we finish the bundle because the newly arrived side-input might
@@ -477,12 +500,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     invokeFinishBundle();
     checkInvokeStartBundle();
 
-    @SuppressWarnings("unchecked")
-    WindowedValue<Iterable<?>> value =
-        (WindowedValue<Iterable<?>>) streamRecord.getValue().getValue();
-
-    PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
-    sideInputHandler.addSideInputValue(sideInput, value);
+    // add the side input, which may cause pushed back elements become eligible for processing
+    addSideInputValue(streamRecord);
 
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
 

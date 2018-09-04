@@ -22,6 +22,66 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
+func directFn(elm int) int {
+	return elm + 1
+}
+
+// DirectParDo tests direct form output DoFns.
+func DirectParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	direct := beam.ParDo(s, directFn, beam.Create(s, 1, 2, 3))
+	passert.Sum(s, direct, "direct", 3, 9)
+
+	return p
+}
+
+func emitFn(elm int, emit func(int)) {
+	emit(elm + 1)
+}
+
+// EmitParDo tests emit form output DoFns.
+func EmitParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	emit := beam.ParDo(s, emitFn, beam.Create(s, 1, 2, 3))
+	passert.Sum(s, emit, "emit", 3, 9)
+
+	return p
+}
+
+func emit2Fn(elm int, emit, emit2 func(int)) {
+	emit(elm + 1)
+	emit2(elm + 2)
+}
+
+// MultiEmitParDo tests double emit form output DoFns.
+func MultiEmitParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	emit1, emit2 := beam.ParDo2(s, emit2Fn, beam.Create(s, 1, 2, 3))
+	passert.Sum(s, emit1, "emit2_1", 3, 9)
+	passert.Sum(s, emit2, "emit2_2", 3, 12)
+
+	return p
+}
+
+func mixedFn(elm int, emit func(int)) int {
+	emit(elm + 2)
+	return elm + 1
+}
+
+// MixedOutputParDo tests mixed direct + emit form output DoFns.
+func MixedOutputParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	mixed1, mixed2 := beam.ParDo2(s, mixedFn, beam.Create(s, 1, 2, 3))
+	passert.Sum(s, mixed1, "mixed_1", 3, 9)
+	passert.Sum(s, mixed2, "mixed_2", 3, 12)
+
+	return p
+}
+
 func directCountFn(_ int, values func(*int) bool) (int, error) {
 	sum := 0
 	var i int
@@ -29,16 +89,6 @@ func directCountFn(_ int, values func(*int) bool) (int, error) {
 		sum += i
 	}
 	return sum, nil
-}
-
-func emitCountFn(_ int, values func(*int) bool, emit func(int)) error {
-	sum := 0
-	var i int
-	for values(&i) {
-		sum += i
-	}
-	emit(sum)
-	return nil
 }
 
 // DirectParDoAfterGBK generates a pipeline with a direct-form
@@ -51,6 +101,16 @@ func DirectParDoAfterGBK() *beam.Pipeline {
 	passert.Equals(s, beam.DropKey(s, beam.AddFixedKey(s, sum)), 10)
 
 	return p
+}
+
+func emitCountFn(_ int, values func(*int) bool, emit func(int)) error {
+	sum := 0
+	var i int
+	for values(&i) {
+		sum += i
+	}
+	emit(sum)
+	return nil
 }
 
 // EmitParDoAfterGBK generates a pipeline with a emit-form

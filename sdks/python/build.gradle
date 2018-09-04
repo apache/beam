@@ -187,56 +187,93 @@ task installGcpTest(dependsOn: 'setupVirtualenv') {
   }
 }
 
-task localWordCount(dependsOn: 'installGcpTest') {
+task directRunnerIT(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct"
-      // TODO: Check that the output file is generated and runs.
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch TestDirectRunner"
+    }
+  }
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT streaming TestDirectRunner"
     }
   }
 }
 
 // Before running this, you need to:
 //
-// 1. build the SDK container:
+// 1. Build the SDK container:
 //
 //    ./gradlew -p sdks/python/container docker
 //
-// 2. start a local JobService, for example, the Portable Flink runner
+// 2. Either a) or b)
+//  a) If you want the Job Server to run in a Docker container:
+//
+//    ./gradlew :beam-runners-flink_2.11-job-server-container:docker
+//
+//  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
 //
 //    ./gradlew :beam-runners-flink_2.11-job-server:runShadow
 //
 // Then you can run this example:
 //
+//  Docker (2a):
+//
 //    ./gradlew :beam-sdks-python:portableWordCount
+//
+//  Local JobService (2b):
+//
+//    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
 //
 task portableWordCount(dependsOn: 'installGcpTest') {
   doLast {
+    // TODO: Figure out GCS credentials and use real GCS input and output.
+    def options = [
+            "--input=/etc/profile",
+            "--output=/tmp/py-wordcount-direct",
+            "--experiments=beam_fn_api",
+            "--runner=PortableRunner",
+            "--sdk_location=container",
+    ]
+    if (project.hasProperty("streaming"))
+      options += ["--streaming"]
+    if (project.hasProperty("jobEndpoint"))
+      options += ["--job_endpoint=${project.property('jobEndpoint')}"]
     exec {
       executable 'sh'
-      // TODO: Figure out GCS credentials and use real GCS input and output.
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --input /etc/profile --output /tmp/py-wordcount-direct --experiments=beam_fn_api --runner=PortableRunner --job_endpoint=localhost:8099 --sdk_location=container"
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
     }
   }
 }
 
-task postCommitVRTests(dependsOn: 'installGcpTest') {
+task postCommitITTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch"
     }
   }
 }
 
-task validatesRunnerTests(dependsOn: 'installGcpTest') {
+task validatesRunnerBatchTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner batch"
+    }
+  }
+}
+
+task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
     }
   }
 }
@@ -250,11 +287,30 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+def flinkCompatibilityMatrix = {
+  def type = it
+  def name = 'flinkCompatibilityMatrix' + type
+  tasks.create(name: name) {
+    dependsOn 'setupVirtualenv'
+    dependsOn ':beam-sdks-python-container:docker'
+    dependsOn ':beam-runners-flink_2.11-job-server:jar'
+    doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} ${type}"
+      }
+    }
+  }
+}
+
+flinkCompatibilityMatrix('Batch')
+flinkCompatibilityMatrix('Streaming')
+
 task postCommit() {
   dependsOn "preCommit"
-  dependsOn "localWordCount"
+  dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
-  dependsOn "postCommitVRTests"
+  dependsOn "postCommitITTests"
 }
 
 task dependencyUpdates(dependsOn: ':dependencyUpdates') {

@@ -25,18 +25,26 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.refr
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
+import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -44,9 +52,15 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
+import org.joda.time.Duration;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +70,22 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
 
-  static final String ES_INDEX = "beam";
+  private static final RetryPredicate CUSTOM_RETRY_PREDICATE = new DefaultRetryPredicate(400);
+
+  private static final int EXPECTED_RETRIES = 2;
+  private static final int MAX_ATTEMPTS = 3;
+  private static final String BAD_FORMATTED_DOC[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
+  private static final String OK_REQUEST =
+      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+          + "{ \"field1\" : 1 }\n";
+  private static final String BAD_REQUEST =
+      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+          + "{ \"field1\" : @ }\n";
+
+  static String getEsIndex() {
+    return "beam" + Thread.currentThread().getId();
+  }
+
   static final String ES_TYPE = "test";
   static final long NUM_DOCS_UTESTS = 400L;
   static final long NUM_DOCS_ITESTS = 50000L;
@@ -147,6 +176,21 @@ class ElasticsearchIOTestCommon implements Serializable {
                 .withQuery(query));
     PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
+    pipeline.run();
+  }
+
+  /** Test reading metadata by reading back the id of a document after writing it. */
+  void testReadWithMetadata() throws Exception {
+    if (!useAsITests) {
+      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, 1, restClient);
+    }
+
+    PCollection<String> output =
+        pipeline.apply(
+            ElasticsearchIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withMetadata());
+    PAssert.that(output).satisfies(new ContainsStringCheckerFn("\"_id\":\"0\""));
     pipeline.run();
   }
 
@@ -469,5 +513,67 @@ class ElasticsearchIOTestCommon implements Serializable {
     // Partial update assertions
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "0"));
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
+  }
+
+  /**
+   * Function for checking if any string in iterable contains expected substring. Fails if no match
+   * is found.
+   */
+  private static class ContainsStringCheckerFn
+      implements SerializableFunction<Iterable<String>, Void> {
+
+    private String expectedSubString;
+
+    ContainsStringCheckerFn(String expectedSubString) {
+      this.expectedSubString = expectedSubString;
+    }
+
+    @Override
+    public Void apply(Iterable<String> input) {
+      for (String s : input) {
+        if (s.contains(expectedSubString)) {
+          return null;
+        }
+      }
+      fail("No string found containing " + expectedSubString);
+      return null;
+    }
+  }
+
+  /** Test that the default predicate correctly parses chosen error code. */
+  public void testDefaultRetryPredicate(RestClient restClient) throws IOException {
+
+    HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
+    Response response1 =
+        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
+    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1));
+
+    HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
+    Response response2 =
+        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
+    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2));
+  }
+
+  /**
+   * Test that retries are invoked when Elasticsearch returns a specific error code. We invoke this
+   * by issuing corrupt data and retrying on the `400` error code. Normal behaviour is to retry on
+   * `429` only but that is difficult to simulate reliably. The logger is used to verify expected
+   * behavior.
+   */
+  public void testWriteRetry() throws Throwable {
+    expectedException.expectCause(isA(IOException.class));
+    // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and retry started.
+    expectedException.expectMessage(
+        String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, EXPECTED_RETRIES));
+
+    ElasticsearchIO.Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withRetryConfiguration(
+                ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
+    pipeline.apply(Create.of(Arrays.asList(BAD_FORMATTED_DOC))).apply(write);
+
+    pipeline.run();
   }
 }

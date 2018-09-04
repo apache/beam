@@ -59,6 +59,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TransformHierarchy.Node node,
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
+    final Map<TupleTag<?>, Coder<?>> outputCoders =
+        ctx.getCurrentTransform()
+            .getOutputs()
+            .entrySet()
+            .stream()
+            .filter(e -> e.getValue() instanceof PCollection)
+            .collect(
+                Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
+
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Coder<?> keyCoder =
         signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
@@ -105,6 +114,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             transform.getMainOutputTag(),
             transform.getFn(),
             keyCoder,
+            (Coder<InT>) input.getCoder(),
+            outputCoders,
             transform.getSideInputs(),
             transform.getAdditionalOutputTags().getAll(),
             input.getWindowingStrategy(),

@@ -130,7 +130,7 @@ public class ParDoTranslationTest {
     @Test
     public void toTransformProto() throws Exception {
       Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-      inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
+      inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
       inputs.putAll(parDo.getAdditionalInputs());
       PCollectionTuple output = mainInput.apply(parDo);
 
@@ -170,6 +170,7 @@ public class ParDoTranslationTest {
       assertThat(
           ParDoTranslation.getMainInput(protoTransform, components),
           equalTo(components.getPcollectionsOrThrow(mainInputId)));
+      assertThat(ParDoTranslation.getMainInputName(protoTransform), equalTo("mainInputName"));
 
       // Validate that the timer PCollections are added correctly.
       DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());

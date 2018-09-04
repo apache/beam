@@ -23,16 +23,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isOneOf;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
@@ -40,19 +34,8 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -98,12 +81,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
 
     boolean isForceStreaming = testSparkOptions.isForceStreaming();
-    // if the pipeline forces execution as a streaming pipeline,
-    // and the source is an adapted unbounded source (as bounded),
-    // read it as unbounded source via UnboundedReadFromBoundedSource.
-    if (isForceStreaming) {
-      adaptBoundedReads(pipeline);
-    }
     SparkPipelineResult result = null;
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
@@ -173,51 +150,5 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
     } while ((timeoutMillis -= batchDurationMillis) > 0
         && globalWatermark.isBefore(stopPipelineWatermark));
-  }
-
-  @VisibleForTesting
-  void adaptBoundedReads(Pipeline pipeline) {
-    pipeline.replaceAll(
-        Collections.singletonList(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
-                new AdaptedBoundedAsUnbounded.Factory())));
-  }
-
-  private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
-    private final BoundedReadFromUnboundedSource<T> source;
-
-    AdaptedBoundedAsUnbounded(BoundedReadFromUnboundedSource<T> source) {
-      this.source = source;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public PCollection<T> expand(PBegin input) {
-      PTransform<PBegin, ? extends PCollection<ValueWithRecordId<T>>> replacingTransform =
-          new UnboundedReadFromBoundedSource<>(source.getAdaptedSource());
-      return (PCollection<T>)
-          input
-              .apply(replacingTransform)
-              .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
-    }
-
-    static class Factory<T>
-        implements PTransformOverrideFactory<
-            PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
-      @Override
-      public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-          AppliedPTransform<PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> transform) {
-        return PTransformReplacement.of(
-            transform.getPipeline().begin(),
-            new AdaptedBoundedAsUnbounded<>(transform.getTransform()));
-      }
-
-      @Override
-      public Map<PValue, ReplacementOutput> mapOutputs(
-          Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
-        return ReplacementOutputs.singleton(outputs, newOutput);
-      }
-    }
   }
 }

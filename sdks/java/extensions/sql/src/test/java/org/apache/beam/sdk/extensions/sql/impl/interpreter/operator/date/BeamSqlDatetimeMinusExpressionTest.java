@@ -46,6 +46,8 @@ public class BeamSqlDatetimeMinusExpressionTest {
   private static final BeamSqlPrimitive TIMESTAMP =
       BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, DATE);
 
+  private static final BeamSqlPrimitive DATE1 = BeamSqlPrimitive.of(SqlTypeName.DATE, DATE);
+
   private static final BeamSqlPrimitive TIMESTAMP_MINUS_2_SEC =
       BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, DATE_MINUS_2_SEC);
 
@@ -122,6 +124,18 @@ public class BeamSqlDatetimeMinusExpressionTest {
   public void testEvaluateTimestampMinusInteval() {
     BeamSqlDatetimeMinusExpression minusExpression =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
+
+    BeamSqlPrimitive subtractionResult =
+        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
+
+    assertEquals(SqlTypeName.TIMESTAMP, subtractionResult.getOutputType());
+    assertEquals(DATE_MINUS_2_SEC, subtractionResult.getDate());
+  }
+
+  @Test
+  public void testEvaluateDateMinusInteval() {
+    BeamSqlDatetimeMinusExpression minusExpression =
+        minusExpression(SqlTypeName.TIMESTAMP, DATE1, INTERVAL_2_SEC);
 
     BeamSqlPrimitive subtractionResult =
         minusExpression.evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());

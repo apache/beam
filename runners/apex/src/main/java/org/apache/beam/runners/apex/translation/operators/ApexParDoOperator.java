@@ -117,7 +117,13 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   private final List<PCollectionView<?>> sideInputs;
 
   @Bind(JavaSerializer.class)
-  private final Coder<WindowedValue<InputT>> inputCoder;
+  private final Coder<WindowedValue<InputT>> windowedInputCoder;
+
+  @Bind(JavaSerializer.class)
+  private final Coder<InputT> inputCoder;
+
+  @Bind(JavaSerializer.class)
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
@@ -142,6 +148,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
       Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -164,7 +171,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
         FullWindowedValueCoder.of(inputCoder, this.windowingStrategy.getWindowFn().windowCoder());
     Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(), listCoder);
-    this.inputCoder = wvCoder;
+    this.windowedInputCoder = wvCoder;
+    this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
 
     TimerInternals.TimerDataCoder timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
@@ -197,7 +206,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.sideInputs = null;
     this.pushedBack = null;
     this.sideInputStateInternals = null;
+    this.windowedInputCoder = null;
     this.inputCoder = null;
+    this.outputCoders = Collections.emptyMap();
     this.currentKeyTimerInternals = null;
   }
 
@@ -310,7 +321,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
         final Object key;
         final Coder<Object> keyCoder;
         @SuppressWarnings({"rawtypes", "unchecked"})
-        WindowedValueCoder<InputT> wvCoder = (WindowedValueCoder) inputCoder;
+        WindowedValueCoder<InputT> wvCoder = (WindowedValueCoder) windowedInputCoder;
         if (value instanceof KeyedWorkItem) {
           key = ((KeyedWorkItem) value).key();
           @SuppressWarnings({"rawtypes", "unchecked"})
@@ -453,8 +464,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            null,
-            Collections.emptyMap(),
+            inputCoder,
+            outputCoders,
             windowingStrategy);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);

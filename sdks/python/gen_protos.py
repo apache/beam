@@ -16,6 +16,7 @@
 #
 
 """Generates Python proto modules and grpc stubs for Beam protos."""
+from __future__ import absolute_import
 
 import glob
 import logging

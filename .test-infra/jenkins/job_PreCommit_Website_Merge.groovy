@@ -17,6 +17,10 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import WebsiteShared as websiteShared
+
+// TODO(BEAM-4505): This job is for the apache/beam-site repository and
+// should be removed once website sources are migrated to apache/beam.
 
 // Defines a job.
 job('beam_PreCommit_Website_Merge') {
@@ -31,33 +35,11 @@ job('beam_PreCommit_Website_Merge') {
 
   steps {
     // Run the following shell script as a build step.
-    shell '''
-        # Install RVM per instructions at https://rvm.io/rvm/install.
-        gpg --keyserver hkp://keys.gnupg.net --recv-keys \\
-            409B6B1796C275462A1703113804BB82D39DC0E3 \\
-            7D2BAF1CF37B13E2069D6956105BD0E739499BDB
-
-        \\curl -sSL https://get.rvm.io | bash
-        source /home/jenkins/.rvm/scripts/rvm
-
-        # Install Ruby.
-        RUBY_VERSION_NUM=2.3.0
-        rvm install ruby $RUBY_VERSION_NUM --autolibs=read-only
-
-        # Install Bundler gem
-        PATH=~/.gem/ruby/$RUBY_VERSION_NUM/bin:$PATH
-        GEM_PATH=~/.gem/ruby/$RUBY_VERSION_NUM/:$GEM_PATH
-        gem install bundler --user-install
-
-        # Enter the git clone for remaining commands
-        cd src
-
-        # Install all needed gems.
-        bundle install --path ~/.gem/
-
+    shell """
+        ${websiteShared.install_ruby_and_gems_bash}
         # Build the new site and test it.
         rm -fr ./content/
         bundle exec rake test
-    '''.stripIndent().trim()
+    """.stripIndent().trim()
   }
 }

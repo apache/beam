@@ -453,13 +453,6 @@ class TestFastAvro(TestAvro):
     super(TestFastAvro, self).__init__(methodName)
     self.use_fastavro = True
 
-  def setUp(self):
-    super(TestFastAvro, self).setUp()
-    try:
-      from fastavro.read import block_reader  # pylint: disable=unused-variable
-    except ImportError:
-      self.skipTest("fastavro is not installed.")
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

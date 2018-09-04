@@ -18,7 +18,7 @@
 
 # Beam Python SDK dependency ownership
 # Please update if new dependencies are introduced to the Beam.
-# Sign up with you JIRA username to take the owership of a package.
+# Sign up with you JIRA username to take the ownership of a package.
 # Separate names by comma.
 
 ---
@@ -85,9 +85,6 @@ deps:
     owners:
 
   pyyaml:
-    owners: robertwb
-
-  six:
     owners: robertwb
 
   typing:

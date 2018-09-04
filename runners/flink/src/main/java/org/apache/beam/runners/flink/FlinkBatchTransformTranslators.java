@@ -571,12 +571,11 @@ class FlinkBatchTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
+
       String fullName = getCurrentTransformName(context);
       if (usesStateOrTimers) {
-        // Based on the fact that the signature is stateful, DoFnSignatures ensures
-        // that it is also keyed
-        KvCoder<?, InputT> inputCoder = (KvCoder<?, InputT>) context.getInput(transform).getCoder();
-
+        KvCoder<?, ?> inputCoder = (KvCoder<?, ?>) context.getInput(transform).getCoder();
         FlinkStatefulDoFnFunction<?, ?, OutputT> doFnWrapper =
             new FlinkStatefulDoFnFunction<>(
                 (DoFn) doFn,
@@ -585,8 +584,12 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                (TupleTag<OutputT>) mainOutputTag);
+                (TupleTag<OutputT>) mainOutputTag,
+                inputCoder,
+                outputCoderMap);
 
+        // Based on the fact that the signature is stateful, DoFnSignatures ensures
+        // that it is also keyed.
         Grouping<WindowedValue<InputT>> grouping =
             inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
 
@@ -601,7 +604,9 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                mainOutputTag);
+                mainOutputTag,
+                context.getInput(transform).getCoder(),
+                outputCoderMap);
 
         outputDataSet =
             new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);

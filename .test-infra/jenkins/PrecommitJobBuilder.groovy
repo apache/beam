@@ -30,7 +30,7 @@ class PrecommitJobBuilder {
   String gradleTask
 
   /** Overall job timeout. */
-  int timeoutMins = 90
+  int timeoutMins = 120
 
   /** If defined, set of path expressions used to trigger the job on commit. */
   List<String> triggerPathPatterns = []
@@ -102,6 +102,10 @@ class PrecommitJobBuilder {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
           commonJobProperties.setGradleSwitches(delegate)
+	  if (nameBase == 'Java') {
+            // BEAM-5035: Parallel builds are very flaky
+            switches('--no-parallel')
+	  }
         }
       }
     }

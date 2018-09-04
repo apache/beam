@@ -21,11 +21,13 @@ import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCom
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
@@ -42,7 +44,10 @@ import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.jdbc.Driver;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelTraitDef;
+import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.rules.CalcRemoveRule;
+import org.apache.calcite.rel.rules.SortRemoveRule;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.tools.RuleSet;
@@ -83,18 +88,24 @@ public class JdbcDriver extends Driver {
     }
     // inject beam rules into planner
     Hook.PLANNER.add(
-        new Function<RelOptPlanner, Void>() {
-          @Override
-          public Void apply(RelOptPlanner planner) {
-            for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
-              for (RelOptRule rule : ruleSet) {
-                planner.addRule(rule);
+        (Consumer<RelOptPlanner>)
+            planner -> {
+              for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
+                for (RelOptRule rule : ruleSet) {
+                  planner.addRule(rule);
+                }
               }
-            }
-            planner.removeRule(CalcRemoveRule.INSTANCE);
-            return null;
-          }
-        });
+              planner.removeRule(CalcRemoveRule.INSTANCE);
+              planner.removeRule(SortRemoveRule.INSTANCE);
+
+              List<RelTraitDef> relTraitDefs = new ArrayList<>(planner.getRelTraitDefs());
+              planner.clearRelTraitDefs();
+              for (RelTraitDef def : relTraitDefs) {
+                if (!(def instanceof RelCollationTraitDef)) {
+                  planner.addRelTraitDef(def);
+                }
+              }
+            });
     // register JDBC driver
     INSTANCE.register();
   }

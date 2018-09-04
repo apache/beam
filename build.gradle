@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // See build_rules.gradle for documentation on default build tasks
 // and properties that are enabled in addition to natures
 // that can be applied to configure a project for certain common
@@ -82,7 +81,19 @@ if (!gradle.startParameter.isOffline()) {
   apply plugin: "com.gradle.build-scan"
 }
 
+// Apply a task dependency visualization plugin which creates a ".dot" file containing the
+// task dependencies for the current build. This command can help create a visual representation:
+//   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
+//
+// See https://github.com/mmalohlava/gradle-visteg for further details.
+apply plugin: "cz.malohlava.visteg"
+
+// This plugin provides a task to determine which dependencies have updates.
+// Additionally, the plugin checks for updates to Gradle itself.
+//
+// See https://github.com/ben-manes/gradle-versions-plugin for further details.
 apply plugin: 'com.github.ben-manes.versions'
+
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
@@ -99,6 +110,10 @@ if (isCIBuild) {
 apply plugin: "org.nosphere.apache.rat"
 
 rat {
+  // Set input directory to that of the root project instead of the CWD. This
+  // makes .gitignore rules (added below) work properly.
+  inputDir = project.rootDir
+
   def exclusions = [
     // Ignore files we track but do not distribute
     ".github/**/*",
@@ -126,8 +141,6 @@ rat {
     // Ruby build files
     "**/Gemfile.lock",
     "**/Rakefile",
-    "**/_config.yml",
-    "**/_config_test.yml",
     "**/.htaccess",
     "website/src/_sass/_bootstrap.scss",
     "website/src/_sass/bootstrap/**/*",
@@ -136,6 +149,7 @@ rat {
 
     // Ignore ownership files
     "ownership/**/*",
+    "**/OWNERS",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -147,8 +161,11 @@ rat {
     exclusions.addAll(gitIgnoreExcludes)
   }
 
-  plainOutput = true
-  xmlOutput = false
+  // Combining verbose with only XML output has each failing license logged.
+  // See https://github.com/eskatos/creadur-rat-gradle/issues/8 for further details.
+  verbose = true
+  plainOutput = false
+  xmlOutput = true
   htmlOutput = false
   failOnError = true
   excludes = exclusions
@@ -170,6 +187,7 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
   dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
+  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 }
 
 task javaPostCommit() {
@@ -177,6 +195,7 @@ task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
 }
 
 task goPreCommit() {
@@ -217,6 +236,12 @@ task pythonPreCommit() {
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
+
+task websitePreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-website:preCommit"
+}
+
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"

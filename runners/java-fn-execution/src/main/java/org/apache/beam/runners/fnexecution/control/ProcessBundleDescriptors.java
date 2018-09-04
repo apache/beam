@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
@@ -40,10 +41,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
@@ -51,6 +55,8 @@ import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -111,14 +117,27 @@ public class ProcessBundleDescriptors {
     Components.Builder components =
         stage.getComponents().toBuilder().clearTransforms().putAllTransforms(stageTransforms);
 
-    // The order of these 3 does not matter.
-    RemoteInputDestination<WindowedValue<?>> inputDestination =
-        addStageInput(dataEndpoint, stage.getInputPCollection(), components);
+    ImmutableMap.Builder<String, RemoteInputDestination<WindowedValue<?>>>
+        inputDestinationsBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<Target, Coder<WindowedValue<?>>> outputTargetCodersBuilder =
+        ImmutableMap.builder();
 
-    Map<Target, Coder<WindowedValue<?>>> outputTargetCoders =
-        addStageOutputs(dataEndpoint, stage.getOutputPCollections(), components);
+    // The order of these does not matter.
+    inputDestinationsBuilder.put(
+        stage.getInputPCollection().getId(),
+        addStageInput(dataEndpoint, stage.getInputPCollection(), components));
+
+    outputTargetCodersBuilder.putAll(
+        addStageOutputs(dataEndpoint, stage.getOutputPCollections(), components));
 
     Map<String, Map<String, SideInputSpec>> sideInputSpecs = addSideInputs(stage, components);
+
+    Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs =
+        forBagUserStates(stage, components.build());
+
+    Map<String, Map<String, TimerSpec>> timerSpecs =
+        forTimerSpecs(
+            dataEndpoint, stage, components, inputDestinationsBuilder, outputTargetCodersBuilder);
 
     // Copy data from components to ProcessBundleDescriptor.
     ProcessBundleDescriptor.Builder bundleDescriptorBuilder =
@@ -126,6 +145,7 @@ public class ProcessBundleDescriptors {
     if (stateEndpoint != null) {
       bundleDescriptorBuilder.setStateApiServiceDescriptor(stateEndpoint);
     }
+
     bundleDescriptorBuilder
         .putAllCoders(components.getCodersMap())
         .putAllEnvironments(components.getEnvironmentsMap())
@@ -133,15 +153,13 @@ public class ProcessBundleDescriptors {
         .putAllWindowingStrategies(components.getWindowingStrategiesMap())
         .putAllTransforms(components.getTransformsMap());
 
-    Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs =
-        forBagUserStates(stage, components.build());
-
     return ExecutableProcessBundleDescriptor.of(
         bundleDescriptorBuilder.build(),
-        inputDestination,
-        outputTargetCoders,
+        inputDestinationsBuilder.build(),
+        outputTargetCodersBuilder.build(),
         sideInputSpecs,
-        bagUserStateSpecs);
+        bagUserStateSpecs,
+        timerSpecs);
   }
 
   private static Map<Target, Coder<WindowedValue<?>>> addStageOutputs(
@@ -287,6 +305,74 @@ public class ProcessBundleDescriptors {
     return idsToSpec.build().rowMap();
   }
 
+  private static Map<String, Map<String, TimerSpec>> forTimerSpecs(
+      ApiServiceDescriptor dataEndpoint,
+      ExecutableStage stage,
+      Components.Builder components,
+      ImmutableMap.Builder<String, RemoteInputDestination<WindowedValue<?>>> remoteInputsBuilder,
+      ImmutableMap.Builder<Target, Coder<WindowedValue<?>>> outputTargetCodersBuilder)
+      throws IOException {
+    ImmutableTable.Builder<String, String, TimerSpec> idsToSpec = ImmutableTable.builder();
+    for (TimerReference timerReference : stage.getTimers()) {
+      RunnerApi.ParDoPayload payload =
+          RunnerApi.ParDoPayload.parseFrom(
+              timerReference.transform().getTransform().getSpec().getPayload());
+      RunnerApi.TimeDomain.Enum timeDomain =
+          payload.getTimerSpecsOrThrow(timerReference.localName()).getTimeDomain();
+      org.apache.beam.sdk.state.TimerSpec spec;
+      switch (timeDomain) {
+        case EVENT_TIME:
+          spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+          break;
+        case PROCESSING_TIME:
+          spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+          break;
+        case SYNCHRONIZED_PROCESSING_TIME:
+          spec = TimerSpecs.timer(TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+          break;
+        default:
+          throw new IllegalArgumentException(String.format("Unknown time domain %s", timeDomain));
+      }
+
+      remoteInputsBuilder.put(
+          timerReference.collection().getId(),
+          addStageInput(dataEndpoint, timerReference.collection(), components));
+      // "Unroll" the timer PCollection to make the execution tree a DAG.
+      String outputTimerPCollectionId =
+          SyntheticComponents.uniqueId(
+              String.format("%s.out", timerReference.collection().getId()),
+              components.getPcollectionsMap()::containsKey);
+      components.putPcollections(
+          outputTimerPCollectionId, timerReference.collection().getPCollection());
+      TargetEncoding targetEncoding =
+          addStageOutput(
+              dataEndpoint,
+              components,
+              PipelineNode.pCollection(
+                  outputTimerPCollectionId, timerReference.collection().getPCollection()));
+      outputTargetCodersBuilder.put(targetEncoding.getTarget(), targetEncoding.getCoder());
+      components.putTransforms(
+          timerReference.transform().getId(),
+          // Since a transform can have more then one timer, update the transform inside components and not the original
+          components
+              .getTransformsOrThrow(timerReference.transform().getId())
+              .toBuilder()
+              .putOutputs(timerReference.localName(), outputTimerPCollectionId)
+              .build());
+
+      idsToSpec.put(
+          timerReference.transform().getId(),
+          timerReference.localName(),
+          TimerSpec.of(
+              timerReference.transform().getId(),
+              timerReference.localName(),
+              timerReference.collection().getId(),
+              targetEncoding.getTarget(),
+              spec));
+    }
+    return idsToSpec.build().rowMap();
+  }
+
   @AutoValue
   abstract static class TargetEncoding {
     abstract BeamFnApi.Target getTarget();
@@ -348,15 +434,43 @@ public class ProcessBundleDescriptors {
     public abstract Coder<W> windowCoder();
   }
 
+  /**
+   * A container type storing references to the key, timer and payload coders and the remote input
+   * destination used when handling timer requests.
+   */
+  @AutoValue
+  public abstract static class TimerSpec<K, V, W extends BoundedWindow> {
+    static <K, V, W extends BoundedWindow> TimerSpec<K, V, W> of(
+        String transformId,
+        String timerId,
+        String collectionId,
+        Target outputTarget,
+        org.apache.beam.sdk.state.TimerSpec timerSpec) {
+      return new AutoValue_ProcessBundleDescriptors_TimerSpec(
+          transformId, timerId, collectionId, outputTarget, timerSpec);
+    }
+
+    public abstract String transformId();
+
+    public abstract String timerId();
+
+    public abstract String collectionId();
+
+    public abstract Target outputTarget();
+
+    public abstract org.apache.beam.sdk.state.TimerSpec getTimerSpec();
+  }
+
   /** */
   @AutoValue
   public abstract static class ExecutableProcessBundleDescriptor {
     public static ExecutableProcessBundleDescriptor of(
         ProcessBundleDescriptor descriptor,
-        RemoteInputDestination<WindowedValue<?>> inputDestination,
+        Map<String, RemoteInputDestination<WindowedValue<?>>> inputDestinations,
         Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders,
         Map<String, Map<String, SideInputSpec>> sideInputSpecs,
-        Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs) {
+        Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs,
+        Map<String, Map<String, TimerSpec>> timerSpecs) {
       ImmutableTable.Builder copyOfSideInputSpecs = ImmutableTable.builder();
       for (Map.Entry<String, Map<String, SideInputSpec>> outer : sideInputSpecs.entrySet()) {
         for (Map.Entry<String, SideInputSpec> inner : outer.getValue().entrySet()) {
@@ -369,21 +483,29 @@ public class ProcessBundleDescriptors {
           copyOfBagUserStateSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
         }
       }
+      ImmutableTable.Builder copyOfTimerSpecs = ImmutableTable.builder();
+      for (Map.Entry<String, Map<String, TimerSpec>> outer : timerSpecs.entrySet()) {
+        for (Map.Entry<String, TimerSpec> inner : outer.getValue().entrySet()) {
+          copyOfTimerSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
+        }
+      }
       return new AutoValue_ProcessBundleDescriptors_ExecutableProcessBundleDescriptor(
           descriptor,
-          inputDestination,
+          inputDestinations,
           Collections.unmodifiableMap(outputTargetCoders),
           copyOfSideInputSpecs.build().rowMap(),
-          copyOfBagUserStateSpecs.build().rowMap());
+          copyOfBagUserStateSpecs.build().rowMap(),
+          copyOfTimerSpecs.build().rowMap());
     }
 
     public abstract ProcessBundleDescriptor getProcessBundleDescriptor();
 
     /**
-     * Get the {@link RemoteInputDestination} that input data are sent to the {@link
+     * Get {@link RemoteInputDestination}s that input data/timers are sent to the {@link
      * ProcessBundleDescriptor} over.
      */
-    public abstract RemoteInputDestination<WindowedValue<?>> getRemoteInputDestination();
+    public abstract Map<String, RemoteInputDestination<WindowedValue<?>>>
+        getRemoteInputDestinations();
 
     /**
      * Get all of the targets materialized by this {@link ExecutableProcessBundleDescriptor} and the
@@ -402,5 +524,11 @@ public class ProcessBundleDescriptors {
      * states} that are used during execution.
      */
     public abstract Map<String, Map<String, BagUserStateSpec>> getBagUserStateSpecs();
+
+    /**
+     * Get a mapping from PTransform id to timer id to {@link TimerSpec timer specs} that are used
+     * during execution.
+     */
+    public abstract Map<String, Map<String, TimerSpec>> getTimerSpecs();
   }
 }

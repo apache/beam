@@ -32,7 +32,6 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -131,9 +130,6 @@ class Operation(object):
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
-    # TODO(BEAM-4094): Remove ScopedMetricsContainer after Dataflow no longer
-    # depends on it.
-    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
@@ -576,15 +572,14 @@ class FlattenOperation(Operation):
       self.output(o)
 
 
-def create_operation(name_context, spec, counter_factory, step_name,
-                     state_sampler, test_shuffle_source=None,
+def create_operation(name_context, spec, counter_factory, step_name=None,
+                     state_sampler=None, test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
+
+  # TODO(pabloem): Document arguments to this function call.
   if not isinstance(name_context, common.NameContext):
-    # TODO(BEAM-4028): Remove ad-hoc NameContext once all has been migrated.
-    name_context = common.DataflowNameContext(step_name=name_context,
-                                              user_name=step_name,
-                                              system_name=None)
+    name_context = common.NameContext(step_name=name_context)
 
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):

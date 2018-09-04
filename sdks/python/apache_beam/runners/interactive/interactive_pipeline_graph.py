@@ -53,35 +53,27 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
   """Creates the DOT representation of an interactive pipeline. Thread-safe."""
 
   def __init__(self,
-               pipeline_proto,
+               pipeline,
                required_transforms=None,
                referenced_pcollections=None,
-               cached_pcollections=None,
-               pcollection_stats=None):
+               cached_pcollections=None):
     """Constructor of PipelineGraph.
 
-    Examples:
-      pipeline_graph = PipelineGraph(pipeline_proto)
-      print(pipeline_graph.get_dot())
-      pipeline_graph.display_graph()
-
     Args:
-      pipeline_proto: (Pipeline proto) Pipeline to be rendered.
+      pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
       required_transforms: (dict from str to PTransform proto) Mapping from
           transform ID to transforms that leads to visible results.
       referenced_pcollections: (dict from str to PCollection proto) PCollection
           ID mapped to PCollection referenced during pipeline execution.
-      cached_pcollections: (set of str) A set of PCollection IDs of those whose
+      cached_pcollections: (set of str) a set of PCollection IDs of those whose
           cached results are used in the execution.
     """
-    self._pipeline_proto = pipeline_proto
     self._required_transforms = required_transforms or {}
     self._referenced_pcollections = referenced_pcollections or {}
     self._cached_pcollections = cached_pcollections or set()
-    self._pcollection_stats = pcollection_stats or {}
 
     super(InteractivePipelineGraph, self).__init__(
-        pipeline_proto=pipeline_proto,
+        pipeline=pipeline,
         default_vertex_attrs={'color': 'gray', 'fontcolor': 'gray'},
         default_edge_attrs={'color': 'gray'}
     )
@@ -89,59 +81,47 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     transform_updates, pcollection_updates = self._generate_graph_update_dicts()
     self._update_graph(transform_updates, pcollection_updates)
 
-  def display_graph(self):
-    """Displays graph via IPython or prints DOT if not possible."""
-    try:
-      from IPython.core import display  # pylint: disable=import-error
-      display.display(display.HTML(self._get_graph().create_svg()))  # pylint: disable=protected-access
-    except ImportError:
-      print(str(self._get_graph()))
+  def update_pcollection_stats(self, pcollection_stats):
+    """Updates PCollection stats.
+
+    Args:
+      pcollection_stats: (dict of dict) maps PCollection IDs to informations. In
+          particular, we only care about the field 'sample' which should be a
+          the PCollection result in as a list.
+    """
+    edge_dict = {}
+    for pcoll_id, stats in pcollection_stats.items():
+      attrs = {}
+      pcoll_list = stats['sample']
+      if pcoll_list:
+        attrs['label'] = format_sample(pcoll_list, 1)
+        attrs['labeltooltip'] = format_sample(pcoll_list, 10)
+      else:
+        attrs['label'] = '?'
+      edge_dict[pcoll_id] = attrs
+
+    self._update_graph(edge_dict=edge_dict)
 
   def _generate_graph_update_dicts(self):
-    transforms = self._pipeline_proto.components.transforms
+    """Generate updates specific to interactive pipeline.
 
+    Returns:
+      vertex_dict: (Dict[str, Dict[str, str]]) maps vertex name to attributes
+      edge_dict: (Dict[str, Dict[str, str]]) maps vertex name to attributes
+    """
     transform_dict = {}  # maps PTransform IDs to properties
     pcoll_dict = {}  # maps PCollection IDs to properties
 
-    def leaf_transform_ids(parent_id):
-      parent = transforms[parent_id]
-      if parent.subtransforms:
-        for child in parent.subtransforms:
-          for leaf in leaf_transform_ids(child):
-            yield leaf
-      else:
-        yield parent_id
-
-    for transform_id, transform in transforms.items():
-      if not super(
-          InteractivePipelineGraph, self)._is_top_level_transform(transform):
-        continue
-
-      transform_dict[transform.unique_name] = {
-          'required':
-              all(
-                  leaf in self._required_transforms
-                  for leaf in leaf_transform_ids(transform_id))
+    for transform_id, transform_proto in self._top_level_transforms():
+      transform_dict[transform_proto.unique_name] = {
+          'required': transform_id in self._required_transforms
       }
 
-      for pcoll_id in transform.outputs.values():
-        properties = {
+      for pcoll_id in transform_proto.outputs.values():
+        pcoll_dict[pcoll_id] = {
             'cached': pcoll_id in self._cached_pcollections,
             'referenced': pcoll_id in self._referenced_pcollections
         }
-
-        # TODO(qinyeli): Enable updating pcollection_stats instead of creating a
-        # new instance every time when pcollection_stats changes.
-        properties.update(self._pcollection_stats.get(pcoll_id, {}))
-
-        if pcoll_id not in self._consumers:
-          invisible_leaf = 'leaf%s' % (hash(pcoll_id) % 10000)
-          pcoll_dict[(transform.unique_name, invisible_leaf)] = properties
-        else:
-          for consumer in self._consumers[pcoll_id]:
-            producer_name = transform.unique_name
-            consumer_name = transforms[consumer].unique_name
-            pcoll_dict[(producer_name, consumer_name)] = properties
 
     def vertex_properties_to_attributes(vertex):
       """Converts PCollection properties to DOT vertex attributes."""
@@ -164,12 +144,6 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
         attrs['color'] = 'black'
       else:
         attrs['color'] = 'grey'
-
-      if 'sample' in edge:
-        attrs['label'] = format_sample(edge['sample'], 1)
-        attrs['labeltooltip'] = format_sample(edge['sample'], 10)
-      else:
-        attrs['label'] = '?'
       return attrs
 
     vertex_dict = {}  # maps vertex names to attributes
@@ -179,7 +153,7 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
       vertex_dict[transform_name] = vertex_properties_to_attributes(
           transform_properties)
 
-    for pcoll_name, pcoll_properties in pcoll_dict.items():
-      edge_dict[pcoll_name] = edge_properties_to_attributes(pcoll_properties)
+    for pcoll_id, pcoll_properties in pcoll_dict.items():
+      edge_dict[pcoll_id] = edge_properties_to_attributes(pcoll_properties)
 
     return vertex_dict, edge_dict

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Message;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import javax.naming.SizeLimitExceededException;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -732,8 +734,19 @@ public class PubsubIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 10 * 1024 * 1024;
+    private static final int MAX_PUBLISH_BATCH_SIZE = 100;
+
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
+
+    /** the batch size for bulk submissions to pubsub. */
+    @Nullable
+    abstract Integer getMaxBatchSize();
+
+    /** the maximum batch size, by bytes. */
+    @Nullable
+    abstract Integer getMaxBatchBytesSize();
 
     /** The name of the message attribute to publish message timestamps in. */
     @Nullable
@@ -752,6 +765,10 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
+
+      abstract Builder<T> setMaxBatchSize(Integer batchSize);
+
+      abstract Builder<T> setMaxBatchBytesSize(Integer maxBatchBytesSize);
 
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
@@ -777,6 +794,29 @@ public class PubsubIO {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
           .build();
+    }
+
+    /**
+     * Writes to Pub/Sub are batched to efficiently send data. The value of the attribute will be a
+     * number representing the number of Pub/Sub messages to queue before sending off the bulk
+     * request. For example, if given 1000 the write sink will wait until 1000 messages have been
+     * received, or the pipeline has finished, whichever is first.
+     *
+     * <p>Pub/Sub has a limitation of 10mb per individual request/batch. This attribute was
+     * requested dynamic to allow larger Pub/Sub messages to be sent using this source. Thus
+     * allowing customizable batches and control of number of events before the 10mb size limit is
+     * hit.
+     */
+    public Write<T> withMaxBatchSize(int batchSize) {
+      return toBuilder().setMaxBatchSize(batchSize).build();
+    }
+
+    /**
+     * Writes to Pub/Sub are limited by 10mb in general. This attribute controls the maximum allowed
+     * bytes to be sent to Pub/Sub in a single batched message.
+     */
+    public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
+      return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
     }
 
     /**
@@ -819,9 +859,15 @@ public class PubsubIO {
       if (getTopicProvider() == null) {
         throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
       }
+
       switch (input.isBounded()) {
         case BOUNDED:
-          input.apply(ParDo.of(new PubsubBoundedWriter()));
+          input.apply(
+              ParDo.of(
+                  new PubsubBoundedWriter(
+                      MoreObjects.firstNonNull(getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE),
+                      MoreObjects.firstNonNull(
+                          getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT))));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
           return input
@@ -832,7 +878,12 @@ public class PubsubIO {
                       NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
                       getTimestampAttribute(),
                       getIdAttribute(),
-                      100 /* numShards */));
+                      100 /* numShards */,
+                      MoreObjects.firstNonNull(
+                          getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
+                      MoreObjects.firstNonNull(
+                          getMaxBatchBytesSize(),
+                          PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES)));
       }
       throw new RuntimeException(); // cases are exhaustive.
     }
@@ -850,14 +901,27 @@ public class PubsubIO {
      * <p>Public so can be suppressed by runners.
      */
     public class PubsubBoundedWriter extends DoFn<T, Void> {
-
-      private static final int MAX_PUBLISH_BATCH_SIZE = 100;
       private transient List<OutgoingMessage> output;
       private transient PubsubClient pubsubClient;
+      private transient int currentOutputBytes;
+
+      private int maxPublishBatchByteSize;
+      private int maxPublishBatchSize;
+
+      PubsubBoundedWriter(int maxPublishBatchSize, int maxPublishBatchByteSize) {
+        this.maxPublishBatchSize = maxPublishBatchSize;
+        this.maxPublishBatchByteSize = maxPublishBatchByteSize;
+      }
+
+      PubsubBoundedWriter() {
+        this(MAX_PUBLISH_BATCH_SIZE, MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT);
+      }
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws IOException {
         this.output = new ArrayList<>();
+        this.currentOutputBytes = 0;
+
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
             FACTORY.newClient(
@@ -865,17 +929,29 @@ public class PubsubIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws IOException {
+      public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
         byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
-        // NOTE: The record id is always null.
-        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
 
-        if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
+        if (payload.length > maxPublishBatchByteSize) {
+          String msg =
+              String.format(
+                  "Pub/Sub message size (%d) exceeded maximum batch size (%d)",
+                  payload.length, maxPublishBatchByteSize);
+          throw new SizeLimitExceededException(msg);
+        }
+
+        // Checking before adding the message stops us from violating the max bytes
+        if (((currentOutputBytes + payload.length) >= maxPublishBatchByteSize)
+            || (output.size() >= maxPublishBatchSize)) {
           publish();
         }
+
+        // NOTE: The record id is always null.
+        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
+        currentOutputBytes += payload.length;
       }
 
       @FinishBundle
@@ -884,6 +960,7 @@ public class PubsubIO {
           publish();
         }
         output = null;
+        currentOutputBytes = 0;
         pubsubClient.close();
         pubsubClient = null;
       }
@@ -895,6 +972,7 @@ public class PubsubIO {
                 PubsubClient.topicPathFromName(topic.project, topic.topic), output);
         checkState(n == output.size());
         output.clear();
+        currentOutputBytes = 0;
       }
 
       @Override

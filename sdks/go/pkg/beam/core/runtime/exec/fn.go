@@ -25,7 +25,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // MainInput is the main input and is unfolded in the invocation, if present.
@@ -40,29 +39,83 @@ func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *func
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
+	inv := newInvoker(fn)
+	return inv.Invoke(ctx, ws, ts, opt, extra...)
+}
 
-	// (1) Populate contexts
+// InvokeWithoutEventTime runs the given function at time 0 in the global window.
+func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	return Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, fn, opt, extra...)
+}
 
-	args := make([]interface{}, len(fn.Param))
+// invoker is a container struct for hot path invocations of DoFns, to avoid
+// repeating fixed set up per element.
+type invoker struct {
+	fn   *funcx.Fn
+	args []interface{}
+	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
+	ctxIdx, wndIdx, etIdx int   // specialized input indexes
+	outEtIdx, errIdx      int   // specialized output indexes
+	in, out               []int // general indexes
+}
 
-	if index, ok := fn.Context(); ok {
-		args[index] = ctx
+func newInvoker(fn *funcx.Fn) *invoker {
+	n := &invoker{
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit),
+		out:  fn.Returns(funcx.RetValue),
 	}
-	if index, ok := fn.Window(); ok {
+	var ok bool
+	if n.ctxIdx, ok = fn.Context(); !ok {
+		n.ctxIdx = -1
+	}
+	if n.wndIdx, ok = fn.Window(); !ok {
+		n.wndIdx = -1
+	}
+	if n.etIdx, ok = fn.EventTime(); !ok {
+		n.etIdx = -1
+	}
+	if n.outEtIdx, ok = fn.OutEventTime(); !ok {
+		n.outEtIdx = -1
+	}
+	if n.errIdx, ok = fn.Error(); !ok {
+		n.errIdx = -1
+	}
+	return n
+}
+
+// Reset zeroes argument entries in the cached slice to allow values to be garbage collected after the bundle ends.
+func (n *invoker) Reset() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
+// Invoke invokes the fn with the given values. The extra values must match the non-main
+// side input and emitters. It returns the direct output, if any.
+func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	// (1) Populate contexts
+	// extract these to make things easier to read.
+	args := n.args
+	fn := n.fn
+	in := n.in
+
+	if n.ctxIdx >= 0 {
+		args[n.ctxIdx] = ctx
+	}
+	if n.wndIdx >= 0 {
 		if len(ws) != 1 {
 			return nil, fmt.Errorf("DoFns that observe windows must be invoked with single window: %v", opt.Key.Windows)
 		}
-		args[index] = ws[0]
+		args[n.wndIdx] = ws[0]
 	}
-	if index, ok := fn.EventTime(); ok {
-		args[index] = ts
+	if n.etIdx >= 0 {
+		args[n.etIdx] = ts
 	}
 
 	// (2) Main input from value, if any.
-
-	in := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit)
 	i := 0
-
 	if opt != nil {
 		args[in[i]] = Convert(opt.Key.Elm, fn.Param[in[i]].T)
 		i++
@@ -88,30 +141,25 @@ func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *func
 	}
 
 	// (3) Precomputed side input and emitters (or other output).
-
 	for _, arg := range extra {
 		args[in[i]] = arg
 		i++
 	}
 
 	// (4) Invoke
-
-	ret, err := reflectx.CallNoPanic(fn.Fn, args)
-	if err != nil {
-		return nil, err
-	}
-	if index, ok := fn.Error(); ok && ret[index] != nil {
-		return nil, ret[index].(error)
+	ret := fn.Fn.Call(args)
+	if n.errIdx >= 0 && ret[n.errIdx] != nil {
+		return nil, ret[n.errIdx].(error)
 	}
 
 	// (5) Return direct output, if any. Input timestamp and windows are implicitly
 	// propagated.
 
-	out := fn.Returns(funcx.RetValue)
+	out := n.out
 	if len(out) > 0 {
 		value := &FullValue{Windows: ws, Timestamp: ts}
-		if index, ok := fn.OutEventTime(); ok {
-			value.Timestamp = ret[index].(typex.EventTime)
+		if n.outEtIdx >= 0 {
+			value.Timestamp = ret[n.outEtIdx].(typex.EventTime)
 		}
 		// TODO(herohde) 4/16/2018: apply windowing function to elements with explicit timestamp?
 
@@ -123,10 +171,6 @@ func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *func
 	}
 
 	return nil, nil
-}
-
-func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
-	return Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, fn, opt, extra...)
 }
 
 func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]ReusableInput, error) {
@@ -182,7 +226,7 @@ func makeEmitters(fn *funcx.Fn, nodes []Node) ([]ReusableEmitter, error) {
 func makeSideInput(kind graph.InputKind, t reflect.Type, values ReStream) (ReusableInput, error) {
 	switch kind {
 	case graph.Singleton:
-		elms, err := ReadAll(values.Open())
+		elms, err := ReadAll(values)
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +236,7 @@ func makeSideInput(kind graph.InputKind, t reflect.Type, values ReStream) (Reusa
 		return &fixedValue{val: Convert(elms[0].Elm, t)}, nil
 
 	case graph.Slice:
-		elms, err := ReadAll(values.Open())
+		elms, err := ReadAll(values)
 		if err != nil {
 			return nil, err
 		}

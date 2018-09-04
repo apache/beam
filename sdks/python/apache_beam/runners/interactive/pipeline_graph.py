@@ -29,37 +29,62 @@ import threading
 
 import pydot
 
+import apache_beam as beam
+from apache_beam.portability.api import beam_runner_api_pb2
+
 
 class PipelineGraph(object):
   """Creates a DOT representation of the pipeline. Thread-safe."""
 
   def __init__(self,
-               pipeline_proto,
+               pipeline,
                default_vertex_attrs=None,
                default_edge_attrs=None):
     """Constructor of PipelineGraph.
 
+    Examples:
+      graph = pipeline_graph.PipelineGraph(pipeline_proto)
+      graph.display_graph()
+
+      or
+
+      graph = pipeline_graph.PipelineGraph(pipeline)
+      graph.display_grapy()
+
     Args:
-      pipeline_proto: (Pipeline proto)
+      pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
       default_vertex_attrs: (Dict[str, str]) a dict of default vertex attributes
       default_edge_attrs: (Dict[str, str]) a dict of default edge attributes
     """
     self._lock = threading.Lock()
     self._graph = None
 
+    if isinstance(pipeline, beam_runner_api_pb2.Pipeline):
+      self._pipeline_proto = pipeline
+    elif isinstance(pipeline, beam.Pipeline):
+      self._pipeline_proto = pipeline.to_runner_api()
+    else:
+      raise TypeError('pipeline should either be a %s or %s, while %s is given'
+                      % (beam_runner_api_pb2.Pipeline, beam.Pipeline,
+                         type(pipeline)))
+
     # A dict from PCollection ID to a list of its consuming Transform IDs
     self._consumers = collections.defaultdict(list)
     # A dict from PCollection ID to its producing Transform ID
     self._producers = {}
 
-    transforms = pipeline_proto.components.transforms
-    for transform_id, transform in transforms.items():
-      if not self._is_top_level_transform(transform):
-        continue
-      for pcoll_id in transform.inputs.values():
+    for transform_id, transform_proto in self._top_level_transforms():
+      for pcoll_id in transform_proto.inputs.values():
         self._consumers[pcoll_id].append(transform_id)
-      for pcoll_id in transform.outputs.values():
+      for pcoll_id in transform_proto.outputs.values():
         self._producers[pcoll_id] = transform_id
+
+    # Set the default vertex color to blue.
+    default_vertex_attrs = default_vertex_attrs or {}
+    if 'color' not in default_vertex_attrs:
+      default_vertex_attrs['color'] = 'blue'
+    if 'fontcolor' not in default_vertex_attrs:
+      default_vertex_attrs['fontcolor'] = 'blue'
 
     vertex_dict, edge_dict = self._generate_graph_dicts()
     self._construct_graph(vertex_dict,
@@ -70,9 +95,25 @@ class PipelineGraph(object):
   def get_dot(self):
     return str(self._get_graph())
 
-  def _is_top_level_transform(self, transform):
-    return transform.unique_name and '/' not in transform.unique_name \
-        and not transform.unique_name.startswith('ref_')
+  def display_graph(self):
+    """Displays graph via IPython or prints DOT if not possible."""
+    try:
+      from IPython.core import display  # pylint: disable=import-error
+      display.display(display.HTML(self._get_graph().create_svg()))  # pylint: disable=protected-access
+    except ImportError:
+      print(str(self._get_graph()))
+
+  def _top_level_transforms(self):
+    """Yields all top level PTransforms (subtransforms of the root PTransform).
+
+    Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.
+    """
+    transforms = self._pipeline_proto.components.transforms
+    for root_transform_id in self._pipeline_proto.root_transform_ids:
+      root_transform_proto = transforms[root_transform_id]
+      for top_level_transform_id in root_transform_proto.subtransforms:
+        top_level_transform_proto = transforms[top_level_transform_id]
+        yield top_level_transform_id, top_level_transform_proto
 
   def _generate_graph_dicts(self):
     """From pipeline_proto and other info, generate the graph.
@@ -90,10 +131,9 @@ class PipelineGraph(object):
     # IDs defining the PCollection) to its attributes.
     edge_dict = collections.defaultdict(dict)
 
-    for _, transform in transforms.items():
-      if not self._is_top_level_transform(transform):
-        continue
+    self._edge_to_vertex_pairs = collections.defaultdict(list)
 
+    for _, transform in self._top_level_transforms():
       vertex_dict[transform.unique_name] = {}
 
       for pcoll_id in transform.outputs.values():
@@ -102,11 +142,15 @@ class PipelineGraph(object):
         if pcoll_id not in self._consumers:
           invisible_leaf = 'leaf%s' % (hash(pcoll_id) % 10000)
           vertex_dict[invisible_leaf] = {'style': 'invis'}
+          self._edge_to_vertex_pairs[pcoll_id].append(
+              (transform.unique_name, invisible_leaf))
           edge_dict[(transform.unique_name, invisible_leaf)] = {}
         else:
           for consumer in self._consumers[pcoll_id]:
             producer_name = transform.unique_name
             consumer_name = transforms[consumer].unique_name
+            self._edge_to_vertex_pairs[pcoll_id].append(
+                (producer_name, consumer_name))
             edge_dict[(producer_name, consumer_name)] = {}
 
     return vertex_dict, edge_dict
@@ -129,9 +173,10 @@ class PipelineGraph(object):
 
     Args:
       vertex_dict: (Dict[str, Dict[str, str]]) maps vertex names to attributes
-      edge_dict: (Dict[str, Dict[str, str]]) maps edge names to attributes
-      default_vertex_attrs: (Dict[str, Dict[str, str]]) a dict of attributes
-      default_edge_attrs: (Dict[str, Dict[str, str]]) a dict of attributes
+      edge_dict: (Dict[(str, str), Dict[str, str]]) maps vertex name pairs to
+          attributes
+      default_vertex_attrs: (Dict[str, str]) a dict of attributes
+      default_edge_attrs: (Dict[str, str]) a dict of attributes
     """
     with self._lock:
       self._graph = pydot.Dot()
@@ -141,10 +186,8 @@ class PipelineGraph(object):
       if default_edge_attrs:
         self._graph.set_edge_defaults(**default_edge_attrs)
 
-      # A dict from vertex name to the corresponding pydot.Node object
-      self._vertex_refs = {}
-      # A dict from edge name to the corresponding pydot.Edge object
-      self._edge_refs = {}
+      self._vertex_refs = {}  # Maps vertex name to pydot.Node
+      self._edge_refs = {}  # Maps vertex name pairs to pydot.Edge
 
       for vertex, vertex_attrs in vertex_dict.items():
         vertex_ref = pydot.Node(vertex, **vertex_attrs)
@@ -160,16 +203,23 @@ class PipelineGraph(object):
 
     Args:
       vertex_dict: (Dict[str, Dict[str, str]]) maps vertex names to attributes
-      edge_dict: (Dict[str, Dict[str, str]]) maps edge names to attributes
+      edge_dict: This should be
+          Either (Dict[str, Dict[str, str]]) which maps edge names to attributes
+          Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
+          attributes
     """
+    def set_attrs(ref, attrs):
+      for attr_name, attr_val in attrs.items():
+        ref.set(attr_name, attr_val)
+
     with self._lock:
       if vertex_dict:
         for vertex, vertex_attrs in vertex_dict.items():
-          vertex_ref = self._vertex_refs[vertex]
-          for attr_name, attr_val in vertex_attrs.items():
-            vertex_ref.set(attr_name, attr_val)
+          set_attrs(self._vertex_refs[vertex], vertex_attrs)
       if edge_dict:
         for edge, edge_attrs in edge_dict.items():
-          edge_ref = self._edge_refs[edge]
-          for attr_name, attr_val in edge_attrs.items():
-            edge_ref.set(attr_name, attr_val)
+          if isinstance(edge, tuple):
+            set_attrs(self._edge_refs[edge], edge_attrs)
+          else:
+            for vertex_pair in self._edge_to_vertex_pairs[edge]:
+              set_attrs(self._edge_refs[vertex_pair], edge_attrs)

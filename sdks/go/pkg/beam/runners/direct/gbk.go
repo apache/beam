@@ -52,7 +52,7 @@ func (n *CoGBK) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -123,7 +123,7 @@ func (n *Inject) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 

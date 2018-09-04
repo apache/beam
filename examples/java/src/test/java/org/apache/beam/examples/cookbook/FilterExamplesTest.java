@@ -18,14 +18,17 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
 import org.apache.beam.examples.cookbook.FilterExamples.ProjectionFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -54,8 +57,6 @@ public class FilterExamplesTest {
           .set("year", "2014")
           .set("mean_temp", "45.3")
           .set("tornado", true);
-  static final TableRow[] ROWS_ARRAY = new TableRow[] {row1, row2, row3};
-  static final List<TableRow> ROWS = Arrays.asList(ROWS_ARRAY);
 
   private static final TableRow outRow1 =
       new TableRow().set("year", 2014).set("month", 6).set("day", 21).set("mean_temp", 85.3);
@@ -63,22 +64,28 @@ public class FilterExamplesTest {
       new TableRow().set("year", 2014).set("month", 7).set("day", 20).set("mean_temp", 75.4);
   private static final TableRow outRow3 =
       new TableRow().set("year", 2014).set("month", 6).set("day", 18).set("mean_temp", 45.3);
-  private static final TableRow[] PROJROWS_ARRAY = new TableRow[] {outRow1, outRow2, outRow3};
+
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  public void testProjectionFn() throws Exception {
-    DoFnTester<TableRow, TableRow> projectionFn = DoFnTester.of(new ProjectionFn());
-    List<TableRow> results = projectionFn.processBundle(ROWS_ARRAY);
-    Assert.assertThat(results, CoreMatchers.hasItem(outRow1));
-    Assert.assertThat(results, CoreMatchers.hasItem(outRow2));
-    Assert.assertThat(results, CoreMatchers.hasItem(outRow3));
+  @Category(ValidatesRunner.class)
+  public void testProjectionFn() {
+    PCollection<TableRow> input = p.apply(Create.of(row1, row2, row3));
+
+    PCollection<TableRow> results = input.apply(ParDo.of(new ProjectionFn()));
+
+    PAssert.that(results).containsInAnyOrder(outRow1, outRow2, outRow3);
+    p.run().waitUntilFinish();
   }
 
   @Test
-  public void testFilterSingleMonthDataFn() throws Exception {
-    DoFnTester<TableRow, TableRow> filterSingleMonthDataFn =
-        DoFnTester.of(new FilterSingleMonthDataFn(7));
-    List<TableRow> results = filterSingleMonthDataFn.processBundle(PROJROWS_ARRAY);
-    Assert.assertThat(results, CoreMatchers.hasItem(outRow2));
+  @Category(ValidatesRunner.class)
+  public void testFilterSingleMonthDataFn() {
+    PCollection<TableRow> input = p.apply(Create.of(outRow1, outRow2, outRow3));
+
+    PCollection<TableRow> results = input.apply(ParDo.of(new FilterSingleMonthDataFn(7)));
+
+    PAssert.that(results).containsInAnyOrder(outRow2);
+    p.run().waitUntilFinish();
   }
 }

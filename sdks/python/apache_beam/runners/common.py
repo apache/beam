@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
 # cython: profile=True
 
 """Worker operations executor.
@@ -32,7 +31,6 @@ from builtins import object
 from builtins import zip
 
 from future.utils import raise_
-from past.builtins import basestring
 from past.builtins import unicode
 
 from apache_beam.internal import util
@@ -679,7 +677,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, basestring):
+        if not isinstance(tag, (str, unicode)):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):

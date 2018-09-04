@@ -298,10 +298,10 @@ def run(argv=None):
     # Read game events from Pub/Sub using custom timestamps, which
     # are extracted from the data elements, and parse the data.
     if args.subscription:
-      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           subscription=args.subscription)
     else:
-      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           topic=args.topic)
     raw_events = (
         scores

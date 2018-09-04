@@ -36,7 +36,7 @@ type Unit interface {
 
 	// StartBundle signals that processing preconditions, such as availability
 	// of side input, are met and starts the given bundle.
-	StartBundle(ctx context.Context, id string, data DataManager) error
+	StartBundle(ctx context.Context, id string, data DataContext) error
 
 	// FinishBundle signals end of input and thus finishes the bundle. Any
 	// data connections must be closed.

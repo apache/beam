@@ -27,9 +27,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java
 
   description('Runs PostCommit tests on the Java SDK.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
@@ -46,6 +43,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java
       commonJobProperties.setGradleSwitches(delegate)
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
       switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
+      // BEAM-5035: Parallel builds are very flaky
+      switches('--no-parallel')
     }
   }
 }

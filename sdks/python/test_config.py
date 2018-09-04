@@ -22,6 +22,8 @@ includes ValidatesRunner test and E2E integration test.
 
 """
 
+from __future__ import absolute_import
+
 from nose.plugins import Plugin
 
 

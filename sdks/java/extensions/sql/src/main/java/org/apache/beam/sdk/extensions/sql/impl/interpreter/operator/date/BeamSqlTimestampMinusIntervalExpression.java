@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
-
 import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
@@ -38,7 +36,6 @@ import org.joda.time.Period;
  * <p>See {@link BeamSqlDatetimeMinusExpression} for other kinds of datetime types subtraction.
  */
 public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
-
   public BeamSqlTimestampMinusIntervalExpression(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
@@ -53,7 +50,7 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
     return operands.size() == 2
         && SqlTypeName.TIMESTAMP.equals(outputType)
         && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
-        && INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
+        && TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
   }
 
   @Override
@@ -78,6 +75,6 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
   }
 
   private static DurationFieldType durationFieldType(SqlTypeName intervalTypeToCount) {
-    return INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);
+    return TimeUnitUtils.INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);
   }
 }

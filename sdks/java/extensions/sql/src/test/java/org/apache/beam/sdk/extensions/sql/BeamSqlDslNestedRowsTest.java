@@ -22,7 +22,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -56,21 +56,21 @@ public class BeamSqlDslNestedRowsTest {
         Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
-        PBegin.in(pipeline)
-            .apply(
-                Create.of(
-                        Row.withSchema(inputType)
-                            .addValues(
-                                1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
-                            .build())
-                    .withCoder(inputType.getRowCoder()));
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .addValues(
+                            1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
+                        .build())
+                .withSchema(
+                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     PCollection<Row> result =
         input
             .apply(
                 SqlTransform.query(
                     "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setCoder(resultSchema.getRowCoder());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
@@ -100,21 +100,21 @@ public class BeamSqlDslNestedRowsTest {
         Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
-        PBegin.in(pipeline)
-            .apply(
-                Create.of(
-                        Row.withSchema(inputType)
-                            .addValues(
-                                1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
-                            .build())
-                    .withCoder(inputType.getRowCoder()));
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .addValues(
+                            1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
+                        .build())
+                .withSchema(
+                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     PCollection<Row> result =
         input
             .apply(
                 SqlTransform.query(
                     "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setCoder(resultSchema.getRowCoder());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
@@ -138,25 +138,25 @@ public class BeamSqlDslNestedRowsTest {
         Schema.builder().addInt32Field("f_int").addRowField("f_nestedRow", nestedSchema).build();
 
     PCollection<Row> input =
-        PBegin.in(pipeline)
-            .apply(
-                Create.of(
-                        Row.withSchema(inputType)
-                            .addValues(
-                                1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
-                            .build(),
-                        Row.withSchema(inputType)
-                            .addValues(
-                                2, Row.withSchema(nestedSchema).addValues(412, "DD", 413).build())
-                            .build())
-                    .withCoder(inputType.getRowCoder()));
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .addValues(
+                            1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
+                        .build(),
+                    Row.withSchema(inputType)
+                        .addValues(
+                            2, Row.withSchema(nestedSchema).addValues(412, "DD", 413).build())
+                        .build())
+                .withSchema(
+                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     PCollection<Row> result =
         input
             .apply(
                 SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedString` FROM PCOLLECTION"))
-            .setCoder(resultSchema.getRowCoder());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -184,31 +184,31 @@ public class BeamSqlDslNestedRowsTest {
         Schema.builder().addInt32Field("f_int").addRowField("f_nestedRow", nestedSchema).build();
 
     PCollection<Row> input =
-        PBegin.in(pipeline)
-            .apply(
-                Create.of(
-                        Row.withSchema(inputType)
-                            .addValues(
-                                1,
-                                Row.withSchema(nestedSchema)
-                                    .addValues(312, "CC", 313, Arrays.asList("one", "two"))
-                                    .build())
-                            .build(),
-                        Row.withSchema(inputType)
-                            .addValues(
-                                2,
-                                Row.withSchema(nestedSchema)
-                                    .addValues(412, "DD", 413, Arrays.asList("three", "four"))
-                                    .build())
-                            .build())
-                    .withCoder(inputType.getRowCoder()));
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .addValues(
+                            1,
+                            Row.withSchema(nestedSchema)
+                                .addValues(312, "CC", 313, Arrays.asList("one", "two"))
+                                .build())
+                        .build(),
+                    Row.withSchema(inputType)
+                        .addValues(
+                            2,
+                            Row.withSchema(nestedSchema)
+                                .addValues(412, "DD", 413, Arrays.asList("three", "four"))
+                                .build())
+                        .build())
+                .withSchema(
+                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     PCollection<Row> result =
         input
             .apply(
                 SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray` FROM PCOLLECTION"))
-            .setCoder(resultSchema.getRowCoder());
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -235,31 +235,31 @@ public class BeamSqlDslNestedRowsTest {
         Schema.builder().addInt32Field("f_int").addRowField("f_nestedRow", nestedSchema).build();
 
     PCollection<Row> input =
-        PBegin.in(pipeline)
-            .apply(
-                Create.of(
-                        Row.withSchema(inputType)
-                            .addValues(
-                                1,
-                                Row.withSchema(nestedSchema)
-                                    .addValues(312, "CC", 313, Arrays.asList("one", "two"))
-                                    .build())
-                            .build(),
-                        Row.withSchema(inputType)
-                            .addValues(
-                                2,
-                                Row.withSchema(nestedSchema)
-                                    .addValues(412, "DD", 413, Arrays.asList("three", "four"))
-                                    .build())
-                            .build())
-                    .withCoder(inputType.getRowCoder()));
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .addValues(
+                            1,
+                            Row.withSchema(nestedSchema)
+                                .addValues(312, "CC", 313, Arrays.asList("one", "two"))
+                                .build())
+                        .build(),
+                    Row.withSchema(inputType)
+                        .addValues(
+                            2,
+                            Row.withSchema(nestedSchema)
+                                .addValues(412, "DD", 413, Arrays.asList("three", "four"))
+                                .build())
+                        .build())
+                .withSchema(
+                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     PCollection<Row> result =
         input
             .apply(
                 SqlTransform.query(
-                    "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[1] FROM PCOLLECTION"))
-            .setCoder(resultSchema.getRowCoder());
+                    "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[2] FROM PCOLLECTION"))
+            .setRowSchema(resultSchema);
 
     PAssert.that(result)
         .containsInAnyOrder(

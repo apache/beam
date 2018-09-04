@@ -16,6 +16,8 @@
 #
 
 """Tests for util.py."""
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.io.gcp.datastore.v1 import util

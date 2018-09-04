@@ -142,12 +142,13 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
         begin
             .apply("readFromPubsub", readMessagesWithAttributes())
             .apply("parseMessageToRow", createParserParDo());
+    rowsWithDlq.get(MAIN_TAG).setRowSchema(getSchema());
 
     if (useDlq()) {
       rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());
     }
 
-    return rowsWithDlq.get(MAIN_TAG).setCoder(getSchema().getRowCoder());
+    return rowsWithDlq.get(MAIN_TAG);
   }
 
   private ParDo.MultiOutput<PubsubMessage, Row> createParserParDo() {

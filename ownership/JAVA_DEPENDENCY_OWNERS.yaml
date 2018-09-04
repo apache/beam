@@ -18,7 +18,7 @@
 
 # Beam Java SDK dependency ownership
 # Please update if new dependencies are introduced to the Beam.
-# Sign up with you JIRA username to take the owership of a package.
+# Sign up with you JIRA username to take the ownership of a package.
 # Separate names by comma.
 
 ---
@@ -514,6 +514,16 @@ deps:
     artifact: netty-transport-native-epoll
     owners: chamikara
 
+  io.opencensus:opencensus-api:
+    group: io.opencensus
+    artifact: opencensus-api
+    owners:
+
+  io.opencensus:opencensus-contrib-grpc-metrics:
+    group: io.opencensus
+    artifact: opencensus-contrib-grpc-metrics
+    owners:
+
   io.spring.gradle:propdeps-plugin:
     group: io.spring.gradle
     artifact: propdeps-plugin
@@ -819,11 +829,6 @@ deps:
     artifact: httpcore-nio
     owners:
 
-  org.apache.httpcomponents:httpcore-nio:
-    group: org.apache.httpcomponents
-    artifact: httpcore-nio
-    owners:
-
   org.apache.kafka:kafka_2.11:
     group: org.apache.kafka
     artifact: kafka_2.11
@@ -832,6 +837,11 @@ deps:
   org.apache.kafka:kafka-clients:
     group: org.apache.kafka
     artifact: kafka-clients
+    owners:
+
+  org.apache.kudu:kudu-client:
+    group: org.apache.kudu
+    artifact: kudu-client
     owners:
 
   org.apache.logging.log4j:log4j-api:
@@ -998,6 +1008,11 @@ deps:
     group: org.postgresql
     artifact: postgresql
     owners: timrobertson100
+
+  org.powermock:powermock-mockito-release-full:
+    group: org.powermock
+    artifact: powermock-mockito-release-full
+    owners: boyuanzz
 
   org.scala-lang:scala-library:
     group: org.scala-lang

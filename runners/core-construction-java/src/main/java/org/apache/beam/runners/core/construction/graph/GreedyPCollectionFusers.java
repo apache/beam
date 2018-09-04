@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -80,16 +81,22 @@ class GreedyPCollectionFusers {
   private static final CompatibilityChecker DEFAULT_COMPATIBILITY_CHECKER =
       GreedyPCollectionFusers::unknownTransformCompatibility;
 
+  /** Returns true if the PTransform node for the given input PCollection can be fused across. */
   public static boolean canFuse(
       PTransformNode transformNode,
       Environment environment,
+      PCollectionNode candidate,
       Collection<PCollectionNode> stagePCollections,
       QueryablePipeline pipeline) {
     return URN_FUSIBILITY_CHECKERS
         .getOrDefault(transformNode.getTransform().getSpec().getUrn(), DEFAULT_FUSIBILITY_CHECKER)
-        .canFuse(transformNode, environment, stagePCollections, pipeline);
+        .canFuse(transformNode, environment, candidate, stagePCollections, pipeline);
   }
 
+  /**
+   * Returns true if the two PTransforms are compatible such that they can be executed in the same
+   * environment.
+   */
   public static boolean isCompatible(
       PTransformNode left, PTransformNode right, QueryablePipeline pipeline) {
     CompatibilityChecker leftChecker =
@@ -114,6 +121,7 @@ class GreedyPCollectionFusers {
     boolean canFuse(
         PTransformNode transformNode,
         Environment environment,
+        @SuppressWarnings("unused") PCollectionNode candidate,
         Collection<PCollectionNode> stagePCollections,
         QueryablePipeline pipeline);
   }
@@ -137,6 +145,7 @@ class GreedyPCollectionFusers {
   private static boolean canFuseParDo(
       PTransformNode parDo,
       Environment environment,
+      PCollectionNode candidate,
       Collection<PCollectionNode> stagePCollections,
       QueryablePipeline pipeline) {
     Optional<Environment> env = pipeline.getEnvironment(parDo);
@@ -150,41 +159,56 @@ class GreedyPCollectionFusers {
       // is never possible.
       return false;
     }
-    if (!pipeline.getSideInputs(parDo).isEmpty()) {
-      // At execution time, a Runner is required to only provide inputs to a PTransform that, at
-      // the time the PTransform processes them, the associated window is ready in all side inputs
-      // that the PTransform consumes. For an arbitrary stage, it is significantly complex for the
-      // runner to determine this for each input. As a result, we break fusion to simplify this
-      // inspection. In general, a ParDo which consumes side inputs cannot be fused into an
-      // executable stage alongside any transforms which are upstream of any of its side inputs.
-      return false;
-    } else {
-      try {
-        ParDoPayload payload = ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
-        if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
-          // Inputs to a ParDo that uses State or Timers must be key-partitioned, and elements for
-          // a key must execute serially. To avoid checking if the rest of the stage is
-          // key-partitioned and preserves keys, these ParDos do not fuse into an existing stage.
-          return false;
-        }
-      } catch (InvalidProtocolBufferException e) {
-        throw new IllegalArgumentException(e);
+    try {
+      ParDoPayload payload = ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
+      if (Maps.filterKeys(
+              parDo.getTransform().getInputsMap(), s -> payload.getTimerSpecsMap().containsKey(s))
+          .values()
+          .contains(candidate.getId())) {
+        // Allow fusion across timer PCollections because they are a self loop.
+        return true;
+      } else if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
+        // Inputs to a ParDo that uses State or Timers must be key-partitioned, and elements for
+        // a key must execute serially. To avoid checking if the rest of the stage is
+        // key-partitioned and preserves keys, these ParDos do not fuse into an existing stage.
+        return false;
+      } else if (!pipeline.getSideInputs(parDo).isEmpty()) {
+        // At execution time, a Runner is required to only provide inputs to a PTransform that, at
+        // the time the PTransform processes them, the associated window is ready in all side inputs
+        // that the PTransform consumes. For an arbitrary stage, it is significantly complex for the
+        // runner to determine this for each input. As a result, we break fusion to simplify this
+        // inspection. In general, a ParDo which consumes side inputs cannot be fused into an
+        // executable stage alongside any transforms which are upstream of any of its side inputs.
+        return false;
       }
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException(e);
     }
     return true;
   }
 
   private static boolean parDoCompatibility(
       PTransformNode parDo, PTransformNode other, QueryablePipeline pipeline) {
-    // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
-    // side inputs can be fused with other transforms in the same environment which are not
-    // upstream of any of the side inputs.
-    return pipeline.getSideInputs(parDo).isEmpty()
-        // Since we lack the ability to mark upstream transforms as key preserving, we
-        // purposefully break fusion here to provide runners the opportunity to insert a
-        // grouping operation
-        && pipeline.getUserStates(parDo).isEmpty()
-        && compatibleEnvironments(parDo, other, pipeline);
+    // Implicitly true if we are attempting to fuse against oneself. This case comes up for
+    // PCollections representing timers since they create a self-loop in the graph.
+    return parDo.equals(other)
+        // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
+        // side inputs can be fused with other transforms in the same environment which are not
+        // upstream of any of the side inputs.
+        || (pipeline.getSideInputs(parDo).isEmpty()
+            // We purposefully break fusion here to provide runners the opportunity to insert a
+            // grouping operation to simplify implementing support for ParDo's that contain user state.
+            // We would not need to do this if we had the ability to mark upstream transforms as
+            // key preserving or if runners could execute ParDos containing user state in a distributed
+            // fashion for a single key.
+            && pipeline.getUserStates(parDo).isEmpty()
+            // We purposefully break fusion here to provide runners the opportunity to insert a
+            // grouping operation to simplify implementing support for ParDo's that contain timers.
+            // We would not need to do this if we had the ability to mark upstream transforms as
+            // key preserving or if runners could execute ParDos containing timers in a distributed
+            // fashion for a single key.
+            && pipeline.getTimers(parDo).isEmpty()
+            && compatibleEnvironments(parDo, other, pipeline));
   }
 
   /**
@@ -193,6 +217,7 @@ class GreedyPCollectionFusers {
   private static boolean canFuseAssignWindows(
       PTransformNode window,
       Environment environmemnt,
+      @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       QueryablePipeline pipeline) {
     // WindowInto transforms may not have an environment
@@ -256,6 +281,7 @@ class GreedyPCollectionFusers {
   private static boolean canAlwaysFuse(
       @SuppressWarnings("unused") PTransformNode flatten,
       @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     return true;
@@ -264,6 +290,7 @@ class GreedyPCollectionFusers {
   private static boolean cannotFuse(
       @SuppressWarnings("unused") PTransformNode cannotFuse,
       @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     return false;
@@ -284,6 +311,7 @@ class GreedyPCollectionFusers {
   private static boolean unknownTransformFusion(
       PTransformNode transform,
       @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     LOG.debug(

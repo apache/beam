@@ -47,13 +47,21 @@ class PostcommitJobBuilder {
 
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
-      commonJobProperties.setAutoJob delegate
+      commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
     }
+
     autoBuilds.with(jobDefinition)
   }
 
   private void defineGhprbTriggeredJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
     def ghprbBuilds = scope.job(name) {
+
+      // Execute concurrent builds if necessary.
+      concurrentBuild()
+      throttleConcurrentBuilds {
+        maxTotal(3)
+      }
+
       commonJobProperties.setPullRequestBuildTrigger(
         delegate,
         githubUiHint,

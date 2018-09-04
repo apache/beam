@@ -25,12 +25,6 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
         'Dataflow Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Dataflow runner.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-  throttleConcurrentBuilds {
-    maxTotal(10)
-  }
-
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
@@ -45,6 +39,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--streaming=false',
               '--suite=STRESS',
               '--manageResources=false',
@@ -61,6 +59,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--streaming=true',
               '--suite=STRESS',
               '--manageResources=false',
@@ -77,6 +79,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=STRESS',
@@ -94,6 +100,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=STRESS',

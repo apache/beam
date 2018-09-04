@@ -30,13 +30,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
 /** {@link Schema} describes the fields in {@link Row}. */
@@ -48,6 +48,9 @@ public class Schema implements Serializable {
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
   // is correct.
   private final int hashCode;
+  // Every SchemaCoder has a UUID. The schemas created with the same UUID are guaranteed to be
+  // equal, so we can short circuit comparison.
+  @Nullable private UUID uuid = null;
 
   /** Builder class for building {@link Schema} objects. */
   public static class Builder {
@@ -173,19 +176,57 @@ public class Schema implements Serializable {
     return Schema.builder().addFields(fields).build();
   }
 
+  /** Set this schema's UUID. All schemas with the same UUID must be guaranteed to be identical. */
+  public void setUUID(UUID uuid) {
+    this.uuid = uuid;
+  }
+
+  /** Get this schema's UUID. */
+  @Nullable
+  public UUID getUUID() {
+    return this.uuid;
+  }
+
   /** Returns true if two Schemas have the same fields in the same order. */
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof Schema)) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
     Schema other = (Schema) o;
+    // If both schemas have a UUID set, we can simply compare the UUIDs.
+    if (uuid != null && other.uuid != null) {
+      return Objects.equals(uuid, other.uuid);
+    }
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields());
   }
 
+  enum EquivalenceNullablePolicy {
+    SAME,
+    WEAKEN,
+    IGNORE
+  };
+
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
+    return equivalent(other, EquivalenceNullablePolicy.SAME);
+  }
+
+  /** Returns true if this Schema can be assigned to another Schema. * */
+  public boolean assignableTo(Schema other) {
+    return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
+  }
+
+  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
+  public boolean assignableToIgnoreNullable(Schema other) {
+    return equivalent(other, EquivalenceNullablePolicy.IGNORE);
+  }
+
+  private boolean equivalent(Schema other, EquivalenceNullablePolicy nullablePolicy) {
     if (other.getFieldCount() != getFieldCount()) {
       return false;
     }
@@ -205,7 +246,7 @@ public class Schema implements Serializable {
     for (int i = 0; i < otherFields.size(); ++i) {
       Field otherField = otherFields.get(i);
       Field actualField = actualFields.get(i);
-      if (!otherField.equivalent(actualField)) {
+      if (!otherField.equivalent(actualField, nullablePolicy)) {
         return false;
       }
     }
@@ -552,10 +593,16 @@ public class Schema implements Serializable {
           && Objects.equals(getNullable(), other.getNullable());
     }
 
-    private boolean equivalent(Field otherField) {
-      return otherField.getName().equals(getName())
-          && otherField.getNullable().equals(getNullable())
-          && getType().equivalent(otherField.getType());
+    private boolean equivalent(Field otherField, EquivalenceNullablePolicy nullablePolicy) {
+      if (nullablePolicy == EquivalenceNullablePolicy.SAME
+          && !otherField.getNullable().equals(getNullable())) {
+        return false;
+      } else if (nullablePolicy == EquivalenceNullablePolicy.WEAKEN) {
+        if (getNullable() && !otherField.getNullable()) {
+          return false;
+        }
+      }
+      return otherField.getName().equals(getName()) && getType().equivalent(otherField.getType());
     }
 
     @Override
@@ -578,11 +625,6 @@ public class Schema implements Serializable {
 
   private static Schema fromFields(List<Field> fields) {
     return new Schema(fields);
-  }
-
-  /** Return the coder for a {@link Row} with this schema. */
-  public RowCoder getRowCoder() {
-    return RowCoder.of(this);
   }
 
   /** Return the list of all field names. */
