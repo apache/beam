@@ -55,7 +55,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.hamcrest.Matchers;
 import org.hamcrest.core.AnyOf;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -179,27 +178,30 @@ public class GreedyPipelineFuserTest {
    * becomes all runner-executed
    */
   @Test
-  @Ignore
-  public void unknownTransformsNoEnvironmentBecomeRunnerExecuted() {
+  public void transformsWithNoEnvironmentBecomeRunnerExecuted() {
     Components components =
         partialComponents
             .toBuilder()
             .putTransforms(
                 "mystery",
                 PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN))
                     .setUniqueName("Mystery")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "mystery.out")
-                    .setSpec(FunctionSpec.newBuilder().setUrn("beam:transform:mystery:v1.4"))
                     .build())
             .putPcollections("mystery.out", pc("mystery.out"))
             .putTransforms(
                 "enigma",
                 PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN))
                     .setUniqueName("Enigma")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "enigma.out")
-                    .setSpec(FunctionSpec.newBuilder().setUrn("beam:transform:enigma:v1"))
                     .build())
             .putPcollections("enigma.out", pc("enigma.out"))
             .build();

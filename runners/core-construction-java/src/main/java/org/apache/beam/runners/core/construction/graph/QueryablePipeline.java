@@ -21,12 +21,12 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import com.google.common.graph.NetworkBuilder;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -120,23 +120,22 @@ public class QueryablePipeline {
     return ids;
   }
 
-  private static Set<String> primitiveUrns =
-      new HashSet<String>(
-          Arrays.asList(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PTransformTranslation.FLATTEN_TRANSFORM_URN,
-              PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-              PTransformTranslation.IMPULSE_TRANSFORM_URN,
-              PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-              PTransformTranslation.TEST_STREAM_TRANSFORM_URN,
-              PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN,
-              PTransformTranslation.READ_TRANSFORM_URN,
-              PTransformTranslation.CREATE_VIEW_TRANSFORM_URN));
+  private static Set<String> PRIMITIVE_URNS =
+      ImmutableSet.of(
+          PTransformTranslation.PAR_DO_TRANSFORM_URN,
+          PTransformTranslation.FLATTEN_TRANSFORM_URN,
+          PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
+          PTransformTranslation.IMPULSE_TRANSFORM_URN,
+          PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
+          PTransformTranslation.TEST_STREAM_TRANSFORM_URN,
+          PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN,
+          PTransformTranslation.READ_TRANSFORM_URN,
+          PTransformTranslation.CREATE_VIEW_TRANSFORM_URN);
 
   /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
     String urn = PTransformTranslation.urnForTransformOrNull(transform);
-    return urn != null && primitiveUrns.contains(urn);
+    return PRIMITIVE_URNS.contains(urn);
   }
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
