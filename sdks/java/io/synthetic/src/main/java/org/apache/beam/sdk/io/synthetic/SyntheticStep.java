@@ -189,7 +189,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
 
     /**
      * Number of milliseconds to delay for in each bundle. Cannot be enabled simultaneously with
-     * maxWorkerThroughput >= 0.
+     * {@code maxWorkerThroughput >= 0}.
      */
     @JsonProperty public long perBundleDelay = 0;
 
