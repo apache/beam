@@ -112,14 +112,29 @@ public class KinesisRecord {
     return subSequenceNumber;
   }
 
+  /**
+   * *
+   *
+   * @return the unique identifier of the record within its shard.
+   */
   public String getSequenceNumber() {
     return sequenceNumber;
   }
 
+   /**
+    * *
+    *
+    * @return the approximate time that the record was inserted into the stream.
+    */
   public Instant getApproximateArrivalTimestamp() {
     return approximateArrivalTimestamp;
   }
 
+   /**
+    * *
+    *
+    * @return  the data blob.
+    */
   public ByteBuffer getData() {
     return data;
   }
