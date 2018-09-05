@@ -20,13 +20,7 @@ limitations under the License.
 
 # IntelliJ Tips
 
-> These are best-effort community-contributed tips, and are not...
->
-> - ... guaranteed to work with any particular IntelliJ setup.
-> - ... the only or best way to work.
-> - ... an endorsement of IntelliJ over alternatives.
->
-> Mastering IntelliJ is, ultimately, your responsibility.
+> These are best-effort community-contributed tips, and are not guaranteed to work with any particular IntelliJ setup. 
 
 ## Create a working Gradle module
 
