@@ -19,9 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueCollector;
-import org.apache.beam.sdk.transforms.join.CoGbkResult;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Full join implementation of {@link JoinFn}. */
@@ -37,35 +34,24 @@ public class FullJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT,
   }
 
   @Override
-  protected void doJoin(
-      ProcessContext c,
-      K key,
-      CoGbkResult value,
-      Iterable<LeftT> leftSideIter,
-      Iterable<RightT> rightSideIter) {
+  protected void doJoin(Iterable<LeftT> leftSideIter, Iterable<RightT> rightSideIter) {
 
     boolean leftHasValues = leftSideIter.iterator().hasNext();
     boolean rightHasValues = rightSideIter.iterator().hasNext();
 
-    SingleValueCollector<OutputT> outCollector =
-        new SingleValueCollector<>(accumulatorProvider, operatorName);
-
     if (leftHasValues && rightHasValues) {
       for (RightT rightValue : rightSideIter) {
         for (LeftT leftValue : leftSideIter) {
-          joiner.apply(leftValue, rightValue, outCollector);
-          c.output(KV.of(key, outCollector.get()));
+          joiner.apply(leftValue, rightValue, resultsCollector);
         }
       }
     } else if (leftHasValues) {
       for (LeftT leftValue : leftSideIter) {
-        joiner.apply(leftValue, null, outCollector);
-        c.output(KV.of(key, outCollector.get()));
+        joiner.apply(leftValue, null, resultsCollector);
       }
     } else if (rightHasValues) {
       for (RightT rightValue : rightSideIter) {
-        joiner.apply(null, rightValue, outCollector);
-        c.output(KV.of(key, outCollector.get()));
+        joiner.apply(null, rightValue, resultsCollector);
       }
     }
   }

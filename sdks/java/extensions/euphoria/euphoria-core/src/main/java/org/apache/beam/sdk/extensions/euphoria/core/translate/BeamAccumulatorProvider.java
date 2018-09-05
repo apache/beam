@@ -59,7 +59,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   @Override
   public Counter getCounter(final String namespace, final String name) {
     return counterMap.computeIfAbsent(
-        getMetricKey(namespace, name), key -> new BeamMetricsCounter(namespace, name));
+        getMetricsKey(namespace, name), key -> new BeamMetricsCounter(namespace, name));
   }
 
   @Override
@@ -72,7 +72,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   @Override
   public Histogram getHistogram(final String namespace, final String name) {
     return histogramMap.computeIfAbsent(
-        getMetricKey(namespace, name), key -> new BeamMetricsHistogram(namespace, name));
+        getMetricsKey(namespace, name), key -> new BeamMetricsHistogram(namespace, name));
   }
 
   @Override
@@ -89,7 +89,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
    * @param name of metric
    * @return metricKey = namespace + SEPARATOR + name
    */
-  private static String getMetricKey(String namespace, String name) {
+  private static String getMetricsKey(String namespace, String name) {
     return namespace.concat(KEY_METRIC_SEPARATOR).concat(name);
   }
 
