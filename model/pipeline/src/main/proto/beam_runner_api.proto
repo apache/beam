@@ -205,8 +205,8 @@ message StandardPTransforms {
     // Represents mapping of main input window onto side input window.
     //
     // Side input window mapping function:
-    // Input: KV<nonce, SideInputWindow>
-    // Output: KV<nonce, MainInputWindow>
+    // Input: KV<nonce, MainInputWindow>
+    // Output: KV<nonce, SideInputWindow>
     //
     // For each main input window, the side input window is returned. The
     // nonce is used by a runner to associate each input with its output.
