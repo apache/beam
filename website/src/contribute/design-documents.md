@@ -53,7 +53,7 @@ This is a collection of documents that may or may not be up to date.
 - Error Reporting Callback (WIP) [[doc](https://docs.google.com/document/d/1o2VXwCL97k3G-1BR9RSKNc6XtJTIA6SEKPMne91S67Y)]
 - Snapshotting and Updating Beam Pipelines [[doc](https://docs.google.com/document/d/1UWhnYPgui0gUYOsuGcCjLuoOUlGA4QaY91n8p3wz9MY)]
 - Requiring PTransform to set a coder on its resulting collections [[mail](https://lists.apache.org/thread.html/1dde0b5a93c2983cbab5f68ce7c74580102f5bb2baaa816585d7eabb@%3Cdev.beam.apache.org%3E)]
-- [PROPOSAL] Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
+- Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
 
 ### IO / Filesystem
