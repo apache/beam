@@ -25,50 +25,39 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJ
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider.Factory;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
-/** {@link SingleValueCollector} unit tests. */
-public class SingleValueCollectorTest {
+/**
+ * Unit test of {@link SingleJvmAccumulatorProvider}. Note that this test is placed outside of
+ * {@code testkit} package on purpouse. All the other tests in {@code testkit} are not runnable by
+ * JUnit directly.
+ */
+public class SingleJvmAccumulatorProviderTest {
 
   private static final String TEST_COUNTER_NAME = "test-counter";
   private static final String TEST_HISTOGRAM_NAME = "test-histogram";
 
-  @Test
-  public void testBasicAccumulatorsAccess() {
-
-    final AccumulatorProvider accumulators =
-        SingleJvmAccumulatorProvider.Factory.get().create(new Settings());
-
-    SingleValueCollector collector = new SingleValueCollector(accumulators, "test-no_op_name");
-
-    Counter counter = collector.getCounter(TEST_COUNTER_NAME);
-    Assert.assertNotNull(counter);
-
-    Histogram histogram = collector.getHistogram(TEST_HISTOGRAM_NAME);
-    Assert.assertNotNull(histogram);
-
-    // collector.getTimer() <- not yet supported
-  }
-
+  @Ignore(
+      "Clashes with SingleValueCollectorTest since SingleJvmAccumulatorProvider do not respects namespaces.")
   @Test
   public void testBasicAccumulatorsFunction() {
 
     Factory accFactory = Factory.get();
     final AccumulatorProvider accumulators = accFactory.create(new Settings());
 
-    SingleValueCollector collector = new SingleValueCollector(accumulators, "test-no_op_name");
-
-    Counter counter = collector.getCounter(TEST_COUNTER_NAME);
+    Counter counter = accumulators.getCounter(TEST_COUNTER_NAME);
+    System.out.println("counter: " + counter);
     Assert.assertNotNull(counter);
 
     counter.increment();
     counter.increment(2);
 
     Map<String, Long> counterSnapshots = accFactory.getCounterSnapshots();
-    long counteValue = counterSnapshots.get(TEST_COUNTER_NAME);
-    Assert.assertEquals(3L, counteValue);
+    long counterValue = counterSnapshots.get(TEST_COUNTER_NAME);
+    Assert.assertEquals(3L, counterValue);
 
-    Histogram histogram = collector.getHistogram(TEST_HISTOGRAM_NAME);
+    Histogram histogram = accumulators.getHistogram(TEST_HISTOGRAM_NAME);
     Assert.assertNotNull(histogram);
 
     histogram.add(1);
