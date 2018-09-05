@@ -127,7 +127,7 @@ task testGcp(dependsOn: 'setupVirtualenv') {
 }
 test.dependsOn testGcp
 
-task testPython(dependsOn: 'setupVirtualenv') {
+task testPython2(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
@@ -135,7 +135,17 @@ task testPython(dependsOn: 'setupVirtualenv') {
     }
   }
 }
-test.dependsOn testPython
+test.dependsOn testPython2
+
+task testPython3(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3"
+    }
+  }
+}
+test.dependsOn testPython3
 
 task testCython(dependsOn: 'setupVirtualenv') {
   doLast {
@@ -149,7 +159,7 @@ test.dependsOn testCython
 // Ensure that testCython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython, testGcp
+testCython.mustRunAfter testPython2, testGcp
 
 task docs(dependsOn: 'setupVirtualenv') {
   doLast {
@@ -173,7 +183,8 @@ task cover(dependsOn: 'setupVirtualenv') {
 task preCommit() {
   dependsOn "docs"
   dependsOn "testCython"
-  dependsOn "testPython"
+  dependsOn "testPython2"
+  dependsOn "testPython3"
   dependsOn "testGcp"
   dependsOn "lint"
 }
