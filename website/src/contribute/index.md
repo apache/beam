@@ -228,6 +228,36 @@ $ python setup.py sdist > /dev/null && \
         --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
 ```
 
+## Reviews
+
+Reviewers for [apache/beam](https://github.com/apache/beam) are listed in
+Prow-style OWNERS files. A description of these files can be found
+[here](https://go.k8s.io/owners).
+
+### Finding reviewers
+
+Currently this is a manual process. Tracking bug for automating this:
+[BEAM-4790](https://issues.apache.org/jira/browse/BEAM-4790).
+
+For each file to be reviewed, look for an OWNERS file in its directory. Pick a
+single reviewer from that file. If the directory doesn't contain an OWNERS file,
+go up a directory. Keep going until you find one. Try to limit the number of
+reviewers to 2 per PR if possible, to minimize reviewer load.
+
+### Adding yourself as a reviewer
+
+Find the deepest sub-directory that contains the files you want to be a reviewer
+for and add your Github username under `reviewers` in the OWNERS file (create a
+new OWNERS file if necessary).
+
+The Beam project currently only uses the `reviewers` key in OWNERS and no other
+features, as reviewer selection is still a manual process.
+
+<!-- TODO(BEAM-4790): If Prow write access gets approved
+(https://issues.apache.org/jira/browse/INFRA-16869), document that if you are
+not a committer you can still be listed as a reviewer. Just ask to get added as
+a read-only collaborator to apache/beam by opening an INFRA ticket. -->
+
 ## Contributing to the website
 
 The Beam website is in the [Beam Site GitHub
