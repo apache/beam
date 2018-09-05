@@ -25,6 +25,9 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: Load Tests"
 
 dependencies {
-  testCompile library.java.junit
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-io-synthetic", configuration: "shadowTest")
+  shadowTest library.java.junit
 }
 
