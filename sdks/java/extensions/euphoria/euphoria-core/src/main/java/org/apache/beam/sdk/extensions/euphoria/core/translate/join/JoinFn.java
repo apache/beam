@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.join;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
@@ -38,8 +39,7 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT>
   protected final BinaryFunctor<LeftT, RightT, OutputT> joiner;
   protected final TupleTag<LeftT> leftTag;
   protected final TupleTag<RightT> rightTag;
-  protected final String operatorName;
-  protected final AccumulatorProvider accumulatorProvider;
+  protected final AdaptableCollector<KV<K, CoGbkResult>, KV<K, OutputT>, OutputT> resultsCollector;
 
   protected JoinFn(
       BinaryFunctor<LeftT, RightT, OutputT> joiner,
@@ -47,11 +47,15 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT>
       TupleTag<RightT> rightTag,
       String operatorName,
       AccumulatorProvider accumulatorProvider) {
+
     this.joiner = joiner;
     this.leftTag = leftTag;
     this.rightTag = rightTag;
-    this.operatorName = operatorName;
-    this.accumulatorProvider = accumulatorProvider;
+    this.resultsCollector =
+        new AdaptableCollector<>(
+            accumulatorProvider,
+            operatorName,
+            ((ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem))));
   }
 
   @ProcessElement
@@ -59,20 +63,17 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT>
 
     KV<K, CoGbkResult> element = c.element();
     CoGbkResult value = element.getValue();
-    K key = element.getKey();
 
     Iterable<LeftT> leftSideIter = value.getAll(leftTag);
     Iterable<RightT> rightSideIter = value.getAll(rightTag);
 
-    doJoin(c, key, value, leftSideIter, rightSideIter);
+    // forward to current context through above defined adapter
+    resultsCollector.setProcessContext(c);
+
+    doJoin(leftSideIter, rightSideIter);
   }
 
-  protected abstract void doJoin(
-      ProcessContext c,
-      K key,
-      CoGbkResult value,
-      Iterable<LeftT> leftSideIter,
-      Iterable<RightT> rightSideIter);
+  protected abstract void doJoin(Iterable<LeftT> leftSideIter, Iterable<RightT> rightSideIter);
 
   public abstract String getFnName();
 }

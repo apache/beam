@@ -88,6 +88,46 @@ public class JoinTest {
         KV.of(4, KV.of(null, 40)));
   }
 
+  static void checkRightJoinOutputsTwice(
+      Flow flow, Dataset<KV<Integer, String>> left, Dataset<KV<Integer, Integer>> right) {
+
+    ListDataSink<KV<Integer, KV<String, Integer>>> output = ListDataSink.get();
+
+    RightJoin.of(left, right)
+        .by(KV::getKey, KV::getKey)
+        .using(
+            (Optional<KV<Integer, String>> l,
+                KV<Integer, Integer> r,
+                Collector<KV<String, Integer>> c) -> {
+              KV<String, Integer> ouputElement =
+                  KV.of(l.orElse(KV.of(null, null)).getValue(), r.getValue());
+              c.collect(ouputElement);
+              c.collect(ouputElement);
+            })
+        .output()
+        .persist(output);
+
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
+
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(4, KV.of(null, 40)),
+        KV.of(4, KV.of(null, 40)));
+  }
+
   static void checkLeftJoin(
       Flow flow, Dataset<KV<Integer, String>> left, Dataset<KV<Integer, Integer>> right) {
 
@@ -114,6 +154,46 @@ public class JoinTest {
         KV.of(1, KV.of("L v2", 10)),
         KV.of(2, KV.of("L v1", 20)),
         KV.of(2, KV.of("L v2", 20)),
+        KV.of(3, KV.of("L v1", null)));
+  }
+
+  static void checkLeftJoinOutputTwice(
+      Flow flow, Dataset<KV<Integer, String>> left, Dataset<KV<Integer, Integer>> right) {
+
+    ListDataSink<KV<Integer, KV<String, Integer>>> output = ListDataSink.get();
+
+    LeftJoin.of(left, right)
+        .by(KV::getKey, KV::getKey)
+        .using(
+            (KV<Integer, String> l,
+                Optional<KV<Integer, Integer>> r,
+                Collector<KV<String, Integer>> c) -> {
+              KV<String, Integer> outElement =
+                  KV.of(l.getValue(), r.orElse(KV.of(null, null)).getValue());
+              c.collect(outElement);
+              c.collect(outElement);
+            })
+        .output()
+        .persist(output);
+
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
+
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 1)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v1", 10)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 1)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(1, KV.of("L v2", 10)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v1", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(2, KV.of("L v2", 20)),
+        KV.of(3, KV.of("L v1", null)),
         KV.of(3, KV.of("L v1", null)));
   }
 
@@ -219,7 +299,7 @@ public class JoinTest {
   }
 
   @Test
-  public void simpleBroadcastHashLefttJoinTest() {
+  public void simpleBroadcastHashLeftJoinTest() {
     final Flow flow = Flow.create();
 
     ListDataSource<KV<Integer, String>> left = getLeftDataSource();
@@ -229,6 +309,35 @@ public class JoinTest {
         addFitsInMemoryHint(flow.createInput(right));
 
     checkLeftJoin(flow, flow.createInput(left), smallRightSide);
+
+    checkBrodcastHashJoinTranslatorUsage(flow);
+  }
+
+  @Test
+  public void broadcastHashRightJoinMultipleOutputsTest() {
+    final Flow flow = Flow.create();
+
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
+
+    final Dataset<KV<Integer, String>> smallLeftSide = addFitsInMemoryHint(flow.createInput(left));
+
+    checkRightJoinOutputsTwice(flow, smallLeftSide, flow.createInput(right));
+
+    checkBrodcastHashJoinTranslatorUsage(flow);
+  }
+
+  @Test
+  public void simpleBroadcastHashLeftJoinMultipleOutputsTest() {
+    final Flow flow = Flow.create();
+
+    ListDataSource<KV<Integer, String>> left = getLeftDataSource();
+    ListDataSource<KV<Integer, Integer>> right = getRightDataSource();
+
+    final Dataset<KV<Integer, Integer>> smallRightSide =
+        addFitsInMemoryHint(flow.createInput(right));
+
+    checkLeftJoinOutputTwice(flow, flow.createInput(left), smallRightSide);
 
     checkBrodcastHashJoinTranslatorUsage(flow);
   }

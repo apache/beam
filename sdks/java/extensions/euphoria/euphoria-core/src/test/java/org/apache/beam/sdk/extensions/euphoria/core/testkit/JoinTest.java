@@ -579,6 +579,53 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
+  @Processing(Processing.Type.BOUNDED)
+  @Test
+  public void batchJoinFullOuterMultipleOutputsPerCollectorFunction() {
+    execute(
+        new JoinTestCase<Integer, Long, KV<Integer, String>>() {
+
+          @Override
+          protected Dataset<KV<Integer, String>> getOutput(
+              Dataset<Integer> left, Dataset<Long> right) {
+            return FullJoin.of(left, right)
+                .by(e -> e, e -> (int) (e % 10))
+                .using(
+                    (Optional<Integer> l, Optional<Long> r, Collector<String> c) -> {
+                      // output everything twice
+                      c.collect(l.orElse(null) + "+" + r.orElse(null));
+                      c.collect(l.orElse(null) + "+" + r.orElse(null));
+                    })
+                .output();
+          }
+
+          @Override
+          protected List<Integer> getLeftInput() {
+            return Arrays.asList(0, 1, 2, 3);
+          }
+
+          @Override
+          protected List<Long> getRightInput() {
+            return Arrays.asList(11L, 12L, 13L, 14L);
+          }
+
+          @Override
+          public List<KV<Integer, String>> getUnorderedOutput() {
+            return Arrays.asList(
+                KV.of(0, "0+null"),
+                KV.of(0, "0+null"),
+                KV.of(1, "1+11"),
+                KV.of(1, "1+11"),
+                KV.of(2, "2+12"),
+                KV.of(2, "2+12"),
+                KV.of(3, "3+13"),
+                KV.of(3, "3+13"),
+                KV.of(4, "null+14"),
+                KV.of(4, "null+14"));
+          }
+        });
+  }
+
   /** Base for join test cases. */
   public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
 

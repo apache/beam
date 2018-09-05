@@ -27,6 +27,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.SingleValueCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.window.WindowingUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -141,12 +143,17 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static class ReduceDoFn<K, V, OutT> extends DoFn<KV<K, Iterable<V>>, KV<K, OutT>> {
 
     private final ReduceFunctor<V, OutT> reducer;
-    private final DoFnCollector<KV<K, Iterable<V>>, KV<K, OutT>, OutT> collector;
+    private final AdaptableCollector<KV<K, Iterable<V>>, KV<K, OutT>, OutT> collector;
 
     ReduceDoFn(
         ReduceFunctor<V, OutT> reducer, AccumulatorProvider accumulators, String operatorName) {
       this.reducer = reducer;
-      this.collector = new DoFnCollector<>(accumulators, new Collector<>(operatorName));
+      this.collector =
+          new AdaptableCollector<>(
+              accumulators,
+              operatorName,
+              (DoFn<KV<K, Iterable<V>>, KV<K, OutT>>.ProcessContext ctx, OutT out) ->
+                  ctx.output(KV.of(ctx.element().getKey(), out)));
     }
 
     @ProcessElement
@@ -154,30 +161,6 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     public void processElement(ProcessContext ctx) {
       collector.setProcessContext(ctx);
       reducer.apply(StreamSupport.stream(ctx.element().getValue().spliterator(), false), collector);
-    }
-  }
-
-  /**
-   * Translation of {@link Collector} collect to Beam's context output. OperatorName serve as
-   * namespace for Beam's metrics.
-   */
-  private static class Collector<K, V, OutT>
-      implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, KV<K, OutT>, OutT> {
-
-    private final String operatorName;
-
-    public Collector(String operatorName) {
-      this.operatorName = operatorName;
-    }
-
-    @Override
-    public void collect(DoFn<KV<K, Iterable<V>>, KV<K, OutT>>.ProcessContext ctx, OutT out) {
-      ctx.output(KV.of(ctx.element().getKey(), out));
-    }
-
-    @Override
-    public String getOperatorName() {
-      return operatorName;
     }
   }
 }

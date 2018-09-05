@@ -15,64 +15,78 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate;
+package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 
 import java.io.Serializable;
+import java.util.Objects;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
+import org.apache.beam.sdk.transforms.DoFn;
 
-/** {@code Collector} for combinable functors. */
-public class SingleValueCollector<T> implements Collector<T>, Serializable {
+/**
+ * Implementation of {@link Collector} which forwards output elements through {@link
+ * CollectorAdapter} to given {@link DoFn.ProcessContext}. The {@link DoFn.ProcessContext} needs to
+ * be set by {@link AdaptableCollector#setProcessContext(DoFn.ProcessContext)} manually before use.
+ */
+@NotThreadSafe
+@Audience(Audience.Type.EXECUTOR)
+public class AdaptableCollector<InputT, OutputT, ElemT>
+    implements Collector<ElemT>, Context, Serializable {
+
   private final AccumulatorProvider accumulators;
+  private final CollectorAdapter<InputT, OutputT, ElemT> adapter;
   private final String operatorName;
-  private T elem;
+  private transient DoFn<InputT, OutputT>.ProcessContext context;
 
-  public SingleValueCollector(AccumulatorProvider accumulators, String operatorName) {
+  public AdaptableCollector(
+      AccumulatorProvider accumulators,
+      String operatorName,
+      CollectorAdapter<InputT, OutputT, ElemT> adapter) {
     this.accumulators = accumulators;
     this.operatorName = operatorName;
-  }
-
-  public T get() {
-    return elem;
+    this.adapter = adapter;
   }
 
   @Override
-  public void collect(T elem) {
-    this.elem = elem;
+  public void collect(ElemT elem) {
+    adapter.collect(Objects.requireNonNull(context), elem);
   }
 
   @Override
   public Context asContext() {
-    // this is not needed, the underlaying functor does not have access to this
-    throw new UnsupportedOperationException("Not supported.");
+    return this;
   }
 
   @Override
   public Window<?> getWindow() {
-    // this is not needed, the underlaying functor does not have access to this
-    throw new UnsupportedOperationException("Not supported.");
+    // TODO: this should be removed
+    return GlobalWindowing.Window.get();
   }
 
   @Override
   public Counter getCounter(String name) {
-    // this is not needed, the underlaying functor does not have access to this
     return accumulators.getCounter(operatorName, name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    // this is not needed, the underlaying functor does not have access to this
     return accumulators.getHistogram(operatorName, name);
   }
 
   @Override
   public Timer getTimer(String name) {
-    // this is not needed, the underlaying functor does not have access to this
-    return accumulators.getTimer(name);
+    throw new UnsupportedOperationException("Timer not supported. Use histogram instead.");
+  }
+
+  public void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
+    this.context = Objects.requireNonNull(context);
   }
 }

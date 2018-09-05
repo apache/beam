@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -145,7 +146,7 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
 
     private final PCollectionView<Map<K, Iterable<LeftT>>> smallSideCollection;
     private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
-    private final SingleValueCollector<OutputT> outCollector;
+    private final AdaptableCollector<KV<K, RightT>, KV<K, OutputT>, OutputT> outCollector;
 
     BroadcastHashRightJoinFn(
         PCollectionView<Map<K, Iterable<LeftT>>> smallSideCollection,
@@ -154,19 +155,25 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
         String operatorName) {
       this.smallSideCollection = smallSideCollection;
       this.joiner = joiner;
-      this.outCollector = new SingleValueCollector<>(accumulators, operatorName);
+      this.outCollector =
+          new AdaptableCollector<>(
+              accumulators,
+              operatorName,
+              (ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem)));
     }
 
     @SuppressWarnings("unused")
     @ProcessElement
     public void processElement(ProcessContext context) {
-      final K key = context.element().getKey();
+      final KV<K, RightT> element = context.element();
+      final K key = element.getKey();
       final Map<K, Iterable<LeftT>> map = context.sideInput(smallSideCollection);
       final Iterable<LeftT> leftValues = map.getOrDefault(key, Collections.singletonList(null));
+      outCollector.setProcessContext(context);
+
       leftValues.forEach(
           leftValue -> {
-            joiner.apply(leftValue, context.element().getValue(), outCollector);
-            context.output(KV.of(key, outCollector.get()));
+            joiner.apply(leftValue, element.getValue(), outCollector);
           });
     }
   }
@@ -176,7 +183,7 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
 
     private final PCollectionView<Map<K, Iterable<RightT>>> smallSideCollection;
     private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
-    private final SingleValueCollector<OutputT> outCollector;
+    private final AdaptableCollector<KV<K, LeftT>, KV<K, OutputT>, OutputT> outCollector;
 
     BroadcastHashLeftJoinFn(
         PCollectionView<Map<K, Iterable<RightT>>> smallSideCollection,
@@ -185,20 +192,25 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
         String operatorName) {
       this.smallSideCollection = smallSideCollection;
       this.joiner = joiner;
-      this.outCollector = new SingleValueCollector<>(accumulators, operatorName);
+      this.outCollector =
+          new AdaptableCollector<>(
+              accumulators,
+              operatorName,
+              (ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem)));
     }
 
     @SuppressWarnings("unused")
     @ProcessElement
     public void processElement(ProcessContext context) {
-      final K key = context.element().getKey();
+      final KV<K, LeftT> element = context.element();
+      final K key = element.getKey();
       final Map<K, Iterable<RightT>> map = context.sideInput(smallSideCollection);
       final Iterable<RightT> rightValues = map.getOrDefault(key, Collections.singletonList(null));
+      outCollector.setProcessContext(context);
 
       rightValues.forEach(
           rightValue -> {
-            joiner.apply(context.element().getValue(), rightValue, outCollector);
-            context.output(KV.of(key, outCollector.get()));
+            joiner.apply(element.getValue(), rightValue, outCollector);
           });
     }
   }
