@@ -73,7 +73,6 @@ public class KinesisRecord {
     return new ExtendedSequenceNumber(getSequenceNumber(), getSubSequenceNumber());
   }
 
-
   /**
    * @return unique id of the record based on its position in the stream
    */
