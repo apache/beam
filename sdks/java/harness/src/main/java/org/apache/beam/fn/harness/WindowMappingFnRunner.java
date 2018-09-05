@@ -37,8 +37,8 @@ import org.apache.beam.sdk.values.KV;
  * <p>Side input window mapping function:
  *
  * <ul>
- *   <li>Input: {@code KV<nonce, SideInputWindow>}
- *   <li>Output: {@code KV<nonce, MainInputWindow>}
+ *   <li>Input: {@code KV<nonce, MainInputWindow>}
+ *   <li>Output: {@code KV<nonce, SideInputWindow>}
  * </ul>
  *
  * <p>For each main input window, the side input window is returned. The nonce is used by a runner

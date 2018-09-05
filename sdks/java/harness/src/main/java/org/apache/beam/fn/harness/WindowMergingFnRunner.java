@@ -87,7 +87,7 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
     if (windowFn.isNonMerging()) {
       return new NonMergingWindowFnRunner();
     } else {
-      return new MergingWindowFnRunner(windowFn);
+      return new MergingViaWindowFnRunner(windowFn);
     }
   }
 
@@ -118,14 +118,14 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
   }
 
   /** An implementation which uses a {@link WindowFn} to merge windows. */
-  private static class MergingWindowFnRunner<T, W extends BoundedWindow>
+  private static class MergingViaWindowFnRunner<T, W extends BoundedWindow>
       extends WindowMergingFnRunner<T, W> {
     private final WindowFn<?, W> windowFn;
     private final WindowFn<?, W>.MergeContext mergeContext;
     private Collection<W> currentWindows;
     private List<KV<W, Collection<W>>> mergedWindows;
 
-    private MergingWindowFnRunner(WindowFn<?, W> windowFn) {
+    private MergingViaWindowFnRunner(WindowFn<?, W> windowFn) {
       this.windowFn = windowFn;
       this.mergedWindows = new ArrayList<>();
       this.currentWindows = new ArrayList<>();
