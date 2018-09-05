@@ -73,9 +73,8 @@ public class KinesisRecord {
     return new ExtendedSequenceNumber(getSequenceNumber(), getSubSequenceNumber());
   }
 
+
   /**
-   * *
-   *
    * @return unique id of the record based on its position in the stream
    */
   public byte[] getUniqueId() {
@@ -113,28 +112,22 @@ public class KinesisRecord {
   }
 
   /**
-   * *
-   *
-   * @return the unique identifier of the record within its shard.
+   * @return unique identifier of the record within its shard
    */
   public String getSequenceNumber() {
     return sequenceNumber;
   }
 
    /**
-    * *
-    *
-    * @return the approximate time that the record was inserted into the stream.
+    * @return approximate time that the record was inserted into the stream
     */
   public Instant getApproximateArrivalTimestamp() {
     return approximateArrivalTimestamp;
   }
 
-   /**
-    * *
-    *
-    * @return  the data blob.
-    */
+  /**
+   * @return data blob
+   */
   public ByteBuffer getData() {
     return data;
   }
