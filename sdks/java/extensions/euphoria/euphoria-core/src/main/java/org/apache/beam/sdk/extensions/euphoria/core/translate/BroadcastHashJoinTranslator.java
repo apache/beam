@@ -91,8 +91,8 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
         return leftKvInput
             .apply(
                 ParDo.of(
-                    new BroadcastHashLeftJoinFn<>(
-                        broadcastRight, operator.getJoiner(), accumulators, operator.getName()))
+                        new BroadcastHashLeftJoinFn<>(
+                            broadcastRight, operator.getJoiner(), accumulators, operator.getName()))
                     .withSideInputs(broadcastRight))
             .setCoder(outputCoder);
 
@@ -102,8 +102,8 @@ public class BroadcastHashJoinTranslator implements OperatorTranslator<Join> {
         return rightKvInput
             .apply(
                 ParDo.of(
-                    new BroadcastHashRightJoinFn<>(
-                        broadcastLeft, operator.getJoiner(), accumulators, operator.getName()))
+                        new BroadcastHashRightJoinFn<>(
+                            broadcastLeft, operator.getJoiner(), accumulators, operator.getName()))
                     .withSideInputs(broadcastLeft))
             .setCoder(outputCoder);
 

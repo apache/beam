@@ -69,11 +69,12 @@ public class WindowingUtils {
    * org.apache.beam.sdk.transforms.join.CoGroupByKey}.
    *
    * @param operator operator under check
-   * @param inputs
+   * @param inputs all the input {@link PCollection PCollections} which needs to be checked
    * @param <T> type of operator under check
-   * @throws WindowingRequiredException
+   * @throws WindowingRequiredException thrown when some of input {@link PCollection PCollections}
+   *     do not have required windowing set
    */
-  public static <T extends Operator> void checkGropupByKeyApplicalble(
+  public static <T extends Operator> void checkGroupByKeyApplicable(
       T operator, PCollection<?>... inputs) throws WindowingRequiredException {
 
     for (PCollection input : inputs) {

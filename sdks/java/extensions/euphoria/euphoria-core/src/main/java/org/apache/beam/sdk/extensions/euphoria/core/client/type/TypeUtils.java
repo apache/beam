@@ -129,6 +129,10 @@ public class TypeUtils {
    *
    * <p>{@link TypeDescriptor} is acquired as outpyut type of the {@link Operator} which is a
    * producer of given {@link Dataset}.
+   *
+   * @param <T> type of element of given {@link Dataset}
+   * @param dataset input dataset
+   * @return given dataset element's {@link TypeDescriptor} is available
    */
   @Nullable
   public static <T> TypeDescriptor<T> getDatasetElementType(Dataset<T> dataset) {

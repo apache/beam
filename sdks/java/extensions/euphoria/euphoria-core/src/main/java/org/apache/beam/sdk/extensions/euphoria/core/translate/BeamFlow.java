@@ -117,6 +117,9 @@ public class BeamFlow extends Flow {
    * Create flow from pipeline.
    *
    * @param pipeline the pipeline to wrap into new flow
+   * @param allowKryoCoderAsFallback determines whenewer {@link
+   *     org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder} can be used as
+   *     fallback coder when no other coder was discovered
    * @return constructed flow
    */
   public static BeamFlow of(Pipeline pipeline, boolean allowKryoCoderAsFallback) {
@@ -139,6 +142,9 @@ public class BeamFlow extends Flow {
    *
    * @param name name of the flow
    * @param pipeline the pipeline to wrap into new flow
+   * @param allowKryoCoderAsFallback determines whenewer {@link
+   *     org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder} can be used as
+   *     fallback coder when no other coder was discovered
    * @return constructed flow
    */
   public static BeamFlow of(String name, Pipeline pipeline, boolean allowKryoCoderAsFallback) {
@@ -215,7 +221,7 @@ public class BeamFlow extends Flow {
    * org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders} when registering
    * more coders at once.
    *
-   * @param coderProvider
+   * @param coderProvider user specified {@link CoderProvider}
    */
   public void registerCoder(CoderProvider coderProvider) {
     pipeline.getCoderRegistry().registerCoderProvider(coderProvider);
