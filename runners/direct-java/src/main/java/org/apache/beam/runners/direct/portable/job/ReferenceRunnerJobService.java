@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 /** The ReferenceRunner uses the portability framework to execute a Pipeline on a single machine. */
 public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
+  private static final int WAIT_MS = 1000;
 
   public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
     LOG.info("Starting {}", ReferenceRunnerJobService.class);
@@ -209,7 +210,6 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
     String invocationId = request.getJobId();
     try {
-      int WAIT_MS = 1000;
       Thread.sleep(WAIT_MS);
       Enum state = jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED);
       responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
